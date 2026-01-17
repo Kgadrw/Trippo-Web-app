@@ -1,0 +1,213 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Primary - Light Gray */
+    --primary: 0 0% 98.4%;
+    --primary-foreground: 0 0% 20%;
+
+    /* Background & Foreground */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    /* Card - Vibrant Tinted White */
+    --card: 200 30% 98%;
+    --card-foreground: 222 47% 11%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Secondary - Light Cyan/Blue */
+    --secondary: 195 100% 95.5%;
+    --secondary-foreground: 195 100% 30%;
+
+    /* Muted */
+    --muted: 220 30% 94%;
+    --muted-foreground: 215 20% 45%;
+
+    /* Accent - Vibrant Orange/Amber */
+    --accent: 35 100% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Vibrant Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 200 100% 50%;
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* Sidebar - Vibrant Dark Blue */
+    --sidebar-background: 220 90% 15%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 200 100% 55%;
+    --sidebar-primary-foreground: 220 90% 15%;
+    --sidebar-accent: 270 80% 40%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 0% / 0;
+    --sidebar-ring: 200 100% 55%;
+    --sidebar-muted: 220 30% 70%;
+
+    /* Chart colors - Vibrant palette */
+    --chart-1: 200 100% 50%;
+    --chart-2: 270 80% 55%;
+    --chart-3: 35 100% 55%;
+    --chart-4: 340 90% 60%;
+    --chart-5: 160 90% 50%;
+
+    /* Custom shadows with vibrant tints */
+    --shadow-soft: 0 1px 3px 0 rgb(0 191 255 / 0.08), 0 1px 2px -1px rgb(0 191 255 / 0.08);
+    --shadow-card: 0 2px 8px -2px rgb(0 191 255 / 0.12), 0 1px 2px -1px rgb(0 191 255 / 0.08);
+  }
+
+  .dark {
+    --background: 220 90% 8%;
+    --foreground: 0 0% 98%;
+    --card: 220 70% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 220 70% 12%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98.4%;
+    --primary-foreground: 0 0% 20%;
+    --secondary: 195 100% 95.5%;
+    --secondary-foreground: 195 100% 30%;
+    --muted: 220 50% 20%;
+    --muted-foreground: 220 30% 75%;
+    --accent: 35 100% 55%;
+    --accent-foreground: 220 90% 8%;
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 200 100% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .kpi-card {
+    @apply bg-white p-6 border border-transparent shadow-sm rounded-xl;
+  }
+
+  .data-table {
+    @apply w-full;
+  }
+
+  .data-table th {
+    @apply text-left text-sm font-semibold text-gray-800 py-3 px-4 border-b border-transparent bg-white sticky top-16 z-10 shadow-sm;
+  }
+
+  .data-table td {
+    @apply py-4 px-4 text-sm border-b border-transparent;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-blue-50;
+  }
+
+  .data-table tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .form-card {
+    @apply bg-white p-6 border border-transparent shadow-sm rounded-xl;
+  }
+
+  .section-title {
+    @apply text-lg font-bold text-primary mb-4;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:opacity-90 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent rounded-lg;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:opacity-90 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 rounded-lg;
+  }
+
+  .input-field {
+    @apply bg-white border border-gray-300 px-4 py-2.5 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 transition-all rounded-lg;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 text-white hover:bg-blue-600 transition-colors cursor-pointer rounded-md;
+  }
+
+  .sidebar-item-active {
+    @apply bg-blue-700 text-white font-semibold shadow-sm;
+  }
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: 0;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: 0;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

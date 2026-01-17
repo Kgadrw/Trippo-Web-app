@@ -1,0 +1,44 @@
+{
+  "name": "Trippo - Business Management System",
+  "short_name": "Trippo",
+  "description": "Manage your stock, track sales, calculate profits, and generate reports with Trippo - your complete business management solution",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "finance"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View dashboard with sales and inventory overview",
+      "url": "/dashboard",
+      "icons": [{ "src": "/favicon.ico", "sizes": "any" }]
+    },
+    {
+      "name": "Products",
+      "short_name": "Products",
+      "description": "Manage products and inventory",
+      "url": "/products",
+      "icons": [{ "src": "/favicon.ico", "sizes": "any" }]
+    },
+    {
+      "name": "Sales",
+      "short_name": "Sales",
+      "description": "Record and track sales",
+      "url": "/sales",
+      "icons": [{ "src": "/favicon.ico", "sizes": "any" }]
+    }
+  ]
+}
