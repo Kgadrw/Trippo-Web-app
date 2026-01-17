@@ -55,19 +55,17 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
         .then((registration) => {
           console.log("Service Worker registered successfully:", registration.scope);
 
-          // Force update check
-          registration.update();
-
-          // Check for updates
+          // Check for updates but don't reload automatically on update found
           registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener("statechange", () => {
                 if (newWorker.state === "installed") {
                   if (navigator.serviceWorker.controller) {
-                    console.log("New service worker available. Reloading...");
-                    newWorker.postMessage({ type: "SKIP_WAITING" });
-                    window.location.reload();
+                    console.log("New service worker available. Waiting for user to reload...");
+                    // Don't automatically reload - let user choose when to reload
+                    // Only reload if this is a critical update (you can add conditions here)
+                    // For now, we'll just log it
                   } else {
                     console.log("Service Worker installed for the first time");
                   }
@@ -76,10 +74,16 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
             }
           });
 
-          navigator.serviceWorker.addEventListener("controllerchange", () => {
-            console.log("Service Worker controller changed, reloading...");
-            window.location.reload();
-          });
+          // Remove automatic reload on controller change
+          // Only reload if user explicitly wants to update
+          const handleControllerChange = () => {
+            console.log("Service Worker controller changed");
+            // Don't automatically reload - this can cause infinite loops
+            // User can manually refresh if needed
+          };
+
+          // Use a more controlled approach - only listen once, not continuously
+          navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange, { once: true });
 
           return registration;
         })
