@@ -1,7 +1,7 @@
 # Ignore everything
 *
-# But allow backend folder
-!backend/
+# Explicitly ignore backend folder
+backend/
 # Allow .gitignore itself
 !.gitignore
 
