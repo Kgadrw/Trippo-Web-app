@@ -1206,7 +1206,7 @@ const Sales = () => {
               )}
             </tbody>
           </table>
-          </div>
+        </div>
           
           {/* Mobile Card View */}
           <div className="md:hidden p-4 pb-6 space-y-4">
