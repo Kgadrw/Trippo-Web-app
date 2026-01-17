@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profit Pilot</title>
+    <script>
+        // GitHub Pages and similar static hosting - redirect to index.html
+        var path = window.location.pathname;
+        var search = window.location.search;
+        var hash = window.location.hash;
+        if (path !== '/' && !path.endsWith('.html') && !path.endsWith('/')) {
+            window.location.replace('/' + (path.startsWith('/') ? path.slice(1) : path) + search + hash);
+        } else {
+            window.location.replace('/' + search + hash);
+        }
+    </script>
+</head>
+<body>
+    <p>Redirecting...</p>
+</body>
+</html>
