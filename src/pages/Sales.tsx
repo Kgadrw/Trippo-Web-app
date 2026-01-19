@@ -29,6 +29,7 @@ import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep, playUpdateBeep, initAudio } from "@/lib/sound";
 import { cn, formatDateWithTime } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "@/hooks/useTranslation";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -228,6 +229,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 };
 
 const Sales = () => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const {
     items: products,
@@ -288,6 +290,7 @@ const Sales = () => {
   const [isClearing, setIsClearing] = useState(false);
   const [deleteMode, setDeleteMode] = useState<"all" | "selected" | "single">("all");
   const [singleSaleToDelete, setSingleSaleToDelete] = useState<Sale | null>(null);
+  const [isRecordingSale, setIsRecordingSale] = useState(false);
 
   // Set defaults on mount
   useEffect(() => {
@@ -335,10 +338,19 @@ const Sales = () => {
   };
 
   const handleRecordSale = async () => {
+    // Prevent duplicate submissions
+    if (isRecordingSale) {
+      return;
+    }
+
     // Initialize audio immediately on button click (user interaction ensures audio works)
     initAudio();
+    
+    // Set loading state
+    setIsRecordingSale(true);
 
-    if (isBulkMode) {
+    try {
+      if (isBulkMode) {
       // Bulk add mode
       // Validate all bulk sales before creating them
       const invalidSales: string[] = [];
@@ -353,8 +365,14 @@ const Sales = () => {
           
           const qty = parseInt(sale.quantity) || 1;
           
-          // Check if quantity exceeds stock
-          if (qty > product.stock) {
+          // Validate quantity is valid
+          if (isNaN(qty) || qty <= 0) {
+            invalidSales.push(`${product.name}: Invalid quantity`);
+            return null;
+          }
+          
+          // Check if quantity exceeds stock (strict check)
+          if (qty > product.stock || product.stock <= 0) {
             invalidSales.push(`${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available`);
             return null;
           }
@@ -385,11 +403,11 @@ const Sales = () => {
           description: `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
           variant: "destructive",
         });
+        setIsRecordingSale(false);
         return;
       }
 
-      if (salesToCreate.length > 0) {
-        try {
+        if (salesToCreate.length > 0) {
           await bulkAddSales(salesToCreate as any);
           await refreshSales();
 
@@ -403,71 +421,79 @@ const Sales = () => {
             title: "Sales Recorded",
             description: `Successfully recorded ${salesToCreate.length} sale(s).`,
           });
-        } catch (error) {
-          playErrorBeep();
+        } else {
+          playWarningBeep();
           toast({
-            title: "Record Failed",
-            description: "Failed to record sales. Please try again.",
+            title: "No Sales Recorded",
+            description: "Please fill in at least one complete sale entry.",
             variant: "destructive",
           });
         }
       } else {
-        playWarningBeep();
-        toast({
-          title: "No Sales Recorded",
-          description: "Please fill in at least one complete sale entry.",
-          variant: "destructive",
+        // Single sale mode
+        if (!selectedProduct || !quantity || !sellingPrice || !paymentMethod) {
+          // Play error beep immediately (we're in user interaction context)
+          playErrorBeep();
+          toast({
+            title: "Missing Information",
+            description: "Please fill in all required fields.",
+            variant: "destructive",
+          });
+          setIsRecordingSale(false);
+          return;
+        }
+
+        const product = products.find((p) => {
+          const id = (p as any)._id || p.id;
+          return id.toString() === selectedProduct;
         });
-      }
-    } else {
-      // Single sale mode
-      if (!selectedProduct || !quantity || !sellingPrice || !paymentMethod) {
-        // Play error beep immediately (we're in user interaction context)
-        playErrorBeep();
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all required fields.",
-          variant: "destructive",
-        });
-        return;
-      }
+        if (!product) {
+          setIsRecordingSale(false);
+          return;
+        }
 
-      const product = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === selectedProduct;
-      });
-      if (!product) return;
+        const qty = parseInt(quantity);
+        
+        // Validate quantity is valid
+        if (isNaN(qty) || qty <= 0) {
+          playErrorBeep();
+          toast({
+            title: "Invalid Quantity",
+            description: "Please enter a valid quantity greater than 0.",
+            variant: "destructive",
+          });
+          setIsRecordingSale(false);
+          return;
+        }
+        
+        // Validate quantity doesn't exceed available stock (strict check)
+        if (qty > product.stock || product.stock <= 0) {
+          playErrorBeep();
+          toast({
+            title: "Insufficient Stock",
+            description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock. You cannot sell more than available quantity.`,
+            variant: "destructive",
+          });
+          setIsRecordingSale(false);
+          return;
+        }
+        
+        const price = parseFloat(sellingPrice);
+        const revenue = qty * price;
+        const cost = qty * product.costPrice;
+        const profit = revenue - cost;
 
-      const qty = parseInt(quantity);
-      
-      // Validate quantity doesn't exceed available stock
-      if (qty > product.stock) {
-        playErrorBeep();
-        toast({
-          title: "Insufficient Stock",
-          description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock. You cannot sell more than available quantity.`,
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      const price = parseFloat(sellingPrice);
-      const revenue = qty * price;
-      const cost = qty * product.costPrice;
-      const profit = revenue - cost;
+        const newSale = {
+          product: product.name,
+          productId: (product as any)._id || product.id,
+          quantity: qty,
+          revenue,
+          cost,
+          profit,
+          date: saleDate,
+          paymentMethod: paymentMethod,
+        };
 
-      const newSale = {
-        product: product.name,
-        productId: (product as any)._id || product.id,
-        quantity: qty,
-        revenue,
-        cost,
-        profit,
-        date: saleDate,
-        paymentMethod: paymentMethod,
-      };
-
-      try {
         await addSale(newSale as any);
         await refreshSales();
         
@@ -486,14 +512,17 @@ const Sales = () => {
           title: "Sale Recorded",
           description: `Successfully recorded sale of ${qty}x ${product.name}`,
         });
-      } catch (error) {
-        playErrorBeep();
-        toast({
-          title: "Record Failed",
-          description: "Failed to record sale. Please try again.",
-          variant: "destructive",
-        });
       }
+    } catch (error) {
+      playErrorBeep();
+      toast({
+        title: "Record Failed",
+        description: "Failed to record sale. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      // Always reset loading state
+      setIsRecordingSale(false);
     }
   };
 
@@ -848,7 +877,7 @@ const Sales = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h3 className="section-title flex items-center gap-2 text-gray-800">
             <Plus size={20} className="text-gray-700" />
-            Record New Sale
+            {t("recordNewSale")}
           </h3>
           <div className="flex gap-2 w-full sm:w-auto">
             {!isBulkMode && (
@@ -857,7 +886,7 @@ const Sales = () => {
                 className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto"
               >
                 <Plus size={16} />
-                Bulk Add
+                {t("bulkAdd")}
               </Button>
             )}
             {isBulkMode && (
@@ -869,7 +898,7 @@ const Sales = () => {
                 variant="ghost"
                 className="hover:bg-gray-100 text-gray-700 w-full sm:w-auto"
               >
-                Single Sale
+                {t("singleSale")}
               </Button>
             )}
           </div>
@@ -879,13 +908,13 @@ const Sales = () => {
           /* Bulk Add Form */
           <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-muted-foreground">Add multiple sales at once</p>
+              <p className="text-sm text-muted-foreground">{t("addMultipleSales")}</p>
               <Button
                 onClick={addBulkRow}
                 className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
               >
                 <Plus size={14} />
-                Add Row
+                {t("addRow")}
               </Button>
             </div>
 
@@ -893,11 +922,11 @@ const Sales = () => {
               <table className="w-full min-w-[600px]">
                 <thead className="bg-white border-b border-transparent">
                   <tr>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Product</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Quantity</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Selling Price (rwf)</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Payment Method</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Sale Date</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("product")}</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("quantity")}</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("sellingPrice")} (rwf)</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("paymentMethod")}</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("saleDate")}</th>
                     <th className="text-left p-2 text-xs font-medium text-foreground w-12"></th>
                   </tr>
                 </thead>
@@ -917,11 +946,51 @@ const Sales = () => {
                         <Input
                           type="number"
                           min="1"
+                          max={sale.product ? (() => {
+                            const product = products.find(p => {
+                              const id = (p as any)._id || p.id;
+                              return id.toString() === sale.product;
+                            });
+                            return product?.stock || 0;
+                          })() : undefined}
                           value={sale.quantity}
-                          onChange={(e) => updateBulkSale(index, "quantity", e.target.value)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              updateBulkSale(index, "quantity", "");
+                              return;
+                            }
+                            if (sale.product) {
+                              const product = products.find(p => {
+                                const id = (p as any)._id || p.id;
+                                return id.toString() === sale.product;
+                              });
+                              const numValue = parseInt(value);
+                              if (product && numValue > product.stock) {
+                                // Prevent entering more than available stock
+                                updateBulkSale(index, "quantity", product.stock.toString());
+                                playErrorBeep();
+                                toast({
+                                  title: "Maximum Quantity",
+                                  description: `${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                            }
+                            updateBulkSale(index, "quantity", value);
+                          }}
                           className="input-field h-9"
                           placeholder="1"
                         />
+                        {sale.product && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Stock: {products.find(p => {
+                              const id = (p as any)._id || p.id;
+                              return id.toString() === sale.product;
+                            })?.stock || 0}
+                          </p>
+                        )}
                       </td>
                       <td className="p-2">
                         <Input
@@ -941,9 +1010,11 @@ const Sales = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="cash">Cash</SelectItem>
-                            <SelectItem value="card">Card</SelectItem>
-                            <SelectItem value="transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="cash">{t("cash")}</SelectItem>
+                            <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                            <SelectItem value="card">{t("card")}</SelectItem>
+                            <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                            <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </td>
@@ -974,20 +1045,21 @@ const Sales = () => {
             </div>
 
             <div className="flex justify-end mt-4">
-              <Button
-                onClick={handleRecordSale}
-                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2"
-              >
-                <ShoppingCart size={16} />
-                Record Sales
-              </Button>
+            <Button
+              onClick={handleRecordSale}
+              disabled={isRecordingSale}
+              className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ShoppingCart size={16} />
+              {isRecordingSale ? t("recording") : t("recordSales")}
+            </Button>
             </div>
           </div>
         ) : (
           /* Single Sale Form */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label>Select Product</Label>
+            <Label>{t("selectProduct")}</Label>
               <ProductCombobox
                 value={selectedProduct}
                 onValueChange={handleProductChange}
@@ -996,18 +1068,58 @@ const Sales = () => {
               />
           </div>
           <div className="space-y-2">
-            <Label>Quantity</Label>
+            <Label>{t("quantity")}</Label>
             <Input
               type="number"
               min="1"
+              max={selectedProduct ? products.find(p => {
+                const id = (p as any)._id || p.id;
+                return id.toString() === selectedProduct;
+              })?.stock || 0 : undefined}
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "") {
+                  setQuantity("");
+                  return;
+                }
+                const numValue = parseInt(value);
+                if (selectedProduct) {
+                  const product = products.find(p => {
+                    const id = (p as any)._id || p.id;
+                    return id.toString() === selectedProduct;
+                  });
+                  if (product && numValue > product.stock) {
+                    // Prevent entering more than available stock
+                    setQuantity(product.stock.toString());
+                    playErrorBeep();
+                    toast({
+                      title: "Maximum Quantity",
+                      description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                }
+                setQuantity(value);
+              }}
               className="input-field"
               placeholder="1"
             />
+            {selectedProduct && (
+              <p className="text-xs text-muted-foreground/70">
+                {t("availableStock")}: {products.find(p => {
+                  const id = (p as any)._id || p.id;
+                  return id.toString() === selectedProduct;
+                })?.stock || 0} {products.find(p => {
+                  const id = (p as any)._id || p.id;
+                  return id.toString() === selectedProduct;
+                })?.stock === 1 ? 'item' : 'items'}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
-            <Label>Selling Price (rwf)</Label>
+            <Label>{t("sellingPrice")} (rwf)</Label>
             <Input
               type="number"
               value={sellingPrice}
@@ -1017,28 +1129,30 @@ const Sales = () => {
             />
             {selectedProduct && (
               <p className="text-xs text-muted-foreground/70">
-                Suggested price: rwf {products.find(p => {
+                {t("suggestedPrice")}: rwf {products.find(p => {
                 const id = (p as any)._id || p.id;
                 return id.toString() === selectedProduct;
-              })?.sellingPrice.toLocaleString() || ""} - You can change this
+              })?.sellingPrice.toLocaleString() || ""} - {t("youCanChangeThis")}
               </p>
             )}
           </div>
           <div className="space-y-2">
-            <Label>Payment Method</Label>
+            <Label>{t("paymentMethod")}</Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
               <SelectTrigger className="input-field">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-                <SelectItem value="transfer">Bank Transfer</SelectItem>
+                <SelectItem value="cash">{t("cash")}</SelectItem>
+                <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                <SelectItem value="card">{t("card")}</SelectItem>
+                <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Sale Date</Label>
+            <Label>{t("saleDate")}</Label>
             <Input
               type="date"
               value={saleDate}
@@ -1047,9 +1161,13 @@ const Sales = () => {
             />
           </div>
           <div className="flex items-end">
-            <Button onClick={handleRecordSale} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2">
+            <Button 
+              onClick={handleRecordSale} 
+              disabled={isRecordingSale}
+              className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <ShoppingCart size={16} />
-              Record Sale
+              {isRecordingSale ? t("recording") : t("recordSale")}
             </Button>
           </div>
           </div>
@@ -1063,14 +1181,14 @@ const Sales = () => {
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
               <Filter size={18} className="text-gray-700" />
-              <h3 className="text-sm font-semibold text-gray-800">Filter Sales</h3>
+              <h3 className="text-sm font-semibold text-gray-800">{t("filterSales")}</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {/* Search Input */}
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
-                  placeholder="Search by product..."
+                  placeholder={t("search") + " " + t("language") === "rw" ? "ku bicuruzwa" : "by product..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
@@ -1106,7 +1224,7 @@ const Sales = () => {
                 <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                   <div className="flex items-center gap-2">
                     <ArrowUpDown size={14} className="text-gray-400" />
-                    <SelectValue placeholder="Sort by" />
+                    <SelectValue placeholder={t("sortBy")} />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
@@ -1128,7 +1246,7 @@ const Sales = () => {
                 className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-500 hover:text-white rounded-lg"
               >
                 <X size={14} className="mr-2" />
-                Clear Filters
+                {t("cancel")}
               </Button>
               
               {/* Delete Selected Sales */}
@@ -1139,7 +1257,7 @@ const Sales = () => {
                   className="bg-white border border-red-300 text-red-700 hover:bg-red-500 hover:text-white rounded-lg"
                 >
                   <Trash2 size={14} className="mr-2" />
-                  Delete Selected ({selectedSales.size})
+                  {t("delete")} ({selectedSales.size})
                 </Button>
               )}
               
@@ -1151,12 +1269,12 @@ const Sales = () => {
                   className="bg-white border border-red-300 text-red-700 hover:bg-red-500 hover:text-white rounded-lg"
                 >
                   <Trash2 size={14} className="mr-2" />
-                  Clear All Sales
+                  {t("language") === "rw" ? "Siba ubucuruzi bwose" : "Clear All Sales"}
                 </Button>
               )}
             </div>
             <div className="text-xs text-gray-500">
-              Showing {filteredSales.length} of {sales.length} sales
+              {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredSales.length} {t("language") === "rw" ? "bya" : "of"} {sales.length} {t("sales").toLowerCase()}
             </div>
           </div>
         </div>
@@ -1174,13 +1292,13 @@ const Sales = () => {
                     className="border-2 border-gray-400 data-[state=checked]:bg-gray-600 data-[state=checked]:border-gray-600"
                   />
                 </th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Product</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Quantity</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Revenue</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Cost</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Profit</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Date</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Actions</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("product")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("quantity")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("revenue")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("language") === "rw" ? "Agaciro" : "Cost"}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("profit")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("date")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("actions")}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">

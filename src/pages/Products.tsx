@@ -35,6 +35,7 @@ import { useApi } from "@/hooks/useApi";
 import { playUpdateBeep, playDeleteBeep, playErrorBeep } from "@/lib/sound";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Product {
   id?: number;
@@ -65,6 +66,7 @@ interface ProductFormData {
 }
 
 const Products = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
@@ -402,18 +404,18 @@ const Products = () => {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Filter size={18} className="text-gray-700" />
-                  <h3 className="text-sm font-semibold text-gray-800">Filter Products</h3>
+                  <h3 className="text-sm font-semibold text-gray-800">{t("filter")} {t("products")}</h3>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button onClick={openAddModal} className="bg-gray-700 text-white hover:bg-gray-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 gap-2 w-full sm:w-auto">
                     <Plus size={18} />
-                    <span className="hidden xs:inline">Add Product</span>
-                    <span className="xs:hidden">Add</span>
+                    <span className="hidden xs:inline">{t("addProduct")}</span>
+                    <span className="xs:hidden">{t("add")}</span>
                   </Button>
                   <Button onClick={openBulkAddModal} className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
                     <Plus size={18} />
-                    <span className="hidden xs:inline">Bulk Add</span>
-                    <span className="xs:hidden">Bulk</span>
+                    <span className="hidden xs:inline">{t("bulkAddProducts")}</span>
+                    <span className="xs:hidden">{t("bulkAdd")}</span>
                   </Button>
                 </div>
               </div>
@@ -422,7 +424,7 @@ const Products = () => {
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
-                  placeholder="Search products..."
+                  placeholder={t("search") + " " + t("products").toLowerCase() + "..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
@@ -432,10 +434,10 @@ const Products = () => {
                 {/* Category Filter */}
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                   <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                    <SelectValue placeholder="All Categories" />
+                    <SelectValue placeholder={t("allCategories")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="all">{t("allCategories")}</SelectItem>
                     {uniqueCategories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
@@ -447,13 +449,13 @@ const Products = () => {
                 {/* Stock Status Filter */}
                 <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
                   <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                    <SelectValue placeholder="Stock Status" />
+                    <SelectValue placeholder={t("status")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Stock Status</SelectItem>
-                    <SelectItem value="in-stock">In Stock</SelectItem>
-                    <SelectItem value="low-stock">Low Stock</SelectItem>
-                    <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                    <SelectItem value="all">{t("allStatus")}</SelectItem>
+                    <SelectItem value="in-stock">{t("inStock")}</SelectItem>
+                    <SelectItem value="low-stock">{t("lowStock")}</SelectItem>
+                    <SelectItem value="out-of-stock">{t("outOfStock")}</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -480,7 +482,7 @@ const Products = () => {
                     <SelectValue placeholder="Package Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Products</SelectItem>
+                    <SelectItem value="all">{t("allProducts")}</SelectItem>
                     <SelectItem value="package">Packaged Only</SelectItem>
                     <SelectItem value="non-package">Non-Packaged Only</SelectItem>
                   </SelectContent>
@@ -491,18 +493,18 @@ const Products = () => {
                   <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                     <div className="flex items-center gap-2">
                       <ArrowUpDown size={14} className="text-gray-400" />
-                      <SelectValue placeholder="Sort by" />
+                      <SelectValue placeholder={t("sortBy")} />
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                    <SelectItem value="price-asc">Price (Low to High)</SelectItem>
-                    <SelectItem value="price-desc">Price (High to Low)</SelectItem>
-                    <SelectItem value="stock-asc">Stock (Low to High)</SelectItem>
-                    <SelectItem value="stock-desc">Stock (High to Low)</SelectItem>
+                    <SelectItem value="newest">{t("newest")}</SelectItem>
+                    <SelectItem value="oldest">{t("oldest")}</SelectItem>
+                    <SelectItem value="name-asc">{t("nameAsc")}</SelectItem>
+                    <SelectItem value="name-desc">{t("nameDesc")}</SelectItem>
+                    <SelectItem value="price-asc">{t("priceAsc")}</SelectItem>
+                    <SelectItem value="price-desc">{t("priceDesc")}</SelectItem>
+                    <SelectItem value="stock-asc">{t("stock")} ({t("language") === "rw" ? "Guke-Gukomeye" : "Low to High"})</SelectItem>
+                    <SelectItem value="stock-desc">{t("stock")} ({t("language") === "rw" ? "Gukomeye-Guke" : "High to Low"})</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -513,11 +515,11 @@ const Products = () => {
                   className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg"
                 >
                   <X size={14} className="mr-2" />
-                  Clear
+                  {t("cancel")}
               </Button>
               </div>
               <div className="text-xs text-gray-500">
-                Showing {filteredProducts.length} of {products.length} products
+                {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredProducts.length} {t("language") === "rw" ? "bya" : "of"} {products.length} {t("products").toLowerCase()}
             </div>
           </div>
         </div>
@@ -529,13 +531,13 @@ const Products = () => {
           <table className="w-full">
               <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b border-gray-200">
-                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4 rounded-tl-lg">Product Name</th>
-                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Type</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Cost Price</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Selling Price</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Stock</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Status</th>
-                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4 rounded-tr-lg">Actions</th>
+                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4 rounded-tl-lg">{t("productName")}</th>
+                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("productType")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("costPrice")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("sellingPrice")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("stock")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("status")}</th>
+                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4 rounded-tr-lg">{t("actions")}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -595,14 +597,14 @@ const Products = () => {
                         <button
                           onClick={() => openEditModal(product)}
                           className="p-2 text-gray-700 hover:bg-gray-50 transition-colors"
-                          title="Edit product"
+                          title={t("editProduct")}
                         >
                           <Pencil size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(product)}
                           className="p-2 text-red-600 hover:bg-red-50 transition-colors"
-                          title="Delete product"
+                          title={t("deleteProduct")}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -614,7 +616,7 @@ const Products = () => {
                 ) : (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-gray-500 rounded-b-lg">
-                      No products found
+                      {t("noProducts")}
                     </td>
                   </tr>
                 )}
@@ -651,14 +653,14 @@ const Products = () => {
                         <button
                           onClick={() => openEditModal(product)}
                           className="p-2 text-gray-700 hover:bg-gray-50 rounded transition-colors"
-                          title="Edit product"
+                          title={t("editProduct")}
                         >
                           <Pencil size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(product)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Delete product"
+                          title={t("deleteProduct")}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -710,98 +712,103 @@ const Products = () => {
 
       {/* Edit Modal - Only for editing existing products */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-card">
+        <DialogContent className="bg-card max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
+            <DialogTitle>{t("editProduct")}</DialogTitle>
           </DialogHeader>
           
           {editingProduct && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Product Name</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="input-field"
-                  placeholder="Enter product name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Input
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="input-field"
-                  placeholder="Enter category"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Product Type/Variant (Optional)</Label>
-                <Input
-                  value={formData.productType}
-                  onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
-                  className="input-field"
-                  placeholder="e.g., Small, Large, Medium, etc."
-                />
-                <p className="text-xs text-muted-foreground">For products with variants like sizes (Small, Large, etc.)</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Package Quantity (Optional)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={formData.packageQuantity}
-                  onChange={(e) => setFormData({ ...formData, packageQuantity: e.target.value })}
-                  className="input-field"
-                  placeholder="e.g., 12 (for a box of 12)"
-                />
-                <p className="text-xs text-muted-foreground">Leave empty if product is not packaged. Number of individual items in one package/box</p>
-              </div>
+            <div className="py-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Cost Price (rwf)</Label>
-                  <Input
-                    type="number"
-                    value={formData.costPrice}
-                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                    className="input-field"
-                    placeholder="0.00"
-                  />
+                {/* Column 1 */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>{t("productName")}</Label>
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="input-field"
+                      placeholder={t("enterProductName")}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("category")}</Label>
+                    <Input
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="input-field"
+                      placeholder={t("enterCategory")}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("productTypeVariant")}</Label>
+                    <Input
+                      value={formData.productType}
+                      onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
+                      className="input-field"
+                      placeholder="e.g., Small, Large, Medium, etc."
+                    />
+                    <p className="text-xs text-muted-foreground">{t("language") === "rw" ? "Kubwibicuruzwa bifite ibihindurwa nk'ubunini" : "For products with variants like sizes (Small, Large, etc.)"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("packageQuantity")} ({t("language") === "rw" ? "Bibasha" : "Optional"})</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={formData.packageQuantity}
+                      onChange={(e) => setFormData({ ...formData, packageQuantity: e.target.value })}
+                      className="input-field"
+                      placeholder="e.g., 12 (for a box of 12)"
+                    />
+                    <p className="text-xs text-muted-foreground">{t("language") === "rw" ? "Reka ubusa niba icuruzwa nticyari mu gipaki" : "Leave empty if product is not packaged. Number of individual items in one package/box"}</p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Selling Price (rwf)</Label>
-                  <Input
-                    type="number"
-                    value={formData.sellingPrice}
-                    onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                    className="input-field"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                  <Label>Stock Quantity</Label>
-                <Input
-                  type="number"
-                    min="0"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                  className="input-field"
-                  placeholder="0"
-                />
-                </div>
-                <div className="space-y-2">
-                  <Label>Minimum Stock Alert</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={formData.minStock}
-                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
-                    className="input-field"
-                    placeholder="5"
-                  />
-                  <p className="text-xs text-muted-foreground">Alert when stock reaches this level</p>
+
+                {/* Column 2 */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>{t("costPrice")} (rwf)</Label>
+                    <Input
+                      type="number"
+                      value={formData.costPrice}
+                      onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                      className="input-field"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("sellingPrice")} (rwf)</Label>
+                    <Input
+                      type="number"
+                      value={formData.sellingPrice}
+                      onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                      className="input-field"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("stockQuantity")}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.stock}
+                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                      className="input-field"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("minStockAlert")}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.minStock}
+                      onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+                      className="input-field"
+                      placeholder="5"
+                    />
+                    <p className="text-xs text-muted-foreground">{t("language") === "rw" ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" : "Alert when stock reaches this level"}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -827,22 +834,22 @@ const Products = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Trash2 size={20} className="text-red-600" />
-              Delete Product
+              {t("deleteProduct")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{productToDelete?.name}</strong>? 
-              This action cannot be undone and will permanently remove this product from your inventory.
+              {t("areYouSure")} {t("language") === "rw" ? "gukoresha gusiba" : "you want to delete"} <strong>{productToDelete?.name}</strong>? 
+              {t("thisActionCannotBeUndone")} {t("language") === "rw" ? "kandi kizasiba icuruzwa mu bwiyubwibwe bwawe." : "and will permanently remove this product from your inventory."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setProductToDelete(null)}>
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              Delete Product
+              {t("deleteProduct")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

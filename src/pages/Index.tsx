@@ -32,6 +32,7 @@ import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Product {
   id?: number;
@@ -219,6 +220,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 };
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const {
     items: products,
@@ -283,6 +285,7 @@ const Dashboard = () => {
   const [bulkSales, setBulkSales] = useState<BulkSaleFormData[]>([
     { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }
   ]);
+  const [isRecordingSale, setIsRecordingSale] = useState(false);
 
   // Sync sale date with today's date on component mount
   useEffect(() => {
@@ -334,10 +337,19 @@ const Dashboard = () => {
 
 
   const handleRecordSale = async () => {
+    // Prevent duplicate submissions
+    if (isRecordingSale) {
+      return;
+    }
+
     // Initialize audio immediately on button click (user interaction ensures audio works)
     initAudio();
+    
+    // Set loading state
+    setIsRecordingSale(true);
 
-    if (isBulkMode) {
+    try {
+      if (isBulkMode) {
       // Bulk add mode
       // Validate all bulk sales before creating them
       const invalidSales: string[] = [];
@@ -352,8 +364,14 @@ const Dashboard = () => {
           
           const qty = parseInt(sale.quantity) || 1;
           
-          // Check if quantity exceeds stock
-          if (qty > product.stock) {
+          // Validate quantity is valid
+          if (isNaN(qty) || qty <= 0) {
+            invalidSales.push(`${product.name}: Invalid quantity`);
+            return null;
+          }
+          
+          // Check if quantity exceeds stock (strict check)
+          if (qty > product.stock || product.stock <= 0) {
             invalidSales.push(`${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available`);
             return null;
           }
@@ -376,21 +394,21 @@ const Dashboard = () => {
         })
         .filter((sale): sale is any => sale !== null);
       
-      // Show error if any sales have insufficient stock
-      if (invalidSales.length > 0) {
-        playErrorBeep();
-        toast({
-          title: "Insufficient Stock",
-          description: `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
-          variant: "destructive",
-        });
-        return;
-      }
+        // Show error if any sales have insufficient stock
+        if (invalidSales.length > 0) {
+          playErrorBeep();
+          toast({
+            title: "Insufficient Stock",
+            description: `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
+            variant: "destructive",
+          });
+          setIsRecordingSale(false);
+          return;
+        }
 
-      if (salesToCreate.length > 0) {
-        try {
+        if (salesToCreate.length > 0) {
           await bulkAddSales(salesToCreate as any);
-        await refreshSales();
+          await refreshSales();
 
           playSaleBeep();
 
@@ -402,22 +420,14 @@ const Dashboard = () => {
             title: "Sales Recorded",
             description: `Successfully recorded ${salesToCreate.length} sale(s).`,
           });
-        } catch (error) {
-          playErrorBeep();
+        } else {
+          playWarningBeep();
           toast({
-            title: "Record Failed",
-            description: "Failed to record sales. Please try again.",
+            title: "No Sales Recorded",
+            description: "Please fill in at least one complete sale entry.",
             variant: "destructive",
           });
         }
-      } else {
-        playWarningBeep();
-        toast({
-          title: "No Sales Recorded",
-          description: "Please fill in at least one complete sale entry.",
-          variant: "destructive",
-        });
-      }
     } else {
       // Single sale mode
       if (!selectedProduct || !quantity || !sellingPrice || !paymentMethod) {
@@ -428,6 +438,7 @@ const Dashboard = () => {
           description: "Please fill in all required fields.",
           variant: "destructive",
         });
+        setIsRecordingSale(false);
         return;
       }
 
@@ -435,18 +446,34 @@ const Dashboard = () => {
         const id = (p as any)._id || p.id;
         return id.toString() === selectedProduct;
       });
-      if (!product) return;
+      if (!product) {
+        setIsRecordingSale(false);
+        return;
+      }
 
       const qty = parseInt(quantity);
       
-      // Validate quantity doesn't exceed available stock
-      if (qty > product.stock) {
+      // Validate quantity is valid
+      if (isNaN(qty) || qty <= 0) {
+        playErrorBeep();
+        toast({
+          title: "Invalid Quantity",
+          description: "Please enter a valid quantity greater than 0.",
+          variant: "destructive",
+        });
+        setIsRecordingSale(false);
+        return;
+      }
+      
+      // Validate quantity doesn't exceed available stock (strict check)
+      if (qty > product.stock || product.stock <= 0) {
         playErrorBeep();
         toast({
           title: "Insufficient Stock",
           description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock. You cannot sell more than available quantity.`,
           variant: "destructive",
         });
+        setIsRecordingSale(false);
         return;
       }
       
@@ -466,7 +493,6 @@ const Dashboard = () => {
         paymentMethod: paymentMethod,
       };
 
-      try {
         await addSale(newSale as any);
         await refreshSales();
 
@@ -485,14 +511,17 @@ const Dashboard = () => {
           title: "Sale Recorded",
           description: `Successfully recorded sale of ${qty}x ${product.name}`,
         });
-      } catch (error) {
-        playErrorBeep();
-        toast({
-          title: "Record Failed",
-          description: "Failed to record sale. Please try again.",
-          variant: "destructive",
-        });
       }
+    } catch (error) {
+      playErrorBeep();
+      toast({
+        title: "Record Failed",
+        description: "Failed to record sale. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      // Always reset loading state
+      setIsRecordingSale(false);
     }
   };
 
@@ -565,25 +594,25 @@ const Dashboard = () => {
         ) : (
           <>
             <KPICard
-              title="Today's Sales"
+              title={t("todaysItems")}
               value={todayStats.totalItems.toString()}
-              subtitle="items sold"
+              subtitle={t("language") === "rw" ? "ibintu byagurishwe" : "items sold"}
               icon={ShoppingCart}
             />
             <KPICard
-              title="Today's Revenue"
+              title={t("todaysRevenue")}
               value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
               icon={DollarSign}
             />
             <KPICard
-              title="Today's Profit"
+              title={t("todaysProfit")}
               value={`${todayStats.totalProfit.toLocaleString()} rwf`}
               icon={TrendingUp}
             />
             <KPICard
-              title="Current Stock Value"
+              title={t("currentStockValue")}
               value={`${stockStats.totalStockValue.toLocaleString()} rwf`}
-              subtitle={`${stockStats.totalItems} items`}
+              subtitle={`${stockStats.totalItems} ${t("items")}`}
               icon={Package}
             />
           </>
@@ -595,7 +624,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="section-title flex items-center gap-2 text-gray-800">
             <Plus size={20} className="text-gray-700" />
-            Record New Sale
+            {t("recordNewSale")}
           </h3>
           <div className="flex gap-2">
             {!isBulkMode && (
@@ -604,7 +633,7 @@ const Dashboard = () => {
                 className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2"
               >
                 <Plus size={16} />
-                Bulk Add
+                {t("bulkAdd")}
               </Button>
             )}
             {isBulkMode && (
@@ -616,7 +645,7 @@ const Dashboard = () => {
                 variant="ghost"
                 className="hover:bg-gray-100 text-gray-700"
               >
-                Single Sale
+                {t("singleSale")}
               </Button>
             )}
           </div>
@@ -632,7 +661,7 @@ const Dashboard = () => {
                 className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
               >
                 <Plus size={14} />
-                Add Row
+                {t("addRow")}
               </Button>
             </div>
 
@@ -641,10 +670,10 @@ const Dashboard = () => {
                 <thead className="bg-white border-b border-transparent">
                   <tr>
                     <th className="text-left p-2 text-xs font-medium text-foreground">Product</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Quantity</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Selling Price (rwf)</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Payment Method</th>
-                    <th className="text-left p-2 text-xs font-medium text-foreground">Sale Date</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("quantity")}</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("sellingPrice")} (rwf)</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("paymentMethod")}</th>
+                    <th className="text-left p-2 text-xs font-medium text-foreground">{t("saleDate")}</th>
                     <th className="text-left p-2 text-xs font-medium text-foreground w-12"></th>
                   </tr>
                 </thead>
@@ -664,11 +693,51 @@ const Dashboard = () => {
                         <Input
                           type="number"
                           min="1"
+                          max={sale.product ? (() => {
+                            const product = products.find(p => {
+                              const id = (p as any)._id || p.id;
+                              return id.toString() === sale.product;
+                            });
+                            return product?.stock || 0;
+                          })() : undefined}
                           value={sale.quantity}
-                          onChange={(e) => updateBulkSale(index, "quantity", e.target.value)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              updateBulkSale(index, "quantity", "");
+                              return;
+                            }
+                            if (sale.product) {
+                              const product = products.find(p => {
+                                const id = (p as any)._id || p.id;
+                                return id.toString() === sale.product;
+                              });
+                              const numValue = parseInt(value);
+                              if (product && numValue > product.stock) {
+                                // Prevent entering more than available stock
+                                updateBulkSale(index, "quantity", product.stock.toString());
+                                playErrorBeep();
+                                toast({
+                                  title: "Maximum Quantity",
+                                  description: `${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                            }
+                            updateBulkSale(index, "quantity", value);
+                          }}
                           className="input-field h-9"
                           placeholder="1"
                         />
+                        {sale.product && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Stock: {products.find(p => {
+                              const id = (p as any)._id || p.id;
+                              return id.toString() === sale.product;
+                            })?.stock || 0}
+                          </p>
+                        )}
                       </td>
                       <td className="p-2">
                         <Input
@@ -689,7 +758,9 @@ const Dashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="momo">Momo Pay</SelectItem>
                             <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="airtel">Airtel Pay</SelectItem>
                             <SelectItem value="transfer">Bank Transfer</SelectItem>
                           </SelectContent>
                         </Select>
@@ -723,10 +794,11 @@ const Dashboard = () => {
             <div className="flex justify-end mt-4">
               <Button
                 onClick={handleRecordSale}
-                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2"
+                disabled={isRecordingSale}
+                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart size={16} />
-                Record Sales
+                {isRecordingSale ? t("recording") : t("recordSales")}
               </Button>
             </div>
           </div>
@@ -734,7 +806,7 @@ const Dashboard = () => {
           /* Single Sale Form */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Select Product</Label>
+              <Label>{t("selectProduct")}</Label>
               <ProductCombobox
                 value={selectedProduct}
                 onValueChange={handleProductChange}
@@ -743,18 +815,58 @@ const Dashboard = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Quantity</Label>
+              <Label>{t("quantity")}</Label>
               <Input
                 type="number"
                 min="1"
+                max={selectedProduct ? products.find(p => {
+                  const id = (p as any)._id || p.id;
+                  return id.toString() === selectedProduct;
+                })?.stock || 0 : undefined}
                 value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "") {
+                    setQuantity("");
+                    return;
+                  }
+                  const numValue = parseInt(value);
+                  if (selectedProduct) {
+                    const product = products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    });
+                    if (product && numValue > product.stock) {
+                      // Prevent entering more than available stock
+                      setQuantity(product.stock.toString());
+                      playErrorBeep();
+                      toast({
+                        title: "Maximum Quantity",
+                        description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+                  setQuantity(value);
+                }}
                 className="input-field"
                 placeholder="1"
               />
+              {selectedProduct && (
+                <p className="text-xs text-muted-foreground/70">
+                  {t("availableStock")}: {products.find(p => {
+                    const id = (p as any)._id || p.id;
+                    return id.toString() === selectedProduct;
+                  })?.stock || 0} {products.find(p => {
+                    const id = (p as any)._id || p.id;
+                    return id.toString() === selectedProduct;
+                  })?.stock === 1 ? 'item' : 'items'}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Selling Price (rwf)</Label>
+              <Label>{t("sellingPrice")} (rwf)</Label>
               <Input
                 type="number"
                 value={sellingPrice}
@@ -764,7 +876,7 @@ const Dashboard = () => {
               />
               {selectedProduct && (
                 <p className="text-xs text-muted-foreground/70">
-                  Suggested price: rwf {products.find(p => {
+                  {t("suggestedPrice")}: rwf {products.find(p => {
                     const id = (p as any)._id || p.id;
                     return id.toString() === selectedProduct;
                   })?.sellingPrice.toLocaleString() || ""} - You can change this
@@ -772,7 +884,7 @@ const Dashboard = () => {
               )}
             </div>
             <div className="space-y-2">
-              <Label>Payment Method</Label>
+              <Label>{t("paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="input-field">
                   <SelectValue />
@@ -785,7 +897,7 @@ const Dashboard = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Sale Date</Label>
+              <Label>{t("saleDate")}</Label>
               <Input
                 type="date"
                 value={saleDate}
@@ -794,9 +906,13 @@ const Dashboard = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={handleRecordSale} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2">
+              <Button 
+                onClick={handleRecordSale} 
+                disabled={isRecordingSale}
+                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <ShoppingCart size={16} />
-                Record Sale
+                {isRecordingSale ? t("recording") : t("recordSale")}
               </Button>
             </div>
           </div>

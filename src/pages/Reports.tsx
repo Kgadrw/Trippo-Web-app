@@ -19,6 +19,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   BarChart,
   Bar,
@@ -52,6 +53,7 @@ interface Sale {
 }
 
 const Reports = () => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const {
     items: products,
@@ -295,7 +297,7 @@ const Reports = () => {
     // Title
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text("Sales Report", margin, yPosition);
+    doc.text(t("salesReport"), margin, yPosition);
     yPosition += 10;
 
     // Report Info
@@ -634,7 +636,7 @@ const Reports = () => {
       <div className="form-card border-transparent">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div className="space-y-2">
-            <Label>Start Date</Label>
+            <Label>{t("startDate")}</Label>
             <Input
               type="date"
               value={startDate}
@@ -643,7 +645,7 @@ const Reports = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label>End Date</Label>
+            <Label>{t("endDate")}</Label>
             <Input
               type="date"
               value={endDate}
@@ -668,11 +670,11 @@ const Reports = () => {
         <div className="flex flex-col sm:flex-row gap-3">
           <Button onClick={() => handleExport("pdf")} className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
             <Download size={16} />
-            Export PDF
+            {t("exportPdf")}
           </Button>
           <Button onClick={() => handleExport("excel")} className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
             <Download size={16} />
-            Export Excel
+            {t("exportExcel")}
           </Button>
         </div>
       </div>
@@ -680,24 +682,24 @@ const Reports = () => {
       {/* Report Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard
-              title="Total Revenue"
+              title={t("totalRevenue")}
               value={`rwf ${totalRevenue.toLocaleString()}`}
               icon={DollarSign}
             />
             <KPICard
-              title="Total Cost"
+              title={t("language") === "rw" ? "Agaciro" : "Total Cost"}
               value={`rwf ${totalCost.toLocaleString()}`}
               icon={Package}
             />
             <KPICard
-              title="Total Profit"
+              title={t("totalProfit")}
               value={`rwf ${totalProfit.toLocaleString()}`}
               icon={TrendingUp}
             />
             <KPICard
-              title="Best-Selling Product"
+              title={t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
               value={bestSelling.product.split(" ").slice(0, 2).join(" ")}
-              subtitle={`${bestSelling.quantity} units sold`}
+              subtitle={`${bestSelling.quantity} ${t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}`}
               icon={Package}
             />
           </div>
@@ -709,7 +711,7 @@ const Reports = () => {
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 size={20} className="text-orange-600 shrink-0" />
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800">
-                  Sales Over Time - {reportType === "daily" ? "Daily" : reportType === "weekly" ? "Weekly" : "Monthly"}
+                  {t("salesTrend")} - {reportType === "daily" ? (t("language") === "rw" ? "Buri munsi" : "Daily") : reportType === "weekly" ? (t("language") === "rw" ? "Buri cyumweru" : "Weekly") : (t("language") === "rw" ? "Buri kwezi" : "Monthly")}
                 </h3>
               </div>
               {salesOverTimeData.length > 0 ? (
@@ -769,20 +771,20 @@ const Reports = () => {
                         }
                       }}
                       formatter={(value: number, name: string) => {
-                        if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, 'Revenue'];
-                        if (name === 'profit') return [`rwf ${value.toLocaleString()}`, 'Profit'];
+                        if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("revenue")];
+                        if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("profit")];
                         return [value, name];
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" radius={[2, 2, 0, 0]} />
-                    <Bar dataKey="profit" fill="#10b981" name="Profit" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="revenue" fill="#3b82f6" name={t("revenue")} radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="profit" fill="#10b981" name={t("profit")} radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-[400px] text-gray-500">
-                  No sales data available
+                  {t("language") === "rw" ? "Nta makuru y'ubucuruzi aboneka" : "No sales data available"}
                       </div>
               )}
             </div>

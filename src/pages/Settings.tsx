@@ -17,7 +17,8 @@ import {
   User, 
   Mail, 
   Save,
-  Shield
+  Shield,
+  Globe
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -25,13 +26,17 @@ import { playUpdateBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { authApi } from "@/lib/api";
+import { useLanguage } from "@/hooks/useLanguage";
+import { useTranslation } from "@/hooks/useTranslation";
 
-type SettingsSection = "business" | "security";
+type SettingsSection = "business" | "security" | "language";
 
 const Settings = () => {
   const { toast } = useToast();
   const { hasPin, setPin, changePin, getPinStatus } = usePinAuth();
   const { user, updateUser } = useCurrentUser();
+  const { language, setLanguage } = useLanguage();
+  const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<SettingsSection>("business");
   const [businessName, setBusinessName] = useState(user?.businessName || user?.name || "My Trading Co.");
   const [ownerName, setOwnerName] = useState(user?.name || "John Trader");
@@ -322,7 +327,21 @@ const Settings = () => {
                 >
                   <div className="flex items-center gap-2.5">
                     <Building2 size={16} className={activeSection === "business" ? "text-primary" : ""} />
-                    Business Info
+                    {t("businessInfo")}
+                  </div>
+                </button>
+                <button 
+                  onClick={() => setActiveSection("language")}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 transition-all duration-200 text-sm",
+                    activeSection === "language"
+                      ? "bg-gray-600 text-white border border-transparent font-semibold"
+                      : "hover:bg-gray-50 text-gray-700 border border-transparent"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Globe size={16} className={activeSection === "language" ? "text-primary" : ""} />
+                    {t("language")}
                   </div>
                 </button>
                 <button 
@@ -336,7 +355,7 @@ const Settings = () => {
                 >
                   <div className="flex items-center gap-2.5">
                     <Shield size={16} className={activeSection === "security" ? "text-primary" : ""} />
-                    Security
+                    {t("security")}
                   </div>
                 </button>
               </div>
@@ -354,8 +373,8 @@ const Settings = () => {
                     <Building2 size={16} className="text-gray-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-gray-700">Business Information</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">Update your business details</p>
+                    <h2 className="text-lg font-bold text-gray-700">{t("businessInfo")}</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Hindura amakuru y'ubucuruzi" : "Update your business details"}</p>
                   </div>
                 </div>
               </div>
@@ -367,7 +386,7 @@ const Settings = () => {
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                       <Building2 size={12} className="text-muted-foreground" />
-                      Business Name
+                      {t("businessName")}
                     </Label>
                     <Input
                       value={businessName}
@@ -379,7 +398,7 @@ const Settings = () => {
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                       <User size={12} className="text-muted-foreground" />
-                      Owner Name
+                      {t("ownerName")}
                     </Label>
                     <Input
                       value={ownerName}
@@ -393,7 +412,7 @@ const Settings = () => {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                     <Mail size={12} className="text-muted-foreground" />
-                    Email Address
+                    {t("emailAddress")}
                   </Label>
                   <Input
                     type="email"
@@ -413,9 +432,51 @@ const Settings = () => {
                   className="bg-green-600 text-white hover:bg-green-700 gap-2 h-10 px-5 text-sm shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                 >
                   <Save size={14} />
-                  Save Changes
+                  {t("saveChanges")}
                 </Button>
               </div>
+              </div>
+            )}
+
+            {/* Language Settings */}
+            {activeSection === "language" && (
+              <div className="form-card border border-transparent bg-white animate-fade-in">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gray-100 border border-transparent flex items-center justify-center">
+                      <Globe size={16} className="text-gray-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-700">{t("language")}</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Hitamo ururimi wifuza gukoresha" : "Choose your preferred language"}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator className="mb-4" />
+
+                <div className="space-y-5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                      <Globe size={12} className="text-muted-foreground" />
+                      {language === "rw" ? "Hitamo ururimi" : "Select Language"}
+                    </Label>
+                    <Select value={language} onValueChange={(value: "en" | "rw") => setLanguage(value)}>
+                      <SelectTrigger className="input-field h-10 bg-background text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="rw">Kinyarwanda</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {language === "rw" 
+                        ? "Ururimi rwose ruzahinduka mu buryo bwikora" 
+                        : "The entire interface will update to your selected language"}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -428,8 +489,8 @@ const Settings = () => {
                     <Shield size={16} className="text-gray-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-gray-700">Security</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">Set PIN to keep your account secure</p>
+                    <h2 className="text-lg font-bold text-gray-700">{t("security")}</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Shiraho PIN kugirango wongere umutekano" : "Set PIN to keep your account secure"}</p>
                   </div>
                 </div>
               </div>
@@ -466,7 +527,7 @@ const Settings = () => {
                   {hasPin && pinMode === "change" && (
                     <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-foreground">Current PIN</Label>
+                        <Label className="text-xs font-medium text-foreground">{t("currentPin")}</Label>
                         <Input
                           type="password"
                           inputMode="numeric"
@@ -479,7 +540,7 @@ const Settings = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-foreground">New PIN</Label>
+                          <Label className="text-xs font-medium text-foreground">{t("newPin")}</Label>
                           <Input
                             type="password"
                             inputMode="numeric"
@@ -491,7 +552,7 @@ const Settings = () => {
                           />
                 </div>
                   <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-foreground">Confirm PIN</Label>
+                          <Label className="text-xs font-medium text-foreground">{t("confirmPin")}</Label>
                       <Input
                             type="password"
                             inputMode="numeric"
@@ -509,7 +570,7 @@ const Settings = () => {
                         disabled={currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4}
                       >
                         <Lock size={14} />
-                        Change PIN
+                        {t("changePin")}
                       </Button>
                     </div>
                   )}
@@ -518,7 +579,7 @@ const Settings = () => {
                     <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-foreground">PIN</Label>
+                          <Label className="text-xs font-medium text-foreground">{t("newPin")}</Label>
                           <Input
                             type="password"
                             inputMode="numeric"
@@ -530,7 +591,7 @@ const Settings = () => {
                           />
                   </div>
                   <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-foreground">Confirm PIN</Label>
+                          <Label className="text-xs font-medium text-foreground">{t("confirmPin")}</Label>
                       <Input
                             type="password"
                             inputMode="numeric"
@@ -548,7 +609,7 @@ const Settings = () => {
                         disabled={newPin.length !== 4 || confirmPin.length !== 4}
                       >
                         <Lock size={14} />
-                        {hasPin ? "Update PIN" : "Set PIN"}
+                        {hasPin ? (language === "rw" ? "Hindura PIN" : "Update PIN") : t("setPin")}
                       </Button>
                     </div>
                   )}

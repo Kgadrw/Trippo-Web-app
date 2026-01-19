@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { LoginModal } from "@/components/LoginModal";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function Navbar() {
+  const { t } = useTranslation();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("login");
 
@@ -30,7 +32,7 @@ export function Navbar() {
                 setLoginModalOpen(true);
               }}
             >
-              Sign in
+              {t("signIn")}
             </Button>
           </div>
         </div>

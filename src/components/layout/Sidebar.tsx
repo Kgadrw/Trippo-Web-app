@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -23,13 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "@/hooks/useTranslation";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Package, label: "Products", path: "/products" },
-  { icon: ShoppingCart, label: "Sales", path: "/sales" },
-  { icon: FileText, label: "Reports", path: "/reports" },
-  { icon: Settings, label: "Settings", path: "/settings" },
+const getMenuItems = (t: (key: string) => string) => [
+  { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
+  { icon: Package, label: t("products"), path: "/products" },
+  { icon: ShoppingCart, label: t("sales"), path: "/sales" },
+  { icon: FileText, label: t("reports"), path: "/reports" },
+  { icon: Settings, label: t("settings"), path: "/settings" },
 ];
 
 interface SidebarProps {
@@ -43,7 +44,14 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [menuItems, setMenuItems] = useState(getMenuItems(t));
+
+  // Update menu items when language changes
+  useEffect(() => {
+    setMenuItems(getMenuItems(t));
+  }, [language, t]);
 
   const handleNavClick = () => {
     // Close mobile menu when navigating on mobile
@@ -174,7 +182,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
           title={collapsed ? "Logout" : undefined}
         >
           <LogOut size={20} />
-          {!collapsed && <span>Logout</span>}
+                 {!collapsed && <span>{t("logout")}</span>}
         </button>
       </div>
 
@@ -182,10 +190,12 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
       <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to logout? You will need to login again to access your dashboard.
-            </AlertDialogDescription>
+                 <AlertDialogTitle>{t("logout")}</AlertDialogTitle>
+                 <AlertDialogDescription>
+                   {language === "rw" 
+                     ? "Urasabye gusohoka? Uzakenera kwinjira nanone kugirango wongere wongere ikibaho." 
+                     : "Are you sure you want to logout? You will need to login again to access your dashboard."}
+                 </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

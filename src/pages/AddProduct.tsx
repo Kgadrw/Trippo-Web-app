@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playProductBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib/sound";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Product {
   id?: number;
@@ -37,6 +38,7 @@ interface ProductFormData {
 }
 
 const AddProduct = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
@@ -266,7 +268,7 @@ const AddProduct = () => {
   }
 
   return (
-    <AppLayout title={mode === "bulk" ? "Bulk Add Products" : "Add Product"}>
+    <AppLayout title={mode === "bulk" ? t("bulkAddProducts") : t("addProduct")}>
       <div className="w-full">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -275,7 +277,7 @@ const AddProduct = () => {
               variant="ghost"
               onClick={() => navigate("/products")}
               className="hover:bg-gray-500 hover:text-white p-2"
-              title="Back to Products"
+              title={t("backToProducts")}
             >
               <ArrowLeft size={18} />
             </Button>
@@ -286,14 +288,14 @@ const AddProduct = () => {
               onClick={() => setMode("single")}
               className={mode === "single" ? "bg-gray-700 text-white hover:bg-gray-800" : ""}
             >
-              Single Product
+              {t("language") === "rw" ? "Icuruzwa kimwe" : "Single Product"}
             </Button>
             <Button
               variant={mode === "bulk" ? "default" : "outline"}
               onClick={() => setMode("bulk")}
               className={mode === "bulk" ? "bg-gray-700 text-white hover:bg-gray-800" : ""}
             >
-              Bulk Add
+              {t("bulkAdd")}
             </Button>
           </div>
         </div>
@@ -304,13 +306,13 @@ const AddProduct = () => {
             /* Bulk Add Form */
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                <p className="text-sm text-muted-foreground">Add multiple products at once</p>
+                <p className="text-sm text-muted-foreground">{t("addMultipleProducts")}</p>
                 <Button 
                   onClick={addBulkRow} 
                   className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-3 h-12 text-base w-full sm:w-auto"
                 >
                   <Plus size={18} />
-                  <span className="ml-2">Add Product</span>
+                  <span className="ml-2">{t("addProduct")}</span>
                 </Button>
               </div>
               
@@ -332,26 +334,26 @@ const AddProduct = () => {
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <Label className="text-sm font-medium text-gray-700 mb-1 block">Product Name</Label>
+                        <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("productName")}</Label>
                         <Input
                           value={product.name}
                           onChange={(e) => updateBulkProduct(index, "name", e.target.value)}
                           className="h-12 text-base"
-                          placeholder="Enter product name"
+                          placeholder={t("enterProductName")}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-700 mb-1 block">Category</Label>
+                        <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("category")}</Label>
                         <Input
                           value={product.category}
                           onChange={(e) => updateBulkProduct(index, "category", e.target.value)}
                           className="h-12 text-base"
-                          placeholder="Enter category"
+                          placeholder={t("enterCategory")}
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Type</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("productType")}</Label>
                           <Input
                             value={product.productType}
                             onChange={(e) => updateBulkProduct(index, "productType", e.target.value)}
@@ -360,20 +362,20 @@ const AddProduct = () => {
                           />
                         </div>
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Package Qty</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("packageQuantity")}</Label>
                           <Input
                             type="number"
                             min="1"
                             value={product.packageQuantity}
                             onChange={(e) => updateBulkProduct(index, "packageQuantity", e.target.value)}
                             className="h-12 text-base"
-                            placeholder="Optional"
+                            placeholder={t("language") === "rw" ? "Bibasha" : "Optional"}
                           />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Cost Price</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("costPrice")}</Label>
                           <Input
                             type="number"
                             value={product.costPrice}
@@ -383,7 +385,7 @@ const AddProduct = () => {
                           />
                         </div>
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Selling Price</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("sellingPrice")}</Label>
                           <Input
                             type="number"
                             value={product.sellingPrice}
