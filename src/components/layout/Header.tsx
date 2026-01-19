@@ -69,7 +69,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
         {showMenuButton && (
           <button
             onClick={onMenuClick}
-            className="p-2 hover:bg-blue-50 text-gray-700 transition-colors lg:hidden"
+            className="p-2 hover:bg-gray-50 text-gray-700 transition-colors lg:hidden"
           >
             <Menu size={20} />
           </button>
@@ -83,7 +83,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
       <div className="flex items-center gap-3">
         <button
           onClick={() => setProfileModalOpen(true)}
-          className="flex items-center gap-3 hover:bg-blue-50 rounded-lg px-2 py-1 transition-colors"
+          className="flex items-center gap-3 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
         >
           <div className="text-right hidden sm:block">
             <p className="text-sm font-bold text-gray-800">
@@ -94,7 +94,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
             </p>
           </div>
           <Avatar className="h-10 w-10 border border-transparent cursor-pointer">
-            <AvatarFallback className={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-blue-500 text-white font-bold"}>
+            <AvatarFallback className={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-gray-500 text-white font-bold"}>
               {isAdmin ? "A" : getUserInitials()}
             </AvatarFallback>
           </Avatar>
@@ -106,14 +106,14 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <User size={20} className={isAdmin ? "text-purple-600" : "text-blue-600"} />
+              <User size={20} className={isAdmin ? "text-purple-600" : "text-gray-600"} />
               {isAdmin ? "Admin Profile" : "Profile Information"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center justify-center">
-              <Avatar className={cn("h-20 w-20 border-2", isAdmin ? "border-purple-500" : "border-blue-500")}>
-                <AvatarFallback className={cn("text-white font-bold text-2xl", isAdmin ? "bg-purple-500" : "bg-blue-500")}>
+              <Avatar className={cn("h-20 w-20 border-2", isAdmin ? "border-purple-500" : "border-gray-500")}>
+                <AvatarFallback className={cn("text-white font-bold text-2xl", isAdmin ? "bg-purple-500" : "bg-gray-500")}>
                   {isAdmin ? "A" : getUserInitials()}
                 </AvatarFallback>
               </Avatar>

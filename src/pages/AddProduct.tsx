@@ -274,7 +274,7 @@ const AddProduct = () => {
             <Button
               variant="ghost"
               onClick={() => navigate("/products")}
-              className="hover:bg-blue-500 hover:text-white p-2"
+              className="hover:bg-gray-500 hover:text-white p-2"
               title="Back to Products"
             >
               <ArrowLeft size={18} />
@@ -284,14 +284,14 @@ const AddProduct = () => {
             <Button
               variant={mode === "single" ? "default" : "outline"}
               onClick={() => setMode("single")}
-              className={mode === "single" ? "bg-blue-700 text-white hover:bg-blue-800" : ""}
+              className={mode === "single" ? "bg-gray-700 text-white hover:bg-gray-800" : ""}
             >
               Single Product
             </Button>
             <Button
               variant={mode === "bulk" ? "default" : "outline"}
               onClick={() => setMode("bulk")}
-              className={mode === "bulk" ? "bg-blue-700 text-white hover:bg-blue-800" : ""}
+              className={mode === "bulk" ? "bg-gray-700 text-white hover:bg-gray-800" : ""}
             >
               Bulk Add
             </Button>
@@ -303,17 +303,127 @@ const AddProduct = () => {
           {mode === "bulk" ? (
             /* Bulk Add Form */
             <div className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                 <p className="text-sm text-muted-foreground">Add multiple products at once</p>
-                <div className="flex gap-2">
-                  <Button onClick={addBulkRow} size="sm" className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2">
-                    <Plus size={14} />
-                    Add Row
-                  </Button>
-                </div>
+                <Button 
+                  onClick={addBulkRow} 
+                  className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-3 h-12 text-base w-full sm:w-auto"
+                >
+                  <Plus size={18} />
+                  <span className="ml-2">Add Product</span>
+                </Button>
               </div>
               
-              <div className="border border-transparent overflow-x-auto">
+              {/* Mobile Card Layout */}
+              <div className="md:hidden space-y-4">
+                {bulkProducts.map((product, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white space-y-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">Product #{index + 1}</span>
+                      {bulkProducts.length > 1 && (
+                        <button
+                          onClick={() => removeBulkRow(index)}
+                          className="p-2 hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors rounded"
+                          aria-label="Remove product"
+                        >
+                          <X size={20} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 mb-1 block">Product Name</Label>
+                        <Input
+                          value={product.name}
+                          onChange={(e) => updateBulkProduct(index, "name", e.target.value)}
+                          className="h-12 text-base"
+                          placeholder="Enter product name"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 mb-1 block">Category</Label>
+                        <Input
+                          value={product.category}
+                          onChange={(e) => updateBulkProduct(index, "category", e.target.value)}
+                          className="h-12 text-base"
+                          placeholder="Enter category"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Type</Label>
+                          <Input
+                            value={product.productType}
+                            onChange={(e) => updateBulkProduct(index, "productType", e.target.value)}
+                            className="h-12 text-base"
+                            placeholder="e.g., Small"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Package Qty</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={product.packageQuantity}
+                            onChange={(e) => updateBulkProduct(index, "packageQuantity", e.target.value)}
+                            className="h-12 text-base"
+                            placeholder="Optional"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Cost Price</Label>
+                          <Input
+                            type="number"
+                            value={product.costPrice}
+                            onChange={(e) => updateBulkProduct(index, "costPrice", e.target.value)}
+                            className="h-12 text-base"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Selling Price</Label>
+                          <Input
+                            type="number"
+                            value={product.sellingPrice}
+                            onChange={(e) => updateBulkProduct(index, "sellingPrice", e.target.value)}
+                            className="h-12 text-base"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Stock</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={product.stock}
+                            onChange={(e) => updateBulkProduct(index, "stock", e.target.value)}
+                            className="h-12 text-base"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Min Stock</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={product.minStock}
+                            onChange={(e) => updateBulkProduct(index, "minStock", e.target.value)}
+                            className="h-12 text-base"
+                            placeholder="5"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden md:block border border-transparent overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-white border-b border-transparent">
                     <tr>
@@ -523,7 +633,7 @@ const AddProduct = () => {
             <Button variant="outline" onClick={() => navigate("/products")} className="btn-secondary">
               Cancel
             </Button>
-            <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg">
+            <Button onClick={handleSave} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg">
               {mode === "bulk" ? "Add Products" : "Add Product"}
             </Button>
           </div>

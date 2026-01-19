@@ -50,7 +50,7 @@ export function KPICard({ title, value, subtitle, icon: Icon, trend, showMoneyTo
         </div>
         <div className="ml-4 shrink-0">
           <div className="w-12 h-12 !border-0 outline-none flex items-center justify-center" style={{ border: 'none', background: 'transparent' }}>
-            <Icon size={24} className="text-blue-700" style={{ border: 'none', outline: 'none' }} />
+            <Icon size={24} className="text-gray-700" style={{ border: 'none', outline: 'none' }} />
           </div>
         </div>
       </div>

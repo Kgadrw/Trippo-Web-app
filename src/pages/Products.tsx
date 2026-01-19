@@ -405,12 +405,12 @@ const Products = () => {
                   <h3 className="text-sm font-semibold text-gray-800">Filter Products</h3>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                  <Button onClick={openAddModal} className="bg-blue-700 text-white hover:bg-blue-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 gap-2 w-full sm:w-auto">
+                  <Button onClick={openAddModal} className="bg-gray-700 text-white hover:bg-gray-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 gap-2 w-full sm:w-auto">
                     <Plus size={18} />
                     <span className="hidden xs:inline">Add Product</span>
                     <span className="xs:hidden">Add</span>
                   </Button>
-                  <Button onClick={openBulkAddModal} className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
+                  <Button onClick={openBulkAddModal} className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
                     <Plus size={18} />
                     <span className="hidden xs:inline">Bulk Add</span>
                     <span className="xs:hidden">Bulk</span>
@@ -425,13 +425,13 @@ const Products = () => {
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 rounded-lg"
+                    className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
                 />
               </div>
                 
                 {/* Category Filter */}
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg">
+                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -446,7 +446,7 @@ const Products = () => {
                 
                 {/* Stock Status Filter */}
                 <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg">
+                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                     <SelectValue placeholder="Stock Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -460,7 +460,7 @@ const Products = () => {
                 {/* Product Type Filter */}
                 {uniqueProductTypes.length > 0 && (
                   <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
-                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg">
+                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                       <SelectValue placeholder="Product Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -476,7 +476,7 @@ const Products = () => {
                 
                 {/* Package Filter */}
                 <Select value={packageFilter} onValueChange={setPackageFilter}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg">
+                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                     <SelectValue placeholder="Package Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -488,7 +488,7 @@ const Products = () => {
                 
                 {/* Sort By */}
                 <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg">
+                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                     <div className="flex items-center gap-2">
                       <ArrowUpDown size={14} className="text-gray-400" />
                       <SelectValue placeholder="Sort by" />
@@ -560,7 +560,7 @@ const Products = () => {
                     <td className="py-3 px-4 whitespace-nowrap">
                           <div className="text-sm text-gray-600">
                             {product.productType ? (
-                              <span className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                              <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
                                 {product.productType}
                               </span>
                             ) : (
@@ -594,7 +594,7 @@ const Products = () => {
                       <div className="flex gap-1">
                         <button
                           onClick={() => openEditModal(product)}
-                          className="p-2 text-blue-700 hover:bg-blue-50 transition-colors"
+                          className="p-2 text-gray-700 hover:bg-gray-50 transition-colors"
                           title="Edit product"
                         >
                           <Pencil size={16} />
@@ -642,7 +642,7 @@ const Products = () => {
                           )}
                         </div>
                         {product.productType && (
-                          <span className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded mb-2">
+                          <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded mb-2">
                             {product.productType}
                           </span>
                         )}
@@ -650,7 +650,7 @@ const Products = () => {
                       <div className="flex gap-1 ml-2 shrink-0">
                         <button
                           onClick={() => openEditModal(product)}
-                          className="p-2 text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                          className="p-2 text-gray-700 hover:bg-gray-50 rounded transition-colors"
                           title="Edit product"
                         >
                           <Pencil size={16} />
@@ -814,7 +814,7 @@ const Products = () => {
             }} className="btn-secondary">
               Cancel
             </Button>
-            <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg">
+            <Button onClick={handleSave} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg">
               Save Changes
             </Button>
           </DialogFooter>

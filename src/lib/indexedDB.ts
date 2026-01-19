@@ -141,3 +141,25 @@ export const clearStore = async (storeName: string): Promise<void> => {
     request.onerror = () => reject(request.error);
   });
 };
+
+// Clear all stores (for logout/data isolation)
+export const clearAllStores = async (): Promise<void> => {
+  try {
+    const database = await getDB();
+    const clearPromises = stores.map((store) => {
+      return new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction([store.name], "readwrite");
+        const storeObj = transaction.objectStore(store.name);
+        const request = storeObj.clear();
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    });
+    
+    await Promise.all(clearPromises);
+  } catch (error) {
+    console.error("Error clearing IndexedDB stores:", error);
+    throw error;
+  }
+};

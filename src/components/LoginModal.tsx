@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -72,7 +71,13 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const handleLoginPinChange = (value: string) => {
     const numericValue = value.replace(/\D/g, "").slice(0, 4);
     setLoginPin(numericValue);
-    setErrors((prev) => ({ ...prev, loginPin: undefined }));
+    
+    // Show error if PIN is less than 4 digits and has a value
+    if (numericValue.length > 0 && numericValue.length < 4) {
+      setErrors((prev) => ({ ...prev, loginPin: "PIN must be 4 digits" }));
+    } else {
+      setErrors((prev) => ({ ...prev, loginPin: undefined }));
+    }
     
     // Auto-submit when 4 digits are entered
     if (numericValue.length === 4 && !isLoading) {
@@ -158,7 +163,13 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const handleCreatePinChange = (value: string) => {
     const numericValue = value.replace(/\D/g, "").slice(0, 4);
     setCreatePin(numericValue);
-    setErrors((prev) => ({ ...prev, createPin: undefined }));
+    
+    // Show error if PIN is less than 4 digits and has a value
+    if (numericValue.length > 0 && numericValue.length < 4) {
+      setErrors((prev) => ({ ...prev, createPin: "PIN must be 4 digits" }));
+    } else {
+      setErrors((prev) => ({ ...prev, createPin: undefined }));
+    }
   };
 
   const handleConfirmPinChange = (value: string) => {
@@ -264,9 +275,6 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Welcome to Trippo</DialogTitle>
-          <DialogDescription>
-            Sign in to your account or create a new one to get started
-          </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "create")} className="w-full">
@@ -321,7 +329,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             </div>
             <Button
               onClick={handleLogin}
-              className="w-full bg-blue-500 text-white hover:bg-blue-600"
+              className="w-full bg-gray-500 text-white hover:bg-gray-600"
               disabled={loginPin.length !== 4 || isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}
@@ -416,7 +424,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
             <Button
               onClick={handleCreateAccount}
-              className="w-full bg-blue-500 text-white hover:bg-blue-600"
+              className="w-full bg-gray-500 text-white hover:bg-gray-600"
               disabled={isLoading}
             >
               {isLoading ? "Creating account..." : "Create Account"}

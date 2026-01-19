@@ -162,7 +162,7 @@ export function LowStockAlert() {
                   className="h-7 w-7 p-0 hover:bg-gray-100 rounded-full"
                   onClick={() => handleEdit(item)}
                 >
-                  <Edit2 size={14} className="text-blue-700" />
+                  <Edit2 size={14} className="text-gray-700" />
                 </Button>
               </div>
             )}

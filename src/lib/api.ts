@@ -26,8 +26,21 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  // Get userId from localStorage
+  // Get userId from localStorage - REQUIRED for all requests except auth endpoints
   const userId = localStorage.getItem("profit-pilot-user-id");
+  
+  // For non-auth endpoints, userId is required for data isolation
+  const isAuthEndpoint = endpoint.startsWith('/auth/register') || 
+                         endpoint.startsWith('/auth/login') ||
+                         endpoint.startsWith('/auth/me');
+  
+  if (!isAuthEndpoint && !userId) {
+    throw new ApiError(
+      'User not authenticated. Please login to access your data.',
+      401,
+      { requiresAuth: true }
+    );
+  }
   
   const config: RequestInit = {
     headers: {

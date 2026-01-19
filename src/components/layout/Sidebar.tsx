@@ -53,10 +53,14 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   };
 
   const handleLogoutClick = () => {
+    // Close mobile menu when clicking logout on mobile
+    if (window.innerWidth < 1024 && onMobileClose) {
+      onMobileClose();
+    }
     setLogoutDialogOpen(true);
   };
 
-  const handleLogoutConfirm = () => {
+  const handleLogoutConfirm = async () => {
     // Clear authentication state
     clearAuth();
     
@@ -66,10 +70,18 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     // Clear session storage
     sessionStorage.clear();
     
+    // Clear IndexedDB data (for complete data isolation)
+    try {
+      const { clearAllStores } = await import("@/lib/indexedDB");
+      await clearAllStores();
+    } catch (error) {
+      console.error("Error clearing IndexedDB on logout:", error);
+    }
+    
     // Show logout confirmation
     toast({
       title: "Logged Out",
-      description: "You have been successfully logged out.",
+      description: "You have been successfully logged out. All your data has been cleared.",
     });
     
     // Redirect to homepage
@@ -80,23 +92,37 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "fixed z-50 bg-blue-500 transition-all duration-300 flex flex-col shadow-lg overflow-hidden",
+        "fixed z-50 bg-white transition-all duration-300 flex flex-col overflow-hidden",
         "left-0 top-0 h-screen w-64",
-        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border lg:border-blue-600 lg:rounded-lg",
+        "lg:left-0 lg:top-0 lg:h-screen lg:border-r lg:border-gray-200",
         !collapsed && "lg:w-64",
         collapsed && "lg:w-16"
       )}
     >
       {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-blue-600 bg-blue-500 lg:rounded-t-lg">
+        <div className="flex items-center justify-between h-16 px-4 bg-white">
         {!collapsed && (
-          <span className="text-lg font-bold text-white">
-            Trippo
-          </span>
+          <Link to="/" className="flex items-center gap-2">
+            <img 
+              src="/logo.png" 
+              alt="Trippo Logo" 
+              className="h-8 w-8 object-contain"
+            />
+            <span className="text-xl font-normal text-gray-700 lowercase">trippo</span>
+          </Link>
+        )}
+        {collapsed && (
+          <Link to="/" className="flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="Trippo Logo" 
+              className="h-8 w-8 object-contain"
+            />
+          </Link>
         )}
         <button
           onClick={onToggle}
-          className="p-2 hover:bg-blue-600 text-white transition-colors rounded"
+          className="p-2 hover:bg-gray-100 text-gray-700 transition-colors rounded"
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
@@ -126,11 +152,11 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
       </nav>
 
       {/* Logout */}
-        <div className="p-2 border-t border-blue-600 lg:rounded-b-lg">
+        <div className="p-2">
         <button
           onClick={handleLogoutClick}
           className={cn(
-            "sidebar-item w-full hover:bg-red-600 hover:text-white transition-colors text-white",
+            "sidebar-item w-full hover:bg-red-100 hover:text-red-700 transition-colors text-gray-700",
             collapsed && "justify-center px-0"
           )}
           title={collapsed ? "Logout" : undefined}

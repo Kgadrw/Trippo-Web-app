@@ -903,7 +903,7 @@ const AdminDashboard = () => {
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className={cn(
                               "px-2 py-0.5 rounded text-xs",
-                              request.method === "GET" ? "bg-blue-100 text-blue-700" :
+                              request.method === "GET" ? "bg-gray-100 text-gray-700" :
                               request.method === "POST" ? "bg-green-100 text-green-700" :
                               request.method === "PUT" ? "bg-yellow-100 text-yellow-700" :
                               request.method === "DELETE" ? "bg-red-100 text-red-700" :

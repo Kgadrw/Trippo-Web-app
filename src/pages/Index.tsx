@@ -339,6 +339,8 @@ const Dashboard = () => {
 
     if (isBulkMode) {
       // Bulk add mode
+      // Validate all bulk sales before creating them
+      const invalidSales: string[] = [];
       const salesToCreate = bulkSales
         .filter((sale) => sale.product.trim() !== "" && sale.quantity && sale.sellingPrice)
         .map((sale) => {
@@ -349,6 +351,13 @@ const Dashboard = () => {
           if (!product) return null;
           
           const qty = parseInt(sale.quantity) || 1;
+          
+          // Check if quantity exceeds stock
+          if (qty > product.stock) {
+            invalidSales.push(`${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available`);
+            return null;
+          }
+          
           const price = parseFloat(sale.sellingPrice) || 0;
           const revenue = qty * price;
           const cost = qty * product.costPrice;
@@ -366,6 +375,17 @@ const Dashboard = () => {
           };
         })
         .filter((sale): sale is any => sale !== null);
+      
+      // Show error if any sales have insufficient stock
+      if (invalidSales.length > 0) {
+        playErrorBeep();
+        toast({
+          title: "Insufficient Stock",
+          description: `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (salesToCreate.length > 0) {
         try {
@@ -418,6 +438,18 @@ const Dashboard = () => {
       if (!product) return;
 
       const qty = parseInt(quantity);
+      
+      // Validate quantity doesn't exceed available stock
+      if (qty > product.stock) {
+        playErrorBeep();
+        toast({
+          title: "Insufficient Stock",
+          description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock. You cannot sell more than available quantity.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const price = parseFloat(sellingPrice);
       const revenue = qty * price;
       const cost = qty * product.costPrice;
@@ -562,14 +594,14 @@ const Dashboard = () => {
       <div className="form-card mb-6 border-transparent">
         <div className="flex items-center justify-between mb-4">
           <h3 className="section-title flex items-center gap-2 text-gray-800">
-            <Plus size={20} className="text-blue-700" />
+            <Plus size={20} className="text-gray-700" />
             Record New Sale
           </h3>
           <div className="flex gap-2">
             {!isBulkMode && (
               <Button
                 onClick={() => setIsBulkMode(true)}
-                className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2"
+                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2"
               >
                 <Plus size={16} />
                 Bulk Add
@@ -597,7 +629,7 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground">Add multiple sales at once</p>
               <Button
                 onClick={addBulkRow}
-                className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
+                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
               >
                 <Plus size={14} />
                 Add Row
@@ -691,7 +723,7 @@ const Dashboard = () => {
             <div className="flex justify-end mt-4">
               <Button
                 onClick={handleRecordSale}
-                className="bg-blue-700 text-white hover:bg-blue-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2"
+                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2"
               >
                 <ShoppingCart size={16} />
                 Record Sales
@@ -762,7 +794,7 @@ const Dashboard = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={handleRecordSale} className="bg-blue-700 text-white hover:bg-blue-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2">
+              <Button onClick={handleRecordSale} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2">
                 <ShoppingCart size={16} />
                 Record Sale
               </Button>

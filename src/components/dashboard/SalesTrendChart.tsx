@@ -48,7 +48,7 @@ export function SalesTrendChart({ sales = [] }: SalesTrendChartProps) {
   }, [sales]);
   return (
     <div className="kpi-card">
-      <h3 className="section-title text-blue-600">Sales Trend (Last 7 Days)</h3>
+      <h3 className="section-title text-gray-600">Sales Trend (Last 7 Days)</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>

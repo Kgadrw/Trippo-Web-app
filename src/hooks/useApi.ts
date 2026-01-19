@@ -34,6 +34,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
       return;
     }
 
+    // Validate userId exists before making API calls (data isolation)
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) {
+      setIsLoading(false);
+      setError(new Error('User not authenticated. Please login.'));
+      setItems(defaultValue);
+      return;
+    }
+
     isLoadingDataRef.current = true;
     setIsLoading(true);
     setError(null);
@@ -49,6 +58,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
         response = await productApi.getAll();
       } else {
         response = await saleApi.getAll();
+      }
+      
+      // Verify userId hasn't changed during the request (prevent data leakage)
+      const currentUserId = localStorage.getItem("profit-pilot-user-id");
+      if (currentUserId !== userId) {
+        // User changed during request, clear data for security
+        setItems(defaultValue);
+        setIsLoading(false);
+        return;
       }
 
       // Calculate remaining time to meet minimum loading duration
@@ -97,8 +115,45 @@ export function useApi<T extends { _id?: string; id?: number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
 
+  // Monitor userId changes and clear data if it changes (data isolation)
+  useEffect(() => {
+    const checkUserId = () => {
+      const currentUserId = localStorage.getItem("profit-pilot-user-id");
+      if (!currentUserId && items.length > 0) {
+        // User logged out, clear data
+        setItems(defaultValue);
+      }
+    };
+
+    // Check on mount
+    checkUserId();
+
+    // Listen for storage changes (userId changes)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "profit-pilot-user-id") {
+        checkUserId();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Also check periodically (in case localStorage is changed directly)
+    const interval = setInterval(checkUserId, 1000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [items, defaultValue]);
+
   // Add item
   const add = useCallback(async (item: T): Promise<void> => {
+    // Validate userId exists (data isolation)
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) {
+      throw new Error('User not authenticated. Please login.');
+    }
+    
     try {
       let response;
       const itemData = { ...item };
@@ -128,6 +183,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
   // Update item
   const update = useCallback(async (item: T): Promise<void> => {
+    // Validate userId exists (data isolation)
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) {
+      throw new Error('User not authenticated. Please login.');
+    }
+    
     try {
       const itemId = (item as any)._id || (item as any).id;
       if (!itemId) {
@@ -166,6 +227,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
   // Remove item
   const remove = useCallback(async (item: T): Promise<void> => {
+    // Validate userId exists (data isolation)
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) {
+      throw new Error('User not authenticated. Please login.');
+    }
+    
     try {
       const itemId = (item as any)._id || (item as any).id;
       if (!itemId) {
@@ -198,6 +265,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const bulkAdd = useCallback(async (itemsToAdd: T[]): Promise<void> => {
     if (endpoint !== 'sales') {
       throw new Error('Bulk add is only available for sales');
+    }
+
+    // Validate userId exists (data isolation)
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) {
+      throw new Error('User not authenticated. Please login.');
     }
 
     try {

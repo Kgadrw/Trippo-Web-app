@@ -340,6 +340,8 @@ const Sales = () => {
 
     if (isBulkMode) {
       // Bulk add mode
+      // Validate all bulk sales before creating them
+      const invalidSales: string[] = [];
       const salesToCreate = bulkSales
         .filter((sale) => sale.product.trim() !== "" && sale.quantity && sale.sellingPrice)
         .map((sale) => {
@@ -350,6 +352,13 @@ const Sales = () => {
           if (!product) return null;
           
           const qty = parseInt(sale.quantity) || 1;
+          
+          // Check if quantity exceeds stock
+          if (qty > product.stock) {
+            invalidSales.push(`${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available`);
+            return null;
+          }
+          
           const price = parseFloat(sale.sellingPrice) || 0;
           const revenue = qty * price;
           const cost = qty * product.costPrice;
@@ -367,6 +376,17 @@ const Sales = () => {
           };
         })
         .filter((sale): sale is any => sale !== null);
+      
+      // Show error if any sales have insufficient stock
+      if (invalidSales.length > 0) {
+        playErrorBeep();
+        toast({
+          title: "Insufficient Stock",
+          description: `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (salesToCreate.length > 0) {
         try {
@@ -419,6 +439,18 @@ const Sales = () => {
       if (!product) return;
 
       const qty = parseInt(quantity);
+      
+      // Validate quantity doesn't exceed available stock
+      if (qty > product.stock) {
+        playErrorBeep();
+        toast({
+          title: "Insufficient Stock",
+          description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock. You cannot sell more than available quantity.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const price = parseFloat(sellingPrice);
       const revenue = qty * price;
       const cost = qty * product.costPrice;
@@ -815,14 +847,14 @@ const Sales = () => {
       <div className="form-card mb-6 border-transparent flex-shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h3 className="section-title flex items-center gap-2 text-gray-800">
-            <Plus size={20} className="text-blue-700" />
+            <Plus size={20} className="text-gray-700" />
             Record New Sale
           </h3>
           <div className="flex gap-2 w-full sm:w-auto">
             {!isBulkMode && (
               <Button
                 onClick={() => setIsBulkMode(true)}
-                className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto"
+                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Bulk Add
@@ -850,7 +882,7 @@ const Sales = () => {
               <p className="text-sm text-muted-foreground">Add multiple sales at once</p>
               <Button
                 onClick={addBulkRow}
-                className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
+                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
               >
                 <Plus size={14} />
                 Add Row
@@ -944,7 +976,7 @@ const Sales = () => {
             <div className="flex justify-end mt-4">
               <Button
                 onClick={handleRecordSale}
-                className="bg-blue-700 text-white hover:bg-blue-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2"
+                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2"
               >
                 <ShoppingCart size={16} />
                 Record Sales
@@ -1015,7 +1047,7 @@ const Sales = () => {
             />
           </div>
           <div className="flex items-end">
-            <Button onClick={handleRecordSale} className="bg-blue-700 text-white hover:bg-blue-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2">
+            <Button onClick={handleRecordSale} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2">
               <ShoppingCart size={16} />
               Record Sale
             </Button>
@@ -1041,7 +1073,7 @@ const Sales = () => {
                   placeholder="Search by product..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 rounded-lg"
+                  className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
                   autoComplete="off"
                   name="search-products"
                 />
@@ -1054,7 +1086,7 @@ const Sales = () => {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="pl-9 bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg"
+                  className="pl-9 bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
                 />
               </div>
               
@@ -1065,13 +1097,13 @@ const Sales = () => {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="pl-9 bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg"
+                  className="pl-9 bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
                 />
               </div>
               
               {/* Sort By */}
               <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-blue-500 rounded-lg">
+                <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
                   <div className="flex items-center gap-2">
                     <ArrowUpDown size={14} className="text-gray-400" />
                     <SelectValue placeholder="Sort by" />
@@ -1093,7 +1125,7 @@ const Sales = () => {
               <Button
                 onClick={handleClearFilters}
                 variant="outline"
-                className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-500 hover:text-white rounded-lg"
+                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-500 hover:text-white rounded-lg"
               >
                 <X size={14} className="mr-2" />
                 Clear Filters
@@ -1139,7 +1171,7 @@ const Sales = () => {
                   <Checkbox
                     checked={allSelected}
                     onCheckedChange={handleSelectAll}
-                    className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    className="border-2 border-gray-400 data-[state=checked]:bg-gray-600 data-[state=checked]:border-gray-600"
                   />
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">Product</th>
@@ -1159,12 +1191,12 @@ const Sales = () => {
                   const isSelected = selectedSales.has(idString);
                   
                   return (
-                    <tr key={saleId || index} className={cn("transition-colors", index % 2 === 0 ? "bg-white" : "bg-gray-50/50", "hover:bg-gray-100", isSelected && "bg-blue-50")}>
+                    <tr key={saleId || index} className={cn("transition-colors", index % 2 === 0 ? "bg-white" : "bg-gray-50/50", "hover:bg-gray-100", isSelected && "bg-gray-50")}>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => handleSelectSale(idString)}
-                          className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          className="border-2 border-gray-400 data-[state=checked]:bg-gray-600 data-[state=checked]:border-gray-600"
                         />
                       </td>
                   <td className="py-3 px-4 whitespace-nowrap">
@@ -1216,14 +1248,14 @@ const Sales = () => {
                 const idString = saleId?.toString() || '';
                 const isSelected = selectedSales.has(idString);
                 return (
-                  <div key={saleId || sale.id} className={cn("bg-white border border-gray-200 rounded-lg p-4 shadow-sm", isSelected && "bg-blue-50 border-blue-300")}>
+                  <div key={saleId || sale.id} className={cn("bg-white border border-gray-200 rounded-lg p-4 shadow-sm", isSelected && "bg-gray-50 border-gray-300")}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={() => handleSelectSale(idString)}
-                            className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 shrink-0"
+                            className="border-2 border-gray-400 data-[state=checked]:bg-gray-600 data-[state=checked]:border-gray-600 shrink-0"
                           />
                           <h4 className="text-base font-semibold text-gray-900 truncate">{sale.product}</h4>
                         </div>

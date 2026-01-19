@@ -299,13 +299,13 @@ const Settings = () => {
           {/* Left Sidebar - Navigation */}
           <div className="lg:col-span-1">
             <div className="form-card p-0 overflow-hidden border-primary/30">
-              <div className="p-4 bg-blue-50 border-b border-transparent">
+              <div className="p-4 bg-gray-50 border-b border-transparent">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 border border-transparent flex items-center justify-center">
-                    <User size={18} className="text-blue-600 font-bold" />
+                  <div className="w-10 h-10 bg-gray-100 border border-transparent flex items-center justify-center">
+                    <User size={18} className="text-gray-600 font-bold" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-blue-700 text-sm truncate">{ownerName}</h3>
+                    <h3 className="font-bold text-gray-700 text-sm truncate">{ownerName}</h3>
                     <p className="text-xs text-muted-foreground truncate">{email}</p>
                   </div>
                 </div>
@@ -316,8 +316,8 @@ const Settings = () => {
                   className={cn(
                     "w-full text-left px-3 py-2.5 transition-all duration-200 text-sm",
                     activeSection === "business"
-                      ? "bg-blue-600 text-white border border-transparent font-semibold"
-                      : "hover:bg-blue-50 text-gray-700 border border-transparent"
+                      ? "bg-gray-600 text-white border border-transparent font-semibold"
+                      : "hover:bg-gray-50 text-gray-700 border border-transparent"
                   )}
                 >
                   <div className="flex items-center gap-2.5">
@@ -330,8 +330,8 @@ const Settings = () => {
                   className={cn(
                     "w-full text-left px-3 py-2.5 transition-all duration-200 text-sm",
                     activeSection === "security"
-                      ? "bg-blue-600 text-white border border-transparent font-semibold"
-                      : "hover:bg-blue-50 text-gray-700 border border-transparent"
+                      ? "bg-gray-600 text-white border border-transparent font-semibold"
+                      : "hover:bg-gray-50 text-gray-700 border border-transparent"
                   )}
                 >
                   <div className="flex items-center gap-2.5">
@@ -350,11 +350,11 @@ const Settings = () => {
               <div className="form-card border border-transparent bg-white animate-fade-in">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-blue-100 border border-transparent flex items-center justify-center">
-                    <Building2 size={16} className="text-blue-600" />
+                  <div className="w-9 h-9 bg-gray-100 border border-transparent flex items-center justify-center">
+                    <Building2 size={16} className="text-gray-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-blue-700">Business Information</h2>
+                    <h2 className="text-lg font-bold text-gray-700">Business Information</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">Update your business details</p>
                   </div>
                 </div>
@@ -410,7 +410,7 @@ const Settings = () => {
               <div className="flex justify-end">
                 <Button 
                   onClick={handleSaveBusinessInfo} 
-                  className="bg-blue-600 text-white hover:bg-blue-700 gap-2 h-10 px-5 text-sm shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                  className="bg-green-600 text-white hover:bg-green-700 gap-2 h-10 px-5 text-sm shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                 >
                   <Save size={14} />
                   Save Changes
@@ -424,11 +424,11 @@ const Settings = () => {
               <div className="form-card border border-transparent bg-white animate-fade-in">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-blue-100 border border-transparent flex items-center justify-center">
-                    <Shield size={16} className="text-blue-600" />
+                  <div className="w-9 h-9 bg-gray-100 border border-transparent flex items-center justify-center">
+                    <Shield size={16} className="text-gray-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-blue-700">Security</h2>
+                    <h2 className="text-lg font-bold text-gray-700">Security</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">Set PIN to keep your account secure</p>
                   </div>
                 </div>
@@ -505,7 +505,7 @@ const Settings = () => {
                       </div>
                       <Button
                         onClick={handleChangePin}
-                        className="btn-primary w-full gap-2 h-10"
+                        className="bg-green-600 text-white hover:bg-green-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                         disabled={currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4}
                       >
                         <Lock size={14} />
@@ -544,7 +544,7 @@ const Settings = () => {
                       </div>
                       <Button
                         onClick={handleSetPin}
-                        className="btn-primary w-full gap-2 h-10"
+                        className="bg-green-600 text-white hover:bg-green-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                         disabled={newPin.length !== 4 || confirmPin.length !== 4}
                       >
                         <Lock size={14} />
