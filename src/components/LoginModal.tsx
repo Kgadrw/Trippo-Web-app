@@ -109,6 +109,12 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           localStorage.setItem("profit-pilot-business-name", "System Administrator");
           localStorage.setItem("profit-pilot-is-admin", "true");
           
+          // Set authentication flag in sessionStorage
+          sessionStorage.setItem("profit-pilot-authenticated", "true");
+          
+          // Dispatch authentication event
+          window.dispatchEvent(new Event("pin-auth-changed"));
+          
           // Dispatch event
           window.dispatchEvent(new Event("user-data-changed"));
           
@@ -118,7 +124,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           });
           
           onOpenChange(false);
-          navigate("/admin-dashboard");
+          navigate("/admin-dashboard", { replace: true });
           return;
         }
 
@@ -140,6 +146,12 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
         }
 
+        // Set authentication flag in sessionStorage
+        sessionStorage.setItem("profit-pilot-authenticated", "true");
+        
+        // Dispatch authentication event
+        window.dispatchEvent(new Event("pin-auth-changed"));
+
         // Trigger user data update event
         window.dispatchEvent(new Event("user-data-changed"));
 
@@ -148,7 +160,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           description: "You have successfully logged in.",
         });
         onOpenChange(false);
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }
     } catch (error: any) {
       const errorMessage = error.response?.error || error.message || "Login failed. Please try again.";
@@ -237,6 +249,12 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
         }
 
+        // Set authentication flag in sessionStorage
+        sessionStorage.setItem("profit-pilot-authenticated", "true");
+        
+        // Dispatch authentication event
+        window.dispatchEvent(new Event("pin-auth-changed"));
+        
         // Trigger user data update event
         window.dispatchEvent(new Event("user-data-changed"));
 

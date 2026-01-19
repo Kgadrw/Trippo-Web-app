@@ -64,10 +64,14 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     // Clear authentication state
     clearAuth();
     
-    // Clear user ID
+    // Clear user ID and all user data
     localStorage.removeItem("profit-pilot-user-id");
+    localStorage.removeItem("profit-pilot-user-name");
+    localStorage.removeItem("profit-pilot-user-email");
+    localStorage.removeItem("profit-pilot-business-name");
+    localStorage.removeItem("profit-pilot-is-admin");
     
-    // Clear session storage
+    // Clear session storage completely
     sessionStorage.clear();
     
     // Clear IndexedDB data (for complete data isolation)
@@ -78,14 +82,25 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
       console.error("Error clearing IndexedDB on logout:", error);
     }
     
+    // Dispatch authentication change event
+    window.dispatchEvent(new Event("pin-auth-changed"));
+    
     // Show logout confirmation
     toast({
       title: "Logged Out",
       description: "You have been successfully logged out. All your data has been cleared.",
     });
     
-    // Redirect to homepage
-    navigate("/");
+    // Clear browser history and redirect to homepage
+    // This prevents back button from accessing protected pages
+    window.history.replaceState(null, "", "/");
+    navigate("/", { replace: true });
+    
+    // Force a page reload to clear any cached state
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 100);
+    
     setLogoutDialogOpen(false);
   };
 

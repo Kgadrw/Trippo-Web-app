@@ -13,10 +13,10 @@ const Home = () => {
       <Navbar />
       
       {/* Hero Section */}
-      <div className="relative min-h-[calc(100vh-4rem)] flex items-center px-6 lg:px-12 xl:px-20 py-16 lg:py-24">
+      <main className="relative min-h-[calc(100vh-4rem)] flex items-center px-6 lg:px-12 xl:px-20 py-16 lg:py-24">
         <div className="w-full max-w-7xl mx-auto flex flex-col gap-12">
           {/* Text Content */}
-          <div className="text-left max-w-2xl">
+          <header className="text-left max-w-2xl">
             <h1 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-8 leading-tight">
               Run your business smarter with Trippo
             </h1>
@@ -29,7 +29,7 @@ const Home = () => {
             >
               Get Started
             </Button>
-          </div>
+          </header>
           
           {/* Hero Images */}
           <div className="w-full flex gap-0">
@@ -84,9 +84,9 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Feature Cards */}
-          <div className="w-full">
-            <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6">Features</h2>
+                 {/* Feature Cards */}
+                 <section className="w-full" aria-label="Features">
+                   <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6">Features</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Product Management Card */}
               <div className="border border-gray-200 bg-gray-100 p-4">
@@ -136,10 +136,10 @@ const Home = () => {
                 </p>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Testimonials */}
-          <div className="w-full relative bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/testmonial.webp)' }}>
+          <section className="w-full relative bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/testmonial.webp)' }} aria-label="Testimonials">
             <div className="absolute inset-0 bg-white/70"></div>
             <div className="relative z-10 py-12 px-6">
               <div className="text-center mb-6">
@@ -197,11 +197,11 @@ const Home = () => {
               </div>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Pricing Cards */}
-          <div className="w-full">
-            <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6 text-center">Pricing</h2>
+          <section className="w-full" aria-label="Pricing">
+                   <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6 text-center">Pricing</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Basic Plan */}
               <div className="border border-gray-200 bg-gray-100 p-4 flex flex-col">
@@ -319,10 +319,9 @@ const Home = () => {
                 </Button>
               </div>
             </div>
-          </div>
-
+          </section>
         </div>
-      </div>
+      </main>
 
       {/* Login Modal */}
       <LoginModal
@@ -330,9 +329,9 @@ const Home = () => {
         onOpenChange={setLoginModalOpen}
         defaultTab={loginModalTab}
       />
-
+      
       {/* Footer */}
-      <footer className="bg-stone-50 border-t border-gray-200">
+      <footer className="bg-stone-50 border-t border-gray-200" role="contentinfo">
         <div className="container mx-auto px-6 lg:px-12 xl:px-20 py-12">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
             {/* Product Column */}
