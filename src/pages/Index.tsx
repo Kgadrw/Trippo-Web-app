@@ -643,7 +643,7 @@ const Dashboard = () => {
                   setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
                 }}
                 variant="ghost"
-                className="hover:bg-gray-100 text-gray-700"
+                className="text-gray-700"
               >
                 {t("singleSale")}
               </Button>

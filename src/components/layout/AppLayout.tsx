@@ -70,7 +70,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       <div
         className={cn(
           "transition-all duration-300 pt-16",
-          sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"
+          sidebarCollapsed ? "lg:ml-16" : "lg:ml-56"
         )}
       >
         <main className="p-6 pt-6 animate-fade-in">{children}</main>

@@ -113,9 +113,9 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     <aside
       className={cn(
         "fixed z-50 bg-white transition-all duration-300 flex flex-col overflow-hidden",
-        "left-0 top-0 h-screen w-64",
+        "left-0 top-0 h-screen w-56",
         "lg:left-0 lg:top-0 lg:h-screen lg:border-r lg:border-gray-200",
-        !collapsed && "lg:w-64",
+        !collapsed && "lg:w-56",
         collapsed && "lg:w-16"
       )}
     >

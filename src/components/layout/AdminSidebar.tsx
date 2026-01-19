@@ -90,9 +90,9 @@ export function AdminSidebar({
     <aside
       className={cn(
         "fixed z-50 bg-blue-500 transition-all duration-300 flex flex-col shadow-lg overflow-hidden",
-        "left-0 top-0 h-screen w-64",
+        "left-0 top-0 h-screen w-56",
         "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border lg:border-blue-600 lg:rounded-lg",
-        !collapsed && "lg:w-64",
+        !collapsed && "lg:w-56",
         collapsed && "lg:w-16"
       )}
     >

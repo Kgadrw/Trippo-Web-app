@@ -62,7 +62,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
   return (
     <header className={cn(
       "fixed top-0 left-0 right-0 h-16 bg-white border-b border-transparent shadow-sm flex items-center justify-between px-6 z-50 transition-all duration-300",
-      "lg:left-64",
+      "lg:left-56",
       sidebarCollapsed && "lg:left-16"
     )}>
       <div className="flex items-center gap-4">
