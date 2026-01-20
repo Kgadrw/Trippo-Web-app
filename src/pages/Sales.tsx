@@ -1362,6 +1362,7 @@ const Sales = () => {
                 <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("revenue")}</th>
                 <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("language") === "rw" ? "Agaciro" : "Cost"}</th>
                 <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("profit")}</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("paymentMethod")}</th>
                 <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("date")}</th>
                 <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-3 px-4">{t("actions")}</th>
               </tr>
@@ -1398,6 +1399,16 @@ const Sales = () => {
                     <div className="text-sm font-semibold text-gray-900">{sale.profit.toLocaleString()} rwf</div>
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-600">
+                      {sale.paymentMethod === 'cash' && t("cash")}
+                      {sale.paymentMethod === 'card' && t("card")}
+                      {sale.paymentMethod === 'momo' && t("momoPay")}
+                      {sale.paymentMethod === 'airtel' && t("airtelPay")}
+                      {sale.paymentMethod === 'transfer' && t("bankTransfer")}
+                      {!sale.paymentMethod && t("cash")}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
                         <div className="text-sm text-gray-600">{formatDateWithTime(sale.date)}</div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
@@ -1414,7 +1425,7 @@ const Sales = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
                     No sales found matching your filters
                   </td>
                 </tr>
@@ -1470,6 +1481,17 @@ const Sales = () => {
                       <div>
                         <span className="text-gray-500">Profit:</span>
                         <span className="ml-2 font-semibold text-green-600">{sale.profit.toLocaleString()} rwf</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">{t("paymentMethod")}:</span>
+                        <span className="ml-2 text-gray-600">
+                          {sale.paymentMethod === 'cash' && t("cash")}
+                          {sale.paymentMethod === 'card' && t("card")}
+                          {sale.paymentMethod === 'momo' && t("momoPay")}
+                          {sale.paymentMethod === 'airtel' && t("airtelPay")}
+                          {sale.paymentMethod === 'transfer' && t("bankTransfer")}
+                          {!sale.paymentMethod && t("cash")}
+                        </span>
                       </div>
                     </div>
                   </div>

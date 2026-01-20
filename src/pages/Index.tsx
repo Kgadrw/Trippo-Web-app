@@ -173,9 +173,9 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
                       onSelect={() => {
                         // Double-check stock before allowing selection
                         if (product.stock > 0) {
-                          onValueChange(product.id.toString());
-                          setOpen(false);
-                          setSearchQuery("");
+                        onValueChange(product.id.toString());
+                        setOpen(false);
+                        setSearchQuery("");
                         } else {
                           if (onError) {
                             onError(`${product.name} is currently out of stock and cannot be sold.`);
@@ -393,12 +393,12 @@ const Dashboard = () => {
 
     // Initialize audio immediately on button click (user interaction ensures audio works)
     initAudio();
-    
+
     // Set loading state
     setIsRecordingSale(true);
 
     try {
-      if (isBulkMode) {
+    if (isBulkMode) {
       // Bulk add mode
       // Validate all bulk sales before creating them
       const invalidSales: string[] = [];
@@ -455,9 +455,9 @@ const Dashboard = () => {
           return;
         }
 
-        if (salesToCreate.length > 0) {
+      if (salesToCreate.length > 0) {
           await bulkAddSales(salesToCreate as any);
-          await refreshSales();
+        await refreshSales();
 
           playSaleBeep();
 
@@ -469,14 +469,14 @@ const Dashboard = () => {
             title: "Sales Recorded",
             description: `Successfully recorded ${salesToCreate.length} sale(s).`,
           });
-        } else {
-          playWarningBeep();
-          toast({
-            title: "No Sales Recorded",
-            description: "Please fill in at least one complete sale entry.",
-            variant: "destructive",
-          });
-        }
+      } else {
+        playWarningBeep();
+        toast({
+          title: "No Sales Recorded",
+          description: "Please fill in at least one complete sale entry.",
+          variant: "destructive",
+        });
+      }
     } else {
       // Single sale mode
       if (!selectedProduct || !quantity || !sellingPrice || !paymentMethod) {
@@ -561,13 +561,13 @@ const Dashboard = () => {
           description: `Successfully recorded sale of ${qty}x ${product.name}`,
         });
       }
-    } catch (error) {
-      playErrorBeep();
-      toast({
-        title: "Record Failed",
-        description: "Failed to record sale. Please try again.",
-        variant: "destructive",
-      });
+      } catch (error) {
+        playErrorBeep();
+        toast({
+          title: "Record Failed",
+          description: "Failed to record sale. Please try again.",
+          variant: "destructive",
+        });
     } finally {
       // Always reset loading state
       setIsRecordingSale(false);

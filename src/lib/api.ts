@@ -1,7 +1,36 @@
 // API Configuration and Utilities
 import { apiRateLimiter, sanitizeInput, validateObjectId } from './security';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://profit-backend-e4w1.onrender.com/api';
+// API URL Configuration
+// Priority: VITE_API_URL env variable > localhost (dev mode) > deployed URL
+const getApiBaseUrl = (): string => {
+  // If VITE_API_URL is explicitly set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Check if we should use localhost (for local testing)
+  // In dev mode, defaults to localhost unless VITE_USE_LOCALHOST=false
+  // In production, defaults to deployed URL unless VITE_USE_LOCALHOST=true
+  const useLocalhost = import.meta.env.VITE_USE_LOCALHOST === 'true' || 
+                       (import.meta.env.DEV && import.meta.env.VITE_USE_LOCALHOST !== 'false');
+  
+  if (useLocalhost) {
+    // Default localhost port (change if your backend runs on different port)
+    const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
+    return `http://localhost:${localPort}/api`;
+  }
+  
+  // Default to deployed URL
+  return 'https://profit-backend-e4w1.onrender.com/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Log API URL in development mode for debugging
+if (import.meta.env.DEV) {
+  console.log(`🔌 API Base URL: ${API_BASE_URL}`);
+}
 
 export interface ApiResponse<T = any> {
   message?: string;

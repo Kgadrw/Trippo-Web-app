@@ -16,6 +16,10 @@ backend/.env
 backend/.env.local
 backend/.env.*.local
 
+# Ignore frontend .env files (for local testing)
+.env.local
+.env.*.local
+
 # Ignore editor files
 .vscode/
 .idea/
