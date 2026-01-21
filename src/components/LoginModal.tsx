@@ -72,10 +72,11 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     const numericValue = value.replace(/\D/g, "").slice(0, 4);
     setLoginPin(numericValue);
     
-    // Show error if PIN is less than 4 digits and has a value
-    if (numericValue.length > 0 && numericValue.length < 4) {
+    // Show error ONLY if PIN is not equal to 4 digits and has a value
+    if (numericValue.length > 0 && numericValue.length !== 4) {
       setErrors((prev) => ({ ...prev, loginPin: "PIN must be 4 digits" }));
     } else {
+      // Clear error when PIN is exactly 4 digits or empty
       setErrors((prev) => ({ ...prev, loginPin: undefined }));
     }
     
@@ -342,10 +343,16 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 onChange={(e) => handleLoginPinChange(e.target.value)}
                 onKeyPress={(e) => handleKeyPress(e, handleLogin)}
                 placeholder="Enter 4-digit PIN"
-                className={errors.loginPin ? "border-red-500" : ""}
+                className={
+                  loginPin.length === 4 && !errors.loginPin
+                    ? "border-green-500 ring-2 ring-green-500/20 focus:ring-green-500/40"
+                    : errors.loginPin && loginPin.length !== 4
+                    ? "border-red-500 ring-2 ring-red-500/20 focus:ring-red-500/40"
+                    : ""
+                }
                 disabled={isLoading}
               />
-              {errors.loginPin && (
+              {errors.loginPin && (errors.loginPin !== "PIN must be 4 digits" || loginPin.length !== 4) && (
                 <p className="text-sm text-red-500">{errors.loginPin}</p>
               )}
             </div>
