@@ -1,11 +1,21 @@
 import { useState, useMemo } from "react";
-import { AlertTriangle, Edit2, Check, X } from "lucide-react";
+import { AlertTriangle, Edit2, Check, X, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { playUpdateBeep, playWarningBeep, initAudio } from "@/lib/sound";
+import { playUpdateBeep, playWarningBeep, playDeleteBeep, playErrorBeep, initAudio } from "@/lib/sound";
 import { useApi } from "@/hooks/useApi";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Product {
   id?: number;
@@ -28,6 +38,7 @@ export function LowStockAlert() {
   const {
     items: products,
     update: updateProduct,
+    remove: removeProduct,
     refresh: refreshProducts,
   } = useApi<Product>({
     endpoint: "products",
@@ -60,6 +71,8 @@ export function LowStockAlert() {
 
   const [editingId, setEditingId] = useState<string | number | null>(null);
   const [editStock, setEditStock] = useState<string>("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<LowStockItem | null>(null);
 
   const handleEdit = (item: LowStockItem) => {
     setEditingId(item.id);
@@ -109,6 +122,42 @@ export function LowStockAlert() {
   const handleCancel = () => {
     setEditingId(null);
     setEditStock("");
+  };
+
+  const handleDeleteClick = (item: LowStockItem) => {
+    setProductToDelete(item);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+
+    initAudio();
+    const product = products.find((p) => {
+      const productId = (p as any)._id || p.id;
+      return productId?.toString() === productToDelete.id.toString();
+    });
+
+    if (product) {
+      try {
+        await removeProduct(product);
+        await refreshProducts();
+        playDeleteBeep();
+        toast({
+          title: "Product Deleted",
+          description: "Product has been deleted successfully.",
+        });
+        setDeleteDialogOpen(false);
+        setProductToDelete(null);
+      } catch (error) {
+        playErrorBeep();
+        toast({
+          title: "Delete Failed",
+          description: "Failed to delete product. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   return (
@@ -184,8 +233,18 @@ export function LowStockAlert() {
                   variant="ghost"
                   className="h-7 w-7 p-0 hover:bg-gray-100 rounded-full"
                   onClick={() => handleEdit(item)}
+                  title="Edit stock"
                 >
                   <Edit2 size={14} className="text-gray-700" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 hover:bg-red-100 rounded-full"
+                  onClick={() => handleDeleteClick(item)}
+                  title="Delete product"
+                >
+                  <Trash2 size={14} className="text-red-600" />
                 </Button>
               </div>
             )}
@@ -193,6 +252,33 @@ export function LowStockAlert() {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{productToDelete?.name}</strong>? 
+              This action cannot be undone and will permanently remove this product from your inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setProductToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete Product
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
