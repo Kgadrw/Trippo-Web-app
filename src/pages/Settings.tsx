@@ -304,14 +304,14 @@ const Settings = () => {
           {/* Left Sidebar - Navigation */}
           <div className="lg:col-span-1">
             <div className="form-card p-0 overflow-hidden border-primary/30">
-              <div className="p-4 bg-gray-50 border-b border-transparent">
+              <div className="p-4 bg-blue-50 border-b border-blue-200">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-100 border border-transparent flex items-center justify-center">
-                    <User size={18} className="text-gray-600 font-bold" />
+                  <div className="w-10 h-10 bg-blue-100 border border-blue-200 flex items-center justify-center">
+                    <User size={18} className="text-blue-600 font-bold" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-gray-700 text-sm truncate">{ownerName}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{email}</p>
+                    <h3 className="font-bold text-blue-700 text-sm truncate">{ownerName}</h3>
+                    <p className="text-xs text-blue-600 truncate">{email}</p>
                   </div>
                 </div>
               </div>
@@ -321,12 +321,12 @@ const Settings = () => {
                   className={cn(
                     "w-full text-left px-3 py-2.5 transition-all duration-200 text-sm",
                     activeSection === "business"
-                      ? "bg-gray-600 text-white border border-transparent font-semibold"
-                      : "hover:bg-gray-50 text-gray-700 border border-transparent"
+                      ? "bg-blue-600 text-white border border-transparent font-semibold"
+                      : "hover:bg-blue-50 text-gray-700 border border-transparent"
                   )}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Building2 size={16} className={activeSection === "business" ? "text-primary" : ""} />
+                    <Building2 size={16} className={activeSection === "business" ? "text-white" : "text-blue-600"} />
                     {t("businessInfo")}
                   </div>
                 </button>
@@ -335,12 +335,12 @@ const Settings = () => {
                   className={cn(
                     "w-full text-left px-3 py-2.5 transition-all duration-200 text-sm",
                     activeSection === "language"
-                      ? "bg-gray-600 text-white border border-transparent font-semibold"
-                      : "hover:bg-gray-50 text-gray-700 border border-transparent"
+                      ? "bg-blue-600 text-white border border-transparent font-semibold"
+                      : "hover:bg-blue-50 text-gray-700 border border-transparent"
                   )}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Globe size={16} className={activeSection === "language" ? "text-primary" : ""} />
+                    <Globe size={16} className={activeSection === "language" ? "text-white" : "text-blue-600"} />
                     {t("language")}
                   </div>
                 </button>
@@ -349,12 +349,12 @@ const Settings = () => {
                   className={cn(
                     "w-full text-left px-3 py-2.5 transition-all duration-200 text-sm",
                     activeSection === "security"
-                      ? "bg-gray-600 text-white border border-transparent font-semibold"
-                      : "hover:bg-gray-50 text-gray-700 border border-transparent"
+                      ? "bg-blue-600 text-white border border-transparent font-semibold"
+                      : "hover:bg-blue-50 text-gray-700 border border-transparent"
                   )}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Shield size={16} className={activeSection === "security" ? "text-primary" : ""} />
+                    <Shield size={16} className={activeSection === "security" ? "text-white" : "text-blue-600"} />
                     {t("security")}
                   </div>
                 </button>
@@ -369,41 +369,41 @@ const Settings = () => {
               <div className="form-card border border-transparent bg-white animate-fade-in">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-gray-100 border border-transparent flex items-center justify-center">
-                    <Building2 size={16} className="text-gray-600" />
+                  <div className="w-9 h-9 bg-blue-100 border border-blue-200 flex items-center justify-center">
+                    <Building2 size={16} className="text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-gray-700">{t("businessInfo")}</h2>
+                    <h2 className="text-lg font-bold text-blue-700">{t("businessInfo")}</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Hindura amakuru y'ubucuruzi" : "Update your business details"}</p>
                   </div>
                 </div>
               </div>
               
-              <Separator className="mb-4" />
+              <Separator className="mb-4 bg-blue-200" />
 
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                      <Building2 size={12} className="text-muted-foreground" />
+                      <Building2 size={12} className="text-blue-600" />
                       {t("businessName")}
                     </Label>
                     <Input
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
-                      className="input-field h-10 bg-background text-sm"
+                      className="input-field h-10 bg-background text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       placeholder="Enter business name"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                      <User size={12} className="text-muted-foreground" />
+                      <User size={12} className="text-blue-600" />
                       {t("ownerName")}
                     </Label>
                     <Input
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      className="input-field h-10 bg-background text-sm"
+                      className="input-field h-10 bg-background text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       placeholder="Enter owner name"
                     />
                   </div>
@@ -411,14 +411,14 @@ const Settings = () => {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                    <Mail size={12} className="text-muted-foreground" />
+                    <Mail size={12} className="text-blue-600" />
                     {t("emailAddress")}
                   </Label>
                   <Input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="input-field h-10 bg-background text-sm"
+                    className="input-field h-10 bg-background text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Enter email address"
                   />
                 </div>
@@ -429,7 +429,7 @@ const Settings = () => {
               <div className="flex justify-end">
                 <Button 
                   onClick={handleSaveBusinessInfo} 
-                  className="bg-green-600 text-white hover:bg-green-700 gap-2 h-10 px-5 text-sm shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                  className="bg-blue-600 text-white hover:bg-blue-700 gap-2 h-10 px-5 text-sm shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                 >
                   <Save size={14} />
                   {t("saveChanges")}
@@ -443,26 +443,26 @@ const Settings = () => {
               <div className="form-card border border-transparent bg-white animate-fade-in">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-gray-100 border border-transparent flex items-center justify-center">
-                      <Globe size={16} className="text-gray-600" />
+                    <div className="w-9 h-9 bg-blue-100 border border-blue-200 flex items-center justify-center">
+                      <Globe size={16} className="text-blue-600" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-gray-700">{t("language")}</h2>
+                      <h2 className="text-lg font-bold text-blue-700">{t("language")}</h2>
                       <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Hitamo ururimi wifuza gukoresha" : "Choose your preferred language"}</p>
                     </div>
                   </div>
                 </div>
                 
-                <Separator className="mb-4" />
+                <Separator className="mb-4 bg-blue-200" />
 
                 <div className="space-y-5">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                      <Globe size={12} className="text-muted-foreground" />
+                      <Globe size={12} className="text-blue-600" />
                       {language === "rw" ? "Hitamo ururimi" : "Select Language"}
                     </Label>
                     <Select value={language} onValueChange={(value: "en" | "rw") => setLanguage(value)}>
-                      <SelectTrigger className="input-field h-10 bg-background text-sm">
+                      <SelectTrigger className="input-field h-10 bg-background text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -485,17 +485,17 @@ const Settings = () => {
               <div className="form-card border border-transparent bg-white animate-fade-in">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-gray-100 border border-transparent flex items-center justify-center">
-                    <Shield size={16} className="text-gray-600" />
+                  <div className="w-9 h-9 bg-blue-100 border border-blue-200 flex items-center justify-center">
+                    <Shield size={16} className="text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-gray-700">{t("security")}</h2>
+                    <h2 className="text-lg font-bold text-blue-700">{t("security")}</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Shiraho PIN kugirango wongere umutekano" : "Set PIN to keep your account secure"}</p>
                   </div>
                 </div>
               </div>
               
-              <Separator className="mb-4" />
+              <Separator className="mb-4 bg-blue-200" />
 
               <div className="space-y-6">
                 {/* PIN Settings */}
@@ -503,7 +503,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Lock size={14} className="text-muted-foreground" />
+                        <Lock size={14} className="text-blue-600" />
                         Financial Data PIN Protection
                       </h3>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -534,7 +534,7 @@ const Settings = () => {
                           maxLength={4}
                           value={currentPin}
                           onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                          className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono"
+                          className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                           placeholder="••••"
                         />
                       </div>
@@ -547,7 +547,7 @@ const Settings = () => {
                             maxLength={4}
                             value={newPin}
                             onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono"
+                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             placeholder="••••"
                           />
                 </div>
@@ -559,14 +559,14 @@ const Settings = () => {
                             maxLength={4}
                             value={confirmPin}
                             onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono"
+                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             placeholder="••••"
                           />
                         </div>
                       </div>
                       <Button
                         onClick={handleChangePin}
-                        className="bg-green-600 text-white hover:bg-green-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                        className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                         disabled={currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4}
                       >
                         <Lock size={14} />
@@ -586,7 +586,7 @@ const Settings = () => {
                             maxLength={4}
                             value={newPin}
                             onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono"
+                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             placeholder="••••"
                           />
                   </div>
@@ -598,14 +598,14 @@ const Settings = () => {
                             maxLength={4}
                             value={confirmPin}
                             onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono"
+                            className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             placeholder="••••"
                           />
                         </div>
                       </div>
                       <Button
                         onClick={handleSetPin}
-                        className="bg-green-600 text-white hover:bg-green-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                        className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                         disabled={newPin.length !== 4 || confirmPin.length !== 4}
                       >
                         <Lock size={14} />

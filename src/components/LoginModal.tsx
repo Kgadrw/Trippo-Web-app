@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
-import { Lock, User, Mail } from "lucide-react";
+import { Lock, User, Mail, Phone } from "lucide-react";
 
 interface LoginModalProps {
   open: boolean;
@@ -32,6 +32,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const [confirmPin, setConfirmPin] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
@@ -40,6 +41,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     confirmPin?: string;
     name?: string;
     email?: string;
+    phone?: string;
   }>({});
   
   const loginPinRef = useRef<HTMLInputElement>(null);
@@ -54,6 +56,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       setConfirmPin("");
       setName("");
       setEmail("");
+      setPhone("");
       setLoginEmail("");
       setErrors({});
       
@@ -92,13 +95,18 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       return;
     }
 
+    if (!loginEmail.trim()) {
+      setErrors((prev) => ({ ...prev, email: "Email is required" }));
+      return;
+    }
+
     setIsLoading(true);
-    setErrors((prev) => ({ ...prev, loginPin: undefined }));
+    setErrors((prev) => ({ ...prev, loginPin: undefined, email: undefined }));
 
     try {
       const response = await authApi.login({ 
         pin: loginPin,
-        email: loginEmail.trim() || undefined 
+        email: loginEmail.trim()
       });
 
       if (response.user) {
@@ -203,9 +211,18 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       newErrors.name = "Name is required";
     }
 
-    // Validate email (optional)
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    // Validate email (required)
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = "Please enter a valid email address";
+    }
+
+    // Validate phone (required)
+    if (!phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (phone.trim().length < 10) {
+      newErrors.phone = "Phone number must be at least 10 digits";
     }
 
     // Validate PIN
@@ -231,7 +248,8 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     try {
       const response = await authApi.register({
         name: name.trim(),
-        email: email.trim() || undefined,
+        email: email.trim(),
+        phone: phone.trim(),
         pin: createPin,
       });
 
@@ -311,7 +329,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             <div className="space-y-2">
               <Label htmlFor="login-email" className="flex items-center gap-2">
                 <Mail size={16} />
-                Email (Optional)
+                Email
               </Label>
               <Input
                 id="login-email"
@@ -321,8 +339,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                   setLoginEmail(e.target.value);
                   setErrors((prev) => ({ ...prev, email: undefined }));
                 }}
-                placeholder="Enter your email (optional)"
+                placeholder="Enter your email"
                 className={errors.email ? "border-red-500" : ""}
+                required
               />
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email}</p>
@@ -391,7 +410,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             <div className="space-y-2">
               <Label htmlFor="email" className="flex items-center gap-2">
                 <Mail size={16} />
-                Email (Optional)
+                Email
               </Label>
               <Input
                 id="email"
@@ -403,9 +422,32 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 }}
                 placeholder="Enter your email"
                 className={errors.email ? "border-red-500" : ""}
+                required
               />
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="flex items-center gap-2">
+                <Phone size={16} />
+                Phone Number
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setErrors((prev) => ({ ...prev, phone: undefined }));
+                }}
+                placeholder="Enter your phone number"
+                className={errors.phone ? "border-red-500" : ""}
+                required
+              />
+              {errors.phone && (
+                <p className="text-sm text-red-500">{errors.phone}</p>
               )}
             </div>
 

@@ -321,7 +321,7 @@ const Products = () => {
   const ProductsSkeleton = () => (
     <AppLayout title="Products">
       <div className="flex flex-col h-[calc(100vh-3rem)]">
-        <div className="bg-white shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Filter Section Skeleton */}
           <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
             <div className="flex flex-col gap-4">
@@ -398,9 +398,9 @@ const Products = () => {
   return (
     <AppLayout title="Products">
       <div className="flex flex-col h-[calc(100vh-3rem)]">
-      <div className="bg-white shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
           {/* Filter Section */}
-          <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 px-4 py-4 flex-shrink-0 shadow-sm">
+          <div className="bg-white border-b border-gray-200 px-4 py-4 flex-shrink-0">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -408,12 +408,12 @@ const Products = () => {
                   <h3 className="text-sm font-semibold text-gray-800">{t("filter")} {t("products")}</h3>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                  <Button onClick={openAddModal} className="bg-gray-700 text-white hover:bg-gray-800 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 gap-2 w-full sm:w-auto">
+                  <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold px-4 py-2 gap-2 w-full sm:w-auto">
                     <Plus size={18} />
                     <span className="hidden xs:inline">{t("addProduct")}</span>
                     <span className="xs:hidden">{t("add")}</span>
                   </Button>
-                  <Button onClick={openBulkAddModal} className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
+                  <Button onClick={openBulkAddModal} className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent font-medium px-4 py-2 gap-2 w-full sm:w-auto">
                     <Plus size={18} />
                     <span className="hidden xs:inline">{t("bulkAddProducts")}</span>
                     <span className="xs:hidden">{t("bulkAdd")}</span>
@@ -526,47 +526,46 @@ const Products = () => {
         </div>
         {/* Table - Sticky Header with Scrollable Body */}
         <div className="overflow-auto flex-1">
-            <div className="rounded-b-lg overflow-hidden">
+            <div className="overflow-hidden">
           {/* Desktop Table View */}
           <div className="hidden md:block">
           <table className="w-full border-collapse">
-              <thead className="sticky top-0 z-10 bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300 shadow-sm">
+              <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
               <tr>
-                  <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("productName")}</th>
-                  <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("productType")}</th>
-                <th className="text-left text-xs font-bold text-orange-700 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("costPrice")}</th>
-                <th className="text-left text-xs font-bold text-blue-700 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("sellingPrice")}</th>
-                <th className="text-left text-xs font-bold text-purple-700 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("stock")}</th>
-                <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("status")}</th>
-                  <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6">{t("actions")}</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("productName")}</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("productType")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("costPrice")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("sellingPrice")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("stock")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("status")}</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("actions")}</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white">
                 {filteredProducts.length > 0 ? (
                   filteredProducts.map((product, index) => {
                     const status = getStockStatus(product);
                     const productId = (product as any)._id || product.id;
                 return (
                   <tr key={productId} className={cn(
-                    "transition-all duration-150 border-b border-gray-100",
-                    index % 2 === 0 ? "bg-white" : "bg-gray-50/30",
-                    "hover:bg-blue-50/50 hover:shadow-sm"
+                    "border-b border-gray-200",
+                    index % 2 === 0 ? "bg-white" : "bg-gray-50"
                   )}>
-                        <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
+                        <td className="py-4 px-6">
                           <div className="flex items-center gap-2">
-                      <div className="text-sm font-semibold text-gray-900">{product.name}</div>
+                      <div className="text-sm text-gray-900">{product.name}</div>
                             {product.isPackage && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded border border-purple-200">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded">
                                 <Package size={12} />
                                 Box of {product.packageQuantity}
                               </span>
                             )}
                           </div>
                     </td>
-                    <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
+                    <td className="py-4 px-6">
                           <div className="text-sm">
                             {product.productType ? (
-                              <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded border border-gray-200">
+                              <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
                                 {product.productType}
                               </span>
                             ) : (
@@ -574,14 +573,14 @@ const Products = () => {
                             )}
                           </div>
                     </td>
-                    <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                      <div className="text-sm font-medium text-orange-700">{product.costPrice.toLocaleString()} rwf</div>
+                    <td className="py-4 px-6">
+                      <div className="text-sm text-gray-700">{product.costPrice.toLocaleString()} rwf</div>
                     </td>
-                    <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                      <div className="text-sm font-bold text-blue-700">{product.sellingPrice.toLocaleString()} rwf</div>
+                    <td className="py-4 px-6">
+                      <div className="text-sm text-gray-700">{product.sellingPrice.toLocaleString()} rwf</div>
                     </td>
-                    <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                          <div className="text-sm font-medium text-purple-700">
+                    <td className="py-4 px-6">
+                          <div className="text-sm text-gray-700">
                             {product.stock}
                             {product.minStock && (
                               <span className="text-xs text-gray-500 ml-1">
@@ -590,28 +589,28 @@ const Products = () => {
                             )}
                           </div>
                     </td>
-                    <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                          <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded border", 
+                    <td className="py-4 px-6">
+                          <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded", 
                             status.label === "Low Stock" 
-                              ? "bg-red-50 text-red-700 border-red-200" 
-                              : "bg-green-50 text-green-700 border-green-200"
+                              ? "bg-red-100 text-red-700" 
+                              : "bg-green-100 text-green-700"
                           )}>
                             {status.icon && <status.icon size={12} />}
                         {status.label}
                       </span>
                     </td>
-                        <td className="py-4 px-6 whitespace-nowrap">
+                        <td className="py-4 px-6">
                       <div className="flex gap-2">
                         <button
                           onClick={() => openEditModal(product)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all rounded-lg border border-transparent hover:border-blue-200"
+                          className="p-2 text-blue-600 rounded"
                           title={t("editProduct")}
                         >
                           <Pencil size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(product)}
-                          className="p-2 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all rounded-lg border border-transparent hover:border-red-200"
+                          className="p-2 text-red-600 rounded"
                           title={t("deleteProduct")}
                         >
                           <Trash2 size={16} />
@@ -643,7 +642,7 @@ const Products = () => {
                 const status = getStockStatus(product);
                 const productId = (product as any)._id || product.id;
                 return (
-                  <div key={productId} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <div key={productId} className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -833,7 +832,7 @@ const Products = () => {
             }} className="btn-secondary">
               Cancel
             </Button>
-            <Button onClick={handleSave} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg">
+            <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold rounded-lg">
               Save Changes
             </Button>
           </DialogFooter>

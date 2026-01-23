@@ -7,8 +7,9 @@ import {
   FileText,
   Settings,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
+  Pin,
+  PinOff,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePinAuth } from "@/hooks/usePinAuth";
@@ -25,13 +26,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/hooks/useTranslation";
 
-const getMenuItems = (t: (key: string) => string) => [
-  { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
-  { icon: Package, label: t("products"), path: "/products" },
-  { icon: ShoppingCart, label: t("sales"), path: "/sales" },
-  { icon: FileText, label: t("reports"), path: "/reports" },
-  { icon: Settings, label: t("settings"), path: "/settings" },
-];
+const getMenuItems = (t: (key: string) => string) => {
+  // Calculate if NEW banner should show (for one month from today)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const oneMonthLater = new Date(today);
+  oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+  const showNewBanner = new Date() <= oneMonthLater;
+  
+  return [
+    { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
+    { icon: Package, label: t("products"), path: "/products" },
+    { icon: ShoppingCart, label: t("sales"), path: "/sales" },
+    { icon: Calendar, label: "Schedules", path: "/schedules", showNew: showNewBanner },
+    { icon: FileText, label: t("reports"), path: "/reports" },
+    { icon: Settings, label: t("settings"), path: "/settings" },
+  ];
+};
 
 interface SidebarProps {
   collapsed: boolean;
@@ -52,6 +63,14 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   const [isHovered, setIsHovered] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+  const [shouldAnimateBanner, setShouldAnimateBanner] = useState(false);
+  const [prevLocation, setPrevLocation] = useState(location.pathname);
+  const [animationKey, setAnimationKey] = useState(0);
+  
+  // Determine if sidebar should appear expanded (hover overrides collapsed state on desktop)
+  const isExpanded = isHovered || !collapsed;
+  
+  const [prevIsExpanded, setPrevIsExpanded] = useState(isExpanded);
 
   // Minimum swipe distance
   const minSwipeDistance = 50;
@@ -117,8 +136,47 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
     navigate("/", { replace: true });
   };
 
-  // Determine if sidebar should appear expanded (hover overrides collapsed state on desktop)
-  const isExpanded = isHovered || !collapsed;
+  // Trigger banner animation when sidebar expands or when schedule page becomes active
+  useEffect(() => {
+    const isScheduleActive = location.pathname === "/schedules";
+    const wasScheduleActive = prevLocation === "/schedules";
+    
+    // Animate when schedule page becomes active (navigating to schedules) and sidebar is expanded
+    if (isScheduleActive && !wasScheduleActive && isExpanded) {
+      setShouldAnimateBanner(true);
+      setAnimationKey(prev => prev + 1);
+      const timer = setTimeout(() => {
+        setShouldAnimateBanner(false);
+      }, 500);
+      setPrevLocation(location.pathname);
+      return () => clearTimeout(timer);
+    }
+    
+    // Animate when sidebar expands while schedule is active
+    if (isScheduleActive && isExpanded && !prevIsExpanded) {
+      setShouldAnimateBanner(true);
+      setAnimationKey(prev => prev + 1);
+      const timer = setTimeout(() => {
+        setShouldAnimateBanner(false);
+      }, 500);
+      setPrevIsExpanded(isExpanded);
+      return () => clearTimeout(timer);
+    }
+    
+    // Animate when sidebar expands (general case)
+    if (isExpanded && !prevIsExpanded) {
+      setShouldAnimateBanner(true);
+      const timer = setTimeout(() => {
+        setShouldAnimateBanner(false);
+      }, 500);
+      setPrevIsExpanded(isExpanded);
+      return () => clearTimeout(timer);
+    }
+    
+    // Update previous states
+    setPrevIsExpanded(isExpanded);
+    setPrevLocation(location.pathname);
+  }, [isExpanded, prevIsExpanded, location.pathname, prevLocation]);
 
   // Handle touch start for swipe detection
   const onTouchStart = (e: React.TouchEvent) => {
@@ -168,9 +226,9 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   return (
     <aside
       className={cn(
-        "fixed z-50 bg-white transition-all duration-300 flex flex-col overflow-hidden shadow-lg",
-        "left-0 top-0 h-screen w-56",
-        "lg:left-0 lg:top-0 lg:h-screen lg:border-r lg:border-gray-200 lg:shadow-none",
+        "fixed z-50 bg-blue-600 transition-all duration-300 flex flex-col overflow-hidden shadow-lg rounded-lg",
+        "left-2 top-2 h-[calc(100vh-1rem)] w-56",
+        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border-r lg:border-blue-700 lg:shadow-none lg:rounded-lg",
         isExpanded && "lg:w-56",
         !isExpanded && collapsed && "lg:w-16"
       )}
@@ -194,7 +252,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
       style={{ touchAction: 'pan-y' }}
     >
       {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 bg-white">
+        <div className="flex items-center justify-between h-16 px-4 bg-blue-600 border-b border-blue-700">
         {isExpanded && (
           <div className="flex items-center gap-2">
             <img 
@@ -202,7 +260,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
               alt="Trippo Logo" 
               className="h-8 w-8 object-contain"
             />
-            <span className="text-xl font-normal text-gray-700 lowercase">trippo</span>
+            <span className="text-xl font-normal text-white lowercase">trippo</span>
           </div>
         )}
         {!isExpanded && (
@@ -217,9 +275,16 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
         <div className="flex items-center gap-2">
           <button
             onClick={onToggle}
-            className="p-2 hover:bg-gray-100 text-gray-700 transition-colors rounded hidden lg:block"
+            className="p-2 hover:bg-blue-700 text-white transition-colors rounded hidden lg:block"
+            title={collapsed ? "Pin sidebar" : "Unpin sidebar"}
           >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            <Pin 
+              size={18} 
+              className={cn(
+                "transition-transform duration-300",
+                collapsed ? "rotate-0" : "rotate-180"
+              )}
+            />
           </button>
         </div>
       </div>
@@ -228,20 +293,46 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-thin">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
+          const isScheduleItem = item.path === "/schedules";
+          const isScheduleActive = isScheduleItem && isActive;
           return (
             <Link
               key={item.path}
               to={item.path}
               onClick={handleNavClick}
               className={cn(
-                "sidebar-item",
+                "sidebar-item w-full",
                 isActive && "sidebar-item-active",
                 !isExpanded && "justify-center px-0"
               )}
               title={!isExpanded ? item.label : undefined}
             >
-              <item.icon size={20} className={isActive ? "text-white" : ""} />
-              {isExpanded && <span>{item.label}</span>}
+              <item.icon size={20} className={isActive ? "text-white" : "text-blue-100"} />
+              {isExpanded && (
+                <>
+                  <span className={cn("flex-1", isActive ? "text-white" : "text-blue-100")}>{item.label}</span>
+                  {item.showNew && (
+                    <span 
+                      className={cn(
+                        "ml-auto px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap inline-block",
+                        isScheduleActive 
+                          ? "bg-red-600 text-white" 
+                          : "bg-white text-blue-600"
+                      )}
+                    >
+                      <span 
+                        key={`banner-${animationKey}`}
+                        className={cn(
+                          "inline-block",
+                          shouldAnimateBanner && isScheduleActive && "animate-banner-text"
+                        )}
+                      >
+                        NEW
+                      </span>
+                    </span>
+                  )}
+                </>
+              )}
             </Link>
           );
         })}
@@ -252,7 +343,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
         <button
           onClick={handleLogoutClick}
           className={cn(
-            "sidebar-item w-full hover:bg-red-100 hover:text-red-700 transition-colors text-gray-700",
+            "sidebar-item w-full hover:bg-red-500 hover:text-white transition-colors text-blue-100",
             !isExpanded && "justify-center px-0"
           )}
           title={!isExpanded ? "Logout" : undefined}

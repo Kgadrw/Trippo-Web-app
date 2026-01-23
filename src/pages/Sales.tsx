@@ -891,7 +891,7 @@ const Sales = () => {
         </div>
 
         {/* Sales Table Skeleton */}
-        <div className="bg-white shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
+        <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
           <div className="overflow-auto flex-1">
             <table className="w-full">
               <thead className="sticky top-0 z-10 bg-white border-b border-gray-200">
@@ -955,7 +955,7 @@ const Sales = () => {
             {!isBulkMode && (
               <Button
                 onClick={() => setIsBulkMode(true)}
-                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto"
+                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent font-medium px-4 py-2 gap-2 w-full sm:w-auto"
               >
                 <Plus size={16} />
                 {t("bulkAdd")}
@@ -1119,7 +1119,7 @@ const Sales = () => {
               <Button
                 onClick={handleRecordSale}
               disabled={isRecordingSale}
-              className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-blue-600 text-white hover:bg-blue-700 font-semibold px-4 py-2 border border-transparent gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart size={16} />
               {isRecordingSale ? t("recording") : t("recordSales")}
@@ -1217,7 +1217,7 @@ const Sales = () => {
           </div>
           {/* Revenue, Cost, and Profit Preview */}
           {selectedProduct && quantity && sellingPrice && parseInt(quantity) > 0 && parseFloat(sellingPrice) > 0 && (
-            <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30">
+            <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               {(() => {
                 const product = products.find(p => {
                   const id = (p as any)._id || p.id;
@@ -1281,18 +1281,18 @@ const Sales = () => {
       </div>
 
       {/* Sales History Table - Static Header with Scrollable Body */}
-      <div className="bg-white shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
+      <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
         {/* Filter Section */}
-        <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 px-4 py-4 flex-shrink-0 shadow-sm">
+        <div className="bg-white border-b border-gray-200 px-4 py-4 flex-shrink-0">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Filter size={18} className="text-gray-700" />
-                <h3 className="text-sm font-bold text-gray-800">{t("filterSales")}</h3>
+                <h3 className="text-sm font-semibold text-gray-700">{t("filterSales")}</h3>
               </div>
               {selectedSales.size > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 border border-blue-300 rounded-lg">
-                  <span className="text-xs font-semibold text-blue-800">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg">
+                  <span className="text-xs font-semibold text-gray-700">
                     {selectedSales.size} {selectedSales.size === 1 ? 'sale' : 'sales'} selected
                   </span>
                 </div>
@@ -1368,11 +1368,11 @@ const Sales = () => {
               {selectedSales.size > 0 && (
                 <Button
                   onClick={handleDeleteSelected}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 rounded-lg px-4 py-2 font-semibold flex items-center gap-2"
+                  className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2 font-semibold flex items-center gap-2"
                 >
                   <div className="relative">
                     <Trash2 size={16} />
-                    <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
+                    <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                       {selectedSales.size}
                     </span>
                   </div>
@@ -1391,25 +1391,25 @@ const Sales = () => {
           {/* Desktop Table View */}
           <div className="hidden md:block">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 z-10 bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300 shadow-sm">
+            <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
               <tr>
-                <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 w-12 border-r border-gray-200">
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4 w-12">
                   {selectedSales.size > 0 && (
                     <Checkbox
                       checked={allSelected}
                       onCheckedChange={handleSelectAll}
-                      className="h-5 w-5 rounded-md border-2 border-gray-400 bg-white transition-all duration-200 hover:border-blue-500 hover:bg-blue-50 data-[state=checked]:bg-gradient-to-br data-[state=checked]:from-blue-500 data-[state=checked]:to-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:shadow-md data-[state=checked]:shadow-blue-200"
+                      className="h-4 w-4"
                     />
                   )}
                 </th>
-                <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("product")}</th>
-                <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("quantity")}</th>
-                <th className="text-left text-xs font-bold text-blue-700 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("revenue")}</th>
-                <th className="text-left text-xs font-bold text-orange-700 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("language") === "rw" ? "Agaciro" : "Cost"}</th>
-                <th className="text-left text-xs font-bold text-green-700 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("profit")}</th>
-                <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("paymentMethod")}</th>
-                <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6 border-r border-gray-200">{t("date")}</th>
-                <th className="text-left text-xs font-bold text-gray-800 uppercase tracking-wider py-4 px-6">{t("actions")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("product")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("quantity")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("revenue")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("language") === "rw" ? "Agaciro" : "Cost"}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("profit")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("paymentMethod")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("date")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-2 px-4">{t("actions")}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -1421,40 +1421,39 @@ const Sales = () => {
                   
                   return (
                     <tr key={saleId || index} className={cn(
-                      "transition-all duration-150 border-b border-gray-100",
-                      index % 2 === 0 ? "bg-white" : "bg-gray-50/30",
-                      "hover:bg-blue-50/50 hover:shadow-sm",
-                      isSelected && "bg-blue-100/50 border-blue-200"
+                      "border-b border-gray-200",
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50",
+                      isSelected && "bg-blue-50"
                     )}>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
+                      <td className="py-2 px-4">
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => handleSelectSale(idString)}
-                          className="h-5 w-5 rounded-md border-2 border-gray-400 bg-white transition-all duration-200 hover:border-blue-500 hover:bg-blue-50 data-[state=checked]:bg-gradient-to-br data-[state=checked]:from-blue-500 data-[state=checked]:to-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:shadow-md data-[state=checked]:shadow-blue-200"
+                          className="h-4 w-4"
                         />
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                        <div className="text-sm font-semibold text-gray-900">{sale.product}</div>
+                      <td className="py-2 px-4">
+                        <div className="text-xs text-gray-900">{sale.product}</div>
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                        <div className="text-sm font-medium text-gray-800">{sale.quantity}</div>
+                      <td className="py-2 px-4">
+                        <div className="text-xs text-gray-700">{sale.quantity}</div>
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                        <div className="text-sm font-bold text-blue-700">{sale.revenue.toLocaleString()} rwf</div>
+                      <td className="py-2 px-4">
+                        <div className="text-xs text-gray-700">{sale.revenue.toLocaleString()} rwf</div>
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                        <div className="text-sm font-medium text-orange-700">{sale.cost.toLocaleString()} rwf</div>
+                      <td className="py-2 px-4">
+                        <div className="text-xs text-gray-700">{sale.cost.toLocaleString()} rwf</div>
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
+                      <td className="py-2 px-4">
                         <div className={cn(
-                          "text-sm font-bold",
+                          "text-xs",
                           sale.profit >= 0 ? "text-green-700" : "text-red-700"
                         )}>
                           {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
                         </div>
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                        <div className="text-sm font-medium text-gray-700">
+                      <td className="py-2 px-4">
+                        <div className="text-xs text-gray-700">
                           {sale.paymentMethod === 'cash' && t("cash")}
                           {sale.paymentMethod === 'card' && t("card")}
                           {sale.paymentMethod === 'momo' && t("momoPay")}
@@ -1463,16 +1462,16 @@ const Sales = () => {
                           {!sale.paymentMethod && t("cash")}
                         </div>
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap border-r border-gray-100">
-                        <div className="text-sm text-gray-600">{formatDateWithTime(sale.date)}</div>
+                      <td className="py-2 px-4">
+                        <div className="text-xs text-gray-600">{formatDateWithTime(sale.date)}</div>
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap">
+                      <td className="py-2 px-4">
                         <button
                           onClick={() => handleDeleteSingle(sale)}
-                          className="p-2 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all rounded-lg border border-transparent hover:border-red-200"
+                          className="p-1.5 text-red-600 rounded"
                           title="Delete sale"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
@@ -1501,14 +1500,14 @@ const Sales = () => {
                 const idString = saleId?.toString() || '';
                 const isSelected = selectedSales.has(idString);
                 return (
-                  <div key={saleId || sale.id} className={cn("bg-white border border-gray-200 rounded-lg p-4 shadow-sm", isSelected && "bg-gray-50 border-gray-300")}>
+                  <div key={saleId || sale.id} className={cn("bg-white border border-gray-200 rounded-lg p-4", isSelected && "bg-gray-50 border-gray-300")}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={() => handleSelectSale(idString)}
-                            className="h-5 w-5 rounded-md border-2 border-gray-400 bg-white transition-all duration-200 hover:border-blue-500 hover:bg-blue-50 data-[state=checked]:bg-gradient-to-br data-[state=checked]:from-blue-500 data-[state=checked]:to-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:shadow-md data-[state=checked]:shadow-blue-200 shrink-0"
+                            className="h-5 w-5 shrink-0"
                           />
                           <h4 className="text-base font-semibold text-gray-900 truncate">{sale.product}</h4>
                         </div>

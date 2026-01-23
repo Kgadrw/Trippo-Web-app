@@ -91,13 +91,23 @@ async function request<T>(
   // Sanitize userId if present
   const sanitizedUserId = userId ? sanitizeInput(userId) : null;
   
+  // Build headers - merge default headers with any provided headers
+  const defaultHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (sanitizedUserId) {
+    defaultHeaders['X-User-Id'] = sanitizedUserId;
+  }
+  
+  const mergedHeaders = {
+    ...defaultHeaders,
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
   const config: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(sanitizedUserId && { 'X-User-Id': sanitizedUserId }),
-      ...options.headers,
-    },
     ...options,
+    headers: mergedHeaders,
   };
   
   // Sanitize request body if present
@@ -153,7 +163,7 @@ async function request<T>(
 // Auth API functions
 export const authApi = {
   // Register a new user
-  async register(data: { name: string; email?: string; pin: string }): Promise<ApiResponse> {
+  async register(data: { name: string; email: string; phone: string; pin: string }): Promise<ApiResponse> {
     return request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -161,7 +171,7 @@ export const authApi = {
   },
 
   // Login
-  async login(data: { pin: string; email?: string }): Promise<ApiResponse> {
+  async login(data: { pin: string; email: string }): Promise<ApiResponse> {
     return request('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -176,7 +186,7 @@ export const authApi = {
   },
 
   // Update user information
-  async updateUser(data: { name?: string; email?: string; businessName?: string }): Promise<ApiResponse> {
+  async updateUser(data: { name?: string; email?: string; phone?: string; businessName?: string }): Promise<ApiResponse> {
     return request('/auth/update', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -343,6 +353,109 @@ export const adminApi = {
   async deleteUser(userId: string): Promise<ApiResponse> {
     return request(`/admin/users/${userId}`, {
       method: 'DELETE',
+    });
+  },
+};
+
+// Client API functions
+export const clientApi = {
+  // Get all clients
+  async getAll(): Promise<ApiResponse> {
+    return request('/clients', {
+      method: 'GET',
+    });
+  },
+
+  // Get single client
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/clients/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  // Create client
+  async create(data: any): Promise<ApiResponse> {
+    return request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update client
+  async update(id: string, data: any): Promise<ApiResponse> {
+    return request(`/clients/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete client
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/clients/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// Schedule API functions
+export const scheduleApi = {
+  // Get all schedules
+  async getAll(params?: { status?: string; upcoming?: string; clientId?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.upcoming) queryParams.append('upcoming', params.upcoming);
+    if (params?.clientId) queryParams.append('clientId', params.clientId);
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/schedules?${queryString}` : '/schedules';
+    
+    return request(url, {
+      method: 'GET',
+    });
+  },
+
+  // Get upcoming schedules
+  async getUpcoming(days: number = 7): Promise<ApiResponse> {
+    return request(`/schedules/upcoming?days=${days}`, {
+      method: 'GET',
+    });
+  },
+
+  // Get single schedule
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/schedules/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  // Create schedule
+  async create(data: any): Promise<ApiResponse> {
+    return request('/schedules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update schedule
+  async update(id: string, data: any): Promise<ApiResponse> {
+    return request(`/schedules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete schedule
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/schedules/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Complete schedule
+  async complete(id: string, data?: { completionMessage?: string; notifyClient?: boolean; notifyUser?: boolean }): Promise<ApiResponse> {
+    return request(`/schedules/${id}/complete`, {
+      method: "PUT",
+      body: JSON.stringify(data || {}),
     });
   },
 };

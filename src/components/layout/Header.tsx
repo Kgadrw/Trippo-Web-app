@@ -120,22 +120,22 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
             </div>
             
             <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <User size={18} className="text-gray-500 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <User size={18} className="text-blue-600 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 mb-1">Owner Name</p>
-                  <p className="text-sm font-semibold text-gray-900">
+                  <p className="text-xs text-blue-600 mb-1">Owner Name</p>
+                  <p className="text-sm font-semibold text-blue-700">
                     {user?.name || "Not set"}
                   </p>
                 </div>
               </div>
 
               {user?.email && (
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Mail size={18} className="text-gray-500 mt-0.5" />
+                <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Mail size={18} className="text-blue-600 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Email Address</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-xs text-blue-600 mb-1">Email Address</p>
+                    <p className="text-sm font-semibold text-blue-700">
                       {user.email}
                     </p>
                   </div>
@@ -143,11 +143,11 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
               )}
 
               {user?.businessName && (
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Building2 size={18} className="text-gray-500 mt-0.5" />
+                <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Building2 size={18} className="text-blue-600 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Business Name</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-xs text-blue-600 mb-1">Business Name</p>
+                    <p className="text-sm font-semibold text-blue-700">
                       {user.businessName}
                     </p>
                   </div>

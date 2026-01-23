@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
 import { LowStockAlert } from "@/components/dashboard/LowStockAlert";
+import { UpcomingSchedulesWidget, OverdueSchedulesWidget, RecentClientsWidget } from "@/components/schedules/ScheduleWidgets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -285,6 +286,35 @@ const Dashboard = () => {
       console.error("Error with sales:", error);
     },
   });
+  
+  const {
+    items: schedules,
+    isLoading: schedulesLoading,
+  } = useApi<any>({
+    endpoint: "schedules",
+    defaultValue: [],
+    onError: (error) => {
+      console.error("Error loading schedules:", error);
+    },
+  });
+  
+  const {
+    items: clients,
+    isLoading: clientsLoading,
+  } = useApi<any>({
+    endpoint: "clients",
+    defaultValue: [],
+    onError: (error) => {
+      console.error("Error loading clients:", error);
+    },
+  });
+  
+  const getClientName = (clientId?: string | any) => {
+    if (!clientId) return "No Client";
+    if (typeof clientId === "object") return clientId.name;
+    const client = clients.find((c: any) => (c._id || c.id) === clientId);
+    return client?.name || "Unknown Client";
+  };
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   
   // Calculate KPI values from real data
@@ -1058,7 +1088,7 @@ const Dashboard = () => {
       </div>
 
       {/* Charts and Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
           {isLoading ? (
             <ChartSkeleton />
@@ -1071,6 +1101,46 @@ const Dashboard = () => {
             <LowStockSkeleton />
           ) : (
             <LowStockAlert />
+          )}
+        </div>
+      </div>
+
+      {/* Schedules & Clients Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {schedulesLoading ? (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <Skeleton className="h-6 w-48 mb-3" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : (
+            <UpcomingSchedulesWidget 
+              schedules={schedules} 
+              clients={clients}
+              getClientName={getClientName}
+            />
+          )}
+          {schedulesLoading ? (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <Skeleton className="h-6 w-48 mb-3" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : (
+            <OverdueSchedulesWidget 
+              schedules={schedules} 
+              clients={clients}
+              getClientName={getClientName}
+            />
+          )}
+        </div>
+        <div>
+          {clientsLoading ? (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <Skeleton className="h-6 w-48 mb-3" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : (
+            <RecentClientsWidget clients={clients} />
           )}
         </div>
       </div>

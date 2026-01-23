@@ -14,6 +14,8 @@ import Index from "./pages/Index";
 import Products from "./pages/Products";
 import AddProduct from "./pages/AddProduct";
 import Sales from "./pages/Sales";
+import Clients from "./pages/Clients";
+import Schedules from "./pages/Schedules";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -87,6 +89,22 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Sales />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/clients" 
+                element={
+                  <ProtectedRoute>
+                    <Clients />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/schedules" 
+                element={
+                  <ProtectedRoute>
+                    <Schedules />
                   </ProtectedRoute>
                 } 
               />

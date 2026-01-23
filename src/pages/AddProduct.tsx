@@ -376,13 +376,13 @@ const AddProduct = () => {
           playWarningBeep();
           return;
         } else {
-          playWarningBeep();
-          toast({
-            title: "Duplicate Product",
-            description: "A product with the same name, category, and type already exists.",
-            variant: "destructive",
-          });
-          return;
+        playWarningBeep();
+        toast({
+          title: "Duplicate Product",
+          description: "A product with the same name, category, and type already exists.",
+          variant: "destructive",
+        });
+        return;
         }
       }
       

@@ -1,9 +1,9 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, saleApi } from "@/lib/api";
+import { productApi, saleApi, clientApi, scheduleApi } from "@/lib/api";
 
 interface UseApiOptions<T> {
-  endpoint: 'products' | 'sales';
+  endpoint: 'products' | 'sales' | 'clients' | 'schedules';
   defaultValue: T[];
   onError?: (error: Error) => void;
 }
@@ -56,8 +56,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
       let response;
       if (endpoint === 'products') {
         response = await productApi.getAll();
-      } else {
+      } else if (endpoint === 'sales') {
         response = await saleApi.getAll();
+      } else if (endpoint === 'clients') {
+        response = await clientApi.getAll();
+      } else if (endpoint === 'schedules') {
+        response = await scheduleApi.getAll();
+      } else {
+        throw new Error(`Unknown endpoint: ${endpoint}`);
       }
       
       // Verify userId hasn't changed during the request (prevent data leakage)
@@ -163,8 +169,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
       if (endpoint === 'products') {
         response = await productApi.create(itemData);
-      } else {
+      } else if (endpoint === 'sales') {
         response = await saleApi.create(itemData);
+      } else if (endpoint === 'clients') {
+        response = await clientApi.create(itemData);
+      } else if (endpoint === 'schedules') {
+        response = await scheduleApi.create(itemData);
+      } else {
+        throw new Error(`Unknown endpoint: ${endpoint}`);
       }
 
       if (response.data) {
@@ -202,8 +214,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
       let response;
       if (endpoint === 'products') {
         response = await productApi.update(itemId, itemData);
-      } else {
+      } else if (endpoint === 'sales') {
         response = await saleApi.update(itemId, itemData);
+      } else if (endpoint === 'clients') {
+        response = await clientApi.update(itemId, itemData);
+      } else if (endpoint === 'schedules') {
+        response = await scheduleApi.update(itemId, itemData);
+      } else {
+        throw new Error(`Unknown endpoint: ${endpoint}`);
       }
 
       if (response.data) {
@@ -241,8 +259,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
       if (endpoint === 'products') {
         await productApi.delete(itemId);
-      } else {
+      } else if (endpoint === 'sales') {
         await saleApi.delete(itemId);
+      } else if (endpoint === 'clients') {
+        await clientApi.delete(itemId);
+      } else if (endpoint === 'schedules') {
+        await scheduleApi.delete(itemId);
+      } else {
+        throw new Error(`Unknown endpoint: ${endpoint}`);
       }
 
       setItems((prev) =>

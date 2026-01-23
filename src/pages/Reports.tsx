@@ -121,7 +121,7 @@ const Reports = () => {
       }
       
       if (start && end) {
-        return saleDate >= start && saleDate <= end;
+      return saleDate >= start && saleDate <= end;
       } else if (start) {
         return saleDate >= start;
       } else if (end) {
@@ -163,26 +163,26 @@ const Reports = () => {
     if (reportType === "daily") {
       // Daily: Show all days in the selected date range
       if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const currentDate = new Date(start);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const currentDate = new Date(start);
+      
+      // Initialize all days in the range with zero values
+      while (currentDate <= end) {
+        const dateKey = currentDate.toISOString().split("T")[0];
+        const date = new Date(currentDate);
+        const month = date.toLocaleDateString('en-US', { month: 'short' });
+        const day = date.getDate();
         
-        // Initialize all days in the range with zero values
-        while (currentDate <= end) {
-          const dateKey = currentDate.toISOString().split("T")[0];
-          const date = new Date(currentDate);
-          const month = date.toLocaleDateString('en-US', { month: 'short' });
-          const day = date.getDate();
-          
-          timeMap[dateKey] = {
-            date: dateKey,
-            revenue: 0,
-            profit: 0,
-            quantity: 0,
-            label: `${month} ${day}`,
-            monthDay: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-          };
-          currentDate.setDate(currentDate.getDate() + 1);
+        timeMap[dateKey] = {
+          date: dateKey,
+          revenue: 0,
+          profit: 0,
+          quantity: 0,
+          label: `${month} ${day}`,
+          monthDay: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        };
+        currentDate.setDate(currentDate.getDate() + 1);
         }
       }
       
@@ -262,24 +262,24 @@ const Reports = () => {
       
       // For monthly, also generate empty months in the range for completeness
       if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const currentDate = new Date(start.getFullYear(), start.getMonth(), 1);
-        
-        while (currentDate <= end) {
-          const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-          if (!timeMap[monthKey]) {
-            const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            timeMap[monthKey] = {
-              date: monthKey,
-              revenue: 0,
-              profit: 0,
-              quantity: 0,
-              label: monthName,
-              monthDay: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-            };
-          }
-          currentDate.setMonth(currentDate.getMonth() + 1);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const currentDate = new Date(start.getFullYear(), start.getMonth(), 1);
+      
+      while (currentDate <= end) {
+        const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+        if (!timeMap[monthKey]) {
+          const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+          timeMap[monthKey] = {
+            date: monthKey,
+            revenue: 0,
+            profit: 0,
+            quantity: 0,
+            label: monthName,
+            monthDay: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          };
+        }
+        currentDate.setMonth(currentDate.getMonth() + 1);
         }
       }
     }

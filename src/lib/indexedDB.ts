@@ -1,7 +1,7 @@
 // IndexedDB utilities for offline storage
 
 const DB_NAME = "stockaDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 interface StoreConfig {
   name: string;
@@ -12,6 +12,8 @@ interface StoreConfig {
 const stores: StoreConfig[] = [
   { name: "products", keyPath: "id", autoIncrement: false },
   { name: "sales", keyPath: "id", autoIncrement: false },
+  { name: "clients", keyPath: "id", autoIncrement: false },
+  { name: "schedules", keyPath: "id", autoIncrement: false },
   { name: "settings", keyPath: "id", autoIncrement: false },
   { name: "syncQueue", keyPath: "id", autoIncrement: true },
 ];

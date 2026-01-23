@@ -984,14 +984,16 @@ const AdminDashboard = () => {
               <AlertDialogDescription>
                 Are you sure you want to delete <strong>{userToDelete?.name}</strong>? 
                 This action will permanently delete:
-                <ul className="list-disc list-inside mt-2 space-y-1">
+              </AlertDialogDescription>
+              <div className="mt-2">
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                   <li>The user account</li>
                   <li>All products ({userToDelete?.productCount || 0})</li>
                   <li>All sales ({userToDelete?.saleCount || 0})</li>
                   <li>All associated data</li>
                 </ul>
-                <span className="text-red-600 font-semibold mt-2 block">This action cannot be undone.</span>
-              </AlertDialogDescription>
+                <span className="text-red-600 font-semibold mt-2 block text-sm">This action cannot be undone.</span>
+              </div>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
