@@ -16,36 +16,99 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   useEffect(() => {
     // Check authentication status - run on every location change
     const checkAuth = () => {
-      const userId = localStorage.getItem("profit-pilot-user-id");
-      const authenticated = sessionStorage.getItem("profit-pilot-authenticated") === "true";
-      const adminStatus = localStorage.getItem("profit-pilot-is-admin") === "true";
+      // Check for auth success flag in URL (from login redirect)
+      const urlParams = new URLSearchParams(window.location.search);
+      const authSuccess = urlParams.get('auth') === 'success';
+      
+      const performAuthCheck = () => {
+        // Try multiple times to read from storage (in case of timing issues)
+        let attempts = 0;
+        const maxAttempts = authSuccess ? 10 : 1; // More retries for auth success
+        
+        const tryAuthCheck = () => {
+          attempts++;
+          const userId = localStorage.getItem("profit-pilot-user-id");
+          const authenticated = sessionStorage.getItem("profit-pilot-authenticated") === "true";
+          const adminStatus = localStorage.getItem("profit-pilot-is-admin") === "true";
 
-      // For admin routes, check admin status instead of regular userId
-      if (requireAdmin) {
-        if (adminStatus && authenticated && userId === "admin") {
+          // Debug logging in development
+          if (import.meta.env.DEV && authSuccess && attempts === 1) {
+            console.log("ProtectedRoute: Checking auth after login redirect", {
+              userId,
+              authenticated,
+              adminStatus,
+              requireAdmin,
+              isDashboardSubdomain: isDashboardSubdomain()
+            });
+          }
+
+          // For admin routes, check admin status instead of regular userId
+          if (requireAdmin) {
+            if (adminStatus && authenticated && userId === "admin") {
+              setIsAuthenticated(true);
+              setIsAdmin(true);
+              setIsChecking(false);
+              return;
+            } else if (attempts < maxAttempts && authSuccess) {
+              // Retry if we have auth success flag and haven't reached max attempts
+              setTimeout(tryAuthCheck, 100);
+              return;
+            } else {
+              if (import.meta.env.DEV) {
+                console.warn("ProtectedRoute: Admin auth failed", { attempts, maxAttempts, userId, authenticated, adminStatus });
+              }
+              setIsAuthenticated(false);
+              setIsAdmin(false);
+              setIsChecking(false);
+              return;
+            }
+          }
+
+          // For regular routes, require userId and authentication
+          if (!userId || !authenticated) {
+            if (attempts < maxAttempts && authSuccess) {
+              // Retry if we have auth success flag and haven't reached max attempts
+              setTimeout(tryAuthCheck, 100);
+              return;
+            }
+            if (import.meta.env.DEV) {
+              console.warn("ProtectedRoute: Auth failed", { attempts, maxAttempts, userId, authenticated });
+            }
+            setIsAuthenticated(false);
+            setIsAdmin(false);
+            setIsChecking(false);
+            return;
+          }
+
           setIsAuthenticated(true);
-          setIsAdmin(true);
+          setIsAdmin(adminStatus);
           setIsChecking(false);
-          return;
-        } else {
-          setIsAuthenticated(false);
-          setIsAdmin(false);
-          setIsChecking(false);
-          return;
-        }
+        };
+        
+        tryAuthCheck();
+      };
+      
+      // If auth success flag is present, clean up URL and give extra time
+      if (authSuccess) {
+        // Clean up the URL parameter immediately
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+        
+        // Give more time for storage to be fully accessible after cross-subdomain redirect
+        // Also trigger a storage read to ensure it's accessible
+        setTimeout(() => {
+          // Force a storage read to ensure it's accessible
+          try {
+            localStorage.getItem("profit-pilot-user-id");
+            sessionStorage.getItem("profit-pilot-authenticated");
+          } catch (e) {
+            console.error("Error accessing storage:", e);
+          }
+          performAuthCheck();
+        }, 200);
+      } else {
+        performAuthCheck();
       }
-
-      // For regular routes, require userId and authentication
-      if (!userId || !authenticated) {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
-        setIsChecking(false);
-        return;
-      }
-
-      setIsAuthenticated(true);
-      setIsAdmin(adminStatus);
-      setIsChecking(false);
     };
 
     // Check immediately on mount and location change

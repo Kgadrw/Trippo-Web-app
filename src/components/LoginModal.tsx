@@ -139,16 +139,28 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           
           onOpenChange(false);
           
-          // Small delay to ensure auth state is set before redirect
+          // Ensure auth state is set before redirect
           setTimeout(() => {
+            // Verify auth state is saved
+            const userId = localStorage.getItem("profit-pilot-user-id");
+            const authenticated = sessionStorage.getItem("profit-pilot-authenticated");
+            
+            if (!userId || authenticated !== "true") {
+              // Re-save if missing
+              localStorage.setItem("profit-pilot-user-id", "admin");
+              sessionStorage.setItem("profit-pilot-authenticated", "true");
+              window.dispatchEvent(new Event("pin-auth-changed"));
+            }
+            
             // Redirect to admin dashboard on subdomain
             const dashboardUrl = getDashboardUrl('/admin-dashboard');
             if (dashboardUrl.startsWith('http')) {
-              window.location.href = dashboardUrl;
+              const urlWithAuth = `${dashboardUrl}?auth=success&t=${Date.now()}`;
+              window.location.href = urlWithAuth;
             } else {
               navigate("/admin-dashboard", { replace: true });
             }
-          }, 100);
+          }, 300);
           return;
         }
 
@@ -185,16 +197,37 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         });
         onOpenChange(false);
         
-        // Small delay to ensure auth state is set before redirect
+        // For subdomain redirects, we need to ensure auth data is accessible
+        // Since localStorage/sessionStorage are shared across subdomains, we can redirect directly
+        // But add a small delay to ensure all storage operations complete
         setTimeout(() => {
-          // Redirect to dashboard subdomain
+          // Verify auth state is saved (double-check)
+          const userId = localStorage.getItem("profit-pilot-user-id");
+          const authenticated = sessionStorage.getItem("profit-pilot-authenticated");
+          
+          // If auth state is missing, re-save it
+          if (!userId || authenticated !== "true") {
+            console.warn("Auth state verification failed, re-saving...");
+            if (response.user._id || response.user.id) {
+              localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
+            }
+            sessionStorage.setItem("profit-pilot-authenticated", "true");
+            // Re-dispatch events
+            window.dispatchEvent(new Event("pin-auth-changed"));
+            window.dispatchEvent(new Event("user-data-changed"));
+          }
+          
+          // Redirect to dashboard subdomain with auth success flag
           const dashboardUrl = getDashboardUrl('/');
           if (dashboardUrl.startsWith('http')) {
-            window.location.href = dashboardUrl;
+            // Add query parameter to indicate successful login (helps with timing)
+            const urlWithAuth = `${dashboardUrl}?auth=success&t=${Date.now()}`;
+            window.location.href = urlWithAuth;
           } else {
+            // Localhost - use normal navigation
             navigate("/dashboard", { replace: true });
           }
-        }, 100);
+        }, 300);
       }
     } catch (error: any) {
       const errorMessage = error.response?.error || error.message || "Login failed. Please try again.";
@@ -309,16 +342,31 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         
         onOpenChange(false);
         
-        // Small delay to ensure auth state is set before redirect
+        // Ensure auth state is set before redirect
         setTimeout(() => {
+          // Verify auth state is saved
+          const userId = localStorage.getItem("profit-pilot-user-id");
+          const authenticated = sessionStorage.getItem("profit-pilot-authenticated");
+          
+          if (!userId || authenticated !== "true") {
+            // Re-save if missing
+            if (response.user._id || response.user.id) {
+              localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
+            }
+            sessionStorage.setItem("profit-pilot-authenticated", "true");
+            window.dispatchEvent(new Event("pin-auth-changed"));
+            window.dispatchEvent(new Event("user-data-changed"));
+          }
+          
           // Redirect to dashboard subdomain
           const dashboardUrl = getDashboardUrl('/');
           if (dashboardUrl.startsWith('http')) {
-            window.location.href = dashboardUrl;
+            const urlWithAuth = `${dashboardUrl}?auth=success&t=${Date.now()}`;
+            window.location.href = urlWithAuth;
           } else {
             navigate("/dashboard");
           }
-        }, 100);
+        }, 300);
       }
     } catch (error: any) {
       const errorMessage = error.response?.error || error.message || "Failed to create account. Please try again.";
