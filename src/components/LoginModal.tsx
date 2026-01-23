@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
+import { getDashboardUrl } from "@/utils/subdomain";
 import { Lock, User, Mail, Phone } from "lucide-react";
 
 interface LoginModalProps {
@@ -111,7 +112,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
       if (response.user) {
         // Check if admin login
-        if (response.isAdmin || response.user.email === 'admin') {
+        if ((response as any).isAdmin || response.user.email === 'admin') {
           // Store admin info
           localStorage.setItem("profit-pilot-user-name", response.user.name || "Admin");
           localStorage.setItem("profit-pilot-user-email", "admin");
@@ -137,7 +138,17 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           });
           
           onOpenChange(false);
-          navigate("/admin-dashboard", { replace: true });
+          
+          // Small delay to ensure auth state is set before redirect
+          setTimeout(() => {
+            // Redirect to admin dashboard on subdomain
+            const dashboardUrl = getDashboardUrl('/admin-dashboard');
+            if (dashboardUrl.startsWith('http')) {
+              window.location.href = dashboardUrl;
+            } else {
+              navigate("/admin-dashboard", { replace: true });
+            }
+          }, 100);
           return;
         }
 
@@ -173,7 +184,17 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           description: "You have successfully logged in.",
         });
         onOpenChange(false);
-        navigate("/dashboard", { replace: true });
+        
+        // Small delay to ensure auth state is set before redirect
+        setTimeout(() => {
+          // Redirect to dashboard subdomain
+          const dashboardUrl = getDashboardUrl('/');
+          if (dashboardUrl.startsWith('http')) {
+            window.location.href = dashboardUrl;
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
+        }, 100);
       }
     } catch (error: any) {
       const errorMessage = error.response?.error || error.message || "Login failed. Please try again.";
@@ -287,7 +308,17 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         });
         
         onOpenChange(false);
-        navigate("/dashboard");
+        
+        // Small delay to ensure auth state is set before redirect
+        setTimeout(() => {
+          // Redirect to dashboard subdomain
+          const dashboardUrl = getDashboardUrl('/');
+          if (dashboardUrl.startsWith('http')) {
+            window.location.href = dashboardUrl;
+          } else {
+            navigate("/dashboard");
+          }
+        }, 100);
       }
     } catch (error: any) {
       const errorMessage = error.response?.error || error.message || "Failed to create account. Please try again.";

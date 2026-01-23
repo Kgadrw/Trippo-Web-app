@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { isDashboardSubdomain, redirectToHomepage } from "@/utils/subdomain";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -79,8 +80,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
         const userId = localStorage.getItem("profit-pilot-user-id");
         const authenticated = sessionStorage.getItem("profit-pilot-authenticated") === "true";
         const currentPath = window.location.pathname;
+        // On subdomain, dashboard is at root, so check for both / and /dashboard
         const protectedRoutes = ['/dashboard', '/products', '/sales', '/reports', '/settings', '/admin-dashboard'];
-        const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));
+        const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route)) || 
+                                 (currentPath === '/' && isDashboardSubdomain());
 
         if (isProtectedRoute && (!userId || !authenticated)) {
           // User is not authenticated but trying to access protected route via back button
@@ -110,12 +113,22 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (!isAuthenticated) {
-    // Just redirect to home - Home page has its own login modal
+    // If on dashboard subdomain, redirect to main domain homepage
+    if (isDashboardSubdomain()) {
+      redirectToHomepage();
+      return null; // Return null while redirecting
+    }
+    // On main domain, just redirect to home
     return <Navigate to="/" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    // Just redirect to home - Home page has its own login modal
+    // If on dashboard subdomain, redirect to main domain homepage
+    if (isDashboardSubdomain()) {
+      redirectToHomepage();
+      return null; // Return null while redirecting
+    }
+    // On main domain, just redirect to home
     return <Navigate to="/" replace />;
   }
 
