@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -41,6 +41,7 @@ interface AdminSidebarProps {
   onHoverChange?: (isHovered: boolean) => void;
   activeSection: string;
   onSectionChange: (section: string) => void;
+  mobileExpanded?: boolean;
 }
 
 export function AdminSidebar({ 
@@ -50,7 +51,8 @@ export function AdminSidebar({
   onMobileToggle,
   onHoverChange,
   activeSection,
-  onSectionChange 
+  onSectionChange,
+  mobileExpanded = false
 }: AdminSidebarProps) {
   const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
@@ -59,16 +61,23 @@ export function AdminSidebar({
   const [isHovered, setIsHovered] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Minimum swipe distance
   const minSwipeDistance = 50;
 
+  // Detect mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const handleNavClick = (section: string) => {
     onSectionChange(section);
-    // Close mobile menu when navigating on mobile
-    if (window.innerWidth < 1024 && onMobileClose) {
-      onMobileClose();
-    }
   };
 
   const handleLogoutClick = () => {
@@ -100,7 +109,8 @@ export function AdminSidebar({
   };
 
   // Determine if sidebar should appear expanded (hover overrides collapsed state on desktop)
-  const isExpanded = isHovered || !collapsed;
+  // On mobile, use mobileExpanded state
+  const isExpanded = isMobile ? mobileExpanded : (isHovered || !collapsed);
 
   // Handle touch start for swipe detection
   const onTouchStart = (e: React.TouchEvent) => {
@@ -151,21 +161,21 @@ export function AdminSidebar({
     <aside
       className={cn(
         "fixed z-50 bg-blue-500 transition-all duration-300 flex flex-col shadow-lg overflow-hidden",
-        "left-0 top-0 h-screen w-56",
-        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border lg:border-blue-600 lg:rounded-lg",
-        isExpanded && "lg:w-56",
-        !isExpanded && collapsed && "lg:w-16"
+        "left-2 top-2 h-[calc(100vh-1rem)]",
+        // Mobile: based on mobileExpanded state, Desktop: based on expanded state
+        isMobile ? (mobileExpanded ? "w-56" : "w-16") : (isExpanded ? "w-56" : "w-16"),
+        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border lg:border-blue-600 lg:rounded-lg"
       )}
       onMouseEnter={() => {
-        // Only auto-expand on desktop when collapsed
-        if (window.innerWidth >= 1024 && collapsed) {
+        // Only auto-expand on desktop when collapsed (not on mobile)
+        if (window.innerWidth >= 1024 && collapsed && !isMobile) {
           setIsHovered(true);
           onHoverChange?.(true);
         }
       }}
       onMouseLeave={() => {
-        // Only auto-collapse on desktop if it was auto-expanded
-        if (window.innerWidth >= 1024) {
+        // Only auto-collapse on desktop if it was auto-expanded (not on mobile)
+        if (window.innerWidth >= 1024 && !isMobile) {
           setIsHovered(false);
           onHoverChange?.(false);
         }
@@ -176,7 +186,7 @@ export function AdminSidebar({
       style={{ touchAction: 'pan-y' }}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-blue-600 bg-blue-500 lg:rounded-t-lg">
+      <div className="flex items-center justify-between h-16 px-4 bg-blue-500 lg:rounded-t-lg">
         {isExpanded && (
           <span className="text-lg font-bold text-white">
             Admin
@@ -193,9 +203,26 @@ export function AdminSidebar({
           )}
           <button
             onClick={onToggle}
-            className="p-2 hover:bg-blue-600 text-white transition-colors rounded hidden lg:block"
+            className={cn(
+              "p-2 hover:bg-blue-600 text-white transition-colors rounded",
+              isMobile ? "block" : "hidden lg:block"
+            )}
+            title={isMobile 
+              ? (mobileExpanded ? "Collapse sidebar" : "Expand sidebar")
+              : (collapsed ? "Expand sidebar" : "Collapse sidebar")
+            }
           >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            {isMobile ? (
+              <ChevronLeft 
+                size={18} 
+                className={cn(
+                  "transition-transform duration-300",
+                  mobileExpanded ? "rotate-180" : "rotate-0"
+                )}
+              />
+            ) : (
+              collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />
+            )}
           </button>
         </div>
       </div>

@@ -16,19 +16,24 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
   const [isScrolling, setIsScrolling] = useState(false);
   const [showArrow, setShowArrow] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileSidebarExpanded, setMobileSidebarExpanded] = useState(false);
 
   // Minimum swipe distance
   const minSwipeDistance = 50;
 
-  // Handle responsive sidebar
+  // Handle responsive sidebar - always collapsed on mobile
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) {
         setSidebarCollapsed(true);
         setMobileMenuOpen(false);
       }
     };
 
+    // Set initial state
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -120,31 +125,21 @@ export function AppLayout({ children, title }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={cn(
-        "lg:block",
-        mobileMenuOpen ? "block" : "hidden"
-      )}>
+      {/* Sidebar - Always visible, can be expanded/collapsed on mobile */}
+      <div className="block">
         <Sidebar
-          collapsed={sidebarCollapsed && !mobileMenuOpen}
+          collapsed={isMobile ? !mobileSidebarExpanded : sidebarCollapsed}
           onToggle={() => {
-            if (window.innerWidth < 1024) {
-              setMobileMenuOpen(false);
+            if (isMobile) {
+              setMobileSidebarExpanded(!mobileSidebarExpanded);
             } else {
               setSidebarCollapsed(!sidebarCollapsed);
             }
           }}
-          onMobileClose={() => setMobileMenuOpen(false)}
-          onMobileToggle={handleMenuToggle}
+          onMobileClose={() => {}}
+          onMobileToggle={() => setMobileSidebarExpanded(!mobileSidebarExpanded)}
           onHoverChange={setSidebarHovered}
+          mobileExpanded={mobileSidebarExpanded}
         />
       </div>
 
@@ -152,29 +147,20 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       <div
         className={cn(
           "transition-all duration-300",
-          // If sidebar is hovered and collapsed, expand it (push content)
-          // Otherwise use the normal collapsed/expanded state
-          (sidebarHovered && sidebarCollapsed) || !sidebarCollapsed ? "lg:ml-56" : "lg:ml-16"
+          // On mobile, adjust margin based on sidebar expanded state
+          // On desktop, adjust based on sidebar state
+          isMobile 
+            ? (mobileSidebarExpanded ? "ml-60" : "ml-20")
+            : "lg:ml-0",
+          !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed 
+            ? "lg:ml-56" 
+            : "lg:ml-16")
         )}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Mobile Menu Button - Top left, no background, animated */}
-        <div className={cn(
-          "lg:hidden fixed left-0 top-4 z-50 transition-opacity duration-300",
-          showArrow && !mobileMenuOpen ? "opacity-100" : "opacity-0"
-        )}>
-          <button
-            onClick={handleMenuToggle}
-            className="p-2 text-gray-700 transition-colors animate-pulse"
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-          >
-            <ChevronRight size={24} />
-          </button>
-        </div>
-        
         <main className="p-6 animate-fade-in lg:pt-6 pt-6">{children}</main>
       </div>
     </div>

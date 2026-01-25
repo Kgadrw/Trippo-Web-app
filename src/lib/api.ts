@@ -200,6 +200,13 @@ export const authApi = {
       body: JSON.stringify(data),
     });
   },
+
+  // Delete account
+  async deleteAccount(): Promise<ApiResponse> {
+    return request('/auth/delete-account', {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Product API functions

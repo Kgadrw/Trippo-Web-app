@@ -10,6 +10,7 @@ import {
   Pin,
   PinOff,
   Calendar,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePinAuth } from "@/hooks/usePinAuth";
@@ -50,9 +51,10 @@ interface SidebarProps {
   onMobileClose?: () => void;
   onMobileToggle?: () => void;
   onHoverChange?: (isHovered: boolean) => void;
+  mobileExpanded?: boolean;
 }
 
-export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, onHoverChange }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, onHoverChange, mobileExpanded = false }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
@@ -66,9 +68,21 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   const [shouldAnimateBanner, setShouldAnimateBanner] = useState(false);
   const [prevLocation, setPrevLocation] = useState(location.pathname);
   const [animationKey, setAnimationKey] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   
   // Determine if sidebar should appear expanded (hover overrides collapsed state on desktop)
-  const isExpanded = isHovered || !collapsed;
+  // On mobile, use mobileExpanded state
+  const isExpanded = isMobile ? mobileExpanded : (isHovered || !collapsed);
   
   const [prevIsExpanded, setPrevIsExpanded] = useState(isExpanded);
 
@@ -227,21 +241,21 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
     <aside
       className={cn(
         "fixed z-50 bg-blue-600 transition-all duration-300 flex flex-col overflow-hidden shadow-lg rounded-lg",
-        "left-2 top-2 h-[calc(100vh-1rem)] w-56",
-        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border-r lg:border-blue-700 lg:shadow-none lg:rounded-lg",
-        isExpanded && "lg:w-56",
-        !isExpanded && collapsed && "lg:w-16"
+        "left-2 top-2 h-[calc(100vh-1rem)]",
+        // Mobile: based on mobileExpanded state, Desktop: based on expanded state
+        isMobile ? (mobileExpanded ? "w-56" : "w-16") : (isExpanded ? "w-56" : "w-16"),
+        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border-r lg:border-blue-700 lg:shadow-none lg:rounded-lg"
       )}
       onMouseEnter={() => {
-        // Only auto-expand on desktop when collapsed
-        if (window.innerWidth >= 1024 && collapsed) {
+        // Only auto-expand on desktop when collapsed (not on mobile)
+        if (window.innerWidth >= 1024 && collapsed && !isMobile) {
           setIsHovered(true);
           onHoverChange?.(true);
         }
       }}
       onMouseLeave={() => {
-        // Only auto-collapse on desktop if it was auto-expanded
-        if (window.innerWidth >= 1024) {
+        // Only auto-collapse on desktop if it was auto-expanded (not on mobile)
+        if (window.innerWidth >= 1024 && !isMobile) {
           setIsHovered(false);
           onHoverChange?.(false);
         }
@@ -252,7 +266,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
       style={{ touchAction: 'pan-y' }}
     >
       {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 bg-blue-600 border-b border-blue-700">
+        <div className="flex items-center justify-between h-16 px-4 bg-blue-600">
         {isExpanded && (
           <div className="flex items-center gap-2">
             <img 
@@ -275,16 +289,32 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
         <div className="flex items-center gap-2">
           <button
             onClick={onToggle}
-            className="p-2 hover:bg-blue-700 text-white transition-colors rounded hidden lg:block"
-            title={collapsed ? "Pin sidebar" : "Unpin sidebar"}
+            className={cn(
+              "p-2 hover:bg-blue-700 text-white transition-colors rounded",
+              isMobile ? "block" : "hidden lg:block"
+            )}
+            title={isMobile 
+              ? (mobileExpanded ? "Collapse sidebar" : "Expand sidebar")
+              : (collapsed ? "Pin sidebar" : "Unpin sidebar")
+            }
           >
-            <Pin 
-              size={18} 
-              className={cn(
-                "transition-transform duration-300",
-                collapsed ? "rotate-0" : "rotate-180"
-              )}
-            />
+            {isMobile ? (
+              <ChevronLeft 
+                size={18} 
+                className={cn(
+                  "transition-transform duration-300",
+                  mobileExpanded ? "rotate-180" : "rotate-0"
+                )}
+              />
+            ) : (
+              <Pin 
+                size={18} 
+                className={cn(
+                  "transition-transform duration-300",
+                  collapsed ? "rotate-0" : "rotate-180"
+                )}
+              />
+            )}
           </button>
         </div>
       </div>
