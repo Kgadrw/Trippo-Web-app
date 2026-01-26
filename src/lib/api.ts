@@ -160,8 +160,9 @@ async function request<T>(
         { connectionError: true, silent: true }
       );
     }
-    // For other errors, also make them silent to avoid showing technical messages
-    throw new ApiError('', 0, { silent: true });
+    // For other errors, throw with the actual error message
+    const errorMsg = error instanceof Error ? error.message : 'Network error occurred';
+    throw new ApiError(errorMsg, 0, { silent: false });
   }
 }
 

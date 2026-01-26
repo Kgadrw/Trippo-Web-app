@@ -427,8 +427,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
           });
         }
       } catch (apiError: any) {
-        // If offline, queue for sync later
-        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+        // Check if it's actually a connection/network error (not a server validation error)
+        const isNetworkError = !navigator.onLine || 
+                               apiError?.message?.includes('Failed to fetch') ||
+                               apiError?.message?.includes('NetworkError') ||
+                               apiError?.message?.includes('Network request failed') ||
+                               (apiError?.response?.connectionError === true);
+        
+        // Only queue for sync if it's a REAL network/connection error
+        if (isNetworkError) {
+          console.log(`[useApi] Network error detected for ${endpoint}, queueing for sync:`, apiError);
           await syncManager.queueAction({
             type: "create",
             store: storeName,
@@ -439,13 +447,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
           silentError.response = { silent: true, connectionError: true };
           throw silentError;
         } else {
-          // Other errors - still saved locally, but log
-          console.log("Failed to sync to server, saved locally:", apiError);
-          await syncManager.queueAction({
-            type: "create",
-            store: storeName,
-            data: itemWithId,
-          });
+          // Real API error (validation, server error, etc.) - show error but item is saved locally
+          console.error(`[useApi] API error for ${endpoint} (not network):`, apiError);
+          // Don't queue for sync - this is a real error that needs to be fixed
+          // The item is already saved locally, so user can retry
           throw apiError;
         }
       }
@@ -530,8 +535,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
           );
         }
       } catch (apiError: any) {
-        // If offline, queue for sync later
-        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+        // Check if it's actually a connection/network error (not a server validation error)
+        const isNetworkError = !navigator.onLine || 
+                               apiError?.message?.includes('Failed to fetch') ||
+                               apiError?.message?.includes('NetworkError') ||
+                               apiError?.message?.includes('Network request failed') ||
+                               (apiError?.response?.connectionError === true);
+        
+        // Only queue for sync if it's a REAL network/connection error
+        if (isNetworkError) {
+          console.log(`[useApi] Network error detected for ${endpoint} update, queueing for sync:`, apiError);
           await syncManager.queueAction({
             type: "update",
             store: storeName,
@@ -542,13 +555,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
           silentError.response = { silent: true, connectionError: true };
           throw silentError;
         } else {
-          // Other errors - still saved locally, but log
-          console.log("Failed to sync to server, saved locally:", apiError);
-          await syncManager.queueAction({
-            type: "update",
-            store: storeName,
-            data: item,
-          });
+          // Real API error (validation, server error, etc.) - show error but item is saved locally
+          console.error(`[useApi] API error for ${endpoint} update (not network):`, apiError);
+          // Don't queue for sync - this is a real error that needs to be fixed
           throw apiError;
         }
       }
@@ -607,21 +616,24 @@ export function useApi<T extends { _id?: string; id?: number }>({
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
       } catch (apiError: any) {
-        // If offline, queue for sync later
-        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+        // Check if it's actually a connection/network error
+        const isNetworkError = !navigator.onLine || 
+                               apiError?.message?.includes('Failed to fetch') ||
+                               apiError?.message?.includes('NetworkError') ||
+                               apiError?.message?.includes('Network request failed') ||
+                               (apiError?.response?.connectionError === true);
+        
+        // Only queue for sync if it's a REAL network/connection error
+        if (isNetworkError) {
+          console.log(`[useApi] Network error detected for ${endpoint} delete, queueing for sync:`, apiError);
           await syncManager.queueAction({
             type: "delete",
             store: storeName,
             data: item,
           });
         } else {
-          // Other errors - still deleted locally, but log
-          console.log("Failed to sync delete to server, deleted locally:", apiError);
-          await syncManager.queueAction({
-            type: "delete",
-            store: storeName,
-            data: item,
-          });
+          // Real API error - log but don't queue (item is already deleted locally)
+          console.error(`[useApi] API error for ${endpoint} delete (not network):`, apiError);
         }
       }
     } catch (err) {
@@ -771,8 +783,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
           });
         }
       } catch (apiError: any) {
-        // If offline, queue for sync later
-        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+        // Check if it's actually a connection/network error (not a server validation error)
+        const isNetworkError = !navigator.onLine || 
+                               apiError?.message?.includes('Failed to fetch') ||
+                               apiError?.message?.includes('NetworkError') ||
+                               apiError?.message?.includes('Network request failed') ||
+                               (apiError?.response?.connectionError === true);
+        
+        // Only queue for sync if it's a REAL network/connection error
+        if (isNetworkError) {
+          console.log(`[useApi] Network error detected for bulk ${endpoint}, queueing for sync:`, apiError);
           // Queue each item for sync
           for (const item of itemsWithIds) {
             await syncManager.queueAction({
@@ -786,16 +806,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
           silentError.response = { silent: true, connectionError: true };
           throw silentError;
         } else {
-          // Other errors - still saved locally, but log
-          console.log("Failed to sync bulk items to server, saved locally:", apiError);
-          // Queue for sync anyway
-          for (const item of itemsWithIds) {
-            await syncManager.queueAction({
-              type: "create",
-              store: storeName,
-              data: item,
-            });
-          }
+          // Real API error (validation, server error, etc.) - show error but items are saved locally
+          console.error(`[useApi] API error for bulk ${endpoint} (not network):`, apiError);
+          // Don't queue for sync - this is a real error that needs to be fixed
+          // The items are already saved locally, so user can retry
           throw apiError;
         }
       }
