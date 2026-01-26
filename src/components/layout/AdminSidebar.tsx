@@ -94,8 +94,9 @@ export function AdminSidebar({
     // Clear session storage
     sessionStorage.clear();
     
-    // Clear admin flag
+    // Clear admin flag and authentication
     localStorage.removeItem("profit-pilot-is-admin");
+    localStorage.removeItem("profit-pilot-authenticated");
     
     // Show logout confirmation
     toast({

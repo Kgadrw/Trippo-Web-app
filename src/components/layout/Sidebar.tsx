@@ -119,6 +119,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
     localStorage.removeItem("profit-pilot-user-email");
     localStorage.removeItem("profit-pilot-business-name");
     localStorage.removeItem("profit-pilot-is-admin");
+    localStorage.removeItem("profit-pilot-authenticated");
     
     // Clear session storage completely
     sessionStorage.clear();

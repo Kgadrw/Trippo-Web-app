@@ -13,8 +13,8 @@ export const usePinAuth = () => {
       const pin = localStorage.getItem(PIN_STORAGE_KEY);
       setHasPin(!!pin);
       
-      // Check if user is already authenticated in this session
-      const authenticated = sessionStorage.getItem(PIN_AUTH_KEY) === "true";
+      // Check if user is already authenticated (persistent)
+      const authenticated = localStorage.getItem(PIN_AUTH_KEY) === "true";
       setIsAuthenticated(authenticated);
     };
 
@@ -60,7 +60,7 @@ export const usePinAuth = () => {
     }
     if (pin === storedPin) {
       setIsAuthenticated(true);
-      sessionStorage.setItem(PIN_AUTH_KEY, "true");
+      localStorage.setItem(PIN_AUTH_KEY, "true");
       // Dispatch custom event to notify other components
       window.dispatchEvent(new Event("pin-auth-changed"));
       return true;
@@ -71,7 +71,7 @@ export const usePinAuth = () => {
   // Clear authentication (logout)
   const clearAuth = useCallback(() => {
     setIsAuthenticated(false);
-    sessionStorage.removeItem(PIN_AUTH_KEY);
+    localStorage.removeItem(PIN_AUTH_KEY);
     // Dispatch event to notify other components
     window.dispatchEvent(new Event("pin-auth-changed"));
   }, []);

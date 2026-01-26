@@ -16,7 +16,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     // Check authentication status - run on every location change
     const checkAuth = () => {
       const userId = localStorage.getItem("profit-pilot-user-id");
-      const authenticated = sessionStorage.getItem("profit-pilot-authenticated") === "true";
+      const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
       const adminStatus = localStorage.getItem("profit-pilot-is-admin") === "true";
 
       // For admin routes, check admin status instead of regular userId
@@ -77,7 +77,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
       // Small delay to allow location to update
       setTimeout(() => {
         const userId = localStorage.getItem("profit-pilot-user-id");
-        const authenticated = sessionStorage.getItem("profit-pilot-authenticated") === "true";
+        const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
         const currentPath = window.location.pathname;
         const protectedRoutes = ['/dashboard', '/products', '/sales', '/reports', '/settings', '/admin-dashboard'];
         const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));

@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { LoginModal } from "@/components/LoginModal";
 import { User, Globe, Instagram, Phone } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -16,8 +17,25 @@ import {
 const Home = () => {
   const { t } = useTranslation();
   const { language, setLanguage } = useLanguage();
+  const navigate = useNavigate();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+    const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
+
+    if (userId && authenticated) {
+      // User is already logged in, redirect to appropriate dashboard
+      if (isAdmin && userId === "admin") {
+        navigate("/admin-dashboard", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [navigate]);
 
   // Force English language on homepage
   useEffect(() => {
@@ -30,7 +48,7 @@ const Home = () => {
   useEffect(() => {
     const handleAuthChange = () => {
       const userId = localStorage.getItem("profit-pilot-user-id");
-      const authenticated = sessionStorage.getItem("profit-pilot-authenticated") === "true";
+      const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
       
       // If user is logged out, ensure modal can be opened
       if (!userId || !authenticated) {
@@ -42,7 +60,7 @@ const Home = () => {
     // Prevent back button navigation to protected routes
     const handlePopState = () => {
       const userId = localStorage.getItem("profit-pilot-user-id");
-      const authenticated = sessionStorage.getItem("profit-pilot-authenticated") === "true";
+      const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
       const currentPath = window.location.pathname;
       const protectedRoutes = ['/dashboard', '/products', '/sales', '/reports', '/settings', '/admin-dashboard'];
       const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));

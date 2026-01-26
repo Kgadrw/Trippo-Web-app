@@ -122,8 +122,8 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           // Use a special identifier for admin since backend doesn't return _id for admin
           localStorage.setItem("profit-pilot-user-id", "admin");
           
-          // Set authentication flag in sessionStorage
-          sessionStorage.setItem("profit-pilot-authenticated", "true");
+          // Set authentication flag in localStorage for persistence
+          localStorage.setItem("profit-pilot-authenticated", "true");
           
           // Dispatch authentication event
           window.dispatchEvent(new Event("pin-auth-changed"));
@@ -160,7 +160,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         }
 
         // Set authentication flag in sessionStorage
-        sessionStorage.setItem("profit-pilot-authenticated", "true");
+        localStorage.setItem("profit-pilot-authenticated", "true");
         
         // Dispatch authentication event
         window.dispatchEvent(new Event("pin-auth-changed"));
@@ -273,7 +273,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         }
 
         // Set authentication flag in sessionStorage
-        sessionStorage.setItem("profit-pilot-authenticated", "true");
+        localStorage.setItem("profit-pilot-authenticated", "true");
         
         // Dispatch authentication event
         window.dispatchEvent(new Event("pin-auth-changed"));

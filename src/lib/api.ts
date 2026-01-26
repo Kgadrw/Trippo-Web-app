@@ -37,6 +37,7 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   user?: T;
+  isAdmin?: boolean;
 }
 
 export class ApiError extends Error {
