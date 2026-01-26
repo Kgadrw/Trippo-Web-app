@@ -9,9 +9,16 @@ export const useOffline = () => {
   const syncManager = SyncManager.getInstance();
 
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setIsOnline(true);
-      syncManager.syncAll();
+      // Sync immediately when back online - wait a bit for network to stabilize
+      setTimeout(async () => {
+        try {
+          await syncManager.syncAll();
+        } catch (error) {
+          console.error('Auto-sync on reconnect failed:', error);
+        }
+      }, 1000);
     };
 
     const handleOffline = () => {

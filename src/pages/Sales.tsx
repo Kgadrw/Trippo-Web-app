@@ -31,6 +31,7 @@ import { cn, formatDateWithTime } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { usePinAuth } from "@/hooks/usePinAuth";
+import { useOffline } from "@/hooks/useOffline";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -268,6 +269,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 const Sales = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { isOnline } = useOffline();
   const {
     items: products,
     isLoading: productsLoading,
@@ -493,8 +495,14 @@ const Sales = () => {
           try {
             await bulkAddSales(salesToCreate as any);
             // Don't refresh sales - bulkAdd already updates the UI with synced items
-            // Only refresh products to update stock levels
-            await refreshProducts();
+            // Only refresh products to update stock levels (if online)
+            if (isOnline) {
+              try {
+                await refreshProducts();
+              } catch (refreshError) {
+                // Silently ignore refresh errors when offline
+              }
+            }
 
           playSaleBeep();
 
@@ -502,28 +510,47 @@ const Sales = () => {
           setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
           setIsBulkMode(false);
 
-          toast({
-            title: "Sales Recorded",
-            description: `Successfully recorded ${salesToCreate.length} sale(s).`,
-          });
+          // Check if offline mode
+          if (!isOnline) {
+            toast({
+              title: "Sales Recorded (Offline Mode)",
+              description: `Successfully recorded ${salesToCreate.length} sale(s). Changes will sync when you're back online.`,
+            });
+          } else {
+            toast({
+              title: "Sales Recorded",
+              description: `Successfully recorded ${salesToCreate.length} sale(s).`,
+            });
+          }
           } catch (bulkError: any) {
             // Check if it's an offline error - if so, show success message
-            if (bulkError?.response?.silent || bulkError?.response?.connectionError) {
+            if (bulkError?.response?.silent || bulkError?.response?.connectionError || !isOnline) {
               playSaleBeep();
               toast({
-                title: "Sales Recorded",
+                title: "Sales Recorded (Offline Mode)",
                 description: "Sales have been saved. They will sync when you're back online.",
               });
               // Reset bulk form
               setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
               setIsBulkMode(false);
-              // Refresh from local data
-              await refreshSales();
-              await refreshProducts();
+              // Refresh from local data (only if online)
+              if (isOnline) {
+                try {
+                  await refreshSales();
+                  await refreshProducts();
+                } catch (refreshError) {
+                  // Silently ignore refresh errors when offline
+                }
+              }
               return;
             }
-            // Re-throw other errors to be caught by outer catch
-            throw bulkError;
+            // Real error - show error message
+            playErrorBeep();
+            toast({
+              title: "Record Failed",
+              description: "Failed to record sales. Please try again.",
+              variant: "destructive",
+            });
           }
       } else {
         playWarningBeep();
@@ -601,8 +628,14 @@ const Sales = () => {
         try {
           await addSale(newSale as any);
           // Don't refresh sales - add already updates the UI with synced item
-          // Only refresh products to update stock levels
-          await refreshProducts();
+          // Only refresh products to update stock levels (if online)
+          if (isOnline) {
+            try {
+              await refreshProducts();
+            } catch (refreshError) {
+              // Silently ignore refresh errors when offline
+            }
+          }
         
         // Play sale beep after recording (audio context should still be active from button click)
         // The playSaleBeep function will handle resuming if needed
@@ -615,50 +648,55 @@ const Sales = () => {
         setPaymentMethod("cash");
         setSaleDate(getTodayDate());
 
-        toast({
-          title: "Sale Recorded",
-          description: `Successfully recorded sale of ${qty}x ${product.name}`,
-        });
+        // Check if offline mode
+        if (!isOnline) {
+          toast({
+            title: "Sale Recorded (Offline Mode)",
+            description: `Successfully recorded sale of ${qty}x ${product.name}. Changes will sync when you're back online.`,
+          });
+        } else {
+          toast({
+            title: "Sale Recorded",
+            description: `Successfully recorded sale of ${qty}x ${product.name}`,
+          });
+        }
         } catch (saleError: any) {
-          // Check if it's an offline error - if so, show success message
-          if (saleError?.response?.silent || saleError?.response?.connectionError) {
+          // Check if it's an offline/connection error
+          if (saleError?.response?.silent || saleError?.response?.connectionError || !isOnline) {
+            // Offline mode - treat as success
             playSaleBeep();
             toast({
-              title: "Sale Recorded",
-              description: "Sale has been saved. It will sync when you're back online.",
+              title: "Sale Recorded (Offline Mode)",
+              description: `Successfully recorded sale of ${qty}x ${product.name}. Changes will sync when you're back online.`,
             });
+            
             // Reset form
             setSelectedProduct("");
             setQuantity("1");
             setSellingPrice("");
             setPaymentMethod("cash");
             setSaleDate(getTodayDate());
-            // Refresh from local data
-            await refreshSales();
-            await refreshProducts();
-            return;
+          } else {
+            // Real error - show error message
+            playErrorBeep();
+            toast({
+              title: "Record Failed",
+              description: "Failed to record sale. Please try again.",
+              variant: "destructive",
+            });
           }
-          // Re-throw other errors to be caught by outer catch
-          throw saleError;
         }
       }
       } catch (error: any) {
-        // Don't show errors for connection issues (offline mode)
-        if (error?.response?.silent || error?.response?.connectionError) {
-          // Sale was saved locally, show success message
-          playSaleBeep();
+        // Don't show errors for connection issues (offline mode) - already handled in inner catch blocks
+        if (!error?.response?.silent && !error?.response?.connectionError && isOnline) {
+          playErrorBeep();
           toast({
-            title: "Sale Recorded",
-            description: "Sale has been saved. It will sync when you're back online.",
+            title: "Record Failed",
+            description: "Failed to record sale. Please try again.",
+            variant: "destructive",
           });
-          return;
         }
-        playErrorBeep();
-        toast({
-          title: "Record Failed",
-          description: "Failed to record sale. Please try again.",
-          variant: "destructive",
-        });
     } finally {
       // Always reset loading state
       setIsRecordingSale(false);

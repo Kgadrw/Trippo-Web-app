@@ -33,6 +33,7 @@ import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useOffline } from "@/hooks/useOffline";
 
 interface Product {
   id?: number;
@@ -222,6 +223,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSaleModalProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { isOnline } = useOffline();
   const {
     items: products,
     isLoading: productsLoading,
@@ -330,10 +332,21 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
 
       await addSale(newSale);
       playSaleBeep();
-      toast({
-        title: "Sale Recorded!",
-        description: `${qty} ${qty === 1 ? 'item' : 'items'} of ${product.name} sold for RWF ${revenue.toLocaleString()}`,
-      });
+      
+      // Check if offline mode
+      const isOfflineMode = !isOnline;
+      
+      if (isOfflineMode) {
+        toast({
+          title: "Sale Recorded (Offline Mode)",
+          description: `${qty} ${qty === 1 ? 'item' : 'items'} of ${product.name} sold for RWF ${revenue.toLocaleString()}. Changes will sync when you're back online.`,
+        });
+      } else {
+        toast({
+          title: "Sale Recorded!",
+          description: `${qty} ${qty === 1 ? 'item' : 'items'} of ${product.name} sold for RWF ${revenue.toLocaleString()}`,
+        });
+      }
 
       // Reset form
       setSelectedProduct("");
@@ -342,8 +355,14 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       setPaymentMethod("cash");
       setSaleDate(new Date().toISOString().split("T")[0]);
 
-      // Refresh sales and products
-      await refreshSales();
+      // Refresh sales and products (only if online, otherwise skip to avoid errors)
+      if (isOnline) {
+        try {
+          await refreshSales();
+        } catch (refreshError) {
+          // Silently ignore refresh errors when offline
+        }
+      }
       onSaleRecorded?.();
       
       // Close modal after a short delay
@@ -351,12 +370,37 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
         onOpenChange(false);
       }, 500);
     } catch (error: any) {
-      playErrorBeep();
-      toast({
-        title: "Error",
-        description: error.message || "Failed to record sale. Please try again.",
-        variant: "destructive",
-      });
+      // Check if it's an offline/connection error
+      if (error?.response?.silent || error?.response?.connectionError || !isOnline) {
+        // Offline mode - treat as success
+        playSaleBeep();
+        toast({
+          title: "Sale Recorded (Offline Mode)",
+          description: `${qty} ${qty === 1 ? 'item' : 'items'} of ${product.name} sold for RWF ${revenue.toLocaleString()}. Changes will sync when you're back online.`,
+        });
+        
+        // Reset form
+        setSelectedProduct("");
+        setQuantity("1");
+        setSellingPrice("");
+        setPaymentMethod("cash");
+        setSaleDate(new Date().toISOString().split("T")[0]);
+        
+        onSaleRecorded?.();
+        
+        // Close modal after a short delay
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 500);
+      } else {
+        // Real error - show error message
+        playErrorBeep();
+        toast({
+          title: "Error",
+          description: error.message || "Failed to record sale. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsRecordingSale(false);
     }
