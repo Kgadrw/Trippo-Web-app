@@ -185,7 +185,7 @@ export const clearAllStores = async (): Promise<void> => {
     
     await Promise.all(clearPromises);
   } catch (error) {
-    console.error("Error clearing IndexedDB stores:", error);
+    // logger.error("Error clearing IndexedDB stores:", error);
     throw error;
   }
 };

@@ -2,6 +2,7 @@
 // Handles permission requests, notification display, and notification management
 
 import { notificationStore } from './notificationStore';
+import { logger } from './logger';
 
 export type NotificationType = 'new_user' | 'low_stock' | 'schedule' | 'new_sale' | 'new_product' | 'general';
 
@@ -44,7 +45,7 @@ class NotificationService {
       this.savePermission();
     } else {
       this.permission = 'denied';
-      console.warn('Browser does not support notifications');
+      // logger.warn('Browser does not support notifications');
     }
     return this.permission;
   }
@@ -54,7 +55,7 @@ class NotificationService {
    */
   public async requestPermission(): Promise<NotificationPermission> {
     if (!('Notification' in window)) {
-      console.warn('Browser does not support notifications');
+      // logger.warn('Browser does not support notifications');
       return 'denied';
     }
 
@@ -64,7 +65,7 @@ class NotificationService {
       this.savePermission();
       return permission;
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      // logger.error('Error requesting notification permission:', error);
       this.permission = 'denied';
       return 'denied';
     }
@@ -99,7 +100,7 @@ class NotificationService {
     data: NotificationData
   ): Promise<void> {
     if (!this.isAllowed()) {
-      console.warn('Notifications not allowed. Permission:', this.permission);
+      // logger.warn('Notifications not allowed. Permission:', this.permission);
       return;
     }
 
@@ -109,7 +110,7 @@ class NotificationService {
     const now = Date.now();
 
     if (lastTime && now - lastTime < this.notificationDebounceTime) {
-      console.log('Notification debounced:', notificationKey);
+      // logger.log('Notification debounced:', notificationKey);
       return;
     }
 
@@ -189,7 +190,7 @@ class NotificationService {
         }
       }
     } catch (error) {
-      console.error('Error showing notification:', error);
+      // logger.error('Error showing notification:', error);
     }
   }
 
@@ -331,7 +332,7 @@ class NotificationService {
     try {
       localStorage.setItem(this.notificationPermissionKey, this.permission);
     } catch (error) {
-      console.error('Error saving notification permission:', error);
+      // logger.error('Error saving notification permission:', error);
     }
   }
 
@@ -345,7 +346,7 @@ class NotificationService {
         return stored as NotificationPermission;
       }
     } catch (error) {
-      console.error('Error reading notification permission:', error);
+      // logger.error('Error reading notification permission:', error);
     }
     return 'default';
   }

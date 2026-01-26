@@ -65,6 +65,7 @@ interface Sale {
   cost: number;
   profit: number;
   date: string;
+  timestamp?: string; // ISO timestamp of when the sale was recorded
   paymentMethod?: string;
 }
 
@@ -472,6 +473,7 @@ const Sales = () => {
             cost,
             profit,
             date: sale.saleDate ? new Date(sale.saleDate).toISOString() : new Date().toISOString(),
+            timestamp: new Date().toISOString(), // Record exact time when sale was recorded
             paymentMethod: sale.paymentMethod || "cash",
           };
         })
@@ -599,6 +601,7 @@ const Sales = () => {
         cost,
         profit,
         date: saleDate ? new Date(saleDate).toISOString() : new Date().toISOString(),
+        timestamp: new Date().toISOString(), // Record exact time when sale was recorded
         paymentMethod: paymentMethod,
       };
 
@@ -706,9 +709,14 @@ const Sales = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "date-desc":
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
+          // Use timestamp if available (when sale was recorded), otherwise use date
+          const aTime = (a as any).timestamp || a.date;
+          const bTime = (b as any).timestamp || b.date;
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
         case "date-asc":
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
+          const aTimeAsc = (a as any).timestamp || a.date;
+          const bTimeAsc = (b as any).timestamp || b.date;
+          return new Date(aTimeAsc).getTime() - new Date(bTimeAsc).getTime();
         case "product-asc":
           return a.product.localeCompare(b.product);
         case "product-desc":
@@ -1543,7 +1551,7 @@ const Sales = () => {
                         </div>
                       </td>
                       <td className="py-2 px-4">
-                        <div className="text-xs text-gray-600">{formatDateWithTime(sale.date)}</div>
+                        <div className="text-xs text-gray-600">{formatDateWithTime(sale.timestamp || sale.date)}</div>
                       </td>
                       <td className="py-2 px-4">
                         <button
@@ -1593,7 +1601,7 @@ const Sales = () => {
                           <h4 className="text-base font-semibold text-gray-900 truncate">{sale.product}</h4>
                         </div>
                         <div className="text-sm text-gray-600 mb-2">
-                          {formatDateWithTime(sale.date)}
+                          {formatDateWithTime(sale.timestamp || sale.date)}
                         </div>
                       </div>
                       <button

@@ -1,5 +1,6 @@
 // API Configuration and Utilities
 import { apiRateLimiter, sanitizeInput, validateObjectId } from './security';
+import { logger } from './logger';
 
 // API URL Configuration
 // Priority: VITE_API_URL env variable > localhost (dev mode) > deployed URL
@@ -27,10 +28,8 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Log API URL in development mode for debugging
-if (import.meta.env.DEV) {
-  console.log(`🔌 API Base URL: ${API_BASE_URL}`);
-}
+// Log API URL in development mode for debugging (disabled for privacy/security)
+// logger.log(`🔌 API Base URL: ${API_BASE_URL}`);
 
 export interface ApiResponse<T = any> {
   message?: string;
@@ -51,10 +50,11 @@ export class ApiError extends Error {
   }
 }
 
-// Generic API request function
+// Generic API request function with retry logic for rate limiting
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retryCount: number = 0
 ): Promise<ApiResponse<T>> {
   // Sanitize endpoint to prevent path traversal
   const sanitizedEndpoint = sanitizeInput(endpoint);
@@ -138,7 +138,23 @@ async function request<T>(
     }
 
     if (!response.ok) {
-      console.error(`[API] Request failed: ${response.status}`, data);
+      // Handle 429 Too Many Requests with retry logic
+      if (response.status === 429 && retryCount < 3) {
+        // Get retry-after from header or response data, default to exponential backoff
+        const retryAfter = response.headers.get('Retry-After') || 
+                          data.retryAfter || 
+                          Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+        
+        const waitTime = typeof retryAfter === 'string' ? parseInt(retryAfter) * 1000 : retryAfter;
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Retry the request
+        return request<T>(endpoint, options, retryCount + 1);
+      }
+      
+      // logger.error(`[API] Request failed: ${response.status}`, data);
       throw new ApiError(
         data.error || data.message || 'An error occurred',
         response.status,
@@ -146,10 +162,19 @@ async function request<T>(
       );
     }
 
-    console.log(`[API] Request successful:`, data);
+    // logger.log(`[API] Request successful:`, data);
     return data;
   } catch (error) {
     if (error instanceof ApiError) {
+      // Retry 429 errors with exponential backoff
+      if (error.status === 429 && retryCount < 3) {
+        const waitTime = error.response?.retryAfter 
+          ? (typeof error.response.retryAfter === 'string' ? parseInt(error.response.retryAfter) * 1000 : error.response.retryAfter)
+          : Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+        
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return request<T>(endpoint, options, retryCount + 1);
+      }
       throw error;
     }
     // Check for connection refused errors - make them silent for offline support
@@ -275,19 +300,42 @@ export const productApi = {
 
 // Sale API functions
 export const saleApi = {
-  // Get all sales
+  // Get all sales - fetch ALL sales for the user from database
   async getAll(params?: { startDate?: string; endDate?: string; product?: string }): Promise<ApiResponse> {
     const queryParams = new URLSearchParams();
     if (params?.startDate) queryParams.append('startDate', params.startDate);
     if (params?.endDate) queryParams.append('endDate', params.endDate);
     if (params?.product) queryParams.append('product', params.product);
     
-    const queryString = queryParams.toString();
-    const url = queryString ? `/sales?${queryString}` : '/sales';
+    // Ensure we get ALL sales - no limit
+    queryParams.append('limit', '0'); // 0 means no limit
+    queryParams.append('skip', '0');
     
-    return request(url, {
-      method: 'GET',
-    });
+    const queryString = queryParams.toString();
+    const url = queryString ? `/sales?${queryString}` : '/sales?limit=0&skip=0';
+    
+    // logger.log('[saleApi] Fetching ALL sales from database:', url);
+    
+    try {
+      const response = await request(url, {
+        method: 'GET',
+      });
+      
+      // logger.log('[saleApi] Sales fetched from database:', {
+      //   count: Array.isArray(response?.data) ? response.data.length : 0,
+      //   hasData: !!response?.data,
+      //   responseKeys: response ? Object.keys(response) : [],
+      // });
+      
+      // if (response?.data && Array.isArray(response.data)) {
+      //   logger.log(`[saleApi] ✓ Successfully fetched ${response.data.length} sale(s) from database`);
+      // }
+      
+      return response;
+    } catch (error: any) {
+      // logger.error('[saleApi] ✗ Error fetching sales from database:', error);
+      throw error;
+    }
   },
 
   // Get single sale
@@ -299,10 +347,10 @@ export const saleApi = {
 
   // Create sale - Direct API call to server (no offline storage, no syncing)
   async create(data: any): Promise<ApiResponse> {
-    console.log('[saleApi] ===== DIRECT API CALL: Creating sale =====');
-    console.log('[saleApi] Sale data:', JSON.stringify(data, null, 2));
-    console.log('[saleApi] API URL:', `${API_BASE_URL}/sales`);
-    console.log('[saleApi] Online status:', navigator.onLine);
+    // logger.log('[saleApi] ===== DIRECT API CALL: Creating sale =====');
+    // logger.log('[saleApi] Sale data:', JSON.stringify(data, null, 2));
+    // logger.log('[saleApi] API URL:', `${API_BASE_URL}/sales`);
+    // logger.log('[saleApi] Online status:', navigator.onLine);
     
     if (!navigator.onLine) {
       const error: any = new Error('Cannot record sales while offline. Please check your internet connection.');
@@ -317,14 +365,14 @@ export const saleApi = {
       });
       
       if (!response || (!response.data && !response)) {
-        console.error('[saleApi] ✗ Invalid response structure:', response);
+        // logger.error('[saleApi] ✗ Invalid response structure:', response);
         throw new Error('Invalid response from sales API. Please try again.');
       }
       
-      console.log('[saleApi] ✓ Sale created successfully via DIRECT API:', response);
+      // logger.log('[saleApi] ✓ Sale created successfully via DIRECT API:', response);
       return response;
     } catch (error: any) {
-      console.error('[saleApi] ✗ Error creating sale via DIRECT API:', error);
+      // logger.error('[saleApi] ✗ Error creating sale via DIRECT API:', error);
       // Re-throw with connection error flag if it's a network error
       if (!navigator.onLine || 
           error?.message?.includes('Failed to fetch') ||
@@ -340,11 +388,11 @@ export const saleApi = {
 
   // Create bulk sales - Direct API call to server (no offline storage, no syncing)
   async createBulk(sales: any[]): Promise<ApiResponse> {
-    console.log('[saleApi] ===== DIRECT API CALL: Creating bulk sales =====');
-    console.log('[saleApi] Sales count:', sales.length);
-    console.log('[saleApi] Sales data:', JSON.stringify(sales, null, 2));
-    console.log('[saleApi] API URL:', `${API_BASE_URL}/sales/bulk`);
-    console.log('[saleApi] Online status:', navigator.onLine);
+    // logger.log('[saleApi] ===== DIRECT API CALL: Creating bulk sales =====');
+    // logger.log('[saleApi] Sales count:', sales.length);
+    // logger.log('[saleApi] Sales data:', JSON.stringify(sales, null, 2));
+    // logger.log('[saleApi] API URL:', `${API_BASE_URL}/sales/bulk`);
+    // logger.log('[saleApi] Online status:', navigator.onLine);
     
     if (!navigator.onLine) {
       const error: any = new Error('Cannot record sales while offline. Please check your internet connection.');
@@ -363,14 +411,14 @@ export const saleApi = {
       });
       
       if (!response || (!response.data && !response)) {
-        console.error('[saleApi] ✗ Invalid bulk response structure:', response);
+        // logger.error('[saleApi] ✗ Invalid bulk response structure:', response);
         throw new Error('Invalid response from bulk sales API. Please try again.');
       }
       
-      console.log('[saleApi] ✓ Bulk sales created successfully via DIRECT API:', response);
+      // logger.log('[saleApi] ✓ Bulk sales created successfully via DIRECT API:', response);
       return response;
     } catch (error: any) {
-      console.error('[saleApi] ✗ Error creating bulk sales via DIRECT API:', error);
+      // logger.error('[saleApi] ✗ Error creating bulk sales via DIRECT API:', error);
       // Re-throw with connection error flag if it's a network error
       if (!navigator.onLine || 
           error?.message?.includes('Failed to fetch') ||

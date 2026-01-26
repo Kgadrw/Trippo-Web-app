@@ -143,5 +143,5 @@ export class ClientRateLimiter {
   }
 }
 
-// Global rate limiter for API calls
-export const apiRateLimiter = new ClientRateLimiter(60000, 30); // 30 requests per minute
+// Global rate limiter for API calls - more conservative to avoid server rate limits
+export const apiRateLimiter = new ClientRateLimiter(60000, 20); // 20 requests per minute (reduced from 30)

@@ -54,6 +54,7 @@ interface Sale {
   profit: number;
   cost: number;
   date: string;
+  timestamp?: string; // ISO timestamp of when the sale was recorded
   paymentMethod: string;
 }
 
@@ -327,6 +328,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
         profit,
         cost,
         date: saleDate,
+        timestamp: new Date().toISOString(), // Record exact time when sale was recorded
         paymentMethod,
       };
 

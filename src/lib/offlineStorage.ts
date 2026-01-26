@@ -98,7 +98,7 @@ export class OfflineStorage {
         await addItem(storeName, itemWithId);
       }
     } catch (error) {
-      console.error(`Error saving to IndexedDB (${storeName}):`, error);
+      // logger.error(`Error saving to IndexedDB (${storeName}):`, error);
       throw error;
     }
   }
@@ -108,7 +108,7 @@ export class OfflineStorage {
       await initDB();
       return await getAllItems<T>(storeName);
     } catch (error) {
-      console.error(`Error loading from IndexedDB (${storeName}):`, error);
+      // logger.error(`Error loading from IndexedDB (${storeName}):`, error);
       return [];
     }
   }
@@ -126,7 +126,7 @@ export class OfflineStorage {
       }
       return await addItem(storeName, itemWithId);
     } catch (error) {
-      console.error(`Error adding to IndexedDB (${storeName}):`, error);
+      // logger.error(`Error adding to IndexedDB (${storeName}):`, error);
       throw error;
     }
   }
@@ -144,7 +144,7 @@ export class OfflineStorage {
       }
       await updateItem(storeName, itemWithId);
     } catch (error) {
-      console.error(`Error updating in IndexedDB (${storeName}):`, error);
+      // logger.error(`Error updating in IndexedDB (${storeName}):`, error);
       throw error;
     }
   }
@@ -160,7 +160,7 @@ export class OfflineStorage {
         await deleteItem(storeName, numericId);
       }
     } catch (error) {
-      console.error(`Error deleting from IndexedDB (${storeName}):`, error);
+      // logger.error(`Error deleting from IndexedDB (${storeName}):`, error);
       throw error;
     }
   }
@@ -191,7 +191,7 @@ export class OfflineStorage {
         timestamp: Date.now(),
       };
     } catch (error) {
-      console.error("Error backing up data:", error);
+      // logger.error("Error backing up data:", error);
       throw error;
     }
   }
@@ -223,7 +223,7 @@ export class OfflineStorage {
         await this.saveToIndexedDB("schedules", backup.schedules);
       }
     } catch (error) {
-      console.error("Error restoring data:", error);
+      // logger.error("Error restoring data:", error);
       throw error;
     }
   }
@@ -238,7 +238,7 @@ export class OfflineStorage {
       // Clear IndexedDB
       await clearAllStores();
     } catch (error) {
-      console.error("Error clearing all data:", error);
+      // logger.error("Error clearing all data:", error);
       throw error;
     }
   }
@@ -261,7 +261,7 @@ export class OfflineStorage {
       await initDB();
       health.indexedDB = true;
     } catch (error) {
-      console.error("IndexedDB health check failed:", error);
+      // logger.error("IndexedDB health check failed:", error);
     }
 
     // Check localStorage
@@ -271,7 +271,7 @@ export class OfflineStorage {
       localStorage.removeItem(testKey);
       health.localStorage = true;
     } catch (error) {
-      console.error("localStorage health check failed:", error);
+      // logger.error("localStorage health check failed:", error);
     }
 
     health.canWrite = health.indexedDB && health.localStorage;

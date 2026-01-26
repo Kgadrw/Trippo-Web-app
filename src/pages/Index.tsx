@@ -582,6 +582,7 @@ const Dashboard = () => {
         cost,
         profit,
         date: new Date().toISOString(),
+        timestamp: new Date().toISOString(), // Record exact time when sale was recorded
         paymentMethod: paymentMethod,
       };
 

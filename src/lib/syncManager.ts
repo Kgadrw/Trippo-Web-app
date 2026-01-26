@@ -2,6 +2,7 @@
 
 import { addItem, updateItem, deleteItem, getAllItems, clearStore } from "./indexedDB";
 import { productApi, saleApi, clientApi, scheduleApi } from "./api";
+import { logger } from "./logger";
 
 export interface SyncAction {
   id?: number;
@@ -34,7 +35,7 @@ export class SyncManager {
       // Small delay to ensure network is fully restored
       setTimeout(() => {
         this.syncAll().catch((error) => {
-          console.log("Auto-sync on network restore failed:", error);
+          // logger.log("Auto-sync on network restore failed:", error);
         });
       }, 1000);
     };
@@ -82,7 +83,7 @@ export class SyncManager {
         await this.markAsSynced(queuedAction.id);
         return;
       } catch (error) {
-        console.log("Failed to sync immediately, will retry later:", error);
+        // logger.log("Failed to sync immediately, will retry later:", error);
       }
     }
   }
@@ -97,7 +98,7 @@ export class SyncManager {
       delete (itemData as any).id;
       delete (itemData as any)._id;
 
-      console.log(`[SyncManager] Syncing ${action.type} action for ${action.store}:`, itemData);
+      // logger.log(`[SyncManager] Syncing ${action.type} action for ${action.store}:`, itemData);
 
       let response: any = null;
 
@@ -117,7 +118,7 @@ export class SyncManager {
           if (!response) {
             throw new Error(`No response from ${action.store} create API`);
           }
-          console.log(`[SyncManager] Create response for ${action.store}:`, response);
+          // logger.log(`[SyncManager] Create response for ${action.store}:`, response);
           break;
         case "update":
           const itemId = action.data._id || action.data.id;
@@ -138,7 +139,7 @@ export class SyncManager {
           if (!response) {
             throw new Error(`No response from ${action.store} update API`);
           }
-          console.log(`[SyncManager] Update response for ${action.store}:`, response);
+          // logger.log(`[SyncManager] Update response for ${action.store}:`, response);
           break;
         case "delete":
           const deleteId = action.data._id || action.data.id;
@@ -156,7 +157,7 @@ export class SyncManager {
           } else if (action.store === "schedules") {
             response = await scheduleApi.delete(deleteId.toString());
           }
-          console.log(`[SyncManager] Delete response for ${action.store}:`, response);
+          // logger.log(`[SyncManager] Delete response for ${action.store}:`, response);
           break;
       }
 
@@ -165,7 +166,7 @@ export class SyncManager {
         // Handle both response.data and direct response
         const syncedItem = response.data || response;
         if (!syncedItem) {
-          console.warn(`[SyncManager] No data in response for ${action.store} ${action.type}`);
+          // logger.warn(`[SyncManager] No data in response for ${action.store} ${action.type}`);
           throw new Error(`No data returned from ${action.store} ${action.type} API`);
         }
         
@@ -174,7 +175,7 @@ export class SyncManager {
           syncedItem.id = syncedItem._id;
         }
         
-        console.log(`[SyncManager] Updating IndexedDB with synced item for ${action.store}:`, syncedItem);
+        // logger.log(`[SyncManager] Updating IndexedDB with synced item for ${action.store}:`, syncedItem);
         
           // For create operations, find and remove the local item with temporary ID
           if (action.type === "create") {
@@ -207,13 +208,13 @@ export class SyncManager {
     } catch (error: any) {
       // If sync fails, it's okay - data is already saved locally in IndexedDB
       // Log detailed error for debugging
-      console.error(`[SyncManager] Sync action failed for ${action.type} ${action.store}:`, {
-        error,
-        errorMessage: error?.message,
-        errorResponse: error?.response,
-        actionData: action.data,
-        isConnectionError: error?.response?.connectionError || error?.response?.silent,
-      });
+      // logger.error(`[SyncManager] Sync action failed for ${action.type} ${action.store}:`, {
+      //   error,
+      //   errorMessage: error?.message,
+      //   errorResponse: error?.response,
+      //   actionData: action.data,
+      //   isConnectionError: error?.response?.connectionError || error?.response?.silent,
+      // });
       
       // Only throw if it's not a connection error (connection errors will be retried)
       if (!error?.response?.connectionError && !error?.response?.silent) {
@@ -234,7 +235,7 @@ export class SyncManager {
         await updateItem("syncQueue", toUpdate);
       }
     } catch (error) {
-      console.error("Error marking as synced:", error);
+      // logger.error("Error marking as synced:", error);
     }
   }
 
@@ -269,7 +270,7 @@ export class SyncManager {
       );
       
       if (productsAndSalesActions.length > 0) {
-        console.log(`[SyncManager] Removing ${productsAndSalesActions.length} product/sales actions from sync queue (not supported)`);
+        // logger.log(`[SyncManager] Removing ${productsAndSalesActions.length} product/sales actions from sync queue (not supported)`);
         for (const action of productsAndSalesActions) {
           if (action.id !== undefined) {
             await this.markAsSynced(action.id);
@@ -281,7 +282,7 @@ export class SyncManager {
         return; // Nothing to sync
       }
 
-      console.log(`[SyncManager] Syncing ${pendingActions.length} pending action(s)...`);
+      // logger.log(`[SyncManager] Syncing ${pendingActions.length} pending action(s)...`);
 
       let successCount = 0;
       let failCount = 0;
@@ -291,7 +292,7 @@ export class SyncManager {
           // Check online status before each sync
           if (!navigator.onLine) {
             this.isOnline = false;
-            console.warn(`[SyncManager] Network lost, stopping sync. ${successCount} succeeded, ${failCount} failed.`);
+            // logger.warn(`[SyncManager] Network lost, stopping sync. ${successCount} succeeded, ${failCount} failed.`);
             break; // Stop syncing if network is lost
           }
           await this.syncAction(action);
@@ -300,20 +301,20 @@ export class SyncManager {
             await this.markAsSynced(action.id);
           }
           successCount++;
-          console.log(`[SyncManager] ✓ Successfully synced ${action.type} action for ${action.store} (ID: ${action.id})`);
+          // logger.log(`[SyncManager] ✓ Successfully synced ${action.type} action for ${action.store} (ID: ${action.id})`);
         } catch (error: any) {
           failCount++;
           // Only log if it's not a connection error (connection errors are expected when offline)
           if (!error?.response?.connectionError && !error?.response?.silent) {
-            console.error(`[SyncManager] ✗ Failed to sync action ${action.id} (${action.type} ${action.store}), will retry later:`, error);
+            // logger.error(`[SyncManager] ✗ Failed to sync action ${action.id} (${action.type} ${action.store}), will retry later:`, error);
           } else {
-            console.log(`[SyncManager] Connection error for action ${action.id}, will retry when online`);
+            // logger.log(`[SyncManager] Connection error for action ${action.id}, will retry when online`);
           }
           // Continue with next action instead of stopping
         }
       }
 
-      console.log(`[SyncManager] Sync complete: ${successCount} succeeded, ${failCount} failed out of ${pendingActions.length} total`);
+      // logger.log(`[SyncManager] Sync complete: ${successCount} succeeded, ${failCount} failed out of ${pendingActions.length} total`);
       
       // Dispatch event to notify UI to refresh
       if (successCount > 0) {
@@ -333,7 +334,7 @@ export class SyncManager {
         }
       }
     } catch (error) {
-      console.error("Error during sync:", error);
+      // logger.error("Error during sync:", error);
     } finally {
       this.syncInProgress = false;
     }
@@ -351,7 +352,7 @@ export class SyncManager {
 
       return { pending, lastSync };
     } catch (error) {
-      console.error("Error getting sync status:", error);
+      // logger.error("Error getting sync status:", error);
       return { pending: 0, lastSync: null };
     }
   }

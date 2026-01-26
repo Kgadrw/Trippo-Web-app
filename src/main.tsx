@@ -3,14 +3,33 @@ import App from "./App.tsx";
 import "./index.css";
 import { registerServiceWorker } from "./lib/serviceWorker";
 import { initDB } from "./lib/indexedDB";
+import { logger } from "./lib/logger";
+
+// Disable all console methods in production for privacy and security
+if (import.meta.env.PROD) {
+  console.log = () => {};
+  console.error = () => {};
+  console.warn = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+  console.trace = () => {};
+  console.table = () => {};
+  console.group = () => {};
+  console.groupEnd = () => {};
+  console.groupCollapsed = () => {};
+  console.time = () => {};
+  console.timeEnd = () => {};
+  console.count = () => {};
+  console.clear = () => {};
+}
 
 // Initialize IndexedDB and register service worker
 Promise.all([
   initDB().catch((error) => {
-    console.error("Failed to initialize IndexedDB:", error);
+    logger.error("Failed to initialize IndexedDB:", error);
   }),
   registerServiceWorker().catch((error) => {
-    console.error("Failed to register service worker:", error);
+    logger.error("Failed to register service worker:", error);
   }),
 ]).then(() => {
   createRoot(document.getElementById("root")!).render(<App />);
