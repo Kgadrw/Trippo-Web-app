@@ -122,7 +122,12 @@ const Schedules = () => {
   } = useApi<Schedule>({
     endpoint: "schedules",
     defaultValue: [],
-    onError: (error) => {
+    onError: (error: any) => {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
       console.error("Error with schedules:", error);
       toast({
         title: "Error",

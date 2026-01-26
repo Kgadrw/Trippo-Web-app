@@ -26,7 +26,7 @@ export function Navbar() {
           {/* Right Side - Sign In Button */}
           <div className="flex items-center gap-3 ml-auto">
             <Button
-              className="bg-gray-500 text-white hover:bg-gray-600 rounded-full px-4 py-2 text-sm"
+              className="bg-blue-600 text-white hover:bg-blue-700 rounded-full px-4 py-2 text-sm"
               onClick={() => {
                 setLoginModalTab("login");
                 setLoginModalOpen(true);

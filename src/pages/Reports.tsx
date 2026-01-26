@@ -61,7 +61,12 @@ const Reports = () => {
   } = useApi<Product>({
     endpoint: "products",
     defaultValue: [],
-    onError: (error) => {
+    onError: (error: any) => {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
       console.error("Error loading products:", error);
       toast({
         title: "Error",
@@ -76,7 +81,12 @@ const Reports = () => {
   } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
-    onError: (error) => {
+    onError: (error: any) => {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
       console.error("Error loading sales:", error);
       toast({
         title: "Error",

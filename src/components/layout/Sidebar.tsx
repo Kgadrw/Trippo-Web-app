@@ -240,11 +240,11 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   return (
     <aside
       className={cn(
-        "fixed z-50 bg-blue-600 transition-all duration-300 flex flex-col overflow-hidden shadow-lg rounded-lg",
+        "hidden lg:flex fixed z-50 bg-blue-600 transition-all duration-300 flex-col overflow-hidden shadow-lg rounded-lg",
         "left-2 top-2 h-[calc(100vh-1rem)]",
-        // Mobile: based on mobileExpanded state, Desktop: based on expanded state
-        isMobile ? (mobileExpanded ? "w-56" : "w-16") : (isExpanded ? "w-56" : "w-16"),
-        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border-r lg:border-blue-700 lg:shadow-none lg:rounded-lg"
+        // Desktop: based on expanded state
+        isExpanded ? "w-56" : "w-16",
+        "lg:border-r lg:border-blue-700 lg:shadow-none lg:rounded-lg"
       )}
       onMouseEnter={() => {
         // Only auto-expand on desktop when collapsed (not on mobile)
@@ -340,7 +340,12 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
               <item.icon size={20} className={isActive ? "text-white" : "text-blue-100"} />
               {isExpanded && (
                 <>
-                  <span className={cn("flex-1", isActive ? "text-white" : "text-blue-100")}>{item.label}</span>
+                  <span className={cn(
+                    "flex-1",
+                    isActive ? "text-white" : "text-blue-100",
+                    // Mobile: smaller text with medium font weight (like bottom nav bars)
+                    isMobile ? "text-xs font-medium" : "text-sm"
+                  )}>{item.label}</span>
                   {item.showNew && (
                     <span 
                       className={cn(
@@ -357,7 +362,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
                           shouldAnimateBanner && isScheduleActive && "animate-banner-text"
                         )}
                       >
-                        NEW
+                      NEW
                       </span>
                     </span>
                   )}
@@ -379,7 +384,12 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
           title={!isExpanded ? "Logout" : undefined}
         >
           <LogOut size={20} />
-                 {isExpanded && <span>{t("logout")}</span>}
+                 {isExpanded && (
+                   <span className={cn(
+                     // Mobile: smaller text with medium font weight (like bottom nav bars)
+                     isMobile ? "text-xs font-medium" : "text-sm"
+                   )}>{t("logout")}</span>
+                 )}
         </button>
       </div>
 

@@ -52,8 +52,8 @@ const Settings = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<SettingsSection>("business");
-  const [businessName, setBusinessName] = useState(user?.businessName || user?.name || "My Trading Co.");
-  const [ownerName, setOwnerName] = useState(user?.name || "John Trader");
+  const [businessName, setBusinessName] = useState(user?.businessName || "");
+  const [ownerName, setOwnerName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [pinMode, setPinMode] = useState<"set" | "change">("set");
   const [newPin, setNewPin] = useState("");
@@ -80,36 +80,36 @@ const Settings = () => {
             // Only update if the backend user matches the current logged-in user
             // This prevents auto-switching users
             if (backendUserId && backendUserId.toString() === currentUserId.toString()) {
-              setOwnerName(backendUser.name || user.name || "John Trader");
-              setEmail(backendUser.email || user.email || "");
-              setBusinessName(backendUser.businessName || backendUser.name || user.businessName || user.name || "My Trading Co.");
+              setOwnerName(backendUser.name || user?.name || "");
+              setEmail(backendUser.email || user?.email || "");
+              setBusinessName(backendUser.businessName || user?.businessName || "");
             } else {
               // Backend returned different user - use localStorage data instead
               console.warn("Backend user ID mismatch, using localStorage data");
-              setOwnerName(user.name || "John Trader");
-              setEmail(user.email || "");
-              setBusinessName(user.businessName || user.name || "My Trading Co.");
+              setOwnerName(user?.name || "");
+              setEmail(user?.email || "");
+              setBusinessName(user?.businessName || "");
             }
           } else {
             // No backend user, use localStorage
-            setOwnerName(user.name || "John Trader");
-            setEmail(user.email || "");
-            setBusinessName(user.businessName || user.name || "My Trading Co.");
+            setOwnerName(user?.name || "");
+            setEmail(user?.email || "");
+            setBusinessName(user?.businessName || "");
           }
         } catch (error) {
           // If backend fails, use localStorage data (don't switch users)
           console.error("Failed to load user from backend:", error);
           if (user) {
-            setOwnerName(user.name || "John Trader");
+            setOwnerName(user.name || "");
             setEmail(user.email || "");
-            setBusinessName(user.businessName || user.name || "My Trading Co.");
+            setBusinessName(user.businessName || "");
           }
         }
       } else if (user) {
         // No userId or no user in localStorage, just use what we have
-        setOwnerName(user.name || "John Trader");
+        setOwnerName(user.name || "");
         setEmail(user.email || "");
-        setBusinessName(user.businessName || user.name || "My Trading Co.");
+        setBusinessName(user.businessName || "");
       }
     };
 
@@ -381,7 +381,7 @@ const Settings = () => {
             <div className="form-card p-0 overflow-hidden border-primary/30">
               <div className="p-4 bg-blue-50 border-b border-blue-200">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 border border-blue-200 flex items-center justify-center">
+                  <div className="w-10 h-10 bg-blue-100 border border-blue-200 rounded-full flex items-center justify-center">
                     <User size={18} className="text-blue-600 font-bold" />
                   </div>
                   <div className="min-w-0 flex-1">

@@ -160,11 +160,11 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "fixed z-50 bg-blue-500 transition-all duration-300 flex flex-col shadow-lg overflow-hidden",
+        "hidden lg:flex fixed z-50 bg-blue-500 transition-all duration-300 flex-col shadow-lg overflow-hidden",
         "left-2 top-2 h-[calc(100vh-1rem)]",
-        // Mobile: based on mobileExpanded state, Desktop: based on expanded state
-        isMobile ? (mobileExpanded ? "w-56" : "w-16") : (isExpanded ? "w-56" : "w-16"),
-        "lg:left-2 lg:top-2 lg:h-[calc(100vh-1rem)] lg:border lg:border-blue-600 lg:rounded-lg"
+        // Desktop: based on expanded state
+        isExpanded ? "w-56" : "w-16",
+        "lg:border lg:border-blue-600 lg:rounded-lg"
       )}
       onMouseEnter={() => {
         // Only auto-expand on desktop when collapsed (not on mobile)
@@ -243,7 +243,13 @@ export function AdminSidebar({
               title={!isExpanded ? item.label : undefined}
             >
               <item.icon size={20} className="text-white" />
-              {isExpanded && <span className="text-white">{item.label}</span>}
+              {isExpanded && (
+                <span className={cn(
+                  "text-white",
+                  // Mobile: smaller text with medium font weight (like bottom nav bars)
+                  isMobile ? "text-xs font-medium" : "text-sm"
+                )}>{item.label}</span>
+              )}
             </button>
           );
         })}
@@ -260,7 +266,12 @@ export function AdminSidebar({
           title={!isExpanded ? "Logout" : undefined}
         >
           <LogOut size={20} />
-          {isExpanded && <span>Logout</span>}
+          {isExpanded && (
+            <span className={cn(
+              // Mobile: smaller text with medium font weight (like bottom nav bars)
+              isMobile ? "text-xs font-medium" : "text-sm"
+            )}>Logout</span>
+          )}
         </button>
       </div>
 

@@ -275,7 +275,12 @@ const Sales = () => {
   } = useApi<Product>({
     endpoint: "products",
     defaultValue: [],
-    onError: (error) => {
+    onError: (error: any) => {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
       console.error("Error loading products:", error);
       toast({
         title: "Error",
@@ -293,7 +298,12 @@ const Sales = () => {
   } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
-    onError: (error) => {
+    onError: (error: any) => {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
       console.error("Error with sales:", error);
     },
   });
@@ -480,10 +490,11 @@ const Sales = () => {
       }
 
       if (salesToCreate.length > 0) {
-          await bulkAddSales(salesToCreate as any);
-          await refreshSales();
-          // Immediately refresh products to update stock levels
-          await refreshProducts();
+          try {
+            await bulkAddSales(salesToCreate as any);
+            // Don't refresh sales - bulkAdd already updates the UI with synced items
+            // Only refresh products to update stock levels
+            await refreshProducts();
 
           playSaleBeep();
 
@@ -495,6 +506,25 @@ const Sales = () => {
             title: "Sales Recorded",
             description: `Successfully recorded ${salesToCreate.length} sale(s).`,
           });
+          } catch (bulkError: any) {
+            // Check if it's an offline error - if so, show success message
+            if (bulkError?.response?.silent || bulkError?.response?.connectionError) {
+              playSaleBeep();
+              toast({
+                title: "Sales Recorded",
+                description: "Sales have been saved. They will sync when you're back online.",
+              });
+              // Reset bulk form
+              setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
+              setIsBulkMode(false);
+              // Refresh from local data
+              await refreshSales();
+              await refreshProducts();
+              return;
+            }
+            // Re-throw other errors to be caught by outer catch
+            throw bulkError;
+          }
       } else {
         playWarningBeep();
         toast({
@@ -568,10 +598,11 @@ const Sales = () => {
         paymentMethod: paymentMethod,
       };
 
-        await addSale(newSale as any);
-        await refreshSales();
-        // Immediately refresh products to update stock levels
-        await refreshProducts();
+        try {
+          await addSale(newSale as any);
+          // Don't refresh sales - add already updates the UI with synced item
+          // Only refresh products to update stock levels
+          await refreshProducts();
         
         // Play sale beep after recording (audio context should still be active from button click)
         // The playSaleBeep function will handle resuming if needed
@@ -588,8 +619,40 @@ const Sales = () => {
           title: "Sale Recorded",
           description: `Successfully recorded sale of ${qty}x ${product.name}`,
         });
+        } catch (saleError: any) {
+          // Check if it's an offline error - if so, show success message
+          if (saleError?.response?.silent || saleError?.response?.connectionError) {
+            playSaleBeep();
+            toast({
+              title: "Sale Recorded",
+              description: "Sale has been saved. It will sync when you're back online.",
+            });
+            // Reset form
+            setSelectedProduct("");
+            setQuantity("1");
+            setSellingPrice("");
+            setPaymentMethod("cash");
+            setSaleDate(getTodayDate());
+            // Refresh from local data
+            await refreshSales();
+            await refreshProducts();
+            return;
+          }
+          // Re-throw other errors to be caught by outer catch
+          throw saleError;
+        }
       }
-      } catch (error) {
+      } catch (error: any) {
+        // Don't show errors for connection issues (offline mode)
+        if (error?.response?.silent || error?.response?.connectionError) {
+          // Sale was saved locally, show success message
+          playSaleBeep();
+          toast({
+            title: "Sale Recorded",
+            description: "Sale has been saved. It will sync when you're back online.",
+          });
+          return;
+        }
         playErrorBeep();
         toast({
           title: "Record Failed",
@@ -858,7 +921,7 @@ const Sales = () => {
   // Sales Page Skeleton
   const SalesSkeleton = () => (
       <AppLayout title="Sales">
-      <div className="flex flex-col h-[calc(100vh-3rem)]">
+      <div className="flex flex-col lg:h-[calc(100vh-3rem)]">
         {/* Record New Sale Form Skeleton */}
         <div className="form-card mb-6 border-transparent flex-shrink-0 bg-blue-500 border-blue-600">
           <div className="flex items-center justify-between mb-4">
@@ -891,8 +954,8 @@ const Sales = () => {
         </div>
 
         {/* Sales Table Skeleton */}
-        <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
-          <div className="overflow-auto flex-1">
+        <div className="bg-white flex-1 flex flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
+          <div className="hidden lg:block overflow-auto flex-1">
             <table className="w-full">
               <thead className="sticky top-0 z-10 bg-white border-b border-gray-200">
                 <tr>
@@ -943,7 +1006,7 @@ const Sales = () => {
 
   return (
     <AppLayout title="Sales">
-      <div className="flex flex-col min-h-0 pb-4">
+      <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
       {/* Record New Sale Form - Static */}
       <div className="form-card mb-6 border-transparent flex-shrink-0 bg-blue-500 border-blue-600">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
@@ -955,7 +1018,7 @@ const Sales = () => {
             {!isBulkMode && (
               <Button
                 onClick={() => setIsBulkMode(true)}
-                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent font-medium px-4 py-2 gap-2 w-full sm:w-auto"
+                className="bg-green-600 text-white hover:bg-green-700 border border-transparent font-medium px-4 py-2 gap-2 w-full sm:w-auto"
               >
                 <Plus size={16} />
                 {t("bulkAdd")}
@@ -983,7 +1046,7 @@ const Sales = () => {
               <p className="text-sm text-white/90">{t("addMultipleSales")}</p>
               <Button
                 onClick={addBulkRow}
-                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
+                className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
               >
                 <Plus size={14} />
                 {t("addRow")}
@@ -1299,7 +1362,7 @@ const Sales = () => {
       </div>
 
       {/* Sales History Table - Static Header with Scrollable Body */}
-      <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
+      <div className="bg-white flex-1 flex flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
         {/* Filter Section */}
         <div className="bg-white border-b border-gray-200 px-4 py-4 flex-shrink-0">
           <div className="flex flex-col gap-4">
@@ -1376,7 +1439,7 @@ const Sales = () => {
               <Button
                 onClick={handleClearFilters}
                 variant="outline"
-                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-500 hover:text-white rounded-lg"
+                className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-500 hover:text-white rounded-lg"
               >
                 <X size={14} className="mr-2" />
                 {t("cancel")}
@@ -1405,9 +1468,10 @@ const Sales = () => {
           </div>
         </div>
         
-        <div className="overflow-auto flex-1 pb-4">
+        {/* Desktop Table - Sticky Header with Scrollable Body */}
+        <div className="hidden lg:block overflow-auto flex-1 pb-4">
           {/* Desktop Table View */}
-          <div className="hidden md:block">
+          <div>
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
               <tr>
@@ -1510,8 +1574,8 @@ const Sales = () => {
           </table>
         </div>
           
-          {/* Mobile Card View */}
-          <div className="md:hidden p-4 pb-6 space-y-4">
+          {/* Mobile Card View - Full Page Scroll */}
+          <div className="lg:hidden p-4 pb-20 space-y-4">
             {filteredSales.length > 0 ? (
               filteredSales.map((sale) => {
                 const saleId = (sale as any)._id || sale.id;

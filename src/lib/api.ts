@@ -147,16 +147,18 @@ async function request<T>(
     if (error instanceof ApiError) {
       throw error;
     }
-    // Check for connection refused errors
+    // Check for connection refused errors - make them silent for offline support
     const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
-    if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('NetworkError')) {
+    if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('NetworkError') || errorMessage.includes('connection')) {
+      // Silent error - don't show technical messages to users
       throw new ApiError(
-        'Connection refused: Backend server is not reachable. Please check your connection or try again later.',
+        '', // Empty message - will be handled gracefully
         0,
-        { connectionError: true }
+        { connectionError: true, silent: true }
       );
     }
-    throw new ApiError(errorMessage);
+    // For other errors, also make them silent to avoid showing technical messages
+    throw new ApiError('', 0, { silent: true });
   }
 }
 

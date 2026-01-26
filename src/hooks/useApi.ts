@@ -1,6 +1,10 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
 import { productApi, saleApi, clientApi, scheduleApi } from "@/lib/api";
+import { SyncManager } from "@/lib/syncManager";
+import { initDB, getAllItems, addItem, updateItem, deleteItem, getItem } from "@/lib/indexedDB";
+import { generateUniqueId } from "@/lib/idGenerator";
+import { apiCache } from "@/lib/apiCache";
 
 interface UseApiOptions<T> {
   endpoint: 'products' | 'sales' | 'clients' | 'schedules';
@@ -18,6 +22,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const [error, setError] = useState<Error | null>(null);
   const hasErrorShownRef = useRef(false);
   const isLoadingDataRef = useRef(false);
+  const syncManager = SyncManager.getInstance();
 
   // Map MongoDB _id to id for compatibility
   const mapItem = useCallback((item: any): T => {
@@ -27,7 +32,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     return item;
   }, []);
 
-  // Load data from API
+  // Load data from IndexedDB first, then try to sync with API
   const loadData = useCallback(async () => {
     // Prevent multiple simultaneous requests
     if (isLoadingDataRef.current) {
@@ -53,28 +58,160 @@ export function useApi<T extends { _id?: string; id?: number }>({
     const minLoadingTime = 500;
     
     try {
-      let response;
-      if (endpoint === 'products') {
-        response = await productApi.getAll();
-      } else if (endpoint === 'sales') {
-        response = await saleApi.getAll();
-      } else if (endpoint === 'clients') {
-        response = await clientApi.getAll();
-      } else if (endpoint === 'schedules') {
-        response = await scheduleApi.getAll();
-      } else {
-        throw new Error(`Unknown endpoint: ${endpoint}`);
+      // Initialize IndexedDB
+      await initDB();
+      
+      // Load from IndexedDB first (offline-first)
+      const storeName = endpoint;
+      const localItems = await getAllItems<T>(storeName);
+      
+      if (localItems.length > 0) {
+        const mappedItems = localItems.map(mapItem);
+        setItems(mappedItems);
+        setIsLoading(false);
       }
       
-      // Verify userId hasn't changed during the request (prevent data leakage)
-      const currentUserId = localStorage.getItem("profit-pilot-user-id");
-      if (currentUserId !== userId) {
-        // User changed during request, clear data for security
-        setItems(defaultValue);
-        setIsLoading(false);
-        return;
+      // Try to sync with backend (silently fail if offline)
+      // Check cache first to reduce API requests
+      const cacheKey = `/${endpoint}`;
+      const cached = apiCache.get(cacheKey);
+      
+      // If we have valid cached data and no local changes, use cache
+      const lastSyncTime = localStorage.getItem("profit-pilot-last-sync");
+      const hasLocalChanges = localStorage.getItem(`profit-pilot-${endpoint}-changed`) === "true";
+      
+      if (cached && !hasLocalChanges && lastSyncTime) {
+        const cacheAge = Date.now() - parseInt(lastSyncTime);
+        // If cache is fresh (less than 2 minutes old), use it
+        if (cacheAge < 2 * 60 * 1000) {
+          const cachedItems = cached.data;
+          const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
+          setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
+          setIsLoading(false);
+          isLoadingDataRef.current = false;
+          return;
+        }
       }
 
+      try {
+        let response;
+        if (endpoint === 'products') {
+          response = await productApi.getAll();
+        } else if (endpoint === 'sales') {
+          response = await saleApi.getAll();
+        } else if (endpoint === 'clients') {
+          response = await clientApi.getAll();
+        } else if (endpoint === 'schedules') {
+          response = await scheduleApi.getAll();
+        } else {
+          throw new Error(`Unknown endpoint: ${endpoint}`);
+        }
+        
+        // Verify userId hasn't changed during the request (prevent data leakage)
+        const currentUserId = localStorage.getItem("profit-pilot-user-id");
+        if (currentUserId !== userId) {
+          // User changed during request, clear data for security
+          setItems(defaultValue);
+          setIsLoading(false);
+          return;
+        }
+
+        if (response.data) {
+          // Cache the response
+          apiCache.set(cacheKey, response.data);
+          // Clear the changed flag since we've synced
+          localStorage.removeItem(`profit-pilot-${endpoint}-changed`);
+          const mappedItems = response.data.map(mapItem);
+          // Update IndexedDB with server data (merge with local data, prevent duplicates)
+          const existingItems = await getAllItems<T>(storeName);
+          const serverIds = new Set(mappedItems.map(i => (i as any)._id || (i as any).id));
+          
+          // For sales, match by content to find local items with temporary IDs
+          if (storeName === 'sales') {
+            // Find local items that match server items by content
+            for (const localItem of existingItems) {
+              const localSale = localItem as any;
+              const localId = localSale._id || localSale.id;
+              
+              // Skip if this local item already has a server ID
+              if (serverIds.has(localId)) {
+                continue;
+              }
+              
+              // Check if this local item matches any server item by content
+              const matchingServerItem = mappedItems.find((serverItem: any) => {
+                const serverSale = serverItem as any;
+                return localSale.product === serverSale.product &&
+                       localSale.date === serverSale.date &&
+                       localSale.quantity === serverSale.quantity &&
+                       Math.abs((localSale.revenue || 0) - (serverSale.revenue || 0)) < 0.01;
+              });
+              
+              // If we found a match, remove the local item (server version will be added)
+              if (matchingServerItem) {
+                const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
+                if (!isNaN(numericId)) {
+                  await deleteItem(storeName, numericId);
+                }
+              }
+            }
+          } else {
+            // For other stores, use ID-based matching
+            const existingIds = new Set(existingItems.map(i => (i as any).id || (i as any)._id));
+            
+            // Remove local items that don't exist on server (cleanup)
+            for (const localItem of existingItems) {
+              const localId = (localItem as any)._id || (localItem as any).id;
+              if (localId && !serverIds.has(localId)) {
+                // Check if this is a temporary ID (very large number from generateUniqueId)
+                // Temporary IDs are typically > 1e15, server IDs are strings or smaller numbers
+                const isTemporaryId = typeof localId === 'number' && localId > 1e15;
+                if (isTemporaryId) {
+                  // This is likely a temporary ID, check if it matches any server item by content
+                  // (For now, we'll keep it if it doesn't match - it might be a pending sync)
+                  continue;
+                }
+              }
+            }
+          }
+          
+          // Now add/update all server items
+          for (const item of mappedItems) {
+            const itemId = (item as any)._id || (item as any).id;
+            if (itemId) {
+              // Check if item already exists
+              const existingItem = existingItems.find((i: any) => {
+                const existingId = (i as any)._id || (i as any).id;
+                return existingId === itemId;
+              });
+              
+              if (existingItem) {
+                await updateItem(storeName, item);
+              } else {
+                await addItem(storeName, item);
+              }
+            }
+          }
+          
+          // Reload from IndexedDB to get the merged result
+          const finalItems = await getAllItems<T>(storeName);
+          const finalMappedItems = finalItems.map(mapItem);
+          setItems(finalMappedItems.length > 0 ? finalMappedItems : defaultValue);
+          
+          // Update last sync timestamp in localStorage
+          localStorage.setItem("profit-pilot-last-sync", String(Date.now()));
+        }
+      } catch (apiError: any) {
+        // Silently fail if offline - data is already loaded from IndexedDB
+        if (apiError?.response?.silent || apiError?.response?.connectionError) {
+          // Connection error - use local data, don't show error
+          console.log("Offline mode: using local data");
+        } else {
+          // Other errors - still use local data but log
+          console.log("API error, using local data:", apiError);
+        }
+      }
+      
       // Calculate remaining time to meet minimum loading duration
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, minLoadingTime - elapsed);
@@ -82,12 +219,6 @@ export function useApi<T extends { _id?: string; id?: number }>({
         await new Promise(resolve => setTimeout(resolve, remaining));
       }
 
-      if (response.data) {
-        const mappedItems = response.data.map(mapItem);
-        setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
-      } else {
-        setItems(defaultValue);
-      }
       setIsLoading(false);
       hasErrorShownRef.current = false; // Reset error flag on success
     } catch (err) {
@@ -101,8 +232,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
       const error = err instanceof Error ? err : new Error('Failed to load data');
       setError(error);
       
-      // Only call onError once per error to prevent spam
-      if (onError && !hasErrorShownRef.current) {
+      // Only call onError if it's not a silent connection error
+      if (onError && !hasErrorShownRef.current && !(error as any).silent) {
         onError(error);
         hasErrorShownRef.current = true;
       }
@@ -113,7 +244,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     } finally {
       isLoadingDataRef.current = false;
     }
-  }, [endpoint, defaultValue, mapItem, onError]);
+  }, [endpoint, defaultValue, mapItem, onError, syncManager]);
 
   // Load data on mount only
   useEffect(() => {
@@ -152,7 +283,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     };
   }, [items, defaultValue]);
 
-  // Add item
+  // Add item - save to IndexedDB first, then sync with backend
   const add = useCallback(async (item: T): Promise<void> => {
     // Validate userId exists (data isolation)
     const userId = localStorage.getItem("profit-pilot-user-id");
@@ -161,39 +292,114 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     
     try {
-      let response;
+      await initDB();
+      const storeName = endpoint;
+      
+      // Generate local ID if not present
+      const itemWithId = { ...item };
+      if (!itemWithId.id && !itemWithId._id) {
+        (itemWithId as any).id = generateUniqueId();
+      }
+      const localId = (itemWithId as any).id || (itemWithId as any)._id;
+      
+      // Save to IndexedDB first (offline-first)
+      await addItem(storeName, itemWithId);
+      
+      // Update UI immediately
+      const newItem = mapItem(itemWithId);
+      setItems((prev) => [...prev, newItem]);
+      
+      // Try to sync with backend (silently fail if offline)
       const itemData = { ...item };
-      // Remove id if it exists (backend will generate _id)
       delete (itemData as any).id;
       delete (itemData as any)._id;
+      
+      try {
+        let response;
+        if (endpoint === 'products') {
+          response = await productApi.create(itemData);
+        } else if (endpoint === 'sales') {
+          response = await saleApi.create(itemData);
+        } else if (endpoint === 'clients') {
+          response = await clientApi.create(itemData);
+        } else if (endpoint === 'schedules') {
+          response = await scheduleApi.create(itemData);
+        } else {
+          throw new Error(`Unknown endpoint: ${endpoint}`);
+        }
 
-      if (endpoint === 'products') {
-        response = await productApi.create(itemData);
-      } else if (endpoint === 'sales') {
-        response = await saleApi.create(itemData);
-      } else if (endpoint === 'clients') {
-        response = await clientApi.create(itemData);
-      } else if (endpoint === 'schedules') {
-        response = await scheduleApi.create(itemData);
-      } else {
-        throw new Error(`Unknown endpoint: ${endpoint}`);
-      }
-
-      if (response.data) {
-        const newItem = mapItem(response.data);
-        setItems((prev) => [...prev, newItem]);
+        if (response.data) {
+          const syncedItem = mapItem(response.data);
+          // Find and remove the local item with the temporary ID
+          const existingItems = await getAllItems<T>(storeName);
+          const localItemToRemove = existingItems.find((i) => {
+            const currentId = (i as any)._id || (i as any).id;
+            return currentId === localId;
+          });
+          
+          // Remove the local item if it exists
+          if (localItemToRemove) {
+            const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
+            if (!isNaN(numericId)) {
+              await deleteItem(storeName, numericId);
+            }
+          }
+          
+          // Add the synced item with server ID
+          await addItem(storeName, syncedItem);
+          
+          // Invalidate cache for this endpoint since data changed
+          apiCache.invalidateStore(endpoint);
+          localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
+          
+          // Update UI - replace local item with synced item
+          setItems((prev) => 
+            prev.map((i) => {
+              const currentId = (i as any)._id || (i as any).id;
+              return currentId === localId ? syncedItem : i;
+            })
+          );
+        }
+      } catch (apiError: any) {
+        // If offline, queue for sync later
+        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+          await syncManager.queueAction({
+            type: "create",
+            store: storeName,
+            data: itemWithId,
+          });
+          // Throw a silent error so the UI can show success message
+          const silentError: any = new Error("Item saved locally. Will sync when online.");
+          silentError.response = { silent: true, connectionError: true };
+          throw silentError;
+        } else {
+          // Other errors - still saved locally, but log
+          console.log("Failed to sync to server, saved locally:", apiError);
+          await syncManager.queueAction({
+            type: "create",
+            store: storeName,
+            data: itemWithId,
+          });
+          throw apiError;
+        }
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to add item');
+      // Check if it's a silent connection error
+      if ((error as any).response?.silent || (error as any).response?.connectionError) {
+        // Re-throw as-is for UI handling
+        throw error;
+      }
       setError(error);
-      if (onError) {
+      // Don't show errors for connection issues
+      if (onError && !(error as any).silent) {
         onError(error);
       }
       throw error;
     }
-  }, [endpoint, mapItem, onError]);
+  }, [endpoint, mapItem, onError, syncManager]);
 
-  // Update item
+  // Update item - save to IndexedDB first, then sync with backend
   const update = useCallback(async (item: T): Promise<void> => {
     // Validate userId exists (data isolation)
     const userId = localStorage.getItem("profit-pilot-user-id");
@@ -202,48 +408,96 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     
     try {
+      await initDB();
+      const storeName = endpoint;
       const itemId = (item as any)._id || (item as any).id;
       if (!itemId) {
         throw new Error('Item ID is required for update');
       }
 
+      // Save to IndexedDB first (offline-first)
+      await updateItem(storeName, item);
+      
+      // Update UI immediately
+      const updatedItem = mapItem(item);
+      setItems((prev) =>
+        prev.map((i) => {
+          const currentId = (i as any)._id || (i as any).id;
+          return currentId === itemId ? updatedItem : i;
+        })
+      );
+
+      // Try to sync with backend (silently fail if offline)
       const itemData = { ...item };
       delete (itemData as any).id;
       delete (itemData as any)._id;
+      
+      try {
+        let response;
+        if (endpoint === 'products') {
+          response = await productApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'sales') {
+          response = await saleApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'clients') {
+          response = await clientApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'schedules') {
+          response = await scheduleApi.update(itemId.toString(), itemData);
+        } else {
+          throw new Error(`Unknown endpoint: ${endpoint}`);
+        }
 
-      let response;
-      if (endpoint === 'products') {
-        response = await productApi.update(itemId, itemData);
-      } else if (endpoint === 'sales') {
-        response = await saleApi.update(itemId, itemData);
-      } else if (endpoint === 'clients') {
-        response = await clientApi.update(itemId, itemData);
-      } else if (endpoint === 'schedules') {
-        response = await scheduleApi.update(itemId, itemData);
-      } else {
-        throw new Error(`Unknown endpoint: ${endpoint}`);
-      }
-
-      if (response.data) {
-        const updatedItem = mapItem(response.data);
-        setItems((prev) =>
-          prev.map((i) => {
-            const currentId = (i as any)._id || (i as any).id;
-            return currentId === itemId ? updatedItem : i;
-          })
-        );
+        if (response.data) {
+          const syncedItem = mapItem(response.data);
+          // Update IndexedDB with server response
+          await updateItem(storeName, syncedItem);
+          
+          // Invalidate cache for this endpoint since data changed
+          apiCache.invalidateStore(endpoint);
+          localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
+          
+          // Update UI with synced item
+          setItems((prev) =>
+            prev.map((i) => {
+              const currentId = (i as any)._id || (i as any).id;
+              return currentId === itemId ? syncedItem : i;
+            })
+          );
+        }
+      } catch (apiError: any) {
+        // If offline, queue for sync later
+        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+          await syncManager.queueAction({
+            type: "update",
+            store: storeName,
+            data: item,
+          });
+          // Throw a silent error so the UI can show success message
+          const silentError: any = new Error("Item updated locally. Will sync when online.");
+          silentError.response = { silent: true, connectionError: true };
+          throw silentError;
+        } else {
+          // Other errors - still saved locally, but log
+          console.log("Failed to sync to server, saved locally:", apiError);
+          await syncManager.queueAction({
+            type: "update",
+            store: storeName,
+            data: item,
+          });
+          throw apiError;
+        }
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to update item');
       setError(error);
-      if (onError) {
+      // Don't show errors for connection issues
+      if (onError && !(error as any).silent) {
         onError(error);
       }
       throw error;
     }
-  }, [endpoint, mapItem, onError]);
+  }, [endpoint, mapItem, onError, syncManager]);
 
-  // Remove item
+  // Remove item - delete from IndexedDB first, then sync with backend
   const remove = useCallback(async (item: T): Promise<void> => {
     // Validate userId exists (data isolation)
     const userId = localStorage.getItem("profit-pilot-user-id");
@@ -252,40 +506,70 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     
     try {
+      await initDB();
+      const storeName = endpoint;
       const itemId = (item as any)._id || (item as any).id;
       if (!itemId) {
         throw new Error('Item ID is required for delete');
       }
 
-      if (endpoint === 'products') {
-        await productApi.delete(itemId);
-      } else if (endpoint === 'sales') {
-        await saleApi.delete(itemId);
-      } else if (endpoint === 'clients') {
-        await clientApi.delete(itemId);
-      } else if (endpoint === 'schedules') {
-        await scheduleApi.delete(itemId);
-      } else {
-        throw new Error(`Unknown endpoint: ${endpoint}`);
+      // Delete from IndexedDB first (offline-first)
+      const numericId = typeof itemId === 'string' ? parseInt(itemId) : itemId;
+      if (!isNaN(numericId)) {
+        await deleteItem(storeName, numericId);
       }
-
+      
+      // Update UI immediately
       setItems((prev) =>
         prev.filter((i) => {
           const currentId = (i as any)._id || (i as any).id;
           return currentId !== itemId;
         })
       );
+
+      // Try to sync with backend (silently fail if offline)
+      try {
+        if (endpoint === 'products') {
+          await productApi.delete(itemId.toString());
+        } else if (endpoint === 'sales') {
+          await saleApi.delete(itemId.toString());
+        } else if (endpoint === 'clients') {
+          await clientApi.delete(itemId.toString());
+        } else if (endpoint === 'schedules') {
+          await scheduleApi.delete(itemId.toString());
+        } else {
+          throw new Error(`Unknown endpoint: ${endpoint}`);
+        }
+      } catch (apiError: any) {
+        // If offline, queue for sync later
+        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+          await syncManager.queueAction({
+            type: "delete",
+            store: storeName,
+            data: item,
+          });
+        } else {
+          // Other errors - still deleted locally, but log
+          console.log("Failed to sync delete to server, deleted locally:", apiError);
+          await syncManager.queueAction({
+            type: "delete",
+            store: storeName,
+            data: item,
+          });
+        }
+      }
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to delete item');
       setError(error);
-      if (onError) {
+      // Don't show errors for connection issues
+      if (onError && !(error as any).silent) {
         onError(error);
       }
       throw error;
     }
-  }, [endpoint, onError]);
+  }, [endpoint, onError, syncManager]);
 
-  // Bulk add (for sales)
+  // Bulk add (for sales) - save to IndexedDB first, then sync with backend
   const bulkAdd = useCallback(async (itemsToAdd: T[]): Promise<void> => {
     if (endpoint !== 'sales') {
       throw new Error('Bulk add is only available for sales');
@@ -298,28 +582,139 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
 
     try {
+      await initDB();
+      const storeName = endpoint;
+      
+      // Save all items to IndexedDB first (offline-first)
+      const itemsWithIds = itemsToAdd.map((item) => {
+        const itemWithId = { ...item };
+        if (!itemWithId.id && !itemWithId._id) {
+          (itemWithId as any).id = generateUniqueId();
+        }
+        return itemWithId;
+      });
+      
+      for (const item of itemsWithIds) {
+        await addItem(storeName, item);
+      }
+      
+      // Update UI immediately
+      const newItems = itemsWithIds.map(mapItem);
+      setItems((prev) => [...prev, ...newItems]);
+      
+      // Try to sync with backend (silently fail if offline)
       const itemsData = itemsToAdd.map((item) => {
         const itemData = { ...item };
         delete (itemData as any).id;
         delete (itemData as any)._id;
         return itemData;
       });
+      
+      try {
+        const response = await saleApi.createBulk(itemsData);
 
-      const response = await saleApi.createBulk(itemsData);
-
-      if (response.data) {
-        const newItems = response.data.map(mapItem);
-        setItems((prev) => [...prev, ...newItems]);
+        if (response.data) {
+          const syncedItems = response.data.map(mapItem);
+          const existingItems = await getAllItems<T>(storeName);
+          
+          // Match synced items with local items by content (product, date, quantity) since IDs differ
+          for (const syncedItem of syncedItems) {
+            const syncedSale = syncedItem as any;
+            
+            // Find matching local item by content (for sales: product, date, quantity)
+            const matchingLocalItem = existingItems.find((localItem) => {
+              const localSale = localItem as any;
+              // Match by product name, date, and quantity
+              return localSale.product === syncedSale.product &&
+                     localSale.date === syncedSale.date &&
+                     localSale.quantity === syncedSale.quantity &&
+                     Math.abs((localSale.revenue || 0) - (syncedSale.revenue || 0)) < 0.01; // Allow small floating point differences
+            });
+            
+            if (matchingLocalItem) {
+              // Remove the local item with temporary ID
+              const localId = (matchingLocalItem as any)._id || (matchingLocalItem as any).id;
+              const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
+              if (!isNaN(numericId)) {
+                await deleteItem(storeName, numericId);
+              }
+            }
+            
+            // Add the synced item with server ID
+            await addItem(storeName, syncedItem);
+          }
+          
+          // Invalidate cache for this endpoint since data changed
+          apiCache.invalidateStore(endpoint);
+          localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
+          
+          // Update UI - replace local items with synced items
+          setItems((prev) => {
+            const updated = [...prev];
+            syncedItems.forEach((syncedItem) => {
+              const syncedSale = syncedItem as any;
+              // Find by content matching
+              const index = updated.findIndex((i) => {
+                const localSale = i as any;
+                return localSale.product === syncedSale.product &&
+                       localSale.date === syncedSale.date &&
+                       localSale.quantity === syncedSale.quantity &&
+                       Math.abs((localSale.revenue || 0) - (syncedSale.revenue || 0)) < 0.01;
+              });
+              if (index !== -1) {
+                updated[index] = syncedItem;
+              } else {
+                // If not found, add it (shouldn't happen, but safety check)
+                updated.push(syncedItem);
+              }
+            });
+            return updated;
+          });
+        }
+      } catch (apiError: any) {
+        // If offline, queue for sync later
+        if (apiError?.response?.silent || apiError?.response?.connectionError || !syncManager.getIsOnline()) {
+          // Queue each item for sync
+          for (const item of itemsWithIds) {
+            await syncManager.queueAction({
+              type: "create",
+              store: storeName,
+              data: item,
+            });
+          }
+          // Throw a silent error so the UI can show success message
+          const silentError: any = new Error("Items saved locally. Will sync when online.");
+          silentError.response = { silent: true, connectionError: true };
+          throw silentError;
+        } else {
+          // Other errors - still saved locally, but log
+          console.log("Failed to sync bulk items to server, saved locally:", apiError);
+          // Queue for sync anyway
+          for (const item of itemsWithIds) {
+            await syncManager.queueAction({
+              type: "create",
+              store: storeName,
+              data: item,
+            });
+          }
+          throw apiError;
+        }
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to bulk add items');
+      // Check if it's a silent connection error
+      if ((error as any).response?.silent || (error as any).response?.connectionError) {
+        // Re-throw as-is for UI handling
+        throw error;
+      }
       setError(error);
-      if (onError) {
+      // Don't show errors for connection issues
+      if (onError && !(error as any).silent) {
         onError(error);
       }
       throw error;
     }
-  }, [endpoint, mapItem, onError]);
+  }, [endpoint, mapItem, onError, syncManager]);
 
   // Set items (for compatibility)
   const setItemsDirect = useCallback((newItems: T[]) => {
@@ -327,9 +722,21 @@ export function useApi<T extends { _id?: string; id?: number }>({
   }, []);
 
   // Refresh function that resets error state
+  // Use a debounce to prevent multiple rapid refreshes
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const refresh = useCallback(() => {
     hasErrorShownRef.current = false;
-    loadData();
+    
+    // Clear any pending refresh
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    // Debounce refresh by 500ms to prevent rapid successive calls
+    refreshTimeoutRef.current = setTimeout(() => {
+      loadData();
+      refreshTimeoutRef.current = null;
+    }, 500);
   }, [loadData]);
 
   return {

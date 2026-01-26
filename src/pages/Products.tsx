@@ -320,8 +320,8 @@ const Products = () => {
   // Products Page Skeleton
   const ProductsSkeleton = () => (
     <AppLayout title="Products">
-      <div className="flex flex-col h-[calc(100vh-3rem)]">
-        <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex flex-col lg:h-[calc(100vh-3rem)]">
+        <div className="bg-white flex-1 flex flex-col lg:min-h-0 lg:overflow-hidden">
           {/* Filter Section Skeleton */}
           <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
             <div className="flex flex-col gap-4">
@@ -340,8 +340,8 @@ const Products = () => {
               <Skeleton className="h-4 w-48" />
             </div>
           </div>
-          {/* Table Skeleton */}
-          <div className="overflow-auto flex-1">
+          {/* Desktop Table Skeleton */}
+          <div className="hidden lg:block overflow-auto flex-1">
             <div className="rounded-b-lg overflow-hidden">
               <table className="w-full">
                 <thead className="sticky top-0 z-10 bg-white">
@@ -397,8 +397,8 @@ const Products = () => {
 
   return (
     <AppLayout title="Products">
-      <div className="flex flex-col h-[calc(100vh-3rem)]">
-      <div className="bg-white flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg">
+      <div className="flex flex-col lg:h-[calc(100vh-3rem)]">
+      <div className="bg-white flex-1 flex flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
           {/* Filter Section */}
           <div className="bg-white border-b border-gray-200 px-4 py-4 flex-shrink-0">
             <div className="flex flex-col gap-4">
@@ -413,7 +413,7 @@ const Products = () => {
                     <span className="hidden xs:inline">{t("addProduct")}</span>
                     <span className="xs:hidden">{t("add")}</span>
                   </Button>
-                  <Button onClick={openBulkAddModal} className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent font-medium px-4 py-2 gap-2 w-full sm:w-auto">
+                  <Button onClick={openBulkAddModal} className="bg-green-600 text-white hover:bg-green-700 border border-transparent font-medium px-4 py-2 gap-2 w-full sm:w-auto">
                     <Plus size={18} />
                     <span className="hidden xs:inline">{t("bulkAddProducts")}</span>
                     <span className="xs:hidden">{t("bulkAdd")}</span>
@@ -524,11 +524,11 @@ const Products = () => {
             </div>
           </div>
         </div>
-        {/* Table - Sticky Header with Scrollable Body */}
-        <div className="overflow-auto flex-1">
+        {/* Desktop Table - Sticky Header with Scrollable Body */}
+        <div className="hidden lg:block overflow-auto flex-1">
             <div className="overflow-hidden">
           {/* Desktop Table View */}
-          <div className="hidden md:block">
+          <div>
           <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
               <tr>
@@ -634,9 +634,11 @@ const Products = () => {
             </tbody>
           </table>
           </div>
+            </div>
+          </div>
           
-          {/* Mobile Card View */}
-          <div className="md:hidden p-4 space-y-4">
+          {/* Mobile Card View - Full Page Scroll */}
+          <div className="lg:hidden p-4 space-y-4 pb-20">
             {filteredProducts.length > 0 ? (
               filteredProducts.map((product) => {
                 const status = getStockStatus(product);
@@ -715,8 +717,6 @@ const Products = () => {
                 No products found
               </div>
             )}
-          </div>
-            </div>
         </div>
       </div>
       </div>

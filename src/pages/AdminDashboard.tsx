@@ -254,7 +254,7 @@ const AdminDashboard = () => {
       // Load API stats separately to avoid rate limits
       try {
         const apiStatsRes = await adminApi.getApiStats();
-        if (apiStatsRes.data) setApiStats(apiStatsRes.data);
+      if (apiStatsRes.data) setApiStats(apiStatsRes.data);
       } catch (apiError) {
         // Silently fail for API stats - it's refreshed separately anyway
         console.error("Error loading API stats (non-critical):", apiError);
@@ -263,11 +263,11 @@ const AdminDashboard = () => {
       console.error("Error loading admin dashboard:", error);
       // Only show toast for critical errors, not rate limit errors
       if (!error.message?.includes('Too many') && !error.message?.includes('429')) {
-        toast({
-          title: "Error",
-          description: "Failed to load dashboard data. Please try again.",
-          variant: "destructive",
-        });
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data. Please try again.",
+        variant: "destructive",
+      });
       }
     } finally {
       setLoading(false);

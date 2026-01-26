@@ -510,8 +510,8 @@ const Dashboard = () => {
 
       if (salesToCreate.length > 0) {
           await bulkAddSales(salesToCreate as any);
-        await refreshSales();
-        // Immediately refresh products to update stock levels
+        // Don't refresh sales - bulkAdd already updates the UI with synced items
+        // Only refresh products to update stock levels
         await refreshProducts();
 
           playSaleBeep();
@@ -598,8 +598,8 @@ const Dashboard = () => {
       };
 
         await addSale(newSale as any);
-        await refreshSales();
-        // Immediately refresh products to update stock levels
+        // Don't refresh sales - add already updates the UI with synced item
+        // Only refresh products to update stock levels
         await refreshProducts();
 
         // Play sale beep after recording (audio context should still be active from button click)
@@ -744,7 +744,7 @@ const Dashboard = () => {
             {!isBulkMode && (
               <Button
                 onClick={() => setIsBulkMode(true)}
-                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2"
+                className="bg-green-600 text-white hover:bg-green-700 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2"
               >
                 <Plus size={16} />
                 {t("bulkAdd")}
@@ -772,7 +772,7 @@ const Dashboard = () => {
               <p className="text-sm text-white/90">Add multiple sales at once</p>
               <Button
                 onClick={addBulkRow}
-                className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
+                className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
               >
                 <Plus size={14} />
                 {t("addRow")}

@@ -86,7 +86,12 @@ const Clients = () => {
   } = useApi<Client>({
     endpoint: "clients",
     defaultValue: [],
-    onError: (error) => {
+    onError: (error: any) => {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
       console.error("Error with clients:", error);
       toast({
         title: "Error",

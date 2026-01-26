@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AdminSidebar } from "./AdminSidebar";
+import { AdminBottomNav } from "./AdminBottomNav";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
@@ -127,23 +128,25 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Sidebar - Always visible, can be expanded/collapsed on mobile */}
-      <div className="block">
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:block">
         <AdminSidebar
-          collapsed={isMobile ? !mobileSidebarExpanded : sidebarCollapsed}
-          onToggle={() => {
-            if (isMobile) {
-              setMobileSidebarExpanded(!mobileSidebarExpanded);
-            } else {
-              setSidebarCollapsed(!sidebarCollapsed);
-            }
-          }}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileClose={() => {}}
-          onMobileToggle={() => setMobileSidebarExpanded(!mobileSidebarExpanded)}
+          onMobileToggle={() => {}}
           onHoverChange={setSidebarHovered}
           activeSection={activeSection}
           onSectionChange={onSectionChange}
-          mobileExpanded={mobileSidebarExpanded}
+          mobileExpanded={false}
+        />
+      </div>
+
+      {/* Bottom Navigation - Only visible on mobile */}
+      <div className="lg:hidden">
+        <AdminBottomNav
+          activeSection={activeSection}
+          onSectionChange={onSectionChange}
         />
       </div>
 
@@ -151,10 +154,10 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
       <div
         className={cn(
           "transition-all duration-300",
-          // On mobile, adjust margin based on sidebar expanded state
+          // On mobile, no margin (bottom nav instead of sidebar)
           // On desktop, adjust based on sidebar state
           isMobile 
-            ? (mobileSidebarExpanded ? "ml-60" : "ml-20")
+            ? "ml-0 pb-16" // Add bottom padding for bottom nav
             : "lg:ml-0",
           !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed 
             ? "lg:ml-56" 

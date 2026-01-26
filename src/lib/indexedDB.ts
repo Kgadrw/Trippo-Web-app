@@ -62,34 +62,58 @@ export const getDB = async (): Promise<IDBDatabase> => {
 };
 
 // Generic CRUD operations
-export const addItem = async <T extends { id?: number }>(storeName: string, item: T): Promise<T> => {
+export const addItem = async <T extends { id?: number; _id?: string }>(storeName: string, item: T): Promise<T> => {
   const database = await getDB();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([storeName], "readwrite");
     const store = transaction.objectStore(storeName);
-    const request = store.add(item);
+    
+    // Ensure item has an id (use _id if id doesn't exist, or generate one)
+    // Deep clone and remove any non-serializable values (Promises, functions, etc.)
+    const itemWithId = JSON.parse(JSON.stringify(item));
+    if (!itemWithId.id) {
+      if (itemWithId._id) {
+        // Convert _id to numeric id if possible, otherwise use a hash
+        const idStr = String(itemWithId._id);
+        itemWithId.id = idStr.length > 10 ? parseInt(idStr.slice(-10), 36) : parseInt(idStr, 36) || Date.now();
+      } else if (storeName !== "syncQueue") {
+        // Generate a temporary ID for non-syncQueue stores
+        itemWithId.id = Date.now() + Math.random();
+      }
+    }
+    
+    const request = store.add(itemWithId);
 
     request.onsuccess = () => {
       // For autoIncrement stores (like syncQueue), get the generated ID
       if (storeName === "syncQueue") {
         const id = request.result as number;
-        const itemWithId = { ...item, id } as T;
-        resolve(itemWithId);
+        const itemWithGeneratedId = { ...itemWithId, id } as T;
+        resolve(itemWithGeneratedId);
       } else {
         // For stores without autoIncrement, item already has ID
-        resolve(item);
+        resolve(itemWithId as T);
       }
     };
     request.onerror = () => reject(request.error);
   });
 };
 
-export const updateItem = async <T>(storeName: string, item: T): Promise<void> => {
+export const updateItem = async <T extends { id?: number; _id?: string }>(storeName: string, item: T): Promise<void> => {
   const database = await getDB();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([storeName], "readwrite");
     const store = transaction.objectStore(storeName);
-    const request = store.put(item);
+    
+    // Ensure item has an id
+    // Deep clone and remove any non-serializable values (Promises, functions, etc.)
+    const itemWithId = JSON.parse(JSON.stringify(item));
+    if (!itemWithId.id && itemWithId._id) {
+      const idStr = String(itemWithId._id);
+      itemWithId.id = idStr.length > 10 ? parseInt(idStr.slice(-10), 36) : parseInt(idStr, 36) || Date.now();
+    }
+    
+    const request = store.put(itemWithId);
 
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);

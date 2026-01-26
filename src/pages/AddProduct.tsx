@@ -64,7 +64,12 @@ const AddProduct = () => {
   } = useApi<Product>({
     endpoint: "products",
     defaultValue: [],
-    onError: (error) => {
+    onError: (error: any) => {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
       console.error("Error with products:", error);
     },
   });
@@ -164,7 +169,18 @@ const AddProduct = () => {
       });
       
       navigate("/products");
-    } catch (error) {
+    } catch (error: any) {
+      // Don't show errors for connection issues (offline mode)
+      if (error?.response?.silent || error?.response?.connectionError) {
+        // Product was saved locally, show success message
+        playProductBeep();
+        toast({
+          title: "Product Restocked",
+          description: "Product has been updated. It will sync when you're back online.",
+        });
+        navigate("/products");
+        return;
+      }
       playErrorBeep();
       toast({
         title: "Update Failed",
@@ -279,7 +295,18 @@ const AddProduct = () => {
               });
               navigate("/products");
             }
-          } catch (error) {
+          } catch (error: any) {
+            // Don't show errors for connection issues (offline mode)
+            if (error?.response?.silent || error?.response?.connectionError) {
+              // Products were saved locally, show success message
+              playProductBeep();
+              toast({
+                title: "Products Processed",
+                description: "Products have been saved. They will sync when you're back online.",
+              });
+              navigate("/products");
+              return;
+            }
             playErrorBeep();
             toast({
               title: "Processing Failed",
@@ -325,7 +352,18 @@ const AddProduct = () => {
               variant: "destructive",
             });
           }
-        } catch (error) {
+        } catch (error: any) {
+          // Don't show errors for connection issues (offline mode)
+          if (error?.response?.silent || error?.response?.connectionError) {
+            // Products were saved locally, show success message
+            playProductBeep();
+            toast({
+              title: "Products Added",
+              description: "Products have been saved. They will sync when you're back online.",
+            });
+            navigate("/products");
+            return;
+          }
           playErrorBeep();
           toast({
             title: "Add Failed",
@@ -396,6 +434,17 @@ const AddProduct = () => {
         });
         navigate("/products");
       } catch (error: any) {
+        // Don't show errors for connection issues (offline mode)
+        if (error?.response?.silent || error?.response?.connectionError) {
+          // Product was saved locally, show success message
+          playProductBeep();
+          toast({
+            title: "Product Added",
+            description: "Product has been saved. It will sync when you're back online.",
+          });
+          navigate("/products");
+          return;
+        }
         playErrorBeep();
         // Check if it's a duplicate error from the backend with out of stock info
         if (error?.status === 409 && error?.response?.outOfStock && error?.response?.existingProduct) {
@@ -438,7 +487,7 @@ const AddProduct = () => {
             <Button
               variant="ghost"
               onClick={() => navigate("/products")}
-              className="hover:bg-gray-500 hover:text-white p-2"
+              className="hover:bg-blue-500 hover:text-white p-2"
               title={t("backToProducts")}
             >
               <ArrowLeft size={18} />
@@ -448,14 +497,14 @@ const AddProduct = () => {
             <Button
               variant={mode === "single" ? "default" : "outline"}
               onClick={() => setMode("single")}
-              className={mode === "single" ? "bg-gray-700 text-white hover:bg-gray-800" : ""}
+              className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
             >
               {t("language") === "rw" ? "Icuruzwa kimwe" : "Single Product"}
             </Button>
             <Button
               variant={mode === "bulk" ? "default" : "outline"}
               onClick={() => setMode("bulk")}
-              className={mode === "bulk" ? "bg-gray-700 text-white hover:bg-gray-800" : ""}
+              className={mode === "bulk" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
             >
               {t("bulkAdd")}
             </Button>
@@ -471,7 +520,7 @@ const AddProduct = () => {
                 <p className="text-sm text-muted-foreground">{t("addMultipleProducts")}</p>
                 <Button 
                   onClick={addBulkRow} 
-                  className="bg-gray-500 text-white hover:bg-gray-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-3 h-12 text-base w-full sm:w-auto"
+                  className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-3 h-12 text-base w-full sm:w-auto"
                 >
                   <Plus size={18} />
                   <span className="ml-2">{t("addProduct")}</span>

@@ -1,6 +1,7 @@
 // Sync Manager for handling offline changes and auto-sync
 
 import { addItem, updateItem, deleteItem, getAllItems, clearStore } from "./indexedDB";
+import { productApi, saleApi, clientApi, scheduleApi } from "./api";
 
 export interface SyncAction {
   id?: number;
@@ -28,14 +29,34 @@ export class SyncManager {
   }
 
   private setupOnlineOfflineListeners() {
-    window.addEventListener("online", () => {
+    const handleOnline = () => {
       this.isOnline = true;
-      this.syncAll();
-    });
+      // Small delay to ensure network is fully restored
+      setTimeout(() => {
+        this.syncAll().catch((error) => {
+          console.log("Auto-sync on network restore failed:", error);
+        });
+      }, 1000);
+    };
 
-    window.addEventListener("offline", () => {
+    const handleOffline = () => {
       this.isOnline = false;
-    });
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Also check periodically if we're online (in case event listeners don't fire)
+    setInterval(() => {
+      const currentlyOnline = navigator.onLine;
+      if (currentlyOnline && !this.isOnline) {
+        // Network was restored but event didn't fire
+        handleOnline();
+      } else if (!currentlyOnline && this.isOnline) {
+        // Network was lost but event didn't fire
+        handleOffline();
+      }
+    }, 5000); // Check every 5 seconds
   }
 
   public getIsOnline(): boolean {
@@ -68,47 +89,112 @@ export class SyncManager {
 
   // Sync a single action
   private async syncAction(action: SyncAction): Promise<void> {
-    // NOTE: This is a placeholder for server sync
-    // In a real app, this would make an API call to your backend server
-    // For offline-first operation, data is already saved in IndexedDB
-    // This method can be extended to sync with a remote server when online
-    
-    // Placeholder: Store sync actions in localStorage for demonstration
-    // In production, replace this with actual API calls
+    // Sync with backend API
     try {
-    const serverKey = `server_${action.store}`;
-    const serverData = JSON.parse(localStorage.getItem(serverKey) || "[]");
+      const itemData = { ...action.data };
+      const localId = (itemData as any)._id || (itemData as any).id;
+      // Remove id if it exists (backend will generate _id)
+      delete (itemData as any).id;
+      delete (itemData as any)._id;
 
-    switch (action.type) {
-      case "create":
-        serverData.push(action.data);
-        break;
-      case "update":
-        const updateIndex = serverData.findIndex((item: any) => item.id === action.data.id);
-        if (updateIndex !== -1) {
-          serverData[updateIndex] = action.data;
-        } else {
-          serverData.push(action.data);
-        }
-        break;
-      case "delete":
-        const deleteIndex = serverData.findIndex((item: any) => item.id === action.data.id);
-        if (deleteIndex !== -1) {
-          serverData.splice(deleteIndex, 1);
-        }
-        break;
-    }
+      let response: any = null;
 
-    localStorage.setItem(serverKey, JSON.stringify(serverData));
+      switch (action.type) {
+        case "create":
+          if (action.store === "products") {
+            response = await productApi.create(itemData);
+          } else if (action.store === "sales") {
+            response = await saleApi.create(itemData);
+          } else if (action.store === "clients") {
+            response = await clientApi.create(itemData);
+          } else if (action.store === "schedules") {
+            response = await scheduleApi.create(itemData);
+          }
+          break;
+        case "update":
+          const itemId = action.data._id || action.data.id;
+          if (!itemId) {
+            throw new Error("Item ID is required for update");
+          }
+          if (action.store === "products") {
+            response = await productApi.update(itemId.toString(), itemData);
+          } else if (action.store === "sales") {
+            response = await saleApi.update(itemId.toString(), itemData);
+          } else if (action.store === "clients") {
+            response = await clientApi.update(itemId.toString(), itemData);
+          } else if (action.store === "schedules") {
+            response = await scheduleApi.update(itemId.toString(), itemData);
+          }
+          break;
+        case "delete":
+          const deleteId = action.data._id || action.data.id;
+          if (!deleteId) {
+            throw new Error("Item ID is required for delete");
+          }
+          if (action.store === "products") {
+            await productApi.delete(deleteId.toString());
+          } else if (action.store === "sales") {
+            await saleApi.delete(deleteId.toString());
+          } else if (action.store === "clients") {
+            await clientApi.delete(deleteId.toString());
+          } else if (action.store === "schedules") {
+            await scheduleApi.delete(deleteId.toString());
+          }
+          break;
+      }
+
+      // Update IndexedDB with server response for create/update operations
+      if (response?.data && (action.type === "create" || action.type === "update")) {
+        const syncedItem = response.data;
+        // Map _id to id for compatibility
+        if (syncedItem._id && !syncedItem.id) {
+          syncedItem.id = syncedItem._id;
+        }
+        
+        // For create operations, find and remove the local item with temporary ID
+        if (action.type === "create") {
+          const existingItems = await getAllItems(action.store);
+          // Try to find the local item by matching content (for sales: product, date, quantity)
+          const matchingLocalItem = existingItems.find((localItem: any) => {
+            if (action.store === "sales") {
+              const localSale = localItem;
+              const syncedSale = syncedItem;
+              // Match by product name, date, and quantity
+              return localSale.product === syncedSale.product &&
+                     localSale.date === syncedSale.date &&
+                     localSale.quantity === syncedSale.quantity &&
+                     Math.abs((localSale.revenue || 0) - (syncedSale.revenue || 0)) < 0.01;
+            } else {
+              // For other stores, try to match by the original local ID stored in action.data
+              const originalLocalId = (action.data as any)._id || (action.data as any).id;
+              const currentId = (localItem as any)._id || (localItem as any).id;
+              return currentId === originalLocalId;
+            }
+          });
+          
+          if (matchingLocalItem) {
+            // Remove the local item with temporary ID
+            const localId = (matchingLocalItem as any)._id || (matchingLocalItem as any).id;
+            const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
+            if (!isNaN(numericId)) {
+              await deleteItem(action.store, numericId);
+            }
+          }
+        }
+        
+        // Add/update the synced item with server ID
+        await updateItem(action.store, syncedItem);
+      }
+
+      // Mark as synced if it has an id (was queued)
+      if (action.id !== undefined) {
+        await this.markAsSynced(action.id);
+      }
     } catch (error) {
       // If sync fails, it's okay - data is already saved locally in IndexedDB
-      console.warn("Sync action failed (data is still saved locally):", error);
+      // Silently fail - don't show errors to users
+      console.log("Sync action failed (data is still saved locally):", error);
       throw error; // Re-throw so it can be retried later
-    }
-
-    // Mark as synced if it has an id (was queued)
-    if (action.id !== undefined) {
-      await this.markAsSynced(action.id);
     }
   }
 
@@ -128,21 +214,41 @@ export class SyncManager {
 
   // Sync all pending actions
   public async syncAll(): Promise<void> {
-    if (!this.isOnline || this.syncInProgress) {
+    // Double-check online status
+    if (!navigator.onLine) {
+      this.isOnline = false;
       return;
     }
 
+    if (this.syncInProgress) {
+      return;
+    }
+
+    this.isOnline = true;
     this.syncInProgress = true;
 
     try {
       const queue = await getAllItems<SyncAction>("syncQueue");
       const pendingActions = queue.filter((action) => !action.synced);
 
+      if (pendingActions.length === 0) {
+        return; // Nothing to sync
+      }
+
+      console.log(`Syncing ${pendingActions.length} pending action(s)...`);
+
       for (const action of pendingActions) {
         try {
+          // Check online status before each sync
+          if (!navigator.onLine) {
+            this.isOnline = false;
+            break; // Stop syncing if network is lost
+          }
           await this.syncAction(action);
+          console.log(`Successfully synced ${action.type} action for ${action.store}`);
         } catch (error) {
-          console.error(`Failed to sync action ${action.id}:`, error);
+          console.log(`Failed to sync action ${action.id}, will retry later:`, error);
+          // Continue with next action instead of stopping
         }
       }
 

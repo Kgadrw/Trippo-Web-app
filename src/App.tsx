@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
@@ -135,6 +136,7 @@ const App = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <OfflineIndicator />
+            <AddToHomeScreen />
           </LanguageProvider>
         </ThemeProvider>
       </BrowserRouter>

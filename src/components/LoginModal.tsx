@@ -377,7 +377,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             </div>
             <Button
               onClick={handleLogin}
-              className="w-full bg-gray-500 text-white hover:bg-gray-600"
+              className="w-full bg-blue-600 text-white hover:bg-blue-700"
               disabled={loginPin.length !== 4 || isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}
@@ -495,7 +495,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
             <Button
               onClick={handleCreateAccount}
-              className="w-full bg-gray-500 text-white hover:bg-gray-600"
+              className="w-full bg-blue-600 text-white hover:bg-blue-700"
               disabled={isLoading}
             >
               {isLoading ? "Creating account..." : "Create Account"}

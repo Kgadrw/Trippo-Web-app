@@ -78,7 +78,7 @@ const Home = () => {
               {t("runBusinessSmarter")}
             </h1>
             <Button
-              className="bg-gray-400 text-white hover:bg-gray-600 px-5 py-2.5 text-sm font-medium rounded-full"
+              className="bg-blue-500 text-white hover:bg-blue-600 px-5 py-2.5 text-sm font-medium rounded-full"
               onClick={() => {
                 setLoginModalTab("create");
                 setLoginModalOpen(true);
@@ -279,7 +279,7 @@ const Home = () => {
                   <li>• {t("upTo100Products")}</li>
                 </ul>
                 <Button
-                  className="bg-gray-500 text-white hover:bg-gray-600 rounded-full px-4 py-2 text-sm w-full"
+                  className="bg-blue-600 text-white hover:bg-blue-700 rounded-full px-4 py-2 text-sm w-full"
                   onClick={() => {
                     setLoginModalTab("create");
                     setLoginModalOpen(true);
