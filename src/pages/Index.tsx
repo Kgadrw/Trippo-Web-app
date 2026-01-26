@@ -903,7 +903,7 @@ const Dashboard = () => {
                           value={sale.paymentMethod}
                           onValueChange={(value) => updateBulkSale(index, "paymentMethod", value)}
                         >
-                          <SelectTrigger className="input-field h-9">
+                          <SelectTrigger className="input-field h-9 w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -920,7 +920,7 @@ const Dashboard = () => {
                           type="date"
                           value={sale.saleDate}
                           onChange={(e) => updateBulkSale(index, "saleDate", e.target.value)}
-                          className="input-field h-9"
+                          className="input-field h-9 w-full"
                         />
                       </td>
                       <td className="p-2">
@@ -1043,7 +1043,7 @@ const Dashboard = () => {
             </div>
             {/* Revenue, Cost, and Profit Preview */}
             {selectedProduct && quantity && sellingPrice && parseInt(quantity) > 0 && parseFloat(sellingPrice) > 0 && (
-              <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30">
+              <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30 mt-2">
                 {(() => {
                   const product = products.find(p => {
                     const id = (p as any)._id || p.id;
@@ -1059,16 +1059,16 @@ const Dashboard = () => {
                   return (
                     <>
                       <div className="text-center">
-                        <p className="text-xs text-white/80 mb-1">Revenue</p>
-                        <p className="text-lg font-semibold text-blue-200">rwf {revenue.toLocaleString()}</p>
+                        <p className="text-xs text-white/80 mb-1 font-medium">Revenue</p>
+                        <p className="text-xl font-bold text-blue-200">rwf {revenue.toLocaleString()}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-white/80 mb-1">Cost</p>
-                        <p className="text-lg font-semibold text-orange-200">rwf {cost.toLocaleString()}</p>
+                        <p className="text-xs text-white/80 mb-1 font-medium">Cost</p>
+                        <p className="text-xl font-bold text-orange-200">rwf {cost.toLocaleString()}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-white/80 mb-1">Profit</p>
-                        <p className={`text-lg font-semibold ${profit >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                        <p className="text-xs text-white/80 mb-1 font-medium">Profit</p>
+                        <p className={`text-xl font-bold ${profit >= 0 ? 'text-green-200' : 'text-red-200'}`}>
                           rwf {profit.toLocaleString()}
                         </p>
                       </div>
@@ -1080,7 +1080,7 @@ const Dashboard = () => {
             <div className="space-y-2">
               <Label className="text-white">{t("paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="input-field">
+                <SelectTrigger className="input-field w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1098,7 +1098,7 @@ const Dashboard = () => {
                 type="date"
                 value={saleDate}
                 onChange={(e) => setSaleDate(e.target.value)}
-                className="input-field"
+                className="input-field w-full"
               />
             </div>
             <div className="flex items-end">

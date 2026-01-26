@@ -569,7 +569,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
             <div className="space-y-2">
               <Label className="text-white">{t("paymentMethod")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="input-field">
+                <SelectTrigger className="input-field w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -587,7 +587,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                 type="date"
                 value={saleDate}
                 onChange={(e) => setSaleDate(e.target.value)}
-                className="input-field"
+                className="input-field w-full"
               />
             </div>
             <div className="flex items-end pt-2">

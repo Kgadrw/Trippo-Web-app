@@ -196,7 +196,42 @@ export function useApi<T extends { _id?: string; id?: number }>({
           // Reload from IndexedDB to get the merged result
           const finalItems = await getAllItems<T>(storeName);
           const finalMappedItems = finalItems.map(mapItem);
-          setItems(finalMappedItems.length > 0 ? finalMappedItems : defaultValue);
+          
+          // Deduplicate sales by matching content (product, date, quantity, revenue)
+          let deduplicatedItems = finalMappedItems;
+          if (storeName === 'sales') {
+            const seen = new Map<string, T>();
+            for (const item of finalMappedItems) {
+              const sale = item as any;
+              // Create a unique key based on content
+              const dateStr = typeof sale.date === 'string' 
+                ? sale.date.split('T')[0] 
+                : new Date(sale.date).toISOString().split('T')[0];
+              const key = `${sale.product}_${dateStr}_${sale.quantity}_${sale.revenue}`;
+              
+              // If we've seen this key before, prefer the one with a server ID (_id)
+              if (seen.has(key)) {
+                const existing = seen.get(key)!;
+                const existingId = (existing as any)._id || (existing as any).id;
+                const currentId = (sale as any)._id || (sale as any).id;
+                
+                // Prefer server ID over temporary ID
+                const existingIsServerId = typeof existingId === 'string' || (typeof existingId === 'number' && existingId < 1e15);
+                const currentIsServerId = typeof currentId === 'string' || (typeof currentId === 'number' && currentId < 1e15);
+                
+                if (currentIsServerId && !existingIsServerId) {
+                  // Current has server ID, existing doesn't - replace
+                  seen.set(key, item);
+                }
+                // Otherwise keep existing
+              } else {
+                seen.set(key, item);
+              }
+            }
+            deduplicatedItems = Array.from(seen.values());
+          }
+          
+          setItems(deduplicatedItems.length > 0 ? deduplicatedItems : defaultValue);
           
           // Update last sync timestamp in localStorage
           localStorage.setItem("profit-pilot-last-sync", String(Date.now()));
@@ -352,13 +387,44 @@ export function useApi<T extends { _id?: string; id?: number }>({
           apiCache.invalidateStore(endpoint);
           localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
           
-          // Update UI - replace local item with synced item
-          setItems((prev) => 
-            prev.map((i) => {
+          // Update UI - replace local item with synced item and remove duplicates
+          setItems((prev) => {
+            const updated = prev.map((i) => {
               const currentId = (i as any)._id || (i as any).id;
               return currentId === localId ? syncedItem : i;
-            })
-          );
+            });
+            
+            // Deduplicate sales by content
+            if (endpoint === 'sales') {
+              const seen = new Map<string, T>();
+              for (const item of updated) {
+                const sale = item as any;
+                const dateStr = typeof sale.date === 'string' 
+                  ? sale.date.split('T')[0] 
+                  : new Date(sale.date).toISOString().split('T')[0];
+                const key = `${sale.product}_${dateStr}_${sale.quantity}_${sale.revenue}`;
+                
+                if (seen.has(key)) {
+                  const existing = seen.get(key)!;
+                  const existingId = (existing as any)._id || (existing as any).id;
+                  const currentId = (sale as any)._id || (sale as any).id;
+                  
+                  // Prefer server ID over temporary ID
+                  const existingIsServerId = typeof existingId === 'string' || (typeof existingId === 'number' && existingId < 1e15);
+                  const currentIsServerId = typeof currentId === 'string' || (typeof currentId === 'number' && currentId < 1e15);
+                  
+                  if (currentIsServerId && !existingIsServerId) {
+                    seen.set(key, item);
+                  }
+                } else {
+                  seen.set(key, item);
+                }
+              }
+              return Array.from(seen.values());
+            }
+            
+            return updated;
+          });
         }
       } catch (apiError: any) {
         // If offline, queue for sync later
@@ -648,7 +714,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           apiCache.invalidateStore(endpoint);
           localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
           
-          // Update UI - replace local items with synced items
+          // Update UI - replace local items with synced items and remove duplicates
           setItems((prev) => {
             const updated = [...prev];
             syncedItems.forEach((syncedItem) => {
@@ -656,8 +722,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
               // Find by content matching
               const index = updated.findIndex((i) => {
                 const localSale = i as any;
+                // Normalize dates for comparison
+                const localDate = typeof localSale.date === 'string' 
+                  ? localSale.date.split('T')[0] 
+                  : new Date(localSale.date).toISOString().split('T')[0];
+                const syncedDate = typeof syncedSale.date === 'string' 
+                  ? syncedSale.date.split('T')[0] 
+                  : new Date(syncedSale.date).toISOString().split('T')[0];
                 return localSale.product === syncedSale.product &&
-                       localSale.date === syncedSale.date &&
+                       localDate === syncedDate &&
                        localSale.quantity === syncedSale.quantity &&
                        Math.abs((localSale.revenue || 0) - (syncedSale.revenue || 0)) < 0.01;
               });
@@ -668,7 +741,33 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 updated.push(syncedItem);
               }
             });
-            return updated;
+            
+            // Deduplicate sales by content to remove any remaining duplicates
+            const seen = new Map<string, T>();
+            for (const item of updated) {
+              const sale = item as any;
+              const dateStr = typeof sale.date === 'string' 
+                ? sale.date.split('T')[0] 
+                : new Date(sale.date).toISOString().split('T')[0];
+              const key = `${sale.product}_${dateStr}_${sale.quantity}_${sale.revenue}`;
+              
+              if (seen.has(key)) {
+                const existing = seen.get(key)!;
+                const existingId = (existing as any)._id || (existing as any).id;
+                const currentId = (sale as any)._id || (sale as any).id;
+                
+                // Prefer server ID over temporary ID
+                const existingIsServerId = typeof existingId === 'string' || (typeof existingId === 'number' && existingId < 1e15);
+                const currentIsServerId = typeof currentId === 'string' || (typeof currentId === 'number' && currentId < 1e15);
+                
+                if (currentIsServerId && !existingIsServerId) {
+                  seen.set(key, item);
+                }
+              } else {
+                seen.set(key, item);
+              }
+            }
+            return Array.from(seen.values());
           });
         }
       } catch (apiError: any) {

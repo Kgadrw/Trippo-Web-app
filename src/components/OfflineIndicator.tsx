@@ -24,23 +24,40 @@ export function OfflineIndicator() {
 
     try {
       const currentPending = pendingSyncs;
+      console.log(`[OfflineIndicator] Starting sync for ${currentPending} pending items...`);
       await syncAll();
-      // Refresh status after sync
-      setTimeout(() => {
-        // Status will be updated by the hook's interval
-      }, 500);
+      
+      // Wait a bit for sync to complete and status to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check sync status after completion
+      const { getSyncStatus } = await import("@/lib/syncManager");
+      const status = await getSyncStatus();
+      console.log(`[OfflineIndicator] Sync status after completion:`, status);
+      
       playSyncBeep();
-      toast({
-        title: "Sync Complete",
-        description: currentPending > 0 
-          ? `Successfully synced ${currentPending} pending change${currentPending !== 1 ? "s" : ""}.`
-          : "All data is up to date.",
-      });
+      if (status.pending === 0) {
+        toast({
+          title: "Sync Complete",
+          description: `Successfully synced ${currentPending} pending change${currentPending !== 1 ? "s" : ""}. Please refresh the page to see updated data.`,
+        });
+        // Optionally refresh after a delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        toast({
+          title: "Sync Partially Complete",
+          description: `Synced some changes, but ${status.pending} still pending. Check console for details.`,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
+      console.error("[OfflineIndicator] Sync error:", error);
       playErrorBeep();
       toast({
         title: "Sync Failed",
-        description: "Failed to sync changes. Please try again.",
+        description: "Failed to sync changes. Please check the browser console (F12) for details and try again.",
         variant: "destructive",
       });
     }
