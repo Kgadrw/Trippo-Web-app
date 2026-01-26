@@ -1,7 +1,7 @@
 // Notification Service for Browser Notifications
 // Handles permission requests, notification display, and notification management
 
-export type NotificationType = 'new_user' | 'low_stock' | 'schedule' | 'general';
+export type NotificationType = 'new_user' | 'low_stock' | 'schedule' | 'new_sale' | 'new_product' | 'general';
 
 export interface NotificationData {
   title: string;
@@ -208,6 +208,50 @@ class NotificationService {
         route: '/schedules',
         type: 'schedule',
         scheduleTitle,
+      },
+    });
+  }
+
+  /**
+   * Show notification for new sale recorded
+   */
+  public async notifyNewSale(
+    productName: string,
+    quantity: number,
+    revenue: number
+  ): Promise<void> {
+    await this.showNotification('new_sale', {
+      title: 'Sale Recorded',
+      body: `${quantity} ${quantity === 1 ? 'item' : 'items'} of ${productName} sold for rwf ${revenue.toLocaleString()}`,
+      icon: '/logo.png',
+      tag: `sale-${Date.now()}`,
+      requireInteraction: false,
+      data: {
+        route: '/sales',
+        type: 'new_sale',
+        productName,
+      },
+    });
+  }
+
+  /**
+   * Show notification for new product added
+   */
+  public async notifyNewProduct(
+    productName: string,
+    category?: string
+  ): Promise<void> {
+    const categoryText = category ? ` (${category})` : '';
+    await this.showNotification('new_product', {
+      title: 'New Product Added',
+      body: `${productName}${categoryText} has been added to your inventory`,
+      icon: '/logo.png',
+      tag: `product-${productName}`,
+      requireInteraction: false,
+      data: {
+        route: '/products',
+        type: 'new_product',
+        productName,
       },
     });
   }

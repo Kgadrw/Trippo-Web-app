@@ -25,6 +25,16 @@ interface Schedule {
   status: 'pending' | 'completed' | 'cancelled';
 }
 
+interface Sale {
+  id?: number;
+  _id?: string;
+  product: string;
+  quantity: number;
+  revenue: number;
+  date: string | Date;
+  createdAt?: string;
+}
+
 interface User {
   _id: string;
   name: string;
@@ -255,10 +265,190 @@ export function useScheduleNotifications() {
 }
 
 /**
+ * Hook for tracking new sales and notifying
+ */
+export function useSaleNotifications() {
+  const { user } = useCurrentUser();
+  const lastNotifiedSales = useRef<Set<string>>(new Set());
+  const previousSaleIds = useRef<Set<string>>(new Set());
+  const userId = localStorage.getItem('profit-pilot-user-id');
+  const isAdmin = localStorage.getItem('profit-pilot-is-admin') === 'true';
+
+  const {
+    items: sales,
+  } = useApi<Sale>({
+    endpoint: 'sales',
+    defaultValue: [],
+  });
+
+  useEffect(() => {
+    if (!user || !userId || !notificationService.isAllowed()) {
+      return;
+    }
+
+    // Check for new sales
+    checkNewSales();
+  }, [user, userId, sales]);
+
+  const checkNewSales = async () => {
+    if (!sales || sales.length === 0) {
+      // Reset tracking if sales list is empty
+      previousSaleIds.current = new Set();
+      return;
+    }
+
+    // Get current sale IDs
+    const currentSaleIds = new Set(
+      sales
+        .map((s) => s._id || s.id?.toString() || '')
+        .filter(Boolean)
+    );
+
+    // Find new sales (in current but not in previous)
+    const newSaleIds = Array.from(currentSaleIds).filter(
+      (id) => !previousSaleIds.current.has(id)
+    );
+
+    // Notify about new sales (only if we've seen sales before - skip initial load)
+    if (previousSaleIds.current.size > 0 && newSaleIds.length > 0) {
+      for (const saleId of newSaleIds) {
+        const sale = sales.find(
+          (s) => (s._id || s.id?.toString() || '') === saleId
+        );
+        
+        if (sale && !lastNotifiedSales.current.has(saleId)) {
+          // Also check if sale was created recently (within last 5 minutes) to avoid old data
+          const saleDate = sale.createdAt 
+            ? new Date(sale.createdAt)
+            : sale.date 
+            ? new Date(sale.date)
+            : null;
+
+          if (saleDate) {
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            
+            if (saleDate > fiveMinutesAgo) {
+              await notificationService.notifyNewSale(
+                sale.product,
+                sale.quantity,
+                sale.revenue
+              );
+              lastNotifiedSales.current.add(saleId);
+            }
+          } else {
+            // If no date, assume it's new and notify
+            await notificationService.notifyNewSale(
+              sale.product,
+              sale.quantity,
+              sale.revenue
+            );
+            lastNotifiedSales.current.add(saleId);
+          }
+        }
+      }
+    }
+
+    // Update previous sale IDs for next comparison
+    previousSaleIds.current = currentSaleIds;
+
+    // Clean up old sale IDs (keep only last 50)
+    if (lastNotifiedSales.current.size > 50) {
+      const recentSaleIds = new Set(
+        sales
+          .slice(-50)
+          .map((s) => s._id || s.id?.toString() || '')
+          .filter(Boolean)
+      );
+      lastNotifiedSales.current = recentSaleIds;
+    }
+  };
+}
+
+/**
+ * Hook for tracking new products and notifying
+ */
+export function useProductNotifications() {
+  const { user } = useCurrentUser();
+  const lastNotifiedProducts = useRef<Set<string>>(new Set());
+  const previousProductIds = useRef<Set<string>>(new Set());
+  const userId = localStorage.getItem('profit-pilot-user-id');
+  const isAdmin = localStorage.getItem('profit-pilot-is-admin') === 'true';
+
+  const {
+    items: products,
+  } = useApi<Product>({
+    endpoint: 'products',
+    defaultValue: [],
+  });
+
+  useEffect(() => {
+    if (!user || !userId || !notificationService.isAllowed()) {
+      return;
+    }
+
+    // Check for new products
+    checkNewProducts();
+  }, [user, userId, products]);
+
+  const checkNewProducts = async () => {
+    if (!products || products.length === 0) {
+      // Reset tracking if products list is empty
+      previousProductIds.current = new Set();
+      return;
+    }
+
+    // Get current product IDs
+    const currentProductIds = new Set(
+      products
+        .map((p) => p._id || p.id?.toString() || '')
+        .filter(Boolean)
+    );
+
+    // Find new products (in current but not in previous)
+    const newProductIds = Array.from(currentProductIds).filter(
+      (id) => !previousProductIds.current.has(id)
+    );
+
+    // Notify about new products (only if we've seen products before - skip initial load)
+    if (previousProductIds.current.size > 0 && newProductIds.length > 0) {
+      for (const productId of newProductIds) {
+        const product = products.find(
+          (p) => (p._id || p.id?.toString() || '') === productId
+        );
+        
+        if (product && !lastNotifiedProducts.current.has(productId)) {
+          await notificationService.notifyNewProduct(
+            product.name,
+            product.category
+          );
+          lastNotifiedProducts.current.add(productId);
+        }
+      }
+    }
+
+    // Update previous product IDs for next comparison
+    previousProductIds.current = currentProductIds;
+
+    // Clean up old notified product IDs (keep only last 100)
+    if (lastNotifiedProducts.current.size > 100) {
+      const recentProductIds = new Set(
+        products
+          .slice(-100)
+          .map((p) => p._id || p.id?.toString() || '')
+          .filter(Boolean)
+      );
+      lastNotifiedProducts.current = recentProductIds;
+    }
+  };
+}
+
+/**
  * Main hook that combines all notification checks
  */
 export function useNotifications() {
   useAdminNotifications();
   useLowStockNotifications();
   useScheduleNotifications();
+  useSaleNotifications();
+  useProductNotifications();
 }
