@@ -118,7 +118,7 @@
 
 @layer components {
   .kpi-card {
-    @apply bg-white p-3 sm:p-6 border border-transparent shadow-sm rounded-lg sm:rounded-xl;
+    @apply bg-white p-3 sm:p-6 border-0 shadow-none lg:border lg:border-transparent lg:shadow-sm rounded-lg sm:rounded-xl;
   }
 
   .data-table {
@@ -126,11 +126,11 @@
   }
 
   .data-table th {
-    @apply text-left text-sm font-semibold text-gray-800 py-3 px-4 border-b border-transparent bg-white sticky top-16 z-10 shadow-sm;
+    @apply text-left text-sm font-semibold text-gray-800 py-3 px-4 border-b-0 lg:border-b lg:border-transparent bg-white sticky top-16 z-10 shadow-none lg:shadow-sm;
   }
 
   .data-table td {
-    @apply py-4 px-4 text-sm border-b border-transparent;
+    @apply py-4 px-4 text-sm border-b-0 lg:border-b lg:border-transparent;
   }
 
   .data-table tr:hover td {
@@ -142,7 +142,7 @@
   }
 
   .form-card {
-    @apply bg-white p-6 border border-transparent shadow-sm rounded-xl;
+    @apply bg-white p-6 border-0 shadow-none lg:border lg:border-transparent lg:shadow-sm rounded-xl;
   }
 
   .section-title {

@@ -160,24 +160,33 @@ export function useLowStockNotifications() {
 
     for (const product of products) {
       const productId = product._id || product.id?.toString() || '';
-      const minStock = product.minStock || 5;
+      const minStock = product.minStock || 0;
       const currentStock = product.stock || 0;
 
-      // Check if stock is approaching minimum (within 20% of minStock)
-      const threshold = Math.ceil(minStock * 1.2);
-      
-      if (currentStock <= threshold && currentStock > 0) {
+      // Notify if stock is at or below minStock OR stock is 0 (out of stock)
+      // This matches the LowStockAlert component logic
+      if (currentStock <= minStock || currentStock === 0) {
         // Only notify if we haven't notified about this product recently
         if (!lastNotifiedProducts.current.has(productId)) {
-          await notificationService.notifyLowStock(
-            product.name,
-            currentStock,
-            minStock
-          );
+          if (currentStock === 0) {
+            // Out of stock notification
+            await notificationService.notifyLowStock(
+              product.name,
+              0,
+              minStock
+            );
+          } else {
+            // Low stock notification
+            await notificationService.notifyLowStock(
+              product.name,
+              currentStock,
+              minStock
+            );
+          }
           lastNotifiedProducts.current.add(productId);
         }
-      } else if (currentStock > threshold) {
-        // Remove from notified set if stock is back above threshold
+      } else if (currentStock > minStock) {
+        // Remove from notified set if stock is back above minStock
         lastNotifiedProducts.current.delete(productId);
       }
     }

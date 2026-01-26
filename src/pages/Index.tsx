@@ -714,8 +714,8 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Record New Sale Form */}
-      <div className="form-card mb-6 border-transparent bg-blue-500 border-blue-600">
+      {/* Record New Sale Form - Hidden on mobile */}
+      <div className="form-card mb-6 border-transparent bg-blue-500 border-blue-600 hidden lg:block">
         <div className="flex items-center justify-between mb-4">
           <h3 className="section-title flex items-center gap-2 text-white">
             <Plus size={20} className="text-white" />
@@ -1077,7 +1077,7 @@ const Dashboard = () => {
             <SalesTrendChart sales={sales} />
           )}
         </div>
-        <div>
+        <div className="hidden lg:block">
           {isLoading ? (
             <LowStockSkeleton />
           ) : (

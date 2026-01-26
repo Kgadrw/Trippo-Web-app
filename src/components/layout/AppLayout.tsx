@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
+import { MobileHeader } from "./MobileHeader";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
@@ -144,6 +145,11 @@ export function AppLayout({ children, title }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Mobile Header - Only visible on mobile */}
+      <div className="lg:hidden">
+        <MobileHeader />
+      </div>
+
       {/* Sidebar - Hidden on mobile, visible on desktop */}
       <div className="hidden lg:block">
         <Sidebar
@@ -165,10 +171,10 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       <div
         className={cn(
           "transition-all duration-300",
-          // On mobile, no margin (bottom nav instead of sidebar)
+          // On mobile, no margin (bottom nav instead of sidebar), add top padding for header
           // On desktop, adjust based on sidebar state
           isMobile 
-            ? "ml-0 pb-16" // Add bottom padding for bottom nav
+            ? "ml-0 pb-16 pt-20" // Add bottom padding for bottom nav and top padding for mobile header
             : "lg:ml-0",
           !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed 
             ? "lg:ml-56" 

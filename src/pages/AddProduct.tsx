@@ -304,6 +304,23 @@ const AddProduct = () => {
                 title: "Products Processed",
                 description: "Products have been saved. They will sync when you're back online.",
               });
+              
+              // Send notification about offline save
+              const { notificationService } = await import("@/lib/notifications");
+              if (notificationService.isAllowed()) {
+                await notificationService.showNotification('general', {
+                  title: 'Products Saved Offline',
+                  body: `${productsToAdd.length} product(s) have been saved locally. Remember to sync when back online.`,
+                  icon: '/logo.png',
+                  tag: `offline-products-${Date.now()}`,
+                  data: {
+                    route: '/products',
+                    type: 'offline_save',
+                    count: productsToAdd.length,
+                  },
+                });
+              }
+              
               navigate("/products");
               return;
             }
@@ -361,6 +378,23 @@ const AddProduct = () => {
               title: "Products Added",
               description: "Products have been saved. They will sync when you're back online.",
             });
+            
+            // Send notification about offline save
+            const { notificationService } = await import("@/lib/notifications");
+            if (notificationService.isAllowed()) {
+              await notificationService.showNotification('general', {
+                title: 'Products Saved Offline',
+                body: `${addedCount} product(s) have been saved locally. Remember to sync when back online.`,
+                icon: '/logo.png',
+                tag: `offline-products-${Date.now()}`,
+                data: {
+                  route: '/products',
+                  type: 'offline_save',
+                  count: addedCount,
+                },
+              });
+            }
+            
             navigate("/products");
             return;
           }
@@ -442,6 +476,23 @@ const AddProduct = () => {
             title: "Product Added",
             description: "Product has been saved. It will sync when you're back online.",
           });
+          
+          // Send notification about offline save
+          const { notificationService } = await import("@/lib/notifications");
+          if (notificationService.isAllowed()) {
+            await notificationService.showNotification('general', {
+              title: 'Product Saved Offline',
+              body: `${formData.name} has been saved locally. Remember to sync when back online.`,
+              icon: '/logo.png',
+              tag: `offline-product-${Date.now()}`,
+              data: {
+                route: '/products',
+                type: 'offline_save',
+                productName: formData.name,
+              },
+            });
+          }
+          
           navigate("/products");
           return;
         }

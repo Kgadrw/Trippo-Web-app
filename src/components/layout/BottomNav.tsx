@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -6,9 +7,11 @@ import {
   FileText,
   Settings,
   Calendar,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 
 const getMenuItems = (t: (key: string) => string) => {
   // Calculate if NEW banner should show (for one month from today)
@@ -32,52 +35,80 @@ export function BottomNav() {
   const location = useLocation();
   const { t, language } = useTranslation();
   const menuItems = getMenuItems(t);
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
 
   return (
-    <nav 
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden"
-      style={{ 
-        paddingBottom: 'max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))',
-      }}
-    >
-      <div className="flex items-center justify-around h-16 px-2">
-        {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors",
-                isActive 
-                  ? "text-blue-600" 
-                  : "text-gray-500 hover:text-gray-700"
-              )}
-            >
-              <div className="relative">
-                <item.icon 
-                  size={22} 
-                  className={cn(
-                    "transition-colors",
-                    isActive ? "text-blue-600" : "text-gray-500"
-                  )} 
-                />
-                {item.showNew && item.path === "/schedules" && (
-                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold px-1 rounded">
-                    NEW
-                  </span>
+    <>
+      {/* Floating Add Sale Button - Only on mobile */}
+      <button
+        onClick={() => setSaleModalOpen(true)}
+        className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 lg:hidden w-14 h-14 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center backdrop-blur-sm"
+        aria-label="Add new sale"
+      >
+        <Plus size={24} strokeWidth={2.5} />
+      </button>
+
+      {/* Record Sale Modal */}
+      <RecordSaleModal 
+        open={saleModalOpen} 
+        onOpenChange={setSaleModalOpen}
+      />
+
+      <nav 
+        className="fixed bottom-4 left-4 right-4 z-40 bg-white/80 backdrop-blur-md border border-gray-200/50 lg:hidden rounded-3xl shadow-lg"
+        style={{ 
+          paddingBottom: 'max(0.5rem, calc(env(safe-area-inset-bottom) + 0.25rem))',
+        }}
+      >
+        <div className="flex items-center justify-around h-14 px-2">
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all duration-300 ease-in-out relative",
+                  isActive 
+                    ? "text-blue-600" 
+                    : "text-gray-500 hover:text-gray-700"
                 )}
-              </div>
-              <span className={cn(
-                "text-xs font-medium transition-colors",
-                isActive ? "text-blue-600" : "text-gray-500"
-              )}>
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+              >
+                {/* Active indicator background */}
+                {isActive && (
+                  <div className="absolute inset-0 bg-blue-50/50 rounded-2xl -z-10 animate-in fade-in-0 zoom-in-95 duration-300" />
+                )}
+                
+                <div className="relative">
+                  <item.icon 
+                    size={22} 
+                    fill={isActive ? "currentColor" : "none"}
+                    className={cn(
+                      "transition-all duration-300 ease-in-out",
+                      isActive 
+                        ? "text-blue-600 scale-110 animate-in zoom-in-95 duration-300" 
+                        : "text-gray-500 scale-100"
+                    )} 
+                  />
+                  {item.showNew && item.path === "/schedules" && (
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold px-1 rounded">
+                      NEW
+                    </span>
+                  )}
+                </div>
+                <span className={cn(
+                  "text-xs font-medium transition-all duration-300 ease-in-out",
+                  isActive 
+                    ? "text-blue-600 font-semibold animate-in fade-in-0 slide-in-from-bottom-1 duration-300" 
+                    : "text-gray-500"
+                )}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }

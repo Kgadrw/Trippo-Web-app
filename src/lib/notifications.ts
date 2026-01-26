@@ -1,6 +1,8 @@
 // Notification Service for Browser Notifications
 // Handles permission requests, notification display, and notification management
 
+import { notificationStore } from './notificationStore';
+
 export type NotificationType = 'new_user' | 'low_stock' | 'schedule' | 'new_sale' | 'new_product' | 'general';
 
 export interface NotificationData {
@@ -113,6 +115,15 @@ class NotificationService {
 
     this.lastNotificationTimes.set(notificationKey, now);
 
+    // Store notification in notification store
+    notificationStore.addNotification({
+      type,
+      title: data.title,
+      body: data.body,
+      icon: data.icon,
+      data: data.data,
+    });
+
     try {
       // Try to use service worker for background notifications
       if ('serviceWorker' in navigator) {
@@ -207,16 +218,21 @@ class NotificationService {
     currentStock: number,
     minStock: number
   ): Promise<void> {
+    const isOutOfStock = currentStock === 0;
     await this.showNotification('low_stock', {
-      title: 'Low Stock Alert',
-      body: `${productName} is running low (${currentStock} left, minimum: ${minStock})`,
+      title: isOutOfStock ? 'Out of Stock Alert' : 'Low Stock Alert',
+      body: isOutOfStock 
+        ? `${productName} is out of stock!`
+        : `${productName} is running low (${currentStock} left, minimum: ${minStock})`,
       icon: '/logo.png',
-      tag: `low-stock-${productName}`,
+      tag: `low-stock-${productName}-${Date.now()}`,
       requireInteraction: false,
       data: {
         route: '/products',
         type: 'low_stock',
         productName,
+        currentStock,
+        minStock,
       },
     });
   }
