@@ -18,6 +18,19 @@
 }
 
 @layer base {
+  /* Prevent mobile zoom on input focus */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="time"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
   :root {
     /* Primary - Light Gray */
     --primary: 0 0% 98.4%;

@@ -471,7 +471,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                 onValueChange={handleProductChange}
                 products={products}
                 placeholder="Search product..."
-                className="h-10 text-sm"
+                className="h-10 text-base"
                 onError={(message) => {
                   playErrorBeep();
                   toast({
@@ -528,7 +528,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                     }
                     setQuantity(value);
                   }}
-                  className="h-10 text-sm bg-gray-50 border-gray-200"
+                  className="h-10 text-base bg-gray-50 border-gray-200"
                   placeholder="Qty"
                 />
               </div>
@@ -538,7 +538,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                   type="number"
                   value={sellingPrice}
                   onChange={(e) => setSellingPrice(e.target.value)}
-                  className="h-10 text-sm bg-gray-50 border-gray-200"
+                  className="h-10 text-base bg-gray-50 border-gray-200"
                   placeholder="Price"
                 />
               </div>
@@ -549,7 +549,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-gray-600">Payment</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="h-10 text-sm bg-gray-50 border-gray-200">
+                  <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -567,7 +567,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                   type="date"
                   value={saleDate}
                   onChange={(e) => setSaleDate(e.target.value)}
-                  className="h-10 text-sm bg-gray-50 border-gray-200"
+                  className="h-10 text-base bg-gray-50 border-gray-200"
                 />
               </div>
             </div>

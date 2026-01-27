@@ -74,11 +74,6 @@ export function BottomNav() {
                     : "text-gray-500 hover:text-gray-700"
                 )}
               >
-                {/* Active indicator background */}
-                {isActive && (
-                  <div className="absolute inset-0 bg-blue-50/50 rounded-2xl -z-10 animate-in fade-in-0 zoom-in-95 duration-300" />
-                )}
-                
                 <div className="relative">
                   <item.icon 
                     size={22} 
@@ -86,7 +81,7 @@ export function BottomNav() {
                     className={cn(
                       "transition-all duration-300 ease-in-out",
                       isActive 
-                        ? "text-blue-600 scale-110 animate-in zoom-in-95 duration-300" 
+                        ? "text-blue-600 scale-110" 
                         : "text-gray-500 scale-100"
                     )} 
                   />
@@ -97,10 +92,10 @@ export function BottomNav() {
                   )}
                 </div>
                 <span className={cn(
-                  "text-xs font-medium transition-all duration-300 ease-in-out",
+                  "text-xs transition-all duration-300 ease-in-out",
                   isActive 
-                    ? "text-blue-600 font-semibold animate-in fade-in-0 slide-in-from-bottom-1 duration-300" 
-                    : "text-gray-500"
+                    ? "text-blue-600 font-bold" 
+                    : "text-gray-500 font-medium"
                 )}>
                   {item.label}
                 </span>
