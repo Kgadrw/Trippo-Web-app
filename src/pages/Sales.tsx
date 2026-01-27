@@ -1144,6 +1144,11 @@ const Sales = () => {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    colorScheme: 'light'
+                  }}
                 />
               </div>
               
@@ -1155,6 +1160,11 @@ const Sales = () => {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    colorScheme: 'light'
+                  }}
                 />
               </div>
               
@@ -1246,6 +1256,11 @@ const Sales = () => {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    colorScheme: 'light'
+                  }}
                 />
               </div>
               
@@ -1257,6 +1272,11 @@ const Sales = () => {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    colorScheme: 'light'
+                  }}
                 />
               </div>
               

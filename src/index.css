@@ -31,6 +31,58 @@
     font-size: 16px !important;
   }
 
+  /* iOS Safari date input fixes */
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    color: rgb(17, 24, 39) !important; /* text-gray-900 */
+    background-color: white !important;
+    border: 1px solid rgb(209, 213, 219) !important; /* border-gray-300 */
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    padding-left: 2.25rem !important; /* pl-9 */
+    min-height: 2.5rem !important; /* h-10 */
+    width: 100% !important;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 1;
+    cursor: pointer;
+    color: rgb(107, 114, 128); /* text-gray-500 */
+    background: transparent;
+    z-index: 1;
+  }
+
+  input[type="date"]:focus {
+    outline: none;
+    border-color: rgb(107, 114, 128) !important; /* focus:border-gray-500 */
+    box-shadow: 0 0 0 1px rgb(107, 114, 128);
+  }
+
+  /* iOS Safari date input placeholder/text color fix */
+  input[type="date"]::-webkit-datetime-edit {
+    color: rgb(17, 24, 39) !important; /* text-gray-900 */
+  }
+
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    color: rgb(17, 24, 39) !important;
+  }
+
+  input[type="date"]::-webkit-datetime-edit-text {
+    color: rgb(107, 114, 128) !important; /* text-gray-500 */
+  }
+
+  input[type="date"]::-webkit-datetime-edit-month-field,
+  input[type="date"]::-webkit-datetime-edit-day-field,
+  input[type="date"]::-webkit-datetime-edit-year-field {
+    color: rgb(17, 24, 39) !important;
+  }
+
   :root {
     /* Primary - Light Gray */
     --primary: 0 0% 98.4%;

@@ -65,17 +65,46 @@ export function useApi<T extends { _id?: string; id?: number }>({
       const storeName = endpoint;
       const isSalesEndpoint = endpoint === 'sales';
       
+      // Check if stored userId matches current userId - clear IndexedDB if different
+      const storedUserId = localStorage.getItem("profit-pilot-stored-user-id");
+      if (storedUserId && storedUserId !== userId) {
+        // User changed - clear all IndexedDB stores to prevent data leakage
+        try {
+          await clearStore(storeName);
+          // Clear cache as well
+          const cacheKey = `/${endpoint}`;
+          apiCache.delete(cacheKey);
+        } catch (clearError) {
+          // Log but don't fail - continue with API fetch
+          console.warn("Error clearing IndexedDB on user change:", clearError);
+        }
+      }
+      // Store current userId for future checks
+      localStorage.setItem("profit-pilot-stored-user-id", userId);
+      
       // For sales, ALWAYS fetch from API first - skip IndexedDB and cache
       // For other endpoints, use offline-first approach
       if (!isSalesEndpoint) {
         // Load from IndexedDB first (offline-first) for non-sales endpoints
-      const localItems = await getAllItems<T>(storeName);
-      
-      if (localItems.length > 0) {
-        const mappedItems = localItems.map(mapItem);
-        setItems(mappedItems);
-        setIsLoading(false);
-      }
+        // Filter by userId if products have userId field (for data isolation)
+        const localItems = await getAllItems<T>(storeName);
+        
+        // Filter items by userId if they have a userId field
+        const filteredItems = localItems.filter((item: any) => {
+          // If item has userId field, only include if it matches current userId
+          if (item.userId !== undefined) {
+            return item.userId === userId;
+          }
+          // If no userId field, include it (backward compatibility)
+          // But prefer to fetch from API to ensure data isolation
+          return false; // Don't use items without userId for security
+        });
+        
+        if (filteredItems.length > 0) {
+          const mappedItems = filteredItems.map(mapItem);
+          setItems(mappedItems);
+          setIsLoading(false);
+        }
       
         // Check cache first to reduce API requests (for non-sales)
       const cacheKey = `/${endpoint}`;
@@ -250,15 +279,39 @@ export function useApi<T extends { _id?: string; id?: number }>({
             localStorage.removeItem(`profit-pilot-${endpoint}-changed`);
             
             // Update IndexedDB with server data (merge with local data, prevent duplicates)
+            // Add userId to each item for data isolation
+            const itemsWithUserId = mappedItems.map(item => ({
+              ...item,
+              userId: userId
+            })) as T[];
+            
             const existingItems = await getAllItems<T>(storeName);
-            const serverIds = new Set(mappedItems.map(i => (i as any)._id || (i as any).id));
+            const serverIds = new Set(itemsWithUserId.map(i => (i as any)._id || (i as any).id));
             
             // For other stores, use ID-based matching
             const existingIds = new Set(existingItems.map(i => (i as any).id || (i as any)._id));
             
-            // Remove local items that don't exist on server (cleanup)
+            // Remove local items that don't exist on server or belong to different user (cleanup)
             for (const localItem of existingItems) {
               const localId = (localItem as any)._id || (localItem as any).id;
+              const localUserId = (localItem as any).userId;
+              
+              // Remove items from different users
+              if (localUserId && localUserId !== userId) {
+                try {
+                  const itemId = (localItem as any).id;
+                  if (itemId) {
+                    const numericId = typeof itemId === 'string' ? parseInt(itemId) : itemId;
+                    if (!isNaN(numericId)) {
+                      await deleteItem(storeName, numericId);
+                    }
+                  }
+                } catch (deleteError) {
+                  // Ignore delete errors
+                }
+                continue;
+              }
+              
               if (localId && !serverIds.has(localId)) {
                 // Check if this is a temporary ID (very large number from generateUniqueId)
                 // Temporary IDs are typically > 1e15, server IDs are strings or smaller numbers
@@ -271,10 +324,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
             }
           }
           
-          // Now add/update all server items
+          // Now add/update all server items with userId for data isolation
           for (const item of mappedItems) {
             const itemId = (item as any)._id || (item as any).id;
             if (itemId) {
+              // Add userId to item for data isolation
+              const itemWithUserId = {
+                ...item,
+                userId: userId
+              } as T;
+              
               // Check if item already exists
               const existingItem = existingItems.find((i: any) => {
                 const existingId = (i as any)._id || (i as any).id;
@@ -282,15 +341,23 @@ export function useApi<T extends { _id?: string; id?: number }>({
               });
               
               if (existingItem) {
-                await updateItem(storeName, item);
+                await updateItem(storeName, itemWithUserId);
               } else {
-                await addItem(storeName, item);
+                await addItem(storeName, itemWithUserId);
               }
             }
           }
           
-          // Reload from IndexedDB to get the merged result
-          const finalItems = await getAllItems<T>(storeName);
+          // Reload from IndexedDB to get the merged result, filtered by userId
+          const allItems = await getAllItems<T>(storeName);
+          const finalItems = allItems.filter((item: any) => {
+            // Only include items that belong to current user
+            if (item.userId !== undefined) {
+              return item.userId === userId;
+            }
+            // If no userId, exclude for security (shouldn't happen after this update)
+            return false;
+          });
           const finalMappedItems = finalItems.map(mapItem);
           
             setItems(finalMappedItems.length > 0 ? finalMappedItems : defaultValue);
@@ -449,6 +516,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
         (itemWithId as any).id = generateUniqueId();
       }
       
+      // Add userId for data isolation
+      (itemWithId as any).userId = userId;
+      
       // Ensure timestamp is present for sales (preserve if exists, add if missing)
       if (endpoint === 'sales' && !itemWithId.timestamp) {
         (itemWithId as any).timestamp = new Date().toISOString();
@@ -547,8 +617,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
             }
           }
           
+          // Add userId for data isolation
+          const syncedItemWithUserId = {
+            ...syncedItem,
+            userId: userId
+          } as T;
+          
           // Add the synced item with server ID
-          await addItem(storeName, syncedItem);
+          await addItem(storeName, syncedItemWithUserId);
           
           // Invalidate cache for this endpoint since data changed
           apiCache.invalidateStore(endpoint);
@@ -693,8 +769,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
         throw new Error('Item ID is required for update');
       }
 
+      // Add userId for data isolation
+      const itemWithUserId = {
+        ...item,
+        userId: userId
+      } as T;
+
       // Save to IndexedDB first (offline-first)
-      await updateItem(storeName, item);
+      await updateItem(storeName, itemWithUserId);
       
       // Update UI immediately
       const updatedItem = mapItem(item);
@@ -726,8 +808,13 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
         if (response.data) {
           const syncedItem = mapItem(response.data);
+          // Add userId for data isolation
+          const syncedItemWithUserId = {
+            ...syncedItem,
+            userId: userId
+          } as T;
           // Update IndexedDB with server response
-          await updateItem(storeName, syncedItem);
+          await updateItem(storeName, syncedItemWithUserId);
           
           // Invalidate cache for this endpoint since data changed
           apiCache.invalidateStore(endpoint);
@@ -943,9 +1030,13 @@ export function useApi<T extends { _id?: string; id?: number }>({
         });
         // logger.log(`[useApi] ✓ Successfully processed ${syncedItems.length} bulk sales from DIRECT API call`);
         
-        // Add all synced items with server IDs
+        // Add all synced items with server IDs and userId for data isolation
         for (const syncedItem of syncedItems) {
-            await addItem(storeName, syncedItem);
+          const syncedItemWithUserId = {
+            ...syncedItem,
+            userId: userId
+          } as T;
+          await addItem(storeName, syncedItemWithUserId);
           }
           
           // Invalidate cache for this endpoint since data changed
