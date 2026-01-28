@@ -109,6 +109,28 @@ const Products = () => {
     minStock: "",
   });
 
+  // Refresh products when sales are made (listen for custom event)
+  useEffect(() => {
+    const handleProductUpdate = () => {
+      // Refresh products when sales are made from other pages
+      refreshProducts();
+    };
+
+    // Listen for custom event when sales are created
+    window.addEventListener('products-should-refresh', handleProductUpdate);
+    
+    // Also refresh when window gains focus (user switches back to this tab)
+    const handleFocus = () => {
+      refreshProducts();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('products-should-refresh', handleProductUpdate);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshProducts]);
+
   // Get unique categories and product types for filters
   const uniqueCategories = useMemo(() => {
     const categories = new Set(products.map(p => p.category).filter(Boolean));
@@ -888,7 +910,7 @@ const Products = () => {
                           </span>
                         </div>
                         {/* Stock Level Meter */}
-                        <div className="w-full">
+                        <div className="w-full mb-1">
                           <div className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
                             {(() => {
                               const minStock = product.minStock || 5;
@@ -909,6 +931,11 @@ const Products = () => {
                             })()}
                           </div>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t("language") === "rw" 
+                            ? "Umubare w'ibicuruzwa bisigaye mu stoki (bikurwaho igihe ubucuruzi bukorerwa)" 
+                            : "Remaining quantity (automatically reduced when sales are made)"}
+                        </p>
                       </div>
                       <div>
                         <span className="text-gray-500">Status:</span>

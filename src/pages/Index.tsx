@@ -540,6 +540,9 @@ const Dashboard = () => {
             // Silently ignore refresh errors when offline
           }
         }
+        
+        // Dispatch event to notify other pages (like Products page) to refresh
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
           playSaleBeep();
 
@@ -673,6 +676,9 @@ const Dashboard = () => {
             // Silently ignore refresh errors when offline
           }
         }
+        
+        // Dispatch event to notify other pages (like Products page) to refresh
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
         // Play sale beep after recording (audio context should still be active from button click)
         // The playSaleBeep function will handle resuming if needed
