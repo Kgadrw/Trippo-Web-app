@@ -26,6 +26,8 @@ interface Product {
   _id?: string;
   name: string;
   category: string;
+  manufacturedDate?: string;
+  expiryDate?: string;
   costPrice: number;
   sellingPrice: number;
   stock: number;
@@ -38,6 +40,8 @@ interface Product {
 interface ProductFormData {
   name: string;
   category: string;
+  manufacturedDate: string;
+  expiryDate: string;
   costPrice: string;
   sellingPrice: string;
   stock: string;
@@ -78,6 +82,8 @@ const AddProduct = () => {
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     category: categoryFromUrl || "",
+    manufacturedDate: "",
+    expiryDate: "",
     costPrice: "",
     sellingPrice: "",
     stock: "",
@@ -87,7 +93,7 @@ const AddProduct = () => {
     minStock: "",
   });
   const [bulkProducts, setBulkProducts] = useState<ProductFormData[]>([
-    { name: "", category: categoryFromUrl || "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", productType: "", minStock: "" }
+    { name: "", category: categoryFromUrl || "", manufacturedDate: "", expiryDate: "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", productType: "", minStock: "" }
   ]);
   
   // State for out-of-stock duplicate dialog
@@ -97,7 +103,7 @@ const AddProduct = () => {
 
 
   const addBulkRow = () => {
-    setBulkProducts([...bulkProducts, { name: "", category: categoryFromUrl || "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", productType: "", minStock: "" }]);
+    setBulkProducts([...bulkProducts, { name: "", category: categoryFromUrl || "", manufacturedDate: "", expiryDate: "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", productType: "", minStock: "" }]);
   };
 
   const removeBulkRow = (index: number) => {
@@ -200,6 +206,8 @@ const AddProduct = () => {
         .map((p) => ({
           name: p.name,
           category: p.category,
+          manufacturedDate: p.manufacturedDate || undefined,
+          expiryDate: p.expiryDate || undefined,
           costPrice: parseFloat(p.costPrice) || 0,
           sellingPrice: parseFloat(p.sellingPrice) || 0,
           stock: parseInt(p.stock) || 0,
@@ -428,6 +436,8 @@ const AddProduct = () => {
       const newProduct = {
         name: formData.name,
         category: formData.category,
+        manufacturedDate: formData.manufacturedDate || undefined,
+        expiryDate: formData.expiryDate || undefined,
         costPrice: parseFloat(formData.costPrice) || 0,
         sellingPrice: parseFloat(formData.sellingPrice) || 0,
         stock: parseInt(formData.stock) || 0,
@@ -681,6 +691,26 @@ const AddProduct = () => {
                           />
                         </div>
                       </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Manufactured Date (Optional)</Label>
+                          <Input
+                            type="date"
+                            value={product.manufacturedDate}
+                            onChange={(e) => updateBulkProduct(index, "manufacturedDate", e.target.value)}
+                            className="h-12 text-base"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Expiration Date (Optional)</Label>
+                          <Input
+                            type="date"
+                            value={product.expiryDate}
+                            onChange={(e) => updateBulkProduct(index, "expiryDate", e.target.value)}
+                            className="h-12 text-base"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -699,6 +729,8 @@ const AddProduct = () => {
                       <th className="text-left p-2 text-xs font-medium text-foreground">Selling Price</th>
                       <th className="text-left p-2 text-xs font-medium text-foreground">Stock</th>
                       <th className="text-left p-2 text-xs font-medium text-foreground">Min Stock</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground">MFD (Optional)</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground">EXP (Optional)</th>
                       <th className="text-left p-2 text-xs font-medium text-foreground w-12"></th>
                     </tr>
                   </thead>
@@ -778,6 +810,22 @@ const AddProduct = () => {
                           />
                         </td>
                         <td className="p-2">
+                          <Input
+                            type="date"
+                            value={product.manufacturedDate}
+                            onChange={(e) => updateBulkProduct(index, "manufacturedDate", e.target.value)}
+                            className="input-field h-9 text-sm"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <Input
+                            type="date"
+                            value={product.expiryDate}
+                            onChange={(e) => updateBulkProduct(index, "expiryDate", e.target.value)}
+                            className="input-field h-9 text-sm"
+                          />
+                        </td>
+                        <td className="p-2">
                           {bulkProducts.length > 1 && (
                             <button
                               onClick={() => removeBulkRow(index)}
@@ -842,6 +890,27 @@ const AddProduct = () => {
                     placeholder="e.g., 12 (for a box of 12)"
                   />
                   <p className="text-xs text-muted-foreground">Leave empty if product is not packaged. Number of individual items in one package/box</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Manufactured Date (Optional)</Label>
+                  <Input
+                    type="date"
+                    value={formData.manufacturedDate}
+                    onChange={(e) => setFormData({ ...formData, manufacturedDate: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Expiration Date (Optional)</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                    className="input-field"
+                  />
+                  <p className="text-xs text-muted-foreground">Used for tracking expiry of perishable products.</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

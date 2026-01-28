@@ -23,6 +23,8 @@ interface Product {
   name: string;
   stock: number;
   minStock?: number;
+  manufacturedDate?: string;
+  expiryDate?: string;
 }
 
 interface LowStockItem {
@@ -31,6 +33,7 @@ interface LowStockItem {
   stock: number;
   minStock?: number;
   isOutOfStock?: boolean;
+  isExpiringSoon?: boolean;
 }
 
 export function LowStockAlert() {
@@ -50,8 +53,27 @@ export function LowStockAlert() {
     return products
       .filter((product) => {
         const minStock = product.minStock || 0;
+        // Check expiry window (30 days) if expiryDate exists
+        const expiryDateStr = (product as any).expiryDate as string | undefined;
+        let isExpiringSoon = false;
+
+        if (expiryDateStr) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const expiryDate = new Date(expiryDateStr);
+          expiryDate.setHours(0, 0, 0, 0);
+
+          const diffMs = expiryDate.getTime() - today.getTime();
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+          if (diffDays >= 0 && diffDays <= 30) {
+            isExpiringSoon = true;
+          }
+        }
+
         // Show products with stock <= minStock OR stock = 0 (out of stock)
-        return product.stock <= minStock || product.stock === 0;
+        // OR products that are expiring soon
+        return product.stock <= minStock || product.stock === 0 || isExpiringSoon;
       })
       .map((product) => ({
         id: product._id || product.id || '',
@@ -59,11 +81,26 @@ export function LowStockAlert() {
         stock: product.stock,
         minStock: product.minStock,
         isOutOfStock: product.stock === 0,
+        isExpiringSoon: (() => {
+          const expiryDateStr = (product as any).expiryDate as string | undefined;
+          if (!expiryDateStr) return false;
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const expiryDate = new Date(expiryDateStr);
+          expiryDate.setHours(0, 0, 0, 0);
+
+          const diffMs = expiryDate.getTime() - today.getTime();
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          return diffDays >= 0 && diffDays <= 30;
+        })(),
       }))
       .sort((a, b) => {
-        // Sort: out of stock products first, then by stock level (lowest first)
+        // Sort: out of stock first, then expiring soon, then by stock level (lowest first)
         if (a.isOutOfStock && !b.isOutOfStock) return -1;
         if (!a.isOutOfStock && b.isOutOfStock) return 1;
+        if (a.isExpiringSoon && !b.isExpiringSoon) return -1;
+        if (!a.isExpiringSoon && b.isExpiringSoon) return 1;
         return a.stock - b.stock;
       })
       .slice(0, 10); // Show top 10 low stock items (including out of stock)
@@ -182,13 +219,26 @@ export function LowStockAlert() {
               item.isOutOfStock && "bg-red-50 border-red-200"
             )}
           >
-            <span className={cn(
-              "font-medium text-sm flex-1 min-w-0 truncate",
-              item.isOutOfStock ? "text-red-700 font-semibold" : "text-gray-800"
-            )}>
+            <span
+              className={cn(
+                "font-medium text-sm flex-1 min-w-0 truncate",
+                item.isOutOfStock
+                  ? "text-red-700 font-semibold"
+                  : item.isExpiringSoon
+                  ? "text-orange-700 font-semibold"
+                  : "text-gray-800"
+              )}
+            >
               {item.name}
               {item.isOutOfStock && (
-                <span className="ml-2 text-xs text-red-600 font-normal">(Out of Stock)</span>
+                <span className="ml-2 text-xs text-red-600 font-normal">
+                  (Out of Stock)
+                </span>
+              )}
+              {!item.isOutOfStock && item.isExpiringSoon && (
+                <span className="ml-2 text-xs text-orange-600 font-normal">
+                  (Expiring Soon)
+                </span>
               )}
             </span>
             {editingId === item.id ? (
@@ -220,13 +270,21 @@ export function LowStockAlert() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className={cn(
-                  "text-sm font-bold whitespace-nowrap px-2 py-1 rounded",
-                  item.isOutOfStock 
-                    ? "text-red-700 bg-red-100 border border-red-300" 
-                    : "text-gray-700 bg-gray-100"
-                )}>
-                  {item.isOutOfStock ? "Out of Stock" : `${item.stock} left`}
+                <span
+                  className={cn(
+                    "text-sm font-bold whitespace-nowrap px-2 py-1 rounded",
+                    item.isOutOfStock
+                      ? "text-red-700 bg-red-100 border border-red-300"
+                      : item.isExpiringSoon
+                      ? "text-orange-700 bg-orange-100 border border-orange-300"
+                      : "text-gray-700 bg-gray-100"
+                  )}
+                >
+                  {item.isOutOfStock
+                    ? "Out of Stock"
+                    : item.isExpiringSoon
+                    ? "Expiring Soon"
+                    : `${item.stock} left`}
                 </span>
                 <Button
                   size="sm"

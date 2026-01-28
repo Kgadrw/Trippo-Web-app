@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/command";
 import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib/sound";
 import { cn } from "@/lib/utils";
@@ -509,6 +510,11 @@ const Dashboard = () => {
 
           playSaleBeep();
 
+          // Extra desktop popup using Sonner
+          sonnerToast.success("Sales Recorded", {
+            description: `Successfully recorded ${salesToCreate.length} sale(s).`,
+          });
+
           // Reset bulk form
           setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
           setIsBulkMode(false);
@@ -626,6 +632,11 @@ const Dashboard = () => {
         // The playSaleBeep function will handle resuming if needed
         playSaleBeep();
 
+        // Extra desktop popup using Sonner
+        sonnerToast.success("Sale Recorded", {
+          description: `Successfully recorded sale of ${qty}x ${product.name}`,
+        });
+
         // Reset form
         setSelectedProduct("");
         setQuantity("1");
@@ -651,6 +662,9 @@ const Dashboard = () => {
         if (error?.response?.silent || error?.response?.connectionError || !isOnline) {
           // Offline mode - treat as success
           playSaleBeep();
+          sonnerToast.success("Sale Recorded (Offline Mode)", {
+            description: `Successfully recorded sale of ${qty}x ${product.name}. Changes will sync when you're back online.`,
+          });
           toast({
             title: "Sale Recorded (Offline Mode)",
             description: `Successfully recorded sale of ${qty}x ${product.name}. Changes will sync when you're back online.`,

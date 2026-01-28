@@ -27,6 +27,7 @@ import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep, playUpdateBeep, initAudio } from "@/lib/sound";
+import { toast as sonnerToast } from "@/components/ui/sonner";
 import { cn, formatDateWithTime } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -541,6 +542,9 @@ const Sales = () => {
             }
 
             playSaleBeep();
+            sonnerToast.success("Sales Recorded", {
+              description: `Successfully recorded ${salesToCreate.length} sale(s).`,
+            });
 
             // Reset bulk form
             setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
@@ -673,6 +677,9 @@ const Sales = () => {
           // Play sale beep after recording (audio context should still be active from button click)
           // The playSaleBeep function will handle resuming if needed
           playSaleBeep();
+          sonnerToast.success("Sale Recorded", {
+            description: `Successfully recorded sale of ${qty}x ${product.name}`,
+          });
 
           // Reset form
           setSelectedProduct("");

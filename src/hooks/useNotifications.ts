@@ -13,6 +13,8 @@ interface Product {
   name: string;
   stock: number;
   minStock?: number;
+  manufacturedDate?: string;
+  expiryDate?: string;
 }
 
 interface Schedule {
@@ -162,31 +164,40 @@ export function useLowStockNotifications() {
       const productId = product._id || product.id?.toString() || '';
       const minStock = product.minStock || 0;
       const currentStock = product.stock || 0;
+      const expiryDateStr = (product as any).expiryDate as string | undefined;
+      let isExpiringSoon = false;
+
+      if (expiryDateStr) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const expiryDate = new Date(expiryDateStr);
+        expiryDate.setHours(0, 0, 0, 0);
+
+        const diffMs = expiryDate.getTime() - today.getTime();
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+        // Consider "expiring soon" if expiry is within the next 30 days (and not already expired)
+        if (diffDays >= 0 && diffDays <= 30) {
+          isExpiringSoon = true;
+        }
+      }
 
       // Notify if stock is at or below minStock OR stock is 0 (out of stock)
-      // This matches the LowStockAlert component logic
-      if (currentStock <= minStock || currentStock === 0) {
+      // OR if product is expiring soon (within 30 days)
+      // This mostly matches the LowStockAlert component logic, with added expiry check
+      if (currentStock <= minStock || currentStock === 0 || isExpiringSoon) {
         // Only notify if we haven't notified about this product recently
         if (!lastNotifiedProducts.current.has(productId)) {
-          if (currentStock === 0) {
-            // Out of stock notification
-            await notificationService.notifyLowStock(
-              product.name,
-              0,
-              minStock
-            );
-          } else {
-            // Low stock notification
-            await notificationService.notifyLowStock(
-              product.name,
-              currentStock,
-              minStock
-            );
-          }
+          await notificationService.notifyLowStock(
+            product.name,
+            currentStock,
+            minStock
+          );
           lastNotifiedProducts.current.add(productId);
         }
-      } else if (currentStock > minStock) {
+      } else if (currentStock > minStock && !isExpiringSoon) {
         // Remove from notified set if stock is back above minStock
+        // and product is not expiring soon anymore
         lastNotifiedProducts.current.delete(productId);
       }
     }
