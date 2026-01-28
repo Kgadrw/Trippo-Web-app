@@ -678,6 +678,11 @@ const AddProduct = () => {
                             className="h-12 text-base"
                             placeholder="0"
                           />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {t("language") === "rw" 
+                              ? "Umubare w'ibicuruzwa bisigaye" 
+                              : "Remaining quantity"}
+                          </p>
                         </div>
                         <div>
                           <Label className="text-sm font-medium text-gray-700 mb-1 block">Min Stock</Label>
@@ -962,6 +967,11 @@ const AddProduct = () => {
                     className="input-field"
                     placeholder="0"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {t("language") === "rw" 
+                      ? "Umubare w'ibicuruzwa bisigaye mu stoki (bikurwaho igihe ubucuruzi bukorerwa)" 
+                      : "Remaining quantity in stock (automatically reduced when sales are made)"}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Minimum Stock Alert</Label>

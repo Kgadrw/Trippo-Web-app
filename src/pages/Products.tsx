@@ -1020,6 +1020,11 @@ const Products = () => {
                   className="input-field"
                   placeholder="0"
                 />
+                    <p className="text-xs text-muted-foreground">
+                      {t("language") === "rw" 
+                        ? "Umubare w'ibicuruzwa bisigaye mu stoki (bikurwaho igihe ubucuruzi bukorerwa)" 
+                        : "Remaining quantity in stock (automatically reduced when sales are made)"}
+                    </p>
                 </div>
                 <div className="space-y-2">
                     <Label>{t("minStockAlert")}</Label>
