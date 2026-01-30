@@ -43,6 +43,10 @@ interface Product {
   costPrice: number;
   sellingPrice: number;
   stock: number;
+  isPackage?: boolean;
+  packageQuantity?: number;
+  priceType?: "perQuantity" | "perPackage"; // "perQuantity" = price per individual item, "perPackage" = price for whole package
+  productType?: string;
 }
 
 interface Sale {
@@ -246,6 +250,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [isRecordingSale, setIsRecordingSale] = useState(false);
+  const [packageSaleMode, setPackageSaleMode] = useState<"quantity" | "wholePackage">("quantity"); // For package products: sell by quantity or whole package
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -267,6 +272,10 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       });
       if (product) {
         setSellingPrice(product.sellingPrice.toString());
+        // Reset package sale mode when product changes
+        if (product.isPackage) {
+          setPackageSaleMode("quantity");
+        }
       }
     }
   }, [selectedProduct, products]);
@@ -292,30 +301,102 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       return;
     }
 
-    const qty = parseInt(quantity);
-    if (isNaN(qty) || qty <= 0) {
-      playErrorBeep();
-      toast({
-        title: "Invalid Quantity",
-        description: "Please enter a valid quantity greater than 0.",
-        variant: "destructive",
-      });
-      return;
+    // Handle package products
+    let qty: number;
+    let stockReduction: number;
+    let revenue: number;
+    let cost: number;
+    
+    if (product.isPackage && product.packageQuantity) {
+      if (packageSaleMode === "wholePackage") {
+        // Selling whole package
+        qty = product.packageQuantity; // Record the actual quantity sold
+        stockReduction = product.packageQuantity;
+        
+        // Calculate revenue based on price type
+        if (product.priceType === "perPackage") {
+          // Price is for whole package
+          revenue = parseFloat(sellingPrice);
+        } else {
+          // Price is per quantity, so multiply by package quantity
+          revenue = parseFloat(sellingPrice) * product.packageQuantity;
+        }
+        
+        // Cost is per quantity, so multiply by package quantity
+        cost = product.costPrice * product.packageQuantity;
+      } else {
+        // Selling by quantity
+        qty = parseInt(quantity);
+        
+        // Validate quantity is valid
+        if (isNaN(qty) || qty <= 0) {
+          playErrorBeep();
+          toast({
+            title: "Invalid Quantity",
+            description: "Please enter a valid quantity greater than 0.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Validate quantity doesn't exceed available stock
+        if (qty > product.stock || product.stock <= 0) {
+          playErrorBeep();
+          toast({
+            title: "Insufficient Stock",
+            description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        stockReduction = qty;
+        
+        // Calculate revenue based on price type
+        if (product.priceType === "perPackage") {
+          // Price is for whole package, calculate per item
+          const pricePerItem = parseFloat(sellingPrice) / product.packageQuantity;
+          revenue = pricePerItem * qty;
+        } else {
+          // Price is per quantity
+          revenue = parseFloat(sellingPrice) * qty;
+        }
+        
+        // Cost is per quantity
+        cost = product.costPrice * qty;
+      }
+    } else {
+      // Regular product (not a package)
+      qty = parseInt(quantity);
+      
+      // Validate quantity is valid
+      if (isNaN(qty) || qty <= 0) {
+        playErrorBeep();
+        toast({
+          title: "Invalid Quantity",
+          description: "Please enter a valid quantity greater than 0.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate quantity doesn't exceed available stock
+      if (qty > product.stock || product.stock <= 0) {
+        playErrorBeep();
+        toast({
+          title: "Insufficient Stock",
+          description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      stockReduction = qty;
+      const price = parseFloat(sellingPrice);
+      revenue = qty * price;
+      cost = qty * product.costPrice;
     }
-
-    if (qty > product.stock || product.stock <= 0) {
-      playErrorBeep();
-      toast({
-        title: "Insufficient Stock",
-        description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const price = parseFloat(sellingPrice);
-    const revenue = qty * price;
-    const cost = qty * product.costPrice;
+    
     const profit = revenue - cost;
 
     setIsRecordingSale(true);
@@ -493,20 +574,71 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                   });
                 }}
               />
-              {selectedProduct && (
-                <p className="text-xs text-gray-500">
-                  Stock: {products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  })?.stock || 0}
-                </p>
-              )}
+              {selectedProduct && (() => {
+                const product = products.find(p => {
+                  const id = (p as any)._id || p.id;
+                  return id.toString() === selectedProduct;
+                });
+                return (
+                  <p className="text-xs text-gray-500">
+                    Stock: {product?.stock || 0}
+                    {product?.isPackage && product.packageQuantity && (
+                      <span className="ml-2">• Box of {product.packageQuantity}</span>
+                    )}
+                  </p>
+                );
+              })()}
             </div>
+
+            {/* Package Sale Mode Selector - Only for package products */}
+            {selectedProduct && (() => {
+              const product = products.find(p => {
+                const id = (p as any)._id || p.id;
+                return id.toString() === selectedProduct;
+              });
+              if (product?.isPackage && product.packageQuantity) {
+                return (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-600">
+                      {t("language") === "rw" ? "Uburyo bwo kugurisha" : "Sale Mode"}
+                    </Label>
+                    <Select
+                      value={packageSaleMode}
+                      onValueChange={(value: "quantity" | "wholePackage") => setPackageSaleMode(value)}
+                    >
+                      <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="quantity">
+                          {t("language") === "rw" ? "Kugurisha ku mubare" : "Sell by Quantity"}
+                        </SelectItem>
+                        <SelectItem value="wholePackage">
+                          {t("language") === "rw" ? "Kugurisha igipaki cyose" : "Sell Whole Package"}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* Quantity and Price in Grid */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">{t("quantity")}</Label>
+                <Label className="text-xs font-medium text-gray-600">
+                  {selectedProduct && (() => {
+                    const product = products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    });
+                    if (product?.isPackage && packageSaleMode === "wholePackage") {
+                      return t("language") === "rw" ? "Igipaki" : "Package";
+                    }
+                    return t("quantity");
+                  })()}
+                </Label>
                 <Input
                   type="number"
                   min="1"
@@ -514,7 +646,16 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                     const id = (p as any)._id || p.id;
                     return id.toString() === selectedProduct;
                   })?.stock || 0 : undefined}
-                  value={quantity}
+                  value={selectedProduct && (() => {
+                    const product = products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    });
+                    if (product?.isPackage && packageSaleMode === "wholePackage") {
+                      return product.packageQuantity?.toString() || "1";
+                    }
+                    return quantity;
+                  })()}
                   onChange={(e) => {
                     const value = e.target.value;
                     if (value === "") {
@@ -540,6 +681,13 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                     }
                     setQuantity(value);
                   }}
+                  disabled={selectedProduct && (() => {
+                    const product = products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    });
+                    return product?.isPackage && packageSaleMode === "wholePackage";
+                  })()}
                   className="h-10 text-base bg-gray-50 border-gray-200"
                   placeholder="Qty"
                 />

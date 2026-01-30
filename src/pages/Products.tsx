@@ -55,6 +55,7 @@ interface Product {
   stock: number;
   isPackage?: boolean;
   packageQuantity?: number;
+  priceType?: "perQuantity" | "perPackage"; // "perQuantity" = price per individual item, "perPackage" = price for whole package
   productType?: string;
   minStock?: number;
 }
@@ -80,6 +81,7 @@ interface ProductFormData {
   stock: string;
   isPackage: boolean;
   packageQuantity: string;
+  priceType: "perQuantity" | "perPackage";
   productType: string;
   minStock: string;
 }
@@ -143,6 +145,7 @@ const Products = () => {
     stock: "",
     isPackage: false,
     packageQuantity: "",
+    priceType: "perQuantity",
     productType: "",
     minStock: "",
   });
@@ -331,6 +334,7 @@ const Products = () => {
       stock: product.stock.toString(),
       isPackage: product.isPackage || false,
       packageQuantity: product.packageQuantity?.toString() || "",
+      priceType: product.priceType || "perQuantity",
       productType: product.productType || "",
       minStock: product.minStock?.toString() || "",
     });
@@ -349,6 +353,7 @@ const Products = () => {
       stock: parseInt(formData.stock) || 0,
       isPackage: formData.packageQuantity && formData.packageQuantity.trim() !== "" ? true : false,
       packageQuantity: formData.packageQuantity && formData.packageQuantity.trim() !== "" ? parseInt(formData.packageQuantity) : undefined,
+      priceType: formData.packageQuantity && formData.packageQuantity.trim() !== "" ? formData.priceType : undefined,
       productType: formData.productType || undefined,
       minStock: formData.minStock ? parseInt(formData.minStock) : undefined,
       };
@@ -1392,6 +1397,36 @@ const Products = () => {
                 />
                     <p className="text-xs text-muted-foreground">{t("language") === "rw" ? "Reka ubusa niba icuruzwa nticyari mu gipaki" : "Leave empty if product is not packaged. Number of individual items in one package/box"}</p>
                   </div>
+              {formData.packageQuantity && formData.packageQuantity.trim() !== "" && (
+                <div className="space-y-2">
+                  <Label>{t("language") === "rw" ? "Ubwishyu bw'igiciro" : "Price Type"}</Label>
+                  <Select
+                    value={formData.priceType}
+                    onValueChange={(value: "perQuantity" | "perPackage") => setFormData({ ...formData, priceType: value })}
+                  >
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="perQuantity">
+                        {t("language") === "rw" ? "Igiciro cy'umubare w'ibicuruzwa" : "Price per Quantity (per item)"}
+                      </SelectItem>
+                      <SelectItem value="perPackage">
+                        {t("language") === "rw" ? "Igiciro cy'igipaki cyose" : "Price per Package (whole box)"}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.priceType === "perQuantity"
+                      ? (t("language") === "rw" 
+                          ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 100 rwf kuri buri gicuruzwa)"
+                          : "Price per individual item (e.g., 100 rwf per item)")
+                      : (t("language") === "rw"
+                          ? "Igiciro cy'igipaki cyose (urugero: 2000 rwf kuri gipaki cyose)"
+                          : "Price for whole package (e.g., 2000 rwf for whole box)")}
+                  </p>
+                </div>
+              )}
               </div>
 
                 {/* Column 2 */}

@@ -59,6 +59,7 @@ interface Product {
   stock: number;
   isPackage?: boolean;
   packageQuantity?: number;
+  priceType?: "perQuantity" | "perPackage"; // "perQuantity" = price per individual item, "perPackage" = price for whole package
   productType?: string;
   minStock?: number;
 }
@@ -330,6 +331,7 @@ const Sales = () => {
   const [sellingPrice, setSellingPrice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [saleDate, setSaleDate] = useState(getTodayDate());
+  const [packageSaleMode, setPackageSaleMode] = useState<"quantity" | "wholePackage">("quantity"); // For package products: sell by quantity or whole package
   const [bulkSales, setBulkSales] = useState<BulkSaleFormData[]>([
     { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }
   ]);
@@ -455,6 +457,10 @@ const Sales = () => {
     setSelectedProduct(productId);
     if (product) {
       setSellingPrice(product.sellingPrice.toString());
+      // Reset package sale mode when product changes
+      if (product.isPackage) {
+        setPackageSaleMode("quantity");
+      }
     }
   };
 
@@ -683,7 +689,75 @@ const Sales = () => {
           return;
         }
 
-      const qty = parseInt(quantity);
+      // Handle package products
+      let qty: number;
+      let stockReduction: number;
+      let revenue: number;
+      let cost: number;
+      
+      if (product.isPackage && product.packageQuantity) {
+        if (packageSaleMode === "wholePackage") {
+          // Selling whole package
+          qty = product.packageQuantity; // Record the actual quantity sold
+          stockReduction = product.packageQuantity;
+          
+          // Calculate revenue based on price type
+          if (product.priceType === "perPackage") {
+            // Price is for whole package
+            revenue = parseFloat(sellingPrice);
+          } else {
+            // Price is per quantity, so multiply by package quantity
+            revenue = parseFloat(sellingPrice) * product.packageQuantity;
+          }
+          
+          // Cost is per quantity, so multiply by package quantity
+          cost = product.costPrice * product.packageQuantity;
+        } else {
+          // Selling by quantity
+          qty = parseInt(quantity);
+          
+          // Validate quantity is valid
+          if (isNaN(qty) || qty <= 0) {
+            playErrorBeep();
+            toast({
+              title: "Invalid Quantity",
+              description: "Please enter a valid quantity greater than 0.",
+              variant: "destructive",
+            });
+            setIsRecordingSale(false);
+            return;
+          }
+          
+          // Validate quantity doesn't exceed available stock
+          if (qty > product.stock || product.stock <= 0) {
+            playErrorBeep();
+            toast({
+              title: "Insufficient Stock",
+              description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+              variant: "destructive",
+            });
+            setIsRecordingSale(false);
+            return;
+          }
+          
+          stockReduction = qty;
+          
+          // Calculate revenue based on price type
+          if (product.priceType === "perPackage") {
+            // Price is for whole package, calculate per item
+            const pricePerItem = parseFloat(sellingPrice) / product.packageQuantity;
+            revenue = pricePerItem * qty;
+          } else {
+            // Price is per quantity
+            revenue = parseFloat(sellingPrice) * qty;
+          }
+          
+          // Cost is per quantity
+          cost = product.costPrice * qty;
+        }
+      } else {
+        // Regular product (not a package)
+        qty = parseInt(quantity);
         
         // Validate quantity is valid
         if (isNaN(qty) || qty <= 0) {
@@ -697,21 +771,24 @@ const Sales = () => {
           return;
         }
         
-        // Validate quantity doesn't exceed available stock (strict check)
+        // Validate quantity doesn't exceed available stock
         if (qty > product.stock || product.stock <= 0) {
           playErrorBeep();
           toast({
             title: "Insufficient Stock",
-            description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock. You cannot sell more than available quantity.`,
+            description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
             variant: "destructive",
           });
           setIsRecordingSale(false);
           return;
         }
         
-      const price = parseFloat(sellingPrice);
-      const revenue = qty * price;
-      const cost = qty * product.costPrice;
+        stockReduction = qty;
+        const price = parseFloat(sellingPrice);
+        revenue = qty * price;
+        cost = qty * product.costPrice;
+      }
+      
       const profit = revenue - cost;
 
       // Combine selected date with current time to preserve hours/minutes/seconds
@@ -758,7 +835,7 @@ const Sales = () => {
           try {
             const updatedProduct = {
               ...product,
-              stock: Math.max(0, product.stock - qty),
+              stock: Math.max(0, product.stock - stockReduction),
             };
             await updateProduct(updatedProduct);
           } catch (updateError) {
