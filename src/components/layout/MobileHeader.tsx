@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, X, Trash2, CheckCheck, ChevronDown } from "lucide-react";
+import { Bell, ArrowLeft, CheckCheck, ChevronDown, Package, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -15,9 +15,19 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { StockUpdateDialog } from "@/components/StockUpdateDialog";
+import { useApi } from "@/hooks/useApi";
 
 interface MobileHeaderProps {
   onNotificationClick?: () => void;
+}
+
+interface Product {
+  id?: number;
+  _id?: string;
+  name: string;
+  stock: number;
+  minStock?: number;
 }
 
 export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
@@ -26,6 +36,16 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedNotification, setSelectedNotification] = useState<StoredNotification | null>(null);
+  const [stockUpdateDialogOpen, setStockUpdateDialogOpen] = useState(false);
+  
+  const {
+    items: products,
+    refresh: refreshProducts,
+  } = useApi<Product>({
+    endpoint: "products",
+    defaultValue: [],
+  });
 
   // Get user initials for avatar
   const getUserInitials = () => {
@@ -68,8 +88,9 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     };
   }, []);
 
-  const handleNotificationClick = () => {
+  const handleNotificationBellClick = () => {
     setNotificationOpen(!notificationOpen);
+    setSelectedNotification(null); // Reset selected notification when opening/closing
     onNotificationClick?.();
   };
 
@@ -81,8 +102,29 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     notificationStore.markAllAsRead();
   };
 
-  const handleDeleteNotification = (notificationId: string) => {
-    notificationStore.deleteNotification(notificationId);
+  const handleNotificationClick = (notification: StoredNotification) => {
+    handleMarkAsRead(notification.id);
+    setSelectedNotification(notification);
+  };
+
+  const handleBackToList = () => {
+    setSelectedNotification(null);
+  };
+
+  const handleUpdateStock = () => {
+    if (selectedNotification?.data?.productId) {
+      setStockUpdateDialogOpen(true);
+    }
+  };
+
+  const handleStockUpdated = () => {
+    setStockUpdateDialogOpen(false);
+    setSelectedNotification(null);
+    refreshProducts();
+    // Reload notifications to update the list
+    const allNotifications = notificationStore.getAllNotifications();
+    setNotifications(allNotifications);
+    setUnreadCount(notificationStore.getUnreadCount());
   };
 
   const formatTime = (timestamp: number) => {
@@ -129,7 +171,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
       {/* Right side - Notification Bell */}
       <div className="flex-shrink-0 ml-2">
         <button
-          onClick={handleNotificationClick}
+          onClick={handleNotificationBellClick}
           className={cn(
             "relative p-2 rounded-full transition-colors",
             notificationService.isAllowed()
@@ -175,7 +217,105 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
 
             <ScrollArea className="h-[calc(100vh-120px)]">
               <div className="px-4 py-4">
-                {notifications.length === 0 ? (
+                {selectedNotification ? (
+                  /* Notification Detail View */
+                  <div className="space-y-4">
+                    {/* Back Button */}
+                    <button
+                      onClick={handleBackToList}
+                      className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
+                    >
+                      <ArrowLeft size={18} />
+                      <span className="text-sm font-medium">Back</span>
+                    </button>
+
+                    {/* Notification Details */}
+                    <div className={cn(
+                      "p-4 rounded-lg border",
+                      selectedNotification.read
+                        ? "bg-white border-gray-200"
+                        : "bg-blue-50 border-blue-200"
+                    )}>
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className={cn(
+                          "p-2 rounded-lg",
+                          selectedNotification.type === 'low_stock' ? "bg-orange-100" : "bg-blue-100"
+                        )}>
+                          {selectedNotification.type === 'low_stock' ? (
+                            <AlertTriangle size={20} className="text-orange-600" />
+                          ) : (
+                            <Bell size={20} className="text-blue-600" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-base font-semibold text-gray-900">
+                              {selectedNotification.title}
+                            </h3>
+                            {!selectedNotification.read && (
+                              <span className="h-2 w-2 bg-blue-600 rounded-full flex-shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {selectedNotification.body}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {formatTime(selectedNotification.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions for Low Stock Notifications */}
+                      {selectedNotification.type === 'low_stock' && selectedNotification.data?.productId && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Package size={16} className="text-gray-500" />
+                              <span>
+                                <strong>Product:</strong> {selectedNotification.data.productName || 'Unknown Product'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <span>
+                                <strong>Current Stock:</strong> {selectedNotification.data.currentStock ?? 0}
+                              </span>
+                            </div>
+                            {selectedNotification.data.minStock !== undefined && (
+                              <div className="flex items-center gap-2 text-sm text-gray-700">
+                                <span>
+                                  <strong>Minimum Stock:</strong> {selectedNotification.data.minStock}
+                                </span>
+                              </div>
+                            )}
+                            <Button
+                              onClick={handleUpdateStock}
+                              className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                            >
+                              <Package size={16} className="mr-2" />
+                              Update Stock
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action for other notification types */}
+                      {selectedNotification.type !== 'low_stock' && selectedNotification.data?.route && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <Button
+                            onClick={() => {
+                              navigate(selectedNotification.data.route);
+                              setNotificationOpen(false);
+                              setSelectedNotification(null);
+                            }}
+                            className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                          >
+                            View Details
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : notifications.length === 0 ? (
                   <div className="text-center py-12">
                     <Bell size={48} className="mx-auto mb-4 text-gray-300" />
                     <p className="text-sm font-medium text-gray-600 mb-1">No notifications</p>
@@ -194,9 +334,11 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
                             ? "bg-white border-gray-200"
                             : "bg-blue-50 border-blue-200"
                         )}
-                        onClick={() => handleMarkAsRead(notification.id)}
+                        onClick={() => handleNotificationClick(notification)}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          {/* Back Icon on Left */}
+                          <ArrowLeft size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h4 className="text-sm font-semibold text-gray-900">
@@ -213,15 +355,6 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
                               {formatTime(notification.timestamp)}
                             </p>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteNotification(notification.id);
-                            }}
-                            className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
-                          >
-                            <Trash2 size={14} />
-                          </button>
                         </div>
                       </div>
                     ))}
@@ -229,6 +362,22 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
                 )}
               </div>
             </ScrollArea>
+            
+            {/* Stock Update Dialog */}
+            {selectedNotification?.type === 'low_stock' && selectedNotification.data?.productId && (
+              <StockUpdateDialog
+                productId={selectedNotification.data.productId}
+                productName={selectedNotification.data.productName}
+                currentStock={selectedNotification.data.currentStock}
+                open={stockUpdateDialogOpen}
+                onOpenChange={(open) => {
+                  setStockUpdateDialogOpen(open);
+                  if (!open) {
+                    handleStockUpdated();
+                  }
+                }}
+              />
+            )}
           </SheetContent>
         </Sheet>
       </div>

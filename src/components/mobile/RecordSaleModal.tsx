@@ -46,6 +46,7 @@ interface Product {
   isPackage?: boolean;
   packageQuantity?: number;
   priceType?: "perQuantity" | "perPackage"; // "perQuantity" = price per individual item, "perPackage" = price for whole package
+  costPriceType?: "perQuantity" | "perPackage"; // "perQuantity" = cost price per individual item, "perPackage" = cost price for whole package
   productType?: string;
 }
 
@@ -322,8 +323,14 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
           revenue = parseFloat(sellingPrice) * product.packageQuantity;
         }
         
-        // Cost is per quantity, so multiply by package quantity
-        cost = product.costPrice * product.packageQuantity;
+        // Calculate cost based on cost price type
+        if (product.costPriceType === "perPackage") {
+          // Cost is for whole package
+          cost = product.costPrice;
+        } else {
+          // Cost is per quantity, so multiply by package quantity
+          cost = product.costPrice * product.packageQuantity;
+        }
       } else {
         // Selling by quantity
         qty = parseInt(quantity);
@@ -362,8 +369,15 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
           revenue = parseFloat(sellingPrice) * qty;
         }
         
-        // Cost is per quantity
-        cost = product.costPrice * qty;
+        // Calculate cost based on cost price type
+        if (product.costPriceType === "perPackage") {
+          // Cost is for whole package, calculate per item
+          const costPerItem = product.costPrice / product.packageQuantity;
+          cost = costPerItem * qty;
+        } else {
+          // Cost is per quantity
+          cost = product.costPrice * qty;
+        }
       }
     } else {
       // Regular product (not a package)

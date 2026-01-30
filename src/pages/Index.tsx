@@ -51,6 +51,7 @@ interface Product {
   isPackage?: boolean;
   packageQuantity?: number;
   priceType?: "perQuantity" | "perPackage"; // "perQuantity" = price per individual item, "perPackage" = price for whole package
+  costPriceType?: "perQuantity" | "perPackage"; // "perQuantity" = cost price per individual item, "perPackage" = cost price for whole package
   productType?: string;
   minStock?: number;
 }
@@ -420,6 +421,34 @@ const Dashboard = () => {
     }
   }, [products, selectedProduct]);
 
+  // Calculate selling price based on product priceType and sale mode
+  const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
+    if (!product.isPackage || !product.packageQuantity) {
+      // Regular product - use selling price as is
+      return product.sellingPrice;
+    }
+    
+    if (product.priceType === "perQuantity") {
+      // Price is per individual item
+      if (saleMode === "wholePackage") {
+        // Selling whole package: multiply by package quantity
+        return product.sellingPrice * product.packageQuantity;
+      } else {
+        // Selling by quantity: use price as is (per item)
+        return product.sellingPrice;
+      }
+    } else {
+      // priceType === "perPackage" - Price is for whole package
+      if (saleMode === "wholePackage") {
+        // Selling whole package: use price as is
+        return product.sellingPrice;
+      } else {
+        // Selling by quantity: divide by package quantity to get price per item
+        return product.sellingPrice / product.packageQuantity;
+      }
+    }
+  };
+
   const handleProductChange = (productId: string) => {
     const product = products.find((p) => {
       const id = (p as any)._id || p.id;
@@ -441,16 +470,32 @@ const Dashboard = () => {
     
     setSelectedProduct(productId);
     if (product) {
-      // Suggest the existing selling price, but allow user to change it
-      setSellingPrice(product.sellingPrice.toString());
       // Reset package sale mode when product changes
       if (product.isPackage) {
         setPackageSaleMode("quantity");
       }
+      // Calculate and set selling price based on product priceType and sale mode
+      const calculatedPrice = calculateSellingPrice(product, product.isPackage ? "quantity" : "quantity");
+      setSellingPrice(calculatedPrice.toString());
     } else {
       setSellingPrice("");
     }
   };
+
+  // Update selling price when sale mode changes for package products
+  useEffect(() => {
+    if (selectedProduct) {
+      const product = products.find((p) => {
+        const id = (p as any)._id || p.id;
+        return id.toString() === selectedProduct;
+      });
+      
+      if (product && product.isPackage && product.packageQuantity) {
+        const calculatedPrice = calculateSellingPrice(product, packageSaleMode);
+        setSellingPrice(calculatedPrice.toString());
+      }
+    }
+  }, [packageSaleMode, selectedProduct, products]);
 
   const addBulkRow = () => {
     setBulkSales([...bulkSales, { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
@@ -688,8 +733,14 @@ const Dashboard = () => {
             revenue = parseFloat(sellingPrice) * product.packageQuantity;
           }
           
-          // Cost is per quantity, so multiply by package quantity
-          cost = product.costPrice * product.packageQuantity;
+          // Calculate cost based on cost price type
+          if (product.costPriceType === "perPackage") {
+            // Cost is for whole package
+            cost = product.costPrice;
+          } else {
+            // Cost is per quantity, so multiply by package quantity
+            cost = product.costPrice * product.packageQuantity;
+          }
         } else {
           // Selling by quantity
           qty = parseInt(quantity);
@@ -730,8 +781,15 @@ const Dashboard = () => {
             revenue = parseFloat(sellingPrice) * qty;
           }
           
-          // Cost is per quantity
-          cost = product.costPrice * qty;
+          // Calculate cost based on cost price type
+          if (product.costPriceType === "perPackage") {
+            // Cost is for whole package, calculate per item
+            const costPerItem = product.costPrice / product.packageQuantity;
+            cost = costPerItem * qty;
+          } else {
+            // Cost is per quantity
+            cost = product.costPrice * qty;
+          }
         }
       } else {
         // Regular product (not a package)
@@ -795,6 +853,19 @@ const Dashboard = () => {
 
         await addSale(newSale as any);
         
+        // Play sale beep immediately after successful sale recording
+        playSaleBeep();
+        
+        // Show success toast immediately
+        sonnerToast.success("Sale Recorded", {
+          description: `Successfully recorded sale of ${qty}x ${product.name}`,
+        });
+        
+        toast({
+          title: "Sale Recorded",
+          description: `Successfully recorded sale of ${qty}x ${product.name}`,
+        });
+        
         // Reduce product stock locally immediately for instant UI feedback
         try {
           const updatedProduct = {
@@ -820,14 +891,7 @@ const Dashboard = () => {
         // Dispatch event to notify other pages (like Products page) to refresh
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
         // Dispatch event to refresh sales in dashboard and other pages
-        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-
-        // Play sale beep after recording (audio context should still be active from button click)
-        // The playSaleBeep function will handle resuming if needed
-        playSaleBeep();
-
-        // Extra desktop popup using Sonner
-        sonnerToast.success("Sale Recorded", {
+        window.dispatchEvent(new CustomEvent('sales-should-refresh'));("Sale Recorded", {
           description: `Successfully recorded sale of ${qty}x ${product.name}`,
         });
 
@@ -976,22 +1040,26 @@ const Dashboard = () => {
               value={`${todayStats.totalItems}`}
               subtitle={t("language") === "rw" ? "ibintu byagurishwe" : "items sold"}
               icon={ShoppingCart}
+              valueColor="text-blue-600"
             />
             <KPICard
               title={t("todaysRevenue")}
               value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
               icon={DollarSign}
+              valueColor="text-green-600"
             />
             <KPICard
               title={t("todaysProfit")}
               value={`${todayStats.totalProfit.toLocaleString()} rwf`}
               icon={TrendingUp}
+              valueColor="text-purple-600"
             />
             <KPICard
               title={t("language") === "rw" ? "Agaciro k'ibicuruzwa" : "Current Stock Value"}
               value={`${stockStats.totalStockValue.toLocaleString()} rwf`}
               subtitle={`${stockStats.totalItems} ${t("language") === "rw" ? "ibicuruzwa" : "items"}`}
               icon={Package}
+              valueColor="text-orange-600"
             />
           </div>
         )}
@@ -1190,93 +1258,198 @@ const Dashboard = () => {
           </div>
         ) : (
           /* Single Sale Form */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-white">{t("selectProduct")}</Label>
-              <ProductCombobox
-                value={selectedProduct}
-                onValueChange={handleProductChange}
-                products={products}
-                placeholder="Search products by name, category, or type..."
-                onError={(message) => {
-                  playErrorBeep();
-                  toast({
-                    title: "Product Out of Stock",
-                    description: message,
-                    variant: "destructive",
-                  });
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">{t("quantity")}</Label>
-              <Input
-                type="number"
-                min="1"
-                max={selectedProduct ? products.find(p => {
-                  const id = (p as any)._id || p.id;
-                  return id.toString() === selectedProduct;
-                })?.stock || 0 : undefined}
-                value={quantity}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === "") {
-                    setQuantity("");
-                    return;
-                  }
-                  const numValue = parseInt(value);
-                  if (selectedProduct) {
+          <div className="space-y-4">
+            {/* First Row: Product, Quantity, Selling Price */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+              <div className="space-y-2">
+                <Label className="text-white">{t("selectProduct")}</Label>
+                <ProductCombobox
+                  value={selectedProduct}
+                  onValueChange={handleProductChange}
+                  products={products}
+                  placeholder="Search products by name, category, or type..."
+                  onError={(message) => {
+                    playErrorBeep();
+                    toast({
+                      title: "Product Out of Stock",
+                      description: message,
+                      variant: "destructive",
+                    });
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-white">
+                  {selectedProduct && (() => {
                     const product = products.find(p => {
                       const id = (p as any)._id || p.id;
                       return id.toString() === selectedProduct;
                     });
-                    if (product && numValue > product.stock) {
-                      // Prevent entering more than available stock
-                      setQuantity(product.stock.toString());
-                      playErrorBeep();
-                      toast({
-                        title: "Maximum Quantity",
-                        description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-                        variant: "destructive",
-                      });
+                    if (product?.isPackage && packageSaleMode === "wholePackage") {
+                      return t("language") === "rw" ? "Igipaki" : "Package";
+                    }
+                    return t("quantity");
+                  })()}
+                </Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max={selectedProduct ? products.find(p => {
+                    const id = (p as any)._id || p.id;
+                    return id.toString() === selectedProduct;
+                  })?.stock || 0 : undefined}
+                  value={selectedProduct && (() => {
+                    const product = products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    });
+                    if (product?.isPackage && packageSaleMode === "wholePackage") {
+                      return product.packageQuantity?.toString() || "1";
+                    }
+                    return quantity;
+                  })()}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === "") {
+                      setQuantity("");
                       return;
                     }
+                    const numValue = parseInt(value);
+                    if (selectedProduct) {
+                      const product = products.find(p => {
+                        const id = (p as any)._id || p.id;
+                        return id.toString() === selectedProduct;
+                      });
+                      if (product && numValue > product.stock) {
+                        // Prevent entering more than available stock
+                        setQuantity(product.stock.toString());
+                        playErrorBeep();
+                        toast({
+                          title: "Maximum Quantity",
+                          description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                    }
+                    setQuantity(value);
+                  }}
+                  disabled={selectedProduct && (() => {
+                    const product = products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    });
+                    return product?.isPackage && packageSaleMode === "wholePackage";
+                  })()}
+                  className="input-field"
+                  placeholder={t("enterQuantity") || "Enter quantity"}
+                />
+                {selectedProduct && (
+                  <p className="text-xs text-white/80">
+                    {t("availableStock")}: {products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    })?.stock || 0} {products.find(p => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === selectedProduct;
+                    })?.stock === 1 ? 'item' : 'items'}
+                    {(() => {
+                      const product = products.find(p => {
+                        const id = (p as any)._id || p.id;
+                        return id.toString() === selectedProduct;
+                      });
+                      if (product?.isPackage && product.packageQuantity) {
+                        return ` • Box of ${product.packageQuantity}`;
+                      }
+                      return "";
+                    })()}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-white">{t("sellingPrice")} (rwf)</Label>
+                <Input
+                  type="number"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  className="input-field"
+                  placeholder={selectedProduct ? "Enter price" : "Select product first"}
+                />
+                {selectedProduct && (() => {
+                  const product = products.find(p => {
+                    const id = (p as any)._id || p.id;
+                    return id.toString() === selectedProduct;
+                  });
+                  if (!product) return null;
+                  
+                  if (product.isPackage && product.packageQuantity) {
+                    const basePrice = product.sellingPrice;
+                    const priceType = product.priceType || "perQuantity";
+                    const currentMode = packageSaleMode;
+                    
+                    if (priceType === "perQuantity") {
+                      return (
+                        <p className="text-xs text-white/80">
+                          {currentMode === "wholePackage" 
+                            ? `Price per item: ${basePrice.toLocaleString()} rwf × ${product.packageQuantity} = ${(basePrice * product.packageQuantity).toLocaleString()} rwf (whole package)`
+                            : `Price per item: ${basePrice.toLocaleString()} rwf - You can change this`
+                          }
+                        </p>
+                      );
+                    } else {
+                      return (
+                        <p className="text-xs text-white/80">
+                          {currentMode === "wholePackage"
+                            ? `Price for whole package: ${basePrice.toLocaleString()} rwf - You can change this`
+                            : `Price per item: ${(basePrice / product.packageQuantity).toFixed(2)} rwf (from ${basePrice.toLocaleString()} rwf ÷ ${product.packageQuantity})`
+                          }
+                        </p>
+                      );
+                    }
+                  } else {
+                    return (
+                      <p className="text-xs text-white/80">
+                        {t("suggestedPrice")}: rwf {product.sellingPrice.toLocaleString()} - You can change this
+                      </p>
+                    );
                   }
-                  setQuantity(value);
-                }}
-                className="input-field"
-                placeholder={t("enterQuantity") || "Enter quantity"}
-              />
-              {selectedProduct && (
-                <p className="text-xs text-white/80">
-                  {t("availableStock")}: {products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  })?.stock || 0} {products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  })?.stock === 1 ? 'item' : 'items'}
-                </p>
-              )}
+                })()}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-white">{t("sellingPrice")} (rwf)</Label>
-              <Input
-                type="number"
-                value={sellingPrice}
-                onChange={(e) => setSellingPrice(e.target.value)}
-                className="input-field"
-                placeholder={selectedProduct ? "Enter price" : "Select product first"}
-              />
-              {selectedProduct && (
-                <p className="text-xs text-white/80">
-                  {t("suggestedPrice")}: rwf {products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  })?.sellingPrice.toLocaleString() || ""} - You can change this
-                </p>
-              )}
-            </div>
+            
+            {/* Package Sale Mode Selector - Only for package products */}
+            {selectedProduct && (() => {
+              const product = products.find(p => {
+                const id = (p as any)._id || p.id;
+                return id.toString() === selectedProduct;
+              });
+              if (product?.isPackage && product.packageQuantity) {
+                return (
+                  <div className="space-y-2">
+                    <Label className="text-white">
+                      {t("language") === "rw" ? "Uburyo bwo kugurisha" : "Sale Mode"}
+                    </Label>
+                    <Select
+                      value={packageSaleMode}
+                      onValueChange={(value: "quantity" | "wholePackage") => setPackageSaleMode(value)}
+                    >
+                      <SelectTrigger className="input-field w-full max-w-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="quantity">
+                          {t("language") === "rw" ? "Kugurisha ku mubare" : "Sell by Quantity"}
+                        </SelectItem>
+                        <SelectItem value="wholePackage">
+                          {t("language") === "rw" ? "Kugurisha igipaki cyose" : "Sell Whole Package"}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             {/* Revenue, Cost, and Profit Preview */}
             {selectedProduct && quantity && sellingPrice && parseInt(quantity) > 0 && parseFloat(sellingPrice) > 0 && (
               <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30 mt-2">
@@ -1286,10 +1459,47 @@ const Dashboard = () => {
                     return id.toString() === selectedProduct;
                   });
                   if (!product) return null;
-                  const qty = parseInt(quantity) || 0;
-                  const price = parseFloat(sellingPrice) || 0;
-                  const revenue = qty * price;
-                  const cost = qty * product.costPrice;
+                  
+                  // Calculate preview based on package or regular product
+                  let qty: number;
+                  let revenue: number;
+                  let cost: number;
+                  
+                  if (product.isPackage && product.packageQuantity) {
+                    if (packageSaleMode === "wholePackage") {
+                      qty = product.packageQuantity;
+                      if (product.priceType === "perPackage") {
+                        revenue = parseFloat(sellingPrice) || 0;
+                      } else {
+                        revenue = (parseFloat(sellingPrice) || 0) * product.packageQuantity;
+                      }
+                      if (product.costPriceType === "perPackage") {
+                        cost = product.costPrice;
+                      } else {
+                        cost = product.costPrice * product.packageQuantity;
+                      }
+                    } else {
+                      qty = parseInt(quantity) || 0;
+                      if (product.priceType === "perPackage") {
+                        const pricePerItem = (parseFloat(sellingPrice) || 0) / product.packageQuantity;
+                        revenue = pricePerItem * qty;
+                      } else {
+                        revenue = (parseFloat(sellingPrice) || 0) * qty;
+                      }
+                      if (product.costPriceType === "perPackage") {
+                        const costPerItem = product.costPrice / product.packageQuantity;
+                        cost = costPerItem * qty;
+                      } else {
+                        cost = product.costPrice * qty;
+                      }
+                    }
+                  } else {
+                    qty = parseInt(quantity) || 0;
+                    const price = parseFloat(sellingPrice) || 0;
+                    revenue = qty * price;
+                    cost = qty * product.costPrice;
+                  }
+                  
                   const profit = revenue - cost;
                   
                   return (
@@ -1313,29 +1523,32 @@ const Dashboard = () => {
                 })()}
               </div>
             )}
-            <div className="space-y-2">
-              <Label className="text-white">{t("paymentMethod")}</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="input-field w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">{t("cash")}</SelectItem>
-                  <SelectItem value="momo">{t("momoPay")}</SelectItem>
-                  <SelectItem value="card">{t("card")}</SelectItem>
-                  <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
-                  <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">{t("saleDate")}</Label>
-              <Input
-                type="date"
-                value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
-                className="input-field w-full"
-              />
+            {/* Second Row: Payment Method and Sale Date */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-end">
+              <div className="space-y-2">
+                <Label className="text-white">{t("paymentMethod")}</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="input-field w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">{t("cash")}</SelectItem>
+                    <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                    <SelectItem value="card">{t("card")}</SelectItem>
+                    <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                    <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-white">{t("saleDate")}</Label>
+                <Input
+                  type="date"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                  className="input-field w-full"
+                />
+              </div>
             </div>
             <div className="flex items-end">
               <Button 
@@ -1564,63 +1777,63 @@ const Dashboard = () => {
             </div>
           ) : recentSales.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100 border-b border-gray-200">
                   <tr>
-                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                       {t("product")}
                     </th>
-                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                       {t("quantity")}
                     </th>
-                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                       {t("revenue")} (Rwf)
                     </th>
-                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                       {t("profit")} (Rwf)
                     </th>
-                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4 hidden sm:table-cell">
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6 hidden sm:table-cell">
                       {t("paymentMethod")}
                     </th>
-                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4 hidden md:table-cell">
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6 hidden md:table-cell">
                       {t("date")}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="bg-white">
                   {recentSales.map((sale, index) => (
                     <tr 
                       key={(sale as any)._id || sale.id || index}
                       className={cn(
-                        "hover:bg-gray-50 transition-colors",
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                        "border-b border-gray-200",
+                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
                       )}
                     >
-                      <td className="py-3 px-4">
-                        <div className="text-xs sm:text-sm text-gray-900 font-medium">
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-gray-900">
                           {sale.product}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="text-xs sm:text-sm text-gray-700">
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-gray-700">
                           {sale.quantity}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="text-xs sm:text-sm text-gray-700 font-medium">
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-gray-700">
                           {sale.revenue.toLocaleString()}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-4 px-6">
                         <div className={cn(
-                          "text-xs sm:text-sm font-medium",
+                          "text-sm",
                           sale.profit >= 0 ? "text-green-700" : "text-red-700"
                         )}>
                           {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()}
                         </div>
                       </td>
-                      <td className="py-3 px-4 hidden sm:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-700">
+                      <td className="py-4 px-6 hidden sm:table-cell">
+                        <div className="text-sm text-gray-700">
                           {sale.paymentMethod === 'cash' && t("cash")}
                           {sale.paymentMethod === 'card' && t("card")}
                           {sale.paymentMethod === 'momo' && t("momoPay")}
@@ -1629,8 +1842,8 @@ const Dashboard = () => {
                           {!sale.paymentMethod && t("cash")}
                         </div>
                       </td>
-                      <td className="py-3 px-4 hidden md:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-600">
+                      <td className="py-4 px-6 hidden md:table-cell">
+                        <div className="text-sm text-gray-700">
                           {formatDateWithTime(sale.timestamp || sale.date)}
                         </div>
                       </td>
