@@ -11,7 +11,7 @@ interface CachedResponse<T> {
 class ApiCacheManager {
   private static instance: ApiCacheManager;
   private cache: Map<string, CachedResponse<any>> = new Map();
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes default cache duration
+  private readonly CACHE_DURATION = 10 * 60 * 1000; // 10 minutes default cache duration (increased to reduce API calls)
   private readonly MAX_CACHE_SIZE = 100; // Maximum number of cached responses
 
   private constructor() {

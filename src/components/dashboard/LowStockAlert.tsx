@@ -116,7 +116,7 @@ export function LowStockAlert() {
     let debounceTimeout: NodeJS.Timeout | null = null;
     let lastRefreshTime = 0;
     const DEBOUNCE_DELAY = 1000; // 1 second debounce
-    const MIN_REFRESH_INTERVAL = 2000; // 2 seconds minimum between refreshes
+    const MIN_REFRESH_INTERVAL = 10000; // 10 seconds minimum between refreshes (increased to reduce API calls)
 
     const handleProductUpdate = () => {
       const now = Date.now();

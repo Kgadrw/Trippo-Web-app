@@ -120,8 +120,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
       
       if (cached && !hasLocalChanges && lastSyncTime) {
         const cacheAge = Date.now() - parseInt(lastSyncTime);
-        // If cache is fresh (less than 2 minutes old), use it
-        if (cacheAge < 2 * 60 * 1000) {
+        // If cache is fresh (less than 5 minutes old), use it (increased to reduce API calls)
+        if (cacheAge < 5 * 60 * 1000) {
           const cachedItems = cached.data;
           const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
           setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
@@ -137,10 +137,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
         const lastSyncTime = localStorage.getItem("profit-pilot-last-sync");
         const hasLocalChanges = localStorage.getItem(`profit-pilot-${endpoint}-changed`) === "true";
         
-        // Use cache if it's fresh (less than 30 seconds old) and no local changes
+        // Use cache if it's fresh (less than 2 minutes old) and no local changes (increased to reduce API calls)
         if (cached && !hasLocalChanges && lastSyncTime) {
           const cacheAge = Date.now() - parseInt(lastSyncTime);
-          if (cacheAge < 30 * 1000) { // 30 seconds cache for sales
+          if (cacheAge < 2 * 60 * 1000) { // 2 minutes cache for sales (increased from 30 seconds)
             const cachedItems = cached.data;
             const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
             if (mappedItems.length > 0) {
@@ -1201,7 +1201,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   // Rate limiting for refresh calls
   const lastRefreshTimeRef = useRef<number>(0);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const REFRESH_COOLDOWN = 3000; // 3 seconds minimum between refreshes
+  const REFRESH_COOLDOWN = 10000; // 10 seconds minimum between refreshes (increased to reduce API calls)
 
   // Refresh function that resets error state with rate limiting
   const refresh = useCallback(() => {

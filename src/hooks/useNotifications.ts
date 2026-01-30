@@ -66,10 +66,10 @@ export function useAdminNotifications() {
     // Initial check
     checkNewUsers();
 
-    // Check every 30 seconds for new users
+    // Check every 2 minutes for new users (reduced frequency to avoid too many API calls)
     checkInterval.current = setInterval(() => {
       checkNewUsers();
-    }, 30000);
+    }, 2 * 60 * 1000); // 2 minutes instead of 30 seconds
 
     return () => {
       if (checkInterval.current) {
@@ -180,7 +180,8 @@ export function useLowStockNotifications() {
       return;
     }
 
-    // Check every 60 seconds for low stock (only after initial load)
+    // Check every 5 minutes for low stock (reduced frequency to avoid too many API calls)
+    // Service worker handles background checks, so we don't need frequent polling here
     checkInterval.current = setInterval(() => {
       // Refresh products from database first to get latest data
       refreshProducts();
@@ -189,7 +190,7 @@ export function useLowStockNotifications() {
       setTimeout(() => {
         checkLowStock();
       }, 2000);
-    }, 60000);
+    }, 5 * 60 * 1000); // 5 minutes instead of 60 seconds
 
     return () => {
       if (checkInterval.current) {
