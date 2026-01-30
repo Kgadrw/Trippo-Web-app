@@ -13,7 +13,7 @@ import {
 import { KPICard } from "@/components/dashboard/KPICard";
 import { ProductRankingPyramid } from "@/components/reports/ProductRankingPyramid";
 import { MarketAnalysis } from "@/components/dashboard/MarketAnalysis";
-import { DollarSign, TrendingUp, Package, Download, BarChart3, Trophy } from "lucide-react";
+import { DollarSign, TrendingUp, Package, Download, BarChart3, Trophy, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { playInfoBeep, initAudio } from "@/lib/sound";
 import { useApi } from "@/hooks/useApi";
@@ -22,6 +22,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
+import { cn } from "@/lib/utils";
 import {
   BarChart,
   Bar,
@@ -109,6 +110,7 @@ const Reports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reportType, setReportType] = useState("weekly");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
 
   // Filter sales by date range
@@ -743,9 +745,105 @@ const Reports = () => {
   return (
     <AppLayout title="Reports">
       <div className="flex flex-col space-y-6 pb-6">
+      {/* Report Summary Cards - Mobile First */}
+      <div className="lg:hidden">
+        <div className="text-xs text-gray-500 mb-2 text-center">
+          {t("language") === "rw" ? "Agaciro kose ni Rwf" : "All amounts in Rwf"}
+        </div>
+        <div className="grid grid-cols-2 gap-4 mb-2">
+            <KPICard
+              title={t("totalRevenue")}
+              value={totalRevenue.toLocaleString()}
+              icon={DollarSign}
+            />
+            <KPICard
+              title={t("language") === "rw" ? "Agaciro" : "Total Cost"}
+              value={totalCost.toLocaleString()}
+              icon={Package}
+            />
+            <KPICard
+              title={t("totalProfit")}
+              value={totalProfit.toLocaleString()}
+              icon={TrendingUp}
+            />
+            <KPICard
+              title={t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
+              value={bestSelling.product.split(" ").slice(0, 2).join(" ")}
+              subtitle={`${bestSelling.quantity} ${t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}`}
+              icon={Package}
+            />
+          </div>
+      </div>
+
       {/* Report Filters */}
       <div className="form-card border-transparent">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Mobile Filter Section */}
+        <div className="lg:hidden mb-4 space-y-3">
+          {/* Filter Icon Button and Export Buttons */}
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              onClick={() => setShowFilters(!showFilters)}
+              variant="outline"
+              className={cn(
+                "bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-3 py-2",
+                showFilters && "bg-blue-50 border-blue-300 text-blue-700"
+              )}
+            >
+              <Filter size={18} />
+            </Button>
+            {/* Export Buttons on Same Line */}
+            <Button onClick={() => handleExport("pdf")} className="bg-red-500 text-white hover:bg-red-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2">
+              <Download size={16} />
+              {t("exportPdf")}
+            </Button>
+            <Button onClick={() => handleExport("excel")} className="bg-green-500 text-white hover:bg-green-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2">
+              <Download size={16} />
+              {t("exportExcel")}
+            </Button>
+          </div>
+          
+          {/* Filter Options - Collapsible */}
+          {showFilters && (
+            <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-2">
+                  <Label>{t("startDate")}</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("endDate")}</Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Report Type</Label>
+                  <Select value={reportType} onValueChange={setReportType}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Filter Section */}
+        <div className="hidden lg:grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div className="space-y-2">
             <Label>{t("startDate")}</Label>
             <Input
@@ -778,7 +876,7 @@ const Reports = () => {
             </Select>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="hidden lg:flex flex-col sm:flex-row gap-3">
           <Button onClick={() => handleExport("pdf")} className="bg-red-500 text-white hover:bg-red-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
             <Download size={16} />
             {t("exportPdf")}
@@ -790,43 +888,48 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Report Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-            <KPICard
-              title={t("totalRevenue")}
-              value={`rwf ${totalRevenue.toLocaleString()}`}
-              icon={DollarSign}
-            />
-            <KPICard
-              title={t("language") === "rw" ? "Agaciro" : "Total Cost"}
-              value={`rwf ${totalCost.toLocaleString()}`}
-              icon={Package}
-            />
-            <KPICard
-              title={t("totalProfit")}
-              value={`rwf ${totalProfit.toLocaleString()}`}
-              icon={TrendingUp}
-            />
-            <KPICard
-              title={t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
-              value={bestSelling.product.split(" ").slice(0, 2).join(" ")}
-              subtitle={`${bestSelling.quantity} ${t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}`}
-              icon={Package}
-            />
+      {/* Report Summary Cards - Desktop */}
+          <div className="hidden lg:block">
+            <div className="text-xs text-gray-500 mb-2">
+              {t("language") === "rw" ? "Agaciro kose ni Rwf" : "All amounts in Rwf"}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
+              <KPICard
+                title={t("totalRevenue")}
+                value={totalRevenue.toLocaleString()}
+                icon={DollarSign}
+              />
+              <KPICard
+                title={t("language") === "rw" ? "Agaciro" : "Total Cost"}
+                value={totalCost.toLocaleString()}
+                icon={Package}
+              />
+              <KPICard
+                title={t("totalProfit")}
+                value={totalProfit.toLocaleString()}
+                icon={TrendingUp}
+              />
+              <KPICard
+                title={t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
+                value={bestSelling.product.split(" ").slice(0, 2).join(" ")}
+                subtitle={`${bestSelling.quantity} ${t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}`}
+                icon={Package}
+              />
+            </div>
           </div>
 
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Sales Over Time Histogram - Based on Report Type */}
-            <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6 overflow-x-auto">
-              <div className="flex items-center gap-2 mb-6">
+            <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+              <div className="flex items-center justify-center gap-2 mb-6">
                 <BarChart3 size={20} className="text-gray-600 shrink-0" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-800">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 text-center">
                   {t("salesTrend")} - {reportType === "daily" ? (t("language") === "rw" ? "Buri munsi" : "Daily") : reportType === "weekly" ? (t("language") === "rw" ? "Buri cyumweru" : "Weekly") : (t("language") === "rw" ? "Buri kwezi" : "Monthly")}
                 </h3>
               </div>
               {salesOverTimeData.length > 0 ? (
-                <div className="w-full overflow-x-auto">
+                <div className="w-full flex justify-center overflow-x-auto">
                   <ResponsiveContainer width="100%" minWidth={300} height={400}>
                   <BarChart data={salesOverTimeData} margin={{ top: 20, right: 30, left: 20, bottom: reportType === "daily" ? 80 : 60 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -907,18 +1010,20 @@ const Reports = () => {
 
             {/* Product Rankings Pyramid */}
             <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-              <div className="flex items-center gap-2 mb-6">
+              <div className="flex items-center justify-center gap-2 mb-6">
                 <Trophy size={20} className="text-gray-600 shrink-0" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-800">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 text-center">
                   {t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Product Rankings by Sales"}
                 </h3>
               </div>
-              <ProductRankingPyramid rankings={productRankings} />
+              <div className="flex justify-center">
+                <ProductRankingPyramid rankings={productRankings} />
+              </div>
             </div>
           </div>
 
           {/* AI Market Analysis */}
-          <div className="mt-6">
+          <div className="mt-6 flex justify-center">
             {productsLoading || salesLoading ? (
               <div className="lg:bg-white/80 lg:backdrop-blur-md bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
                 <Skeleton className="h-6 w-48 mb-3" />

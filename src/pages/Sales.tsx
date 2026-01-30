@@ -359,22 +359,57 @@ const Sales = () => {
 
   // Listen for sale-recorded events to auto-refresh the sales list
   useEffect(() => {
+    let debounceTimeout: NodeJS.Timeout | null = null;
+    let lastRefreshTime = 0;
+    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+    const MIN_REFRESH_INTERVAL = 3000; // 3 seconds minimum between refreshes
+
     const handleSaleRecorded = async () => {
-      // Refresh sales data immediately when a sale is recorded
-      try {
-        await refreshSales();
-        // Also refresh products to update stock levels
-        await refreshProducts();
-      } catch (error) {
-        // Silently handle errors - the useApi hook will handle offline scenarios
-        console.log("Auto-refresh after sale recorded:", error);
+      const now = Date.now();
+      
+      // Clear any pending debounced refresh
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = null;
+      }
+      
+      // Check if enough time has passed since last refresh
+      if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+        // Debounce the refresh
+        debounceTimeout = setTimeout(async () => {
+          lastRefreshTime = Date.now();
+          try {
+            await refreshSales();
+            // Also refresh products to update stock levels
+            await refreshProducts();
+          } catch (error) {
+            // Silently handle errors - the useApi hook will handle offline scenarios
+            console.log("Auto-refresh after sale recorded:", error);
+          }
+        }, DEBOUNCE_DELAY);
+      } else {
+        // Refresh immediately
+        lastRefreshTime = Date.now();
+        try {
+          await refreshSales();
+          // Also refresh products to update stock levels
+          await refreshProducts();
+        } catch (error) {
+          // Silently handle errors - the useApi hook will handle offline scenarios
+          console.log("Auto-refresh after sale recorded:", error);
+        }
       }
     };
 
     window.addEventListener('sale-recorded', handleSaleRecorded);
+    window.addEventListener('sales-should-refresh', handleSaleRecorded);
 
     return () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
+      window.removeEventListener('sales-should-refresh', handleSaleRecorded);
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
     };
   }, [refreshSales, refreshProducts]);
 
@@ -706,6 +741,19 @@ const Sales = () => {
         try {
           await addSale(newSale as any);
           
+          // Play sale beep immediately after successful sale recording
+          playSaleBeep();
+          
+          // Show success toast immediately
+          sonnerToast.success("Sale Recorded", {
+            description: `Successfully recorded sale of ${qty}x ${product.name}`,
+          });
+          
+          toast({
+            title: "Sale Recorded",
+            description: `Successfully recorded sale of ${qty}x ${product.name}`,
+          });
+          
           // Reduce product stock locally immediately for instant UI feedback
           try {
             const updatedProduct = {
@@ -734,13 +782,6 @@ const Sales = () => {
           // Dispatch event to notify other pages (like Products page and Dashboard) to refresh
           window.dispatchEvent(new CustomEvent('products-should-refresh'));
           window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        
-          // Play sale beep after recording (audio context should still be active from button click)
-          // The playSaleBeep function will handle resuming if needed
-          playSaleBeep();
-          sonnerToast.success("Sale Recorded", {
-            description: `Successfully recorded sale of ${qty}x ${product.name}`,
-          });
 
           // Reset form
           setSelectedProduct("");
@@ -748,11 +789,6 @@ const Sales = () => {
           setSellingPrice("");
           setPaymentMethod("cash");
           setSaleDate(getTodayDate());
-
-          toast({
-            title: "Sale Recorded",
-            description: `Successfully recorded sale of ${qty}x ${product.name}`,
-          });
         } catch (saleError: any) {
           // Check if it's a connection error
           if (saleError?.response?.connectionError) {

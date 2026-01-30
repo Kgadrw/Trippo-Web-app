@@ -1112,10 +1112,44 @@ export function useApi<T extends { _id?: string; id?: number }>({
     setItems(newItems);
   }, []);
 
-  // Refresh function that resets error state
+  // Rate limiting for refresh calls
+  const lastRefreshTimeRef = useRef<number>(0);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const REFRESH_COOLDOWN = 3000; // 3 seconds minimum between refreshes
+
+  // Refresh function that resets error state with rate limiting
   const refresh = useCallback(() => {
+    // Don't refresh if already loading
+    if (isLoadingDataRef.current) {
+      return;
+    }
+    
     hasErrorShownRef.current = false;
-    loadData();
+    
+    // Clear any pending refresh
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
+    }
+    
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+    
+    if (timeSinceLastRefresh < REFRESH_COOLDOWN) {
+      // Schedule refresh after cooldown period
+      const remainingTime = REFRESH_COOLDOWN - timeSinceLastRefresh;
+      refreshTimeoutRef.current = setTimeout(() => {
+        // Check again if still not loading before executing
+        if (!isLoadingDataRef.current) {
+          lastRefreshTimeRef.current = Date.now();
+          loadData();
+        }
+      }, remainingTime);
+    } else {
+      // Refresh immediately (loadData already checks isLoadingDataRef)
+      lastRefreshTimeRef.current = Date.now();
+      loadData();
+    }
   }, [loadData]);
 
   return {

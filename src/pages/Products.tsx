@@ -170,23 +170,42 @@ const Products = () => {
 
   // Refresh products when sales are made (listen for custom event)
   useEffect(() => {
+    let debounceTimeout: NodeJS.Timeout | null = null;
+    let lastRefreshTime = 0;
+    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+    const MIN_REFRESH_INTERVAL = 3000; // 3 seconds minimum between refreshes
+
     const handleProductUpdate = () => {
-      // Refresh products when sales are made from other pages
-      refreshProducts();
+      const now = Date.now();
+      
+      // Clear any pending debounced refresh
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = null;
+      }
+      
+      // Check if enough time has passed since last refresh
+      if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+        // Debounce the refresh
+        debounceTimeout = setTimeout(() => {
+          lastRefreshTime = Date.now();
+          refreshProducts();
+        }, DEBOUNCE_DELAY);
+      } else {
+        // Refresh immediately
+        lastRefreshTime = Date.now();
+        refreshProducts();
+      }
     };
 
     // Listen for custom event when sales are created
     window.addEventListener('products-should-refresh', handleProductUpdate);
-    
-    // Also refresh when window gains focus (user switches back to this tab)
-    const handleFocus = () => {
-      refreshProducts();
-    };
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       window.removeEventListener('products-should-refresh', handleProductUpdate);
-      window.removeEventListener('focus', handleFocus);
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
     };
   }, [refreshProducts]);
 

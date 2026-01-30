@@ -339,25 +339,44 @@ const Dashboard = () => {
 
   // Listen for sales updates from other pages (Sales page, RecordSaleModal, etc.)
   useEffect(() => {
+    let debounceTimeout: NodeJS.Timeout | null = null;
+    let lastRefreshTime = 0;
+    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+    const MIN_REFRESH_INTERVAL = 3000; // 3 seconds minimum between refreshes
+
     const handleSaleRecorded = () => {
-      // Refresh sales when a sale is recorded from another page
-      refreshSales();
+      const now = Date.now();
+      
+      // Clear any pending debounced refresh
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = null;
+      }
+      
+      // Check if enough time has passed since last refresh
+      if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+        // Debounce the refresh
+        debounceTimeout = setTimeout(() => {
+          lastRefreshTime = Date.now();
+          refreshSales();
+        }, DEBOUNCE_DELAY);
+      } else {
+        // Refresh immediately
+        lastRefreshTime = Date.now();
+        refreshSales();
+      }
     };
 
     // Listen for custom event when sales are created
     window.addEventListener('sale-recorded', handleSaleRecorded);
     window.addEventListener('sales-should-refresh', handleSaleRecorded);
-    
-    // Also refresh when window gains focus (user switches back to this tab)
-    const handleFocus = () => {
-      refreshSales();
-    };
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded);
-      window.removeEventListener('focus', handleFocus);
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
     };
   }, [refreshSales]);
 
@@ -1478,10 +1497,10 @@ const Dashboard = () => {
                       {t("quantity")}
                     </th>
                     <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
-                      {t("revenue")}
+                      {t("revenue")} (Rwf)
                     </th>
                     <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
-                      {t("profit")}
+                      {t("profit")} (Rwf)
                     </th>
                     <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4 hidden sm:table-cell">
                       {t("paymentMethod")}
@@ -1512,7 +1531,7 @@ const Dashboard = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="text-xs sm:text-sm text-gray-700 font-medium">
-                          {sale.revenue.toLocaleString()} rwf
+                          {sale.revenue.toLocaleString()}
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -1520,7 +1539,7 @@ const Dashboard = () => {
                           "text-xs sm:text-sm font-medium",
                           sale.profit >= 0 ? "text-green-700" : "text-red-700"
                         )}>
-                          {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
+                          {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()}
                         </div>
                       </td>
                       <td className="py-3 px-4 hidden sm:table-cell">
