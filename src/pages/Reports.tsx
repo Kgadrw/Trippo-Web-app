@@ -1023,18 +1023,20 @@ const Reports = () => {
           </div>
 
           {/* AI Market Analysis */}
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 w-full">
             {productsLoading || salesLoading ? (
-              <div className="lg:bg-white/80 lg:backdrop-blur-md bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
+              <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
                 <Skeleton className="h-6 w-48 mb-3" />
                 <Skeleton className="h-32 w-full" />
               </div>
             ) : (
-              <MarketAnalysis 
-                sales={sales} 
-                products={products}
-                isLoading={productsLoading || salesLoading}
-              />
+              <div className="w-full">
+                <MarketAnalysis 
+                  sales={sales} 
+                  products={products}
+                  isLoading={productsLoading || salesLoading}
+                />
+              </div>
             )}
           </div>
       </div>

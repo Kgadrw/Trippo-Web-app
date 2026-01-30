@@ -1352,16 +1352,16 @@ const Products = () => {
 
       {/* Edit Modal - Only for editing existing products */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-card max-w-4xl">
-          <DialogHeader>
+        <DialogContent className="bg-card max-w-3xl w-[90vw] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>{t("editProduct")}</DialogTitle>
           </DialogHeader>
           
           {editingProduct && (
-            <div className="py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="py-2 overflow-y-auto flex-1 min-h-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Column 1 */}
-                <div className="space-y-4">
+                <div className="space-y-3">
               <div className="space-y-2">
                     <Label>{t("productName")}</Label>
                 <Input
@@ -1402,70 +1402,10 @@ const Products = () => {
                 />
                     <p className="text-xs text-muted-foreground">{t("language") === "rw" ? "Reka ubusa niba icuruzwa nticyari mu gipaki" : "Leave empty if product is not packaged. Number of individual items in one package/box"}</p>
                   </div>
-              {formData.packageQuantity && formData.packageQuantity.trim() !== "" && (
-                <>
-                  <div className="space-y-2">
-                    <Label>{t("language") === "rw" ? "Ubwishyu bw'igiciro cyo kugurisha" : "Selling Price Type"}</Label>
-                    <Select
-                      value={formData.priceType}
-                      onValueChange={(value: "perQuantity" | "perPackage") => setFormData({ ...formData, priceType: value })}
-                    >
-                      <SelectTrigger className="input-field">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="perQuantity">
-                          {t("language") === "rw" ? "Igiciro cy'umubare w'ibicuruzwa" : "Price per Quantity (per item)"}
-                        </SelectItem>
-                        <SelectItem value="perPackage">
-                          {t("language") === "rw" ? "Igiciro cy'igipaki cyose" : "Price per Package (whole box)"}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {formData.priceType === "perQuantity"
-                        ? (t("language") === "rw" 
-                            ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 100 rwf kuri buri gicuruzwa)"
-                            : "Price per individual item (e.g., 100 rwf per item)")
-                        : (t("language") === "rw"
-                            ? "Igiciro cy'igipaki cyose (urugero: 2000 rwf kuri gipaki cyose)"
-                            : "Price for whole package (e.g., 2000 rwf for whole box)")}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("language") === "rw" ? "Ubwishyu bw'igiciro cyo kugura" : "Cost Price Type"}</Label>
-                    <Select
-                      value={formData.costPriceType}
-                      onValueChange={(value: "perQuantity" | "perPackage") => setFormData({ ...formData, costPriceType: value })}
-                    >
-                      <SelectTrigger className="input-field">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="perQuantity">
-                          {t("language") === "rw" ? "Igiciro cy'umubare w'ibicuruzwa" : "Cost per Quantity (per item)"}
-                        </SelectItem>
-                        <SelectItem value="perPackage">
-                          {t("language") === "rw" ? "Igiciro cy'igipaki cyose" : "Cost per Package (whole box)"}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {formData.costPriceType === "perQuantity"
-                        ? (t("language") === "rw" 
-                            ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 80 rwf kuri buri gicuruzwa)"
-                            : "Cost per individual item (e.g., 80 rwf per item)")
-                        : (t("language") === "rw"
-                            ? "Igiciro cy'igipaki cyose (urugero: 1500 rwf kuri gipaki cyose)"
-                            : "Cost for whole package (e.g., 1500 rwf for whole box)")}
-                    </p>
-                  </div>
-                </>
-              )}
               </div>
 
                 {/* Column 2 */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                 <div className="space-y-2">
                     <Label>{t("costPrice")} (rwf)</Label>
                   <Input
@@ -1475,6 +1415,35 @@ const Products = () => {
                     className="input-field"
                     placeholder="0.00"
                   />
+                  {formData.packageQuantity && formData.packageQuantity.trim() !== "" && (
+                    <>
+                      <Select
+                        value={formData.costPriceType}
+                        onValueChange={(value: "perQuantity" | "perPackage") => setFormData({ ...formData, costPriceType: value })}
+                      >
+                        <SelectTrigger className="input-field mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="perQuantity">
+                            {t("language") === "rw" ? "Igiciro cy'umubare w'ibicuruzwa" : "Cost per Quantity (per item)"}
+                          </SelectItem>
+                          <SelectItem value="perPackage">
+                            {t("language") === "rw" ? "Igiciro cy'igipaki cyose" : "Cost per Package (whole box)"}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {formData.costPriceType === "perQuantity"
+                          ? (t("language") === "rw" 
+                              ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 80 rwf kuri buri gicuruzwa)"
+                              : "Cost per individual item (e.g., 80 rwf per item)")
+                          : (t("language") === "rw"
+                              ? "Igiciro cy'igipaki cyose (urugero: 1500 rwf kuri gipaki cyose)"
+                              : "Cost for whole package (e.g., 1500 rwf for whole box)")}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-2">
                     <Label>{t("sellingPrice")} (rwf)</Label>
@@ -1485,6 +1454,35 @@ const Products = () => {
                     className="input-field"
                     placeholder="0.00"
                   />
+                  {formData.packageQuantity && formData.packageQuantity.trim() !== "" && (
+                    <>
+                      <Select
+                        value={formData.priceType}
+                        onValueChange={(value: "perQuantity" | "perPackage") => setFormData({ ...formData, priceType: value })}
+                      >
+                        <SelectTrigger className="input-field mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="perQuantity">
+                            {t("language") === "rw" ? "Igiciro cy'umubare w'ibicuruzwa" : "Price per Quantity (per item)"}
+                          </SelectItem>
+                          <SelectItem value="perPackage">
+                            {t("language") === "rw" ? "Igiciro cy'igipaki cyose" : "Price per Package (whole box)"}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {formData.priceType === "perQuantity"
+                          ? (t("language") === "rw" 
+                              ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 100 rwf kuri buri gicuruzwa)"
+                              : "Price per individual item (e.g., 100 rwf per item)")
+                          : (t("language") === "rw"
+                              ? "Igiciro cy'igipaki cyose (urugero: 2000 rwf kuri gipaki cyose)"
+                              : "Price for whole package (e.g., 2000 rwf for whole box)")}
+                      </p>
+                    </>
+                  )}
                 </div>
               <div className="space-y-2">
                     <Label>{t("stockQuantity")}</Label>
@@ -1519,7 +1517,7 @@ const Products = () => {
             </div>
           )}
           
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4 mt-4">
             <Button variant="outline" onClick={() => {
               setIsModalOpen(false);
               setEditingProduct(null);

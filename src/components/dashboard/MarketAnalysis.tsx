@@ -297,7 +297,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full">
       {/* Header */}
       <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-4">
         <div className="flex items-center gap-2">
