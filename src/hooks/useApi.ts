@@ -286,10 +286,17 @@ export function useApi<T extends { _id?: string; id?: number }>({
             })) as T[];
             
             const existingItems = await getAllItems<T>(storeName);
-            const serverIds = new Set(itemsWithUserId.map(i => (i as any)._id || (i as any).id));
+            // Normalize server IDs to strings for consistent comparison
+            const serverIds = new Set(itemsWithUserId.map(i => {
+              const id = (i as any)._id || (i as any).id;
+              return id ? String(id) : null;
+            }).filter(id => id !== null));
             
             // For other stores, use ID-based matching
-            const existingIds = new Set(existingItems.map(i => (i as any).id || (i as any)._id));
+            const existingIds = new Set(existingItems.map(i => {
+              const id = (i as any).id || (i as any)._id;
+              return id ? String(id) : null;
+            }).filter(id => id !== null));
             
             // Remove local items that don't exist on server or belong to different user (cleanup)
             for (const localItem of existingItems) {
@@ -312,7 +319,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 continue;
               }
               
-              if (localId && !serverIds.has(localId)) {
+              // Normalize local ID to string for comparison
+              const normalizedLocalId = localId ? String(localId) : null;
+              if (normalizedLocalId && !serverIds.has(normalizedLocalId)) {
                 // Check if this is a temporary ID (very large number from generateUniqueId)
                 // Temporary IDs are typically > 1e15, server IDs are strings or smaller numbers
                 const isTemporaryId = typeof localId === 'number' && localId > 1e15;
@@ -320,8 +329,28 @@ export function useApi<T extends { _id?: string; id?: number }>({
                   // This is likely a temporary ID, check if it matches any server item by content
                   // (For now, we'll keep it if it doesn't match - it might be a pending sync)
                   continue;
+                }
+                
+                // Item doesn't exist on server and is not a temporary ID - delete it (product was deleted)
+                try {
+                  // Use the numeric id that IndexedDB uses (not _id)
+                  const itemId = (localItem as any).id;
+                  if (itemId && typeof itemId === 'number') {
+                    await deleteItem(storeName, itemId);
+                    console.log(`[useApi] Removed deleted item from IndexedDB: ${itemId} (server ID: ${localId})`);
+                  } else if (itemId) {
+                    // Try to convert to number if it's a string
+                    const numericId = typeof itemId === 'string' ? parseInt(itemId) : itemId;
+                    if (!isNaN(numericId) && isFinite(numericId)) {
+                      await deleteItem(storeName, numericId);
+                      console.log(`[useApi] Removed deleted item from IndexedDB: ${numericId} (server ID: ${localId})`);
+                    }
+                  }
+                } catch (deleteError) {
+                  // Log but don't fail - continue with other items
+                  console.warn(`[useApi] Error removing deleted item from IndexedDB:`, deleteError);
+                }
               }
-            }
           }
           
           // Now add/update all server items with userId for data isolation
