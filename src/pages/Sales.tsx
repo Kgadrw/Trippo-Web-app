@@ -318,6 +318,14 @@ const Sales = () => {
       console.error("Error with sales:", error);
     },
   });
+
+  // Refresh sales every time this page is opened
+  useEffect(() => {
+    console.log('[Sales] Page opened, dispatching refresh event');
+    window.dispatchEvent(new CustomEvent('page-opened'));
+    // Also trigger immediate refresh
+    refreshSales();
+  }, [refreshSales]);
   const { hasPin, verifyPin } = usePinAuth();
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getYearStartDate = () => {

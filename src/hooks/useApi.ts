@@ -82,11 +82,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
       // Store current userId for future checks
       localStorage.setItem("profit-pilot-stored-user-id", userId);
       
-      // ✅ For products, ALWAYS fetch from API first to ensure fresh data
+      // ✅ For products and sales, ALWAYS fetch from API first to ensure fresh data
       // Skip IndexedDB and cache on initial load to prevent stale data
-      const shouldSkipCache = endpoint === 'products';
+      const shouldSkipCache = endpoint === 'products' || endpoint === 'sales';
       
-      // For sales, ALWAYS fetch from API first - skip IndexedDB and cache
+      // For sales and products, ALWAYS fetch from API first - skip IndexedDB and cache
       // For other endpoints, use offline-first approach
       if (!isSalesEndpoint && !shouldSkipCache) {
         // Load from IndexedDB first (offline-first) for non-sales, non-products endpoints
@@ -131,52 +131,62 @@ export function useApi<T extends { _id?: string; id?: number }>({
         }
         }
       } else {
-        // For sales, check cache first to reduce API calls and avoid rate limiting
-        const cacheKey = `/${endpoint}`;
-        const cached = apiCache.get(cacheKey);
-        const lastSyncTime = localStorage.getItem("profit-pilot-last-sync");
-        const hasLocalChanges = localStorage.getItem(`profit-pilot-${endpoint}-changed`) === "true";
-        
-        // Use cache if it's fresh (less than 2 minutes old) and no local changes (increased to reduce API calls)
-        if (cached && !hasLocalChanges && lastSyncTime) {
-          const cacheAge = Date.now() - parseInt(lastSyncTime);
-          if (cacheAge < 2 * 60 * 1000) { // 2 minutes cache for sales (increased from 30 seconds)
-            const cachedItems = cached.data;
-            const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
-            if (mappedItems.length > 0) {
-              // Sort by timestamp (newest first)
-              mappedItems.sort((a, b) => {
-                const aTime = (a as any).timestamp || (a as any).date;
-                const bTime = (b as any).timestamp || (b as any).date;
-                return new Date(bTime).getTime() - new Date(aTime).getTime();
-              });
-              setItems(mappedItems);
-              setIsLoading(false);
-              isLoadingDataRef.current = false;
-              
-              // Still fetch in background to update cache, but don't block UI
-              saleApi.getAll().then((response) => {
-                if (response?.data) {
-                  const freshItems = response.data.map(mapItem);
-                  apiCache.set(cacheKey, response.data);
-                  localStorage.setItem("profit-pilot-last-sync", String(Date.now()));
-                  
-                  // Update UI if data changed
-                  freshItems.sort((a, b) => {
+        // For sales and products, skip cache check - always fetch fresh data
+        // This ensures data is always up-to-date when page opens
+        if (shouldSkipCache) {
+          // Skip cache, go straight to API fetch
+          console.log(`[useApi] ${endpoint}: Always fetching fresh data from API (skipping cache and IndexedDB)...`);
+        } else {
+          // For other endpoints, check cache first to reduce API calls
+          const cacheKey = `/${endpoint}`;
+          const cached = apiCache.get(cacheKey);
+          const lastSyncTime = localStorage.getItem("profit-pilot-last-sync");
+          const hasLocalChanges = localStorage.getItem(`profit-pilot-${endpoint}-changed`) === "true";
+          
+          // Use cache if it's fresh (less than 2 minutes old) and no local changes
+          if (cached && !hasLocalChanges && lastSyncTime) {
+            const cacheAge = Date.now() - parseInt(lastSyncTime);
+            if (cacheAge < 2 * 60 * 1000) { // 2 minutes cache
+              const cachedItems = cached.data;
+              const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
+              if (mappedItems.length > 0) {
+                // Sort by timestamp (newest first) for sales
+                if (isSalesEndpoint) {
+                  mappedItems.sort((a, b) => {
                     const aTime = (a as any).timestamp || (a as any).date;
                     const bTime = (b as any).timestamp || (b as any).date;
                     return new Date(bTime).getTime() - new Date(aTime).getTime();
                   });
-                  setItems(freshItems);
                 }
-              }).catch(() => {
-                // Silently fail background refresh
-              });
-              return;
+                setItems(mappedItems);
+                setIsLoading(false);
+                isLoadingDataRef.current = false;
+                
+                // Still fetch in background to update cache, but don't block UI
+                if (isSalesEndpoint) {
+                  saleApi.getAll().then((response) => {
+                    if (response?.data) {
+                      const freshItems = response.data.map(mapItem);
+                      apiCache.set(cacheKey, response.data);
+                      localStorage.setItem("profit-pilot-last-sync", String(Date.now()));
+                      
+                      // Update UI if data changed
+                      freshItems.sort((a, b) => {
+                        const aTime = (a as any).timestamp || (a as any).date;
+                        const bTime = (b as any).timestamp || (b as any).date;
+                        return new Date(bTime).getTime() - new Date(aTime).getTime();
+                      });
+                      setItems(freshItems);
+                    }
+                  }).catch(() => {
+                    // Silently fail background refresh
+                  });
+                }
+                return;
+              }
             }
           }
         }
-        // logger.log(`[useApi] Sales: Always fetching fresh data from API (skipping cache and IndexedDB)...`);
       }
 
       try {
@@ -509,6 +519,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const lastLoadTimeRef = useRef<number>(0);
   const itemsLengthRef = useRef<number>(0);
   const MIN_RELOAD_INTERVAL = 2000; // 2 seconds minimum between reloads
+  
+  // Products and sales should always refresh on mount/page open
+  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales';
 
   // Update items length ref when items change
   useEffect(() => {
@@ -517,6 +530,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
   // Load data on mount and when force refresh is requested
   useEffect(() => {
+    // Always reload on mount (especially for products and sales)
+    console.log(`[useApi] Loading ${endpoint} on mount${shouldAlwaysRefresh ? ' (always refresh)' : ''}`);
     loadData();
     lastLoadTimeRef.current = Date.now();
     itemsLengthRef.current = items.length;
@@ -535,12 +550,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
         const timeSinceLastLoad = now - lastLoadTimeRef.current;
         const currentItemsLength = itemsLengthRef.current;
         
-        // Always reload if items are empty (data was lost), otherwise respect interval
-        const shouldReload = currentItemsLength === 0 || 
+        // For products and sales, always reload when page becomes visible
+        // For other endpoints, only reload if items empty or enough time passed
+        const shouldReload = shouldAlwaysRefresh || 
+          currentItemsLength === 0 || 
           (timeSinceLastLoad >= MIN_RELOAD_INTERVAL && !isLoadingDataRef.current);
         
         if (shouldReload) {
-          console.log(`[useApi] Page became visible, reloading ${endpoint}${currentItemsLength === 0 ? ' (items empty)' : ''}`);
+          console.log(`[useApi] Page became visible, reloading ${endpoint}${currentItemsLength === 0 ? ' (items empty)' : shouldAlwaysRefresh ? ' (always refresh)' : ''}`);
           lastLoadTimeRef.current = now;
           loadData();
         }
@@ -553,23 +570,37 @@ export function useApi<T extends { _id?: string; id?: number }>({
       const timeSinceLastLoad = now - lastLoadTimeRef.current;
       const currentItemsLength = itemsLengthRef.current;
       
-      // Always reload if items are empty (data was lost), otherwise respect interval
-      const shouldReload = currentItemsLength === 0 || 
+      // For products and sales, always reload when window regains focus
+      // For other endpoints, only reload if items empty or enough time passed
+      const shouldReload = shouldAlwaysRefresh || 
+        currentItemsLength === 0 || 
         (timeSinceLastLoad >= MIN_RELOAD_INTERVAL && !isLoadingDataRef.current);
       
       if (shouldReload) {
-        console.log(`[useApi] Window regained focus, reloading ${endpoint}${currentItemsLength === 0 ? ' (items empty)' : ''}`);
+        console.log(`[useApi] Window regained focus, reloading ${endpoint}${currentItemsLength === 0 ? ' (items empty)' : shouldAlwaysRefresh ? ' (always refresh)' : ''}`);
         lastLoadTimeRef.current = now;
         loadData();
       }
     };
     
+    // Listen for page-open events (custom event dispatched when navigating to a page)
+    const handlePageOpen = () => {
+      // For products and sales, always reload when page opens
+      if (shouldAlwaysRefresh && !isLoadingDataRef.current) {
+        console.log(`[useApi] Page opened, reloading ${endpoint}`);
+        lastLoadTimeRef.current = Date.now();
+        loadData();
+      }
+    };
+    
     window.addEventListener('force-refresh-data', handleForceRefresh);
+    window.addEventListener('page-opened', handlePageOpen);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     
     return () => {
       window.removeEventListener('force-refresh-data', handleForceRefresh);
+      window.removeEventListener('page-opened', handlePageOpen);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };

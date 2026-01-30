@@ -111,6 +111,14 @@ const Products = () => {
       });
     },
   });
+
+  // Refresh products every time this page is opened
+  useEffect(() => {
+    console.log('[Products] Page opened, dispatching refresh event');
+    window.dispatchEvent(new CustomEvent('page-opened'));
+    // Also trigger immediate refresh
+    refreshProducts();
+  }, [refreshProducts]);
   const {
     items: sales,
     isLoading: salesLoading,

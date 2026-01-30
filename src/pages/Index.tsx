@@ -297,6 +297,15 @@ const Dashboard = () => {
       console.error("Error with sales:", error);
     },
   });
+
+  // Refresh products and sales every time dashboard is opened
+  useEffect(() => {
+    console.log('[Dashboard] Page opened, dispatching refresh event');
+    window.dispatchEvent(new CustomEvent('page-opened'));
+    // Also trigger immediate refresh
+    refreshProducts();
+    refreshSales();
+  }, [refreshProducts, refreshSales]);
   
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   
