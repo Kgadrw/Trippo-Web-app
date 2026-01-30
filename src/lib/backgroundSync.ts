@@ -49,12 +49,19 @@ export class BackgroundSyncManager {
 
     try {
       if (this.periodicSyncSupported && 'periodicSync' in this.syncRegistration) {
-        // Register periodic sync (checks every hour)
-        await (this.syncRegistration as any).periodicSync.register('notification-check', {
-          minInterval: 60 * 60 * 1000, // 1 hour minimum
-        });
-        console.log('Periodic background sync registered');
-        return true;
+        try {
+          // Register periodic sync (checks every 5 minutes when possible)
+          // Note: Browser may limit this to minimum intervals (e.g., 1 hour)
+          await (this.syncRegistration as any).periodicSync.register('notification-check', {
+            minInterval: 5 * 60 * 1000, // 5 minutes (browser may enforce minimum)
+          });
+          console.log('Periodic background sync registered for notifications');
+          return true;
+        } catch (error: any) {
+          // If periodic sync fails (e.g., permission denied), fall back to background sync
+          console.log('Periodic sync registration failed, using background sync:', error);
+          return await this.registerBackgroundSync();
+        }
       } else {
         // Fallback: Use Background Sync API
         await this.registerBackgroundSync();

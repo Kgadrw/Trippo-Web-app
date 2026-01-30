@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -21,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Pencil, Trash2, ArrowUpDown, X, Package, AlertTriangle, Filter, MoreVertical } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, ArrowUpDown, X, Package, AlertTriangle, Filter, MoreVertical, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -123,7 +124,6 @@ const Products = () => {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [stockStatusFilter, setStockStatusFilter] = useState<string>("all");
@@ -137,7 +137,7 @@ const Products = () => {
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteMode, setDeleteMode] = useState<"all" | "selected">("all");
+  const [deleteMode, setDeleteMode] = useState<"all" | "selected" | "single">("all");
   const { hasPin, verifyPin } = usePinAuth();
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
@@ -195,7 +195,7 @@ const Products = () => {
         // Debounce the refresh
         debounceTimeout = setTimeout(() => {
           lastRefreshTime = Date.now();
-          refreshProducts();
+      refreshProducts();
         }, DEBOUNCE_DELAY);
       } else {
         // Refresh immediately
@@ -384,8 +384,18 @@ const Products = () => {
   };
 
   const handleDeleteClick = (product: Product) => {
+    if (!hasPin) {
+      toast({
+        title: "PIN Required",
+        description: "Please set a PIN in Settings before deleting products.",
+        variant: "destructive",
+      });
+      return;
+    }
     setProductToDelete(product);
-    setDeleteDialogOpen(true);
+    setDeleteMode("single");
+    setShowPinDialog(true);
+    setPinInput("");
   };
 
   // Handle individual product selection
@@ -488,7 +498,7 @@ const Products = () => {
       return;
     }
 
-    // PIN verified, proceed with deletion
+    // PIN verified, proceed with deletion based on mode
     setIsDeleting(true);
     try {
       if (deleteMode === "all") {
@@ -515,7 +525,7 @@ const Products = () => {
           title: "All Products Deleted",
           description: `Successfully deleted ${deletedCount} product(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}`,
         });
-      } else {
+      } else if (deleteMode === "selected") {
         // Delete selected products
         const productsToDelete = filteredProducts.filter((p) => {
           const id = (p as any)._id || p.id;
@@ -545,7 +555,44 @@ const Products = () => {
           title: "Products Deleted",
           description: `Successfully deleted ${deletedCount} product(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}`,
         });
+      } else if (deleteMode === "single" && productToDelete) {
+        // Delete single product
+    try {
+      await removeProduct(productToDelete);
+      await refreshProducts();
+          
+          // Remove from selection if it was selected
+          const productId = (productToDelete as any)._id || productToDelete.id;
+          if (productId) {
+            setSelectedProducts((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(productId.toString());
+              return newSet;
+            });
+          }
+          
+      playDeleteBeep();
+      toast({
+        title: "Product Deleted",
+            description: "Product has been successfully deleted.",
+          });
+          
+          // Dispatch event to notify other pages to refresh
+          window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        } catch (error: any) {
+          playErrorBeep();
+          console.error("Error deleting product:", error);
+          toast({
+            title: "Delete Failed",
+            description: error?.message || "Failed to delete product. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
+      
+      setShowPinDialog(false);
+      setPinInput("");
+      setProductToDelete(null);
     } catch (error) {
       playErrorBeep();
       toast({
@@ -555,8 +602,6 @@ const Products = () => {
       });
     } finally {
       setIsDeleting(false);
-      setShowPinDialog(false);
-      setPinInput("");
     }
   };
 
@@ -567,32 +612,6 @@ const Products = () => {
     }
   }, [isSelectionMode]);
 
-  const handleDeleteConfirm = async () => {
-    if (!productToDelete) return;
-    
-    initAudio();
-    try {
-      await removeProduct(productToDelete);
-      await refreshProducts();
-      playDeleteBeep();
-      toast({
-        title: "Product Deleted",
-        description: "Product has been deleted successfully.",
-      });
-      setDeleteDialogOpen(false);
-      setProductToDelete(null);
-      // Dispatch event to notify other pages to refresh
-      window.dispatchEvent(new CustomEvent('products-should-refresh'));
-    } catch (error: any) {
-      playErrorBeep();
-      console.error("Error deleting product:", error);
-      toast({
-        title: "Delete Failed",
-        description: error?.message || "Failed to delete product. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const getStockStatus = (product: Product) => {
     const minStock = product.minStock || 5;
@@ -1239,9 +1258,9 @@ const Products = () => {
             </tbody>
           </table>
           </div>
+          </div>
             </div>
           </div>
-      </div>
           
       {/* Mobile Table View - Full Page Scroll - Outside flex container */}
       <div className="lg:hidden mt-4 pb-20">
@@ -1350,8 +1369,8 @@ const Products = () => {
                 </tbody>
               </table>
               </div>
-            </div>
         </div>
+      </div>
       </div>
 
       {/* Edit Modal - Only for editing existing products */}
@@ -1536,60 +1555,103 @@ const Products = () => {
               {t("deleteProduct")}
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => {
-                setIsModalOpen(false);
-                setEditingProduct(null);
-              }} className="btn-secondary">
-                Cancel
-              </Button>
-              <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold rounded-lg">
-                Save Changes
-              </Button>
+            <Button variant="outline" onClick={() => {
+              setIsModalOpen(false);
+              setEditingProduct(null);
+            }} className="btn-secondary">
+              Cancel
+            </Button>
+            <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold rounded-lg">
+              Save Changes
+            </Button>
             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 size={20} className="text-red-600" />
-              {t("deleteProduct")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("areYouSure")} {t("language") === "rw" ? "gukoresha gusiba" : "you want to delete"} <strong>{productToDelete?.name}</strong>? 
-              {t("thisActionCannotBeUndone")} {t("language") === "rw" ? "kandi kizasiba icuruzwa mu bwiyubwibwe bwawe." : "and will permanently remove this product from your inventory."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setProductToDelete(null)}>
+      {/* PIN Dialog for Delete Operations */}
+      <Dialog open={showPinDialog} onOpenChange={setShowPinDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock size={20} className="text-red-600" />
+              {deleteMode === "all" ? "Delete All Products" : deleteMode === "selected" ? "Delete Selected Products" : "Delete Product"}
+            </DialogTitle>
+            <DialogDescription>
+              {deleteMode === "all" && (
+                <>
+                  This action will permanently delete all {products.length} product(s). This cannot be undone.
+                  <br />
+                  <span className="font-semibold text-red-600 mt-2 block">Please enter your PIN to confirm.</span>
+                </>
+              )}
+              {deleteMode === "selected" && (
+                <>
+                  This action will permanently delete {selectedProducts.size} selected product(s). This cannot be undone.
+                  <br />
+                  <span className="font-semibold text-red-600 mt-2 block">Please enter your PIN to confirm.</span>
+                </>
+              )}
+              {deleteMode === "single" && productToDelete && (
+                <>
+                  This action will permanently delete <strong>{productToDelete.name}</strong>. This cannot be undone.
+                  <br />
+                  <span className="font-semibold text-red-600 mt-2 block">Please enter your PIN to confirm.</span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="pin">Enter PIN</Label>
+              <Input
+                id="pin"
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                className="input-field h-12 text-center text-2xl tracking-widest font-mono"
+                placeholder="••••"
+                autoFocus
+                autoComplete="new-password"
+                name="pin-verification"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && pinInput.length === 4) {
+                    handlePinVerification();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPinDialog(false);
+                setPinInput("");
+                setProductToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
               {t("cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
+            </Button>
+            <Button
+              onClick={handlePinVerification}
+              disabled={pinInput.length !== 4 || isDeleting}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              {t("deleteProduct")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* PIN Dialog for Delete Operations */}
-      <PinDialog
-        open={showPinDialog}
-        onOpenChange={setShowPinDialog}
-        pinInput={pinInput}
-        onPinInputChange={setPinInput}
-        onVerify={handlePinVerification}
-        isLoading={isDeleting}
-        title={deleteMode === "all" ? "Delete All Products" : "Delete Selected Products"}
-        description={deleteMode === "all" 
-          ? "Enter your PIN to delete all products. This action cannot be undone."
-          : `Enter your PIN to delete ${selectedProducts.size} selected product(s). This action cannot be undone.`}
-      />
+              {isDeleting 
+                ? "Deleting..." 
+                : deleteMode === "all" 
+                  ? "Delete All Products" 
+                  : deleteMode === "selected"
+                    ? `Delete ${selectedProducts.size} Product(s)`
+                    : "Delete Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

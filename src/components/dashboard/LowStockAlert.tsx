@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AlertTriangle, Edit2, Check, X, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,49 @@ export function LowStockAlert() {
   const [editStock, setEditStock] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<LowStockItem | null>(null);
+
+  // Auto-refresh when products are updated, added, or sales are made
+  useEffect(() => {
+    let debounceTimeout: NodeJS.Timeout | null = null;
+    let lastRefreshTime = 0;
+    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+    const MIN_REFRESH_INTERVAL = 2000; // 2 seconds minimum between refreshes
+
+    const handleProductUpdate = () => {
+      const now = Date.now();
+      
+      // Clear any pending debounced refresh
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = null;
+      }
+      
+      // Check if enough time has passed since last refresh
+      if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+        // Debounce the refresh
+        debounceTimeout = setTimeout(() => {
+          lastRefreshTime = Date.now();
+          refreshProducts();
+        }, DEBOUNCE_DELAY);
+      } else {
+        // Refresh immediately
+        lastRefreshTime = Date.now();
+        refreshProducts();
+      }
+    };
+
+    // Listen for custom events when products are created, updated, or sales are made
+    window.addEventListener('products-should-refresh', handleProductUpdate);
+    window.addEventListener('sale-recorded', handleProductUpdate);
+
+    return () => {
+      window.removeEventListener('products-should-refresh', handleProductUpdate);
+      window.removeEventListener('sale-recorded', handleProductUpdate);
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+    };
+  }, [refreshProducts]);
 
   const handleEdit = (item: LowStockItem) => {
     setEditingId(item.id);

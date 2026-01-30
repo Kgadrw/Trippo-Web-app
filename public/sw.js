@@ -128,6 +128,8 @@ async function syncData(payload) {
 
 // Background notification checking
 let notificationCheckInterval = null;
+let lastNotificationCheck = 0;
+const NOTIFICATION_DEBOUNCE = 5 * 60 * 1000; // 5 minutes between same notifications
 
 function startBackgroundNotificationCheck() {
   // Clear any existing interval
@@ -135,9 +137,15 @@ function startBackgroundNotificationCheck() {
     clearInterval(notificationCheckInterval);
   }
 
-  // Check for notifications periodically
+  // Check for notifications periodically (works even when app is closed)
+  // This interval keeps the service worker active
   notificationCheckInterval = setInterval(() => {
-    checkForNotifications();
+    const now = Date.now();
+    // Only check if enough time has passed
+    if (now - lastNotificationCheck >= NOTIFICATION_CHECK_INTERVAL) {
+      lastNotificationCheck = now;
+      checkForNotifications();
+    }
   }, NOTIFICATION_CHECK_INTERVAL);
 
   // Also check immediately
@@ -149,32 +157,42 @@ async function checkForNotifications() {
     // Get userId from stored variable (set by client)
     const userId = self.userId;
     if (!userId) {
+      console.log("No userId set, skipping notification check");
       return; // No user logged in
     }
 
     // Check notification permission
-    const permission = await self.registration.permission;
-    if (permission !== 'granted') {
+    // Note: self.registration.permission is not a standard API
+    // We'll check by trying to show a notification (will fail if not granted)
+    try {
+      // Check if we can show notifications by checking registration
+      const registration = self.registration;
+      if (!registration) {
+        return;
+      }
+
+      // Check for new data and send notifications
+      await checkAndNotify(userId);
+    } catch (permError) {
+      console.log("Notification permission not granted or error:", permError);
       return; // Notifications not allowed
     }
-
-    // Check for new data and send notifications
-    await checkAndNotify(userId);
   } catch (error) {
     console.error("Error checking for notifications:", error);
   }
 }
 
+// Store last notification times to prevent duplicates
+const lastNotificationTimes = new Map();
+
 async function checkAndNotify(userId) {
   try {
     const headers = {
       'Content-Type': 'application/json',
+      'X-User-Id': userId,
     };
 
-    // Add userId to headers if needed by backend
-    // Note: Backend should use userId from auth token, but we include it for clarity
-    
-    // Check for low stock products
+    // Check for low stock and out of stock products
     try {
       const productsResponse = await fetch(`${API_BASE_URL}/products`, {
         method: 'GET',
@@ -186,19 +204,56 @@ async function checkAndNotify(userId) {
         if (productsData.data && Array.isArray(productsData.data)) {
           for (const product of productsData.data) {
             const minStock = product.minStock || 5;
-            const threshold = Math.ceil(minStock * 1.2);
+            const productId = product._id || product.id;
+            const notificationKey = `product-${productId}`;
+            const now = Date.now();
+            const lastTime = lastNotificationTimes.get(notificationKey) || 0;
             
-            if (product.stock <= threshold && product.stock > 0) {
-              await showNotification({
-                title: 'Low Stock Alert',
-                body: `${product.name} is running low (${product.stock} left, minimum: ${minStock})`,
-                icon: '/logo.png',
-                tag: `low-stock-${product.name}`,
-                data: {
-                  route: 'products',
-                  type: 'low_stock',
-                },
-              });
+            // Check if we should notify (out of stock or low stock)
+            const isOutOfStock = product.stock === 0;
+            const isLowStock = product.stock > 0 && product.stock <= minStock;
+            
+            // Only notify if enough time has passed since last notification
+            if ((isOutOfStock || isLowStock) && (now - lastTime >= NOTIFICATION_DEBOUNCE)) {
+              lastNotificationTimes.set(notificationKey, now);
+              
+              if (isOutOfStock) {
+                await showNotification({
+                  title: 'Out of Stock Alert',
+                  body: `${product.name} is out of stock!`,
+                  icon: '/logo.png',
+                  badge: '/logo.png',
+                  tag: `out-of-stock-${productId}`,
+                  requireInteraction: true,
+                  data: {
+                    route: '/products',
+                    type: 'low_stock',
+                    productName: product.name,
+                    currentStock: 0,
+                    minStock: minStock,
+                    productId: productId,
+                    action: 'update_stock',
+                  },
+                });
+              } else if (isLowStock) {
+                await showNotification({
+                  title: 'Low Stock Alert',
+                  body: `${product.name} is running low (${product.stock} left, minimum: ${minStock})`,
+                  icon: '/logo.png',
+                  badge: '/logo.png',
+                  tag: `low-stock-${productId}`,
+                  requireInteraction: true,
+                  data: {
+                    route: '/products',
+                    type: 'low_stock',
+                    productName: product.name,
+                    currentStock: product.stock,
+                    minStock: minStock,
+                    productId: productId,
+                    action: 'update_stock',
+                  },
+                });
+              }
             }
           }
         }
@@ -213,16 +268,31 @@ async function checkAndNotify(userId) {
 
 async function showNotification(options) {
   try {
-    await self.registration.showNotification(options.title, {
+    // Check if we have permission to show notifications
+    const registration = self.registration;
+    if (!registration) {
+      console.log("No service worker registration available");
+      return;
+    }
+
+    // Show notification (will work even when app is closed)
+    await registration.showNotification(options.title, {
       body: options.body,
       icon: options.icon || '/logo.png',
-      badge: '/logo.png',
+      badge: options.badge || '/logo.png',
       tag: options.tag,
       data: options.data || {},
-      requireInteraction: options.requireInteraction || false,
+      requireInteraction: options.requireInteraction !== undefined ? options.requireInteraction : false,
+      silent: false,
+      vibrate: [200, 100, 200], // Vibration pattern for mobile devices
+      timestamp: Date.now(),
     });
+    
+    console.log("Notification shown:", options.title);
   } catch (error) {
     console.error("Error showing notification:", error);
+    // If permission is denied, we can't show notifications
+    // This is expected behavior
   }
 }
 
@@ -285,10 +355,21 @@ self.addEventListener("sync", (event) => {
 });
 
 // Periodic Background Sync API support (if available)
+// This allows notifications to work even when the app is completely closed
 if ('periodicSync' in self.registration) {
   self.addEventListener('periodicSync', (event) => {
     if (event.tag === 'notification-check') {
+      console.log("Periodic sync triggered for notifications");
       event.waitUntil(checkForNotifications());
     }
   });
 }
+
+// Keep service worker alive by responding to messages
+// This ensures notifications work even when app is closed
+self.addEventListener('message', (event) => {
+  // Respond to keep-alive messages
+  if (event.data && event.data.type === 'KEEP_ALIVE') {
+    event.ports[0].postMessage({ alive: true });
+  }
+});

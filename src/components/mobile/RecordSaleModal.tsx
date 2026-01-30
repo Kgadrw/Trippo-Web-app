@@ -264,6 +264,34 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
     }
   }, [open]);
 
+  // Calculate selling price based on product priceType and sale mode
+  const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
+    if (!product.isPackage || !product.packageQuantity) {
+      // Regular product - use selling price as is
+      return product.sellingPrice;
+    }
+    
+    if (product.priceType === "perQuantity") {
+      // Price is per individual item
+      if (saleMode === "wholePackage") {
+        // Selling whole package: multiply by package quantity
+        return product.sellingPrice * product.packageQuantity;
+      } else {
+        // Selling by quantity: use price as is (per item)
+        return product.sellingPrice;
+      }
+    } else {
+      // priceType === "perPackage" - Price is for whole package
+      if (saleMode === "wholePackage") {
+        // Selling whole package: use price as is
+        return product.sellingPrice;
+      } else {
+        // Selling by quantity: divide by package quantity to get price per item
+        return product.sellingPrice / product.packageQuantity;
+      }
+    }
+  };
+
   // Auto-fill selling price when product is selected
   useEffect(() => {
     if (selectedProduct) {
@@ -272,14 +300,31 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
         return id?.toString() === selectedProduct;
       });
       if (product) {
-        setSellingPrice(product.sellingPrice.toString());
         // Reset package sale mode when product changes
         if (product.isPackage) {
           setPackageSaleMode("quantity");
         }
+        // Calculate and set selling price based on product and sale mode
+        const calculatedPrice = calculateSellingPrice(product, product.isPackage ? "quantity" : "quantity");
+        setSellingPrice(calculatedPrice.toString());
       }
     }
   }, [selectedProduct, products]);
+
+  // Update selling price when sale mode changes for package products
+  useEffect(() => {
+    if (selectedProduct) {
+      const product = products.find((p) => {
+        const id = (p as any)._id || p.id;
+        return id?.toString() === selectedProduct;
+      });
+      
+      if (product && product.isPackage && product.packageQuantity) {
+        const calculatedPrice = calculateSellingPrice(product, packageSaleMode);
+        setSellingPrice(calculatedPrice.toString());
+      }
+    }
+  }, [packageSaleMode, selectedProduct, products]);
 
   const handleRecordSale = async () => {
     if (!selectedProduct) {
@@ -715,6 +760,26 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                   className="h-10 text-base bg-gray-50 border-gray-200"
                   placeholder="Price"
                 />
+                {selectedProduct && (() => {
+                  const product = products.find(p => {
+                    const id = (p as any)._id || p.id;
+                    return id.toString() === selectedProduct;
+                  });
+                  if (product?.isPackage && product.packageQuantity) {
+                    return (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {packageSaleMode === "wholePackage"
+                          ? (product.priceType === "perPackage"
+                              ? `Price for whole package (${product.packageQuantity} items)`
+                              : `Price per item × ${product.packageQuantity} = ${(parseFloat(sellingPrice) || 0) * product.packageQuantity} rwf`)
+                          : (product.priceType === "perPackage"
+                              ? `Price per item (${product.sellingPrice} ÷ ${product.packageQuantity})`
+                              : `Price per individual item`)}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
 
