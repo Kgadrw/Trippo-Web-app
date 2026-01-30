@@ -1,6 +1,7 @@
 // API Configuration and Utilities
 import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
+import { apiCache } from './apiCache';
 
 // API URL Configuration
 // Priority: VITE_API_URL env variable > localhost (dev mode) > deployed URL
@@ -183,69 +184,69 @@ async function executeRequest<T>(
   isGet: boolean,
   retryCount: number
 ): Promise<ApiResponse<T>> {
-  // Create request promise
-  const requestPromise = (async () => {
-    const response = await fetch(url, config);
-    
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      // If response is not JSON, create a simple error response
-      data = { error: response.statusText || 'An error occurred' };
-    }
+    // Create request promise
+    const requestPromise = (async () => {
+      const response = await fetch(url, config);
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        // If response is not JSON, create a simple error response
+        data = { error: response.statusText || 'An error occurred' };
+      }
 
-    if (!response.ok) {
-      // Handle 429 Too Many Requests with retry logic
-      if (response.status === 429 && retryCount < 3) {
-        // Get retry-after from header or response data, default to exponential backoff
-        const retryAfterHeader = response.headers.get('Retry-After');
-        const retryAfter = retryAfterHeader || 
-                          data.retryAfter || 
-                          Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
-        
-        const waitTime = typeof retryAfter === 'string' ? parseInt(retryAfter) * 1000 : retryAfter;
-        
-        // Add jitter to prevent thundering herd
-        const jitter = Math.random() * 0.25 * waitTime;
-        const totalWait = Math.min(waitTime + jitter, 30000);
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, totalWait));
-        
+      if (!response.ok) {
+        // Handle 429 Too Many Requests with retry logic
+        if (response.status === 429 && retryCount < 3) {
+          // Get retry-after from header or response data, default to exponential backoff
+          const retryAfterHeader = response.headers.get('Retry-After');
+          const retryAfter = retryAfterHeader || 
+                            data.retryAfter || 
+                            Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+          
+          const waitTime = typeof retryAfter === 'string' ? parseInt(retryAfter) * 1000 : retryAfter;
+          
+          // Add jitter to prevent thundering herd
+          const jitter = Math.random() * 0.25 * waitTime;
+          const totalWait = Math.min(waitTime + jitter, 30000);
+          
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, totalWait));
+          
         // Retry the request (will go through request manager again)
         const { requestManager } = await import('./requestManager');
         return requestManager.execute(cacheKey, async () => {
           return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount + 1);
         });
+        }
+        
+        // logger.error(`[API] Request failed: ${response.status}`, data);
+        throw new ApiError(
+          data.error || data.message || 'An error occurred',
+          response.status,
+          { ...data, retryAfter: response.headers.get('Retry-After') }
+        );
       }
+
+      // logger.log(`[API] Request successful:`, data);
+      return data;
+    })();
+
+    // Cache GET requests
+    if (isGet && retryCount === 0) {
+      requestCache.set(cacheKey, {
+        promise: requestPromise as Promise<ApiResponse<any>>,
+        timestamp: Date.now()
+      });
       
-      // logger.error(`[API] Request failed: ${response.status}`, data);
-      throw new ApiError(
-        data.error || data.message || 'An error occurred',
-        response.status,
-        { ...data, retryAfter: response.headers.get('Retry-After') }
-      );
+      // Clean up cache after TTL
+      setTimeout(() => {
+        requestCache.delete(cacheKey);
+      }, CACHE_TTL);
     }
 
-    // logger.log(`[API] Request successful:`, data);
-    return data;
-  })();
-
-  // Cache GET requests
-  if (isGet && retryCount === 0) {
-    requestCache.set(cacheKey, {
-      promise: requestPromise as Promise<ApiResponse<any>>,
-      timestamp: Date.now()
-    });
-    
-    // Clean up cache after TTL
-    setTimeout(() => {
-      requestCache.delete(cacheKey);
-    }, CACHE_TTL);
-  }
-
-  return requestPromise;
+    return requestPromise;
 }
 
 // Auth API functions
@@ -266,11 +267,35 @@ export const authApi = {
     });
   },
 
-  // Get current user
+  // Get current user (with caching to prevent excessive calls)
   async getCurrentUser(): Promise<ApiResponse> {
-    return request('/auth/me', {
+    // Check cache first
+    const cacheKey = '/auth/me';
+    const cached = apiCache.get(cacheKey);
+    const lastFetchTime = localStorage.getItem('profit-pilot-user-last-fetch');
+    const now = Date.now();
+    
+    // Use cache if it's less than 5 minutes old
+    if (cached && lastFetchTime) {
+      const cacheAge = now - parseInt(lastFetchTime);
+      if (cacheAge < 5 * 60 * 1000) {
+        console.log('[API] Using cached user data');
+        return { data: cached.data, user: cached.data };
+      }
+    }
+    
+    // Fetch fresh data
+    const response = await request('/auth/me', {
       method: 'GET',
     });
+    
+    // Cache the response
+    if (response?.user || response?.data) {
+      apiCache.set(cacheKey, response.user || response.data);
+      localStorage.setItem('profit-pilot-user-last-fetch', String(now));
+    }
+    
+    return response;
   },
 
   // Update user information

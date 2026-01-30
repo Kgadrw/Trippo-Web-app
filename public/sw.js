@@ -21,9 +21,9 @@ self.addEventListener("activate", (event) => {
         cacheNames
           .filter((name) => name.startsWith("trippo-") && name !== CACHE_NAME)
           .map((cacheName) => {
-            console.log("Deleting old cache:", cacheName);
-            return caches.delete(cacheName);
-          })
+          console.log("Deleting old cache:", cacheName);
+          return caches.delete(cacheName);
+        })
       );
     }).then(() => {
       console.log("App caches cleared");

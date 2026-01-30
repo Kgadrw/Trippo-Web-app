@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -217,21 +217,36 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-    // Refresh every 60 seconds (reduced frequency to avoid rate limits)
-    const interval = setInterval(loadDashboardData, 60000);
-    // Refresh API stats less frequently (every 15 seconds) to avoid rate limits
+    // Refresh every 5 minutes (reduced frequency to avoid rate limits and unnecessary calls)
+    const interval = setInterval(loadDashboardData, 5 * 60 * 1000);
+    // Refresh API stats less frequently (every 2 minutes) to avoid rate limits
     const apiInterval = setInterval(() => {
       loadApiStats();
-    }, 15000);
+    }, 2 * 60 * 1000);
     return () => {
       clearInterval(interval);
       clearInterval(apiInterval);
     };
   }, []);
 
+  // Track last load time to prevent excessive API calls
+  const lastLoadTimeRef = useRef<number>(0);
+  const MIN_LOAD_INTERVAL = 2 * 60 * 1000; // 2 minutes minimum between loads
+
   const loadDashboardData = async () => {
+    const now = Date.now();
+    const timeSinceLastLoad = now - lastLoadTimeRef.current;
+    
+    // Only load if enough time has passed
+    if (timeSinceLastLoad < MIN_LOAD_INTERVAL && lastLoadTimeRef.current > 0) {
+      console.log(`[AdminDashboard] Skipping load (only ${Math.round(timeSinceLastLoad / 1000)}s since last load)`);
+      return;
+    }
+    
     try {
       setLoading(true);
+      lastLoadTimeRef.current = now;
+      
       // Load data in batches to avoid rate limiting
       const [statsRes, usersRes, activityRes, usageRes, healthRes, scheduleStatsRes] = await Promise.all([
         adminApi.getSystemStats(),

@@ -36,7 +36,7 @@ Promise.all([
   // Render immediately - don't block on cache clearing
   // Use requestAnimationFrame to ensure smooth render
   requestAnimationFrame(() => {
-    createRoot(document.getElementById("root")!).render(<App />);
+  createRoot(document.getElementById("root")!).render(<App />);
   });
   
   // ✅ Clear stale caches in background (non-blocking)
