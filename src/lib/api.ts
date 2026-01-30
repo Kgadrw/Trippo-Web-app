@@ -246,33 +246,6 @@ async function executeRequest<T>(
   }
 
   return requestPromise;
-  } catch (error) {
-    if (error instanceof ApiError) {
-      // Retry 429 errors with exponential backoff
-      if (error.status === 429 && retryCount < 3) {
-        const waitTime = error.response?.retryAfter 
-          ? (typeof error.response.retryAfter === 'string' ? parseInt(error.response.retryAfter) * 1000 : error.response.retryAfter)
-          : Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
-        
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        return request<T>(endpoint, options, retryCount + 1);
-      }
-      throw error;
-    }
-    // Check for connection refused errors - make them silent for offline support
-    const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
-    if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('NetworkError') || errorMessage.includes('connection')) {
-      // Silent error - don't show technical messages to users
-      throw new ApiError(
-        '', // Empty message - will be handled gracefully
-        0,
-        { connectionError: true, silent: true }
-      );
-    }
-    // For other errors, throw with the actual error message
-    const errorMsg = error instanceof Error ? error.message : 'Network error occurred';
-    throw new ApiError(errorMsg, 0, { silent: false });
-  }
 }
 
 // Auth API functions
