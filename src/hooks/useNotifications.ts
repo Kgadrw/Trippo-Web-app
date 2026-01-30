@@ -129,6 +129,8 @@ export function useLowStockNotifications() {
 
   const {
     items: products,
+    isLoading,
+    refresh: refreshProducts,
   } = useApi<Product>({
     endpoint: 'products',
     defaultValue: [],
@@ -142,12 +144,31 @@ export function useLowStockNotifications() {
     // Send userId to service worker for background checks
     backgroundSyncManager.sendUserIdToServiceWorker(userId);
 
-    // Initial check
-    checkLowStock();
+    // Wait for products to load before initial check
+    if (!isLoading && products) {
+      // Small delay to ensure products are fully loaded from database
+      const timer = setTimeout(() => {
+        checkLowStock();
+      }, 1000);
 
-    // Check every 60 seconds for low stock
+      return () => clearTimeout(timer);
+    }
+  }, [user, isAdmin, products, userId, isLoading]);
+
+  useEffect(() => {
+    if (!user || !userId || isAdmin || !notificationService.isAllowed()) {
+      return;
+    }
+
+    // Check every 60 seconds for low stock (only after initial load)
     checkInterval.current = setInterval(() => {
-      checkLowStock();
+      // Refresh products from database first to get latest data
+      refreshProducts();
+      // Wait for products to refresh from database before checking
+      // Use a longer delay to ensure API call completes
+      setTimeout(() => {
+        checkLowStock();
+      }, 2000);
     }, 60000);
 
     return () => {
@@ -155,12 +176,31 @@ export function useLowStockNotifications() {
         clearInterval(checkInterval.current);
       }
     };
-  }, [user, isAdmin, products, userId]);
+  }, [user, isAdmin, userId, refreshProducts]);
 
   const checkLowStock = async () => {
-    if (!products || products.length === 0) return;
+    // First verify products exist and are loaded
+    if (!products || products.length === 0) {
+      console.log('[Notifications] No products found, skipping low stock check');
+      return;
+    }
 
-    for (const product of products) {
+    // Verify we have valid product data (not just empty array)
+    const validProducts = products.filter(p => 
+      p && 
+      (p._id || p.id) && 
+      p.name && 
+      typeof p.stock === 'number'
+    );
+
+    if (validProducts.length === 0) {
+      console.log('[Notifications] No valid products found, skipping low stock check');
+      return;
+    }
+
+    console.log(`[Notifications] Checking ${validProducts.length} products for low stock`);
+
+    for (const product of validProducts) {
       const productId = product._id || product.id?.toString() || '';
       const minStock = product.minStock || 0;
       const currentStock = product.stock || 0;
@@ -182,12 +222,19 @@ export function useLowStockNotifications() {
         }
       }
 
+      // Verify product data is valid before checking stock
+      if (!product.name || typeof currentStock !== 'number' || isNaN(currentStock)) {
+        console.warn(`[Notifications] Invalid product data for ${productId}, skipping`);
+        continue;
+      }
+
       // Notify if stock is at or below minStock OR stock is 0 (out of stock)
       // OR if product is expiring soon (within 30 days)
       // This mostly matches the LowStockAlert component logic, with added expiry check
       if (currentStock <= minStock || currentStock === 0 || isExpiringSoon) {
         // Only notify if we haven't notified about this product recently
         if (!lastNotifiedProducts.current.has(productId)) {
+          console.log(`[Notifications] Sending low stock notification for ${product.name} (stock: ${currentStock}, min: ${minStock})`);
           await notificationService.notifyLowStock(
             product.name,
             currentStock,
