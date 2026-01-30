@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Bell, X, Trash2, CheckCheck } from "lucide-react";
+import { Bell, X, Trash2, CheckCheck, ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { notificationService } from "@/lib/notifications";
@@ -21,6 +22,7 @@ interface MobileHeaderProps {
 
 export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -35,6 +37,14 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
       return user.name.substring(0, 2).toUpperCase();
     }
     return "U";
+  };
+
+  // Get first name only
+  const getFirstName = () => {
+    if (user?.name) {
+      return user.name.split(" ")[0];
+    }
+    return "User";
   };
 
   // Load notifications and listen for updates
@@ -89,23 +99,27 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md border-0 flex items-center justify-between px-4 z-50 lg:hidden rounded-3xl m-2 shadow-sm">
+    <header className="fixed top-0 left-0 right-0 h-16 bg-blue-900 border-0 flex items-center justify-between px-4 z-50 lg:hidden shadow-sm">
       {/* Left side - Account Info */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <Avatar className="h-10 w-10 rounded-full border border-blue-600 flex-shrink-0">
-          <AvatarFallback className="bg-white text-blue-600 font-bold">
+        <Avatar className="h-10 w-10 rounded-full border border-blue-700 flex-shrink-0">
+          <AvatarFallback className="bg-blue-700 text-white font-bold">
             {getUserInitials()}
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <span className="text-sm text-gray-600">Hi,</span>
-            <span className="text-sm font-semibold text-gray-900 truncate">
-              {user?.name || "User"}
+            <span className="text-sm text-blue-200">Hi,</span>
+            <span className="text-sm font-semibold text-white truncate">
+              {getFirstName()}
             </span>
+            <ChevronDown 
+              className="h-4 w-4 text-white flex-shrink-0 cursor-pointer hover:text-blue-200" 
+              onClick={() => navigate("/settings")}
+            />
           </div>
           {user?.businessName && (
-            <span className="text-xs text-gray-500 truncate">
+            <span className="text-xs text-blue-200 truncate">
               {user.businessName}
             </span>
           )}
@@ -119,8 +133,8 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
           className={cn(
             "relative p-2 rounded-full transition-colors",
             notificationService.isAllowed()
-              ? "text-gray-700 hover:bg-gray-100"
-              : "text-gray-400"
+              ? "text-white hover:bg-blue-800"
+              : "text-blue-300"
           )}
         >
           <Bell size={22} />

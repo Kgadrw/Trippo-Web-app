@@ -51,6 +51,17 @@ interface Product {
   minStock?: number;
 }
 
+interface Sale {
+  id?: number;
+  _id?: string;
+  product: string;
+  quantity: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  date: string;
+}
+
 type SortOption = "newest" | "oldest" | "name-asc" | "name-desc" | "price-asc" | "price-desc" | "stock-asc" | "stock-desc";
 
 interface ProductFormData {
@@ -87,6 +98,17 @@ const Products = () => {
       });
     },
   });
+  const {
+    items: sales,
+    isLoading: salesLoading,
+  } = useApi<Sale>({
+    endpoint: "sales",
+    defaultValue: [],
+    onError: (error) => {
+      // Silently handle errors for offline mode
+      console.log("Error loading sales:", error);
+    },
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -95,6 +117,7 @@ const Products = () => {
   const [stockStatusFilter, setStockStatusFilter] = useState<string>("all");
   const [productTypeFilter, setProductTypeFilter] = useState<string>("all");
   const [packageFilter, setPackageFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductFormData>({
@@ -108,6 +131,27 @@ const Products = () => {
     productType: "",
     minStock: "",
   });
+
+  // Calculate today's items and current stock
+  const getTodayDate = () => new Date().toISOString().split("T")[0];
+  
+  const todayStats = useMemo(() => {
+    const today = getTodayDate();
+    const todaySales = sales.filter((sale) => {
+      const saleDate = typeof sale.date === 'string' 
+        ? sale.date.split('T')[0] 
+        : new Date(sale.date).toISOString().split('T')[0];
+      return saleDate === today;
+    });
+    
+    const totalItems = todaySales.reduce((sum, sale) => sum + sale.quantity, 0);
+    return { totalItems };
+  }, [sales]);
+  
+  const stockStats = useMemo(() => {
+    const totalItems = products.reduce((sum, product) => sum + product.stock, 0);
+    return { totalItems };
+  }, [products]);
 
   // Refresh products when sales are made (listen for custom event)
   useEffect(() => {
@@ -466,251 +510,319 @@ const Products = () => {
     <AppLayout title="Products">
       <div className="flex flex-col lg:h-[calc(100vh-3rem)]">
       <div className="lg:bg-white flex-1 flex flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
-          {/* Filter Section */}
-          <div className="lg:bg-white lg:border-b lg:border-gray-200 lg:px-4 lg:py-4 flex-shrink-0">
-            {/* Mobile Filter Card */}
-            <div className="lg:hidden rounded-lg p-4 mb-4 space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Filter size={18} className="text-white" />
-                <h3 className="text-sm font-semibold text-white">{t("filter")} {t("products")}</h3>
+          {/* Summary Section - Today's Items and Current Stock */}
+          <div className="lg:bg-white lg:border-b lg:border-gray-200 lg:px-4 lg:py-3 flex-shrink-0 hidden lg:flex">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-6">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">{t("todaysItems")}</p>
+                  <p className="text-lg font-bold text-orange-600">
+                    {todayStats.totalItems} {t("language") === "rw" ? "ibintu" : "items"}
+                  </p>
+                </div>
+                <div className="h-8 w-px bg-gray-300"></div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">{t("currentStock") || "Current Stock"}</p>
+                  <p className="text-lg font-bold text-purple-600">
+                    {stockStats.totalItems} {t("language") === "rw" ? "ibicuruzwa" : "items"}
+                  </p>
+                </div>
               </div>
-              {/* Buttons on same line for mobile */}
+              {/* Add Product Buttons - Desktop */}
               <div className="flex flex-row gap-2">
-                <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold px-3 py-2 gap-2 flex-1">
+                <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold px-4 py-2 gap-2">
+                  <Plus size={18} />
+                  <span>{t("addProduct")}</span>
+                </Button>
+                <Button onClick={openBulkAddModal} className="bg-green-600 text-white hover:bg-green-700 border border-transparent font-medium px-4 py-2 gap-2">
+                  <Plus size={18} />
+                  <span>{t("bulkAddProducts")}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile Summary Section */}
+          <div className="lg:hidden p-4 pb-2">
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 mb-1">{t("todaysItems")}</p>
+                  <p className="text-base font-bold text-orange-600">
+                    {todayStats.totalItems} {t("language") === "rw" ? "ibintu" : "items"}
+                  </p>
+                </div>
+                <div className="h-8 w-px bg-gray-300 mx-3"></div>
+                <div className="flex-1 text-right">
+                  <p className="text-xs text-gray-500 mb-1">{t("currentStock") || "Current Stock"}</p>
+                  <p className="text-base font-bold text-purple-600">
+                    {stockStats.totalItems} {t("language") === "rw" ? "ibicuruzwa" : "items"}
+                  </p>
+                </div>
+              </div>
+              {/* Add Product Buttons - Mobile */}
+              <div className="flex flex-row gap-2 justify-end">
+                <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold px-3 py-2 gap-2">
                   <Plus size={18} />
                   <span>{t("add")}</span>
                 </Button>
-                <Button onClick={openBulkAddModal} className="bg-green-600 text-white hover:bg-green-700 border border-transparent font-medium px-3 py-2 gap-2 flex-1">
+                <Button onClick={openBulkAddModal} className="bg-green-600 text-white hover:bg-green-700 border border-transparent font-medium px-3 py-2 gap-2">
                   <Plus size={18} />
                   <span>{t("bulkAdd")}</span>
                 </Button>
               </div>
-              {/* Filters - Two per line */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* Search Input */}
-                <div className="relative col-span-2">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-                <Input
-                  placeholder={t("search") + " " + t("products").toLowerCase() + "..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
-                />
-              </div>
-                
-                {/* Category Filter */}
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                    <SelectValue placeholder={t("allCategories")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("allCategories")}</SelectItem>
-                    {uniqueCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {/* Stock Status Filter */}
-                <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
-                  <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                    <SelectValue placeholder={t("status")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("allStatus")}</SelectItem>
-                    <SelectItem value="in-stock">{t("inStock")}</SelectItem>
-                    <SelectItem value="low-stock">{t("lowStock")}</SelectItem>
-                    {/* Out of stock products are shown in Low Stock Alert, not in product list */}
-                  </SelectContent>
-                </Select>
-                
-                {/* Product Type Filter */}
-                {uniqueProductTypes.length > 0 && (
-                  <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      {uniqueProductTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                
-                {/* Package Filter */}
-                <Select value={packageFilter} onValueChange={setPackageFilter}>
-                  <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                    <SelectValue placeholder="Package" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("allProducts")}</SelectItem>
-                    <SelectItem value="package">Packaged</SelectItem>
-                    <SelectItem value="non-package">Non-Packaged</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {/* Sort By */}
-                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                  <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                    <div className="flex items-center gap-2">
-                      <ArrowUpDown size={14} className="text-gray-400" />
-                      <SelectValue placeholder={t("sortBy")} />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">{t("newest")}</SelectItem>
-                    <SelectItem value="oldest">{t("oldest")}</SelectItem>
-                    <SelectItem value="name-asc">{t("nameAsc")}</SelectItem>
-                    <SelectItem value="name-desc">{t("nameDesc")}</SelectItem>
-                    <SelectItem value="price-asc">{t("priceAsc")}</SelectItem>
-                    <SelectItem value="price-desc">{t("priceDesc")}</SelectItem>
-                    <SelectItem value="stock-asc">{t("stock")} ({t("language") === "rw" ? "Guke-Gukomeye" : "Low to High"})</SelectItem>
-                    <SelectItem value="stock-desc">{t("stock")} ({t("language") === "rw" ? "Gukomeye-Guke" : "High to Low"})</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {/* Clear Filters */}
-                <Button
-                  onClick={handleClearFilters}
-                  variant="outline"
-                  className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg w-full"
-                >
-                  <X size={14} className="mr-2" />
-                  {t("cancel")}
-              </Button>
-              </div>
-              <div className="text-xs text-white">
-                {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredProducts.length} {t("language") === "rw" ? "bya" : "of"} {products.length} {t("products").toLowerCase()}
             </div>
+          </div>
+          
+          {/* Filter Section */}
+          <div className="lg:bg-white lg:border-b lg:border-gray-200 lg:px-4 lg:py-4 flex-shrink-0">
+            {/* Mobile Filter Section */}
+            <div className="lg:hidden mb-4 space-y-3">
+              {/* Search Bar with Filter Icon */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                  <Input
+                    placeholder={t("search") + " " + t("products").toLowerCase() + "..."}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+                  />
+                </div>
+                <Button
+                  onClick={() => setShowFilters(!showFilters)}
+                  variant="outline"
+                  className={cn(
+                    "bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-3 py-2",
+                    showFilters && "bg-blue-50 border-blue-300 text-blue-700"
+                  )}
+                >
+                  <Filter size={18} />
+                </Button>
+              </div>
+              
+              {/* Filter Options - Collapsible */}
+              {showFilters && (
+                <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Category Filter */}
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                        <SelectValue placeholder={t("allCategories")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allCategories")}</SelectItem>
+                        {uniqueCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Stock Status Filter */}
+                    <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
+                      <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                        <SelectValue placeholder={t("status")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allStatus")}</SelectItem>
+                        <SelectItem value="in-stock">{t("inStock")}</SelectItem>
+                        <SelectItem value="low-stock">{t("lowStock")}</SelectItem>
+                        {/* Out of stock products are shown in Low Stock Alert, not in product list */}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Product Type Filter */}
+                    {uniqueProductTypes.length > 0 && (
+                      <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
+                        <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          {uniqueProductTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    
+                    {/* Package Filter */}
+                    <Select value={packageFilter} onValueChange={setPackageFilter}>
+                      <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                        <SelectValue placeholder="Package" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allProducts")}</SelectItem>
+                        <SelectItem value="package">Packaged</SelectItem>
+                        <SelectItem value="non-package">Non-Packaged</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Sort By */}
+                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                      <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                        <div className="flex items-center gap-2">
+                          <ArrowUpDown size={14} className="text-gray-400" />
+                          <SelectValue placeholder={t("sortBy")} />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest">{t("newest")}</SelectItem>
+                        <SelectItem value="oldest">{t("oldest")}</SelectItem>
+                        <SelectItem value="name-asc">{t("nameAsc")}</SelectItem>
+                        <SelectItem value="name-desc">{t("nameDesc")}</SelectItem>
+                        <SelectItem value="price-asc">{t("priceAsc")}</SelectItem>
+                        <SelectItem value="price-desc">{t("priceDesc")}</SelectItem>
+                        <SelectItem value="stock-asc">{t("stock")} ({t("language") === "rw" ? "Guke-Gukomeye" : "Low to High"})</SelectItem>
+                        <SelectItem value="stock-desc">{t("stock")} ({t("language") === "rw" ? "Gukomeye-Guke" : "High to Low"})</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Clear Filters */}
+                    <Button
+                      onClick={handleClearFilters}
+                      variant="outline"
+                      className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg w-full"
+                    >
+                      <X size={14} className="mr-2" />
+                      {t("cancel")}
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredProducts.length} {t("language") === "rw" ? "bya" : "of"} {products.length} {t("products").toLowerCase()}
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Desktop Filter Section */}
             <div className="hidden lg:flex flex-col gap-4">
-              <div className="flex flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Filter size={18} className="text-white" />
-                  <h3 className="text-sm font-semibold text-white">{t("filter")} {t("products")}</h3>
-                </div>
-                <div className="flex flex-row gap-2">
-                  <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 font-semibold px-4 py-2 gap-2">
-                    <Plus size={18} />
-                    <span>{t("addProduct")}</span>
-                  </Button>
-                  <Button onClick={openBulkAddModal} className="bg-green-600 text-white hover:bg-green-700 border border-transparent font-medium px-4 py-2 gap-2">
-                    <Plus size={18} />
-                    <span>{t("bulkAddProducts")}</span>
-                  </Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 xl:grid-cols-7 gap-3">
-                {/* Search Input */}
-                <div className="relative">
+              {/* Search Bar with Filter Icon */}
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-                <Input
-                  placeholder={t("search") + " " + t("products").toLowerCase() + "..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
-                />
-              </div>
-                
-                {/* Category Filter */}
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                    <SelectValue placeholder={t("allCategories")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("allCategories")}</SelectItem>
-                    {uniqueCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {/* Stock Status Filter */}
-                <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                    <SelectValue placeholder={t("status")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("allStatus")}</SelectItem>
-                    <SelectItem value="in-stock">{t("inStock")}</SelectItem>
-                    <SelectItem value="low-stock">{t("lowStock")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {/* Product Type Filter */}
-                {uniqueProductTypes.length > 0 && (
-                  <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
-                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                      <SelectValue placeholder="Product Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      {uniqueProductTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                
-                {/* Package Filter */}
-                <Select value={packageFilter} onValueChange={setPackageFilter}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                    <SelectValue placeholder="Package Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("allProducts")}</SelectItem>
-                    <SelectItem value="package">Packaged Only</SelectItem>
-                    <SelectItem value="non-package">Non-Packaged Only</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {/* Sort By */}
-                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                  <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <ArrowUpDown size={14} className="text-gray-400" />
-                      <SelectValue placeholder={t("sortBy")} />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">{t("newest")}</SelectItem>
-                    <SelectItem value="oldest">{t("oldest")}</SelectItem>
-                    <SelectItem value="name-asc">{t("nameAsc")}</SelectItem>
-                    <SelectItem value="name-desc">{t("nameDesc")}</SelectItem>
-                    <SelectItem value="price-asc">{t("priceAsc")}</SelectItem>
-                    <SelectItem value="price-desc">{t("priceDesc")}</SelectItem>
-                    <SelectItem value="stock-asc">{t("stock")} ({t("language") === "rw" ? "Guke-Gukomeye" : "Low to High"})</SelectItem>
-                    <SelectItem value="stock-desc">{t("stock")} ({t("language") === "rw" ? "Gukomeye-Guke" : "High to Low"})</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {/* Clear Filters */}
+                  <Input
+                    placeholder={t("search") + " " + t("products").toLowerCase() + "..."}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+                  />
+                </div>
                 <Button
-                  onClick={handleClearFilters}
+                  onClick={() => setShowFilters(!showFilters)}
                   variant="outline"
-                  className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className={cn(
+                    "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-4 py-2",
+                    showFilters && "bg-blue-50 border-blue-300 text-blue-700"
+                  )}
                 >
-                  <X size={14} className="mr-2" />
-                  {t("cancel")}
-              </Button>
+                  <Filter size={18} className="mr-2" />
+                  {t("filter")}
+                </Button>
               </div>
-              <div className="text-xs text-white">
-                {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredProducts.length} {t("language") === "rw" ? "bya" : "of"} {products.length} {t("products").toLowerCase()}
+              
+              {/* Filter Options - Collapsible */}
+              {showFilters && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-4 xl:grid-cols-7 gap-3">
+                    {/* Category Filter */}
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                        <SelectValue placeholder={t("allCategories")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allCategories")}</SelectItem>
+                        {uniqueCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Stock Status Filter */}
+                    <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
+                      <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                        <SelectValue placeholder={t("status")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allStatus")}</SelectItem>
+                        <SelectItem value="in-stock">{t("inStock")}</SelectItem>
+                        <SelectItem value="low-stock">{t("lowStock")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Product Type Filter */}
+                    {uniqueProductTypes.length > 0 && (
+                      <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
+                        <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                          <SelectValue placeholder="Product Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          {uniqueProductTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    
+                    {/* Package Filter */}
+                    <Select value={packageFilter} onValueChange={setPackageFilter}>
+                      <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                        <SelectValue placeholder="Package Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allProducts")}</SelectItem>
+                        <SelectItem value="package">Packaged Only</SelectItem>
+                        <SelectItem value="non-package">Non-Packaged Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Sort By */}
+                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                      <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <ArrowUpDown size={14} className="text-gray-400" />
+                          <SelectValue placeholder={t("sortBy")} />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest">{t("newest")}</SelectItem>
+                        <SelectItem value="oldest">{t("oldest")}</SelectItem>
+                        <SelectItem value="name-asc">{t("nameAsc")}</SelectItem>
+                        <SelectItem value="name-desc">{t("nameDesc")}</SelectItem>
+                        <SelectItem value="price-asc">{t("priceAsc")}</SelectItem>
+                        <SelectItem value="price-desc">{t("priceDesc")}</SelectItem>
+                        <SelectItem value="stock-asc">{t("stock")} ({t("language") === "rw" ? "Guke-Gukomeye" : "Low to High"})</SelectItem>
+                        <SelectItem value="stock-desc">{t("stock")} ({t("language") === "rw" ? "Gukomeye-Guke" : "High to Low"})</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Clear Filters */}
+                    <Button
+                      onClick={handleClearFilters}
+                      variant="outline"
+                      className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                    >
+                      <X size={14} className="mr-2" />
+                      {t("cancel")}
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredProducts.length} {t("language") === "rw" ? "bya" : "of"} {products.length} {t("products").toLowerCase()}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
+          
         {/* Desktop Table - Sticky Header with Scrollable Body */}
         <div className="hidden lg:block overflow-auto flex-1">
             <div className="overflow-hidden">
@@ -957,8 +1069,8 @@ const Products = () => {
                 No products found
               </div>
             )}
+          </div>
         </div>
-      </div>
       </div>
 
       {/* Edit Modal - Only for editing existing products */}

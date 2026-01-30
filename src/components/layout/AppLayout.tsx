@@ -266,32 +266,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
 
   return (
     <div 
-      className="min-h-screen bg-background lg:bg-background relative"
+      className="min-h-screen bg-white lg:bg-background relative"
     >
-      {/* Fixed background image - always stays in place */}
-      {isMobile && (
-        <>
-          <div 
-            className="fixed inset-0 z-0 pointer-events-none transition-opacity duration-1000 ease-in-out"
-            style={{
-              backgroundImage: `url('${backgroundImages[currentBgIndex]}')`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              willChange: "transform",
-              opacity: isAnimating ? 0 : 1,
-            }}
-          />
-          {/* Gradient overlay for background image */}
-          <div 
-            className="fixed inset-0 z-0 pointer-events-none transition-opacity duration-1000 ease-in-out"
-            style={{
-              background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6))",
-              opacity: isAnimating ? 0 : 1,
-            }}
-          />
-        </>
-      )}
+      {/* Background image removed for mobile - using white background instead */}
       {/* Mobile Header - Only visible on mobile */}
       <div className="lg:hidden">
         <MobileHeader />

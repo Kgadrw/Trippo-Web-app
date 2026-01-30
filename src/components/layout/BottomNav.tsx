@@ -5,7 +5,6 @@ import {
   Package,
   ShoppingCart,
   FileText,
-  Settings,
   Calendar,
   Plus,
 } from "lucide-react";
@@ -27,7 +26,6 @@ const getMenuItems = (t: (key: string) => string) => {
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
     { icon: Calendar, label: "Schedules", path: "/schedules", showNew: showNewBanner },
     { icon: FileText, label: t("reports"), path: "/reports" },
-    { icon: Settings, label: t("settings"), path: "/settings" },
   ];
 };
 

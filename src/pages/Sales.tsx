@@ -333,6 +333,7 @@ const Sales = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "product-asc" | "product-desc" | "revenue-desc" | "revenue-asc" | "profit-desc" | "profit-asc">("date-desc");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   
   // Selection and deletion states
   const [selectedSales, setSelectedSales] = useState<Set<string>>(new Set());
@@ -1186,229 +1187,255 @@ const Sales = () => {
       <div className="lg:bg-white lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
         {/* Filter Section */}
         <div className="lg:bg-white lg:border-b lg:border-gray-200 lg:px-4 lg:py-4 flex-shrink-0">
-          {/* Mobile Filter Card */}
-          <div className="lg:hidden rounded-lg p-4 mb-4 space-y-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Filter size={18} className="text-white" />
-                <h3 className="text-sm font-semibold text-white">{t("filterSales")}</h3>
-              </div>
-              {selectedSales.size > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg">
-                  <span className="text-xs font-semibold text-gray-700">
-                    {selectedSales.size} {selectedSales.size === 1 ? 'sale' : 'sales'} selected
-                  </span>
-                </div>
-              )}
-            </div>
-            {/* Filters - Two per line */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* Search Input */}
-              <div className="relative col-span-2">
+          {/* Mobile Filter Section */}
+          <div className="lg:hidden mb-4 space-y-3">
+            {/* Search Bar with Filter Icon */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
                   placeholder={t("search") + " " + (t("language") === "rw" ? "ku bicuruzwa" : "by product...")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+                  className="pl-9 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
                   autoComplete="off"
                   name="search-products"
                 />
               </div>
-              
-              {/* Start Date */}
-              <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
-                  style={{
-                    WebkitAppearance: 'none',
-                    appearance: 'none',
-                    colorScheme: 'light'
-                  }}
-                />
-              </div>
-              
-              {/* End Date */}
-              <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
-                  style={{
-                    WebkitAppearance: 'none',
-                    appearance: 'none',
-                    colorScheme: 'light'
-                  }}
-                />
-              </div>
-              
-              {/* Sort By */}
-              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                  <div className="flex items-center gap-2">
-                    <ArrowUpDown size={14} className="text-gray-400" />
-                    <SelectValue placeholder={t("sortBy")} />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date-desc">Date (Newest First)</SelectItem>
-                  <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
-                  <SelectItem value="product-asc">Product (A-Z)</SelectItem>
-                  <SelectItem value="product-desc">Product (Z-A)</SelectItem>
-                  <SelectItem value="revenue-desc">Revenue (High to Low)</SelectItem>
-                  <SelectItem value="revenue-asc">Revenue (Low to High)</SelectItem>
-                  <SelectItem value="profit-desc">Profit (High to Low)</SelectItem>
-                  <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {/* Clear Filters */}
               <Button
-                onClick={handleClearFilters}
+                onClick={() => setShowFilters(!showFilters)}
                 variant="outline"
-                className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-500 hover:text-white rounded-lg w-full"
+                className={cn(
+                  "bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-3 py-2",
+                  showFilters && "bg-blue-50 border-blue-300 text-blue-700"
+                )}
               >
-                <X size={14} className="mr-2" />
-                {t("cancel")}
+                <Filter size={18} />
               </Button>
-              
-              {/* Delete Selected Sales */}
-              {selectedSales.size > 0 && (
-                <Button
-                  onClick={handleDeleteSelected}
-                  className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2 font-semibold flex items-center gap-2 w-full col-span-2"
-                >
+            </div>
+            
+            {/* Selected Sales Indicator */}
+            {selectedSales.size > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg">
+                <span className="text-xs font-semibold text-gray-700">
+                  {selectedSales.size} {selectedSales.size === 1 ? 'sale' : 'sales'} selected
+                </span>
+              </div>
+            )}
+            
+            {/* Filter Options - Collapsible */}
+            {showFilters && (
+              <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Start Date */}
                   <div className="relative">
-                    <Trash2 size={16} />
-                    <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                      {selectedSales.size}
-                    </span>
+                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
+                      style={{
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        colorScheme: 'light'
+                      }}
+                    />
                   </div>
-                  <span>{t("delete")} Selected</span>
-                </Button>
-              )}
-            </div>
-            <div className="text-xs text-white">
-              {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredSales.length} {t("language") === "rw" ? "bya" : "of"} {sales.length} {t("sales").toLowerCase()}
-            </div>
+                  
+                  {/* End Date */}
+                  <div className="relative">
+                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
+                      style={{
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        colorScheme: 'light'
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Sort By */}
+                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                      <div className="flex items-center gap-2">
+                        <ArrowUpDown size={14} className="text-gray-400" />
+                        <SelectValue placeholder={t("sortBy")} />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                      <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                      <SelectItem value="product-asc">Product (A-Z)</SelectItem>
+                      <SelectItem value="product-desc">Product (Z-A)</SelectItem>
+                      <SelectItem value="revenue-desc">Revenue (High to Low)</SelectItem>
+                      <SelectItem value="revenue-asc">Revenue (Low to High)</SelectItem>
+                      <SelectItem value="profit-desc">Profit (High to Low)</SelectItem>
+                      <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
+                    </SelectContent>
+                  </Select>
+              
+                  {/* Clear Filters */}
+                  <Button
+                    onClick={handleClearFilters}
+                    variant="outline"
+                    className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg w-full"
+                  >
+                    <X size={14} className="mr-2" />
+                    {t("cancel")}
+                  </Button>
+                  
+                  {/* Delete Selected Sales */}
+                  {selectedSales.size > 0 && (
+                    <Button
+                      onClick={handleDeleteSelected}
+                      className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2 font-semibold flex items-center gap-2 w-full col-span-2"
+                    >
+                      <div className="relative">
+                        <Trash2 size={16} />
+                        <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {selectedSales.size}
+                        </span>
+                      </div>
+                      <span>{t("delete")} Selected</span>
+                    </Button>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredSales.length} {t("language") === "rw" ? "bya" : "of"} {sales.length} {t("sales").toLowerCase()}
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Desktop Filter Section */}
           <div className="hidden lg:flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Filter size={18} className="text-white" />
-                <h3 className="text-sm font-semibold text-white">{t("filterSales")}</h3>
-              </div>
-              {selectedSales.size > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg">
-                  <span className="text-xs font-semibold text-gray-700">
-                    {selectedSales.size} {selectedSales.size === 1 ? 'sale' : 'sales'} selected
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-5 gap-3">
-              {/* Search Input */}
-              <div className="relative">
+            {/* Search Bar with Filter Icon */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
                   placeholder={t("search") + " " + (t("language") === "rw" ? "ku bicuruzwa" : "by product...")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
+                  className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
                   autoComplete="off"
                   name="search-products"
                 />
               </div>
-              
-              {/* Start Date */}
-              <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
-                  style={{
-                    WebkitAppearance: 'none',
-                    appearance: 'none',
-                    colorScheme: 'light'
-                  }}
-                />
-              </div>
-              
-              {/* End Date */}
-              <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
-                  style={{
-                    WebkitAppearance: 'none',
-                    appearance: 'none',
-                    colorScheme: 'light'
-                  }}
-                />
-              </div>
-              
-              {/* Sort By */}
-              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <ArrowUpDown size={14} className="text-gray-400" />
-                    <SelectValue placeholder={t("sortBy")} />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date-desc">Date (Newest First)</SelectItem>
-                  <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
-                  <SelectItem value="product-asc">Product (A-Z)</SelectItem>
-                  <SelectItem value="product-desc">Product (Z-A)</SelectItem>
-                  <SelectItem value="revenue-desc">Revenue (High to Low)</SelectItem>
-                  <SelectItem value="revenue-asc">Revenue (Low to High)</SelectItem>
-                  <SelectItem value="profit-desc">Profit (High to Low)</SelectItem>
-                  <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {/* Clear Filters */}
               <Button
-                onClick={handleClearFilters}
+                onClick={() => setShowFilters(!showFilters)}
                 variant="outline"
-                className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-500 hover:text-white rounded-lg"
+                className={cn(
+                  "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-4 py-2",
+                  showFilters && "bg-blue-50 border-blue-300 text-blue-700"
+                )}
               >
-                <X size={14} className="mr-2" />
-                {t("cancel")}
+                <Filter size={18} className="mr-2" />
+                {t("filter")}
               </Button>
-              
-              {/* Delete Selected Sales */}
-              {selectedSales.size > 0 && (
-                <Button
-                  onClick={handleDeleteSelected}
-                  className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2 font-semibold flex items-center gap-2"
-                >
+            </div>
+            
+            {/* Selected Sales Indicator */}
+            {selectedSales.size > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg">
+                <span className="text-xs font-semibold text-gray-700">
+                  {selectedSales.size} {selectedSales.size === 1 ? 'sale' : 'sales'} selected
+                </span>
+              </div>
+            )}
+            
+            {/* Filter Options - Collapsible */}
+            {showFilters && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-5 gap-3">
+                  {/* Start Date */}
                   <div className="relative">
-                    <Trash2 size={16} />
-                    <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                      {selectedSales.size}
-                    </span>
+                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
+                      style={{
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        colorScheme: 'light'
+                      }}
+                    />
                   </div>
-                  <span>{t("delete")} Selected</span>
-                </Button>
-              )}
-            </div>
-            <div className="text-xs text-white">
-              {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredSales.length} {t("language") === "rw" ? "bya" : "of"} {sales.length} {t("sales").toLowerCase()}
-            </div>
+                  
+                  {/* End Date */}
+                  <div className="relative">
+                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
+                      style={{
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        colorScheme: 'light'
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Sort By */}
+                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <ArrowUpDown size={14} className="text-gray-400" />
+                        <SelectValue placeholder={t("sortBy")} />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                      <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                      <SelectItem value="product-asc">Product (A-Z)</SelectItem>
+                      <SelectItem value="product-desc">Product (Z-A)</SelectItem>
+                      <SelectItem value="revenue-desc">Revenue (High to Low)</SelectItem>
+                      <SelectItem value="revenue-asc">Revenue (Low to High)</SelectItem>
+                      <SelectItem value="profit-desc">Profit (High to Low)</SelectItem>
+                      <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
+                    </SelectContent>
+                  </Select>
+              
+                  {/* Clear Filters */}
+                  <Button
+                    onClick={handleClearFilters}
+                    variant="outline"
+                    className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                  >
+                    <X size={14} className="mr-2" />
+                    {t("cancel")}
+                  </Button>
+                  
+                  {/* Delete Selected Sales */}
+                  {selectedSales.size > 0 && (
+                    <Button
+                      onClick={handleDeleteSelected}
+                      className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2 font-semibold flex items-center gap-2"
+                    >
+                      <div className="relative">
+                        <Trash2 size={16} />
+                        <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {selectedSales.size}
+                        </span>
+                      </div>
+                      <span>{t("delete")} Selected</span>
+                    </Button>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredSales.length} {t("language") === "rw" ? "bya" : "of"} {sales.length} {t("sales").toLowerCase()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         

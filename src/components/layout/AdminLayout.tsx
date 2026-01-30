@@ -267,15 +267,7 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
 
   return (
     <div 
-      className="min-h-screen bg-background lg:bg-background transition-opacity duration-1000 ease-in-out"
-      style={{
-        backgroundImage: isMobile ? `url('${backgroundImages[currentBgIndex]}')` : undefined,
-        backgroundSize: isMobile ? "cover" : undefined,
-        backgroundPosition: isMobile ? "center" : undefined,
-        backgroundRepeat: isMobile ? "no-repeat" : undefined,
-        backgroundAttachment: isMobile ? "fixed" : undefined,
-        opacity: isMobile && isAnimating ? 0 : 1,
-      }}
+      className="min-h-screen bg-white lg:bg-background"
     >
       {/* Sidebar - Hidden on mobile, visible on desktop */}
       <div className="hidden lg:block">

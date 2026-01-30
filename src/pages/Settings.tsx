@@ -11,6 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Building2, 
   Lock, 
@@ -22,7 +29,8 @@ import {
   Trash2,
   AlertTriangle,
   LogOut,
-  Bell
+  Bell,
+  ArrowLeft
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -425,9 +433,30 @@ const Settings = () => {
     }
   };
 
-  return (
-    <AppLayout title="Settings">
-      <div className="max-w-7xl mx-auto space-y-4">
+  const [sheetOpen, setSheetOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close sheet and navigate back
+  const handleBack = () => {
+    setSheetOpen(false);
+    setTimeout(() => {
+      navigate(-1);
+    }, 300);
+  };
+
+  const settingsContent = (
+    <>
+    <div className="max-w-7xl mx-auto space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Left Sidebar - Navigation */}
           <div className="lg:col-span-1">
@@ -648,23 +677,23 @@ const Settings = () => {
             {/* Security */}
             {activeSection === "security" && (
               <div className="form-card border border-transparent lg:bg-white bg-white/80 backdrop-blur-sm animate-fade-in">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-blue-100 border border-blue-200 flex items-center justify-center">
-                    <Shield size={16} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-blue-700">{t("security")}</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Shiraho PIN kugirango wongere umutekano" : "Set PIN to keep your account secure"}</p>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-blue-100 border border-blue-200 flex items-center justify-center">
+                      <Shield size={16} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-blue-700">{t("security")}</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Shiraho PIN kugirango wongere umutekano" : "Set PIN to keep your account secure"}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
               
-              <Separator className="mb-4 bg-blue-200" />
+                <Separator className="mb-4 bg-blue-200" />
 
-              <div className="space-y-6">
+                <div className="space-y-6">
                 {/* PIN Settings */}
-              <div className="space-y-4">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -900,9 +929,9 @@ const Settings = () => {
                           </div>
                         )}
                       </div>
-                    </div>
                   </div>
                 </div>
+              </div>
               </div>
             )}
 
@@ -982,7 +1011,105 @@ const Settings = () => {
           </Button>
         </div>
       </div>
+    </>
+  );
 
+  // On mobile, show as Sheet sliding from right
+  if (isMobile) {
+    return (
+      <>
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent side="right" className="w-full sm:w-[500px] p-0">
+            <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleBack}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors -ml-2"
+                >
+                  <ArrowLeft className="h-5 w-5 text-gray-700" />
+                </button>
+                <SheetTitle className="text-xl font-bold">{t("settings")}</SheetTitle>
+              </div>
+            </SheetHeader>
+            <ScrollArea className="h-[calc(100vh-80px)]">
+              <div className="px-6 py-4">
+                {settingsContent}
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
+
+        {/* Delete Account Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle size={20} />
+                {language === "rw" ? "Kuraho Konti" : "Delete Account"}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>
+                  {language === "rw"
+                    ? "Urabyemera ko wifuza kuraho konti yawe? Iki gikorwa ntigisubirwamo."
+                    : "Are you sure you want to delete your account? This action cannot be undone."}
+                </p>
+                <p className="font-semibold text-red-600">
+                  {language === "rw"
+                    ? "Amakuru yose azakurwa gusa."
+                    : "All your data will be permanently deleted."}
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                {language === "rw" ? "Guhagarika" : "Cancel"}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeleting 
+                  ? (language === "rw" ? "Kuraho..." : "Deleting...") 
+                  : (language === "rw" ? "Yego, Kuraho" : "Yes, Delete Account")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Logout Confirmation Dialog */}
+        <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("logout")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {language === "rw" 
+                  ? "Urasabye gusohoka? Uzakenera kwinjira nanone kugirango wongere wongere ikibaho." 
+                  : "Are you sure you want to logout? You will need to login again to access your dashboard."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                {language === "rw" ? "Guhagarika" : "Cancel"}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleLogoutConfirm}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {t("logout")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
+  // On desktop, show as regular page
+  return (
+    <AppLayout title="Settings">
+      {settingsContent}
+      
       {/* Delete Account Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1045,32 +1172,6 @@ const Settings = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Logout Confirmation Dialog */}
-      <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("logout")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {language === "rw" 
-                ? "Urasabye gusohoka? Uzakenera kwinjira nanone kugirango wongere wongere ikibaho." 
-                : "Are you sure you want to logout? You will need to login again to access your dashboard."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              {language === "rw" ? "Guhagarika" : "Cancel"}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleLogoutConfirm}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {t("logout")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
     </AppLayout>
   );
 };

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { ProductRankingPyramid } from "@/components/reports/ProductRankingPyramid";
+import { MarketAnalysis } from "@/components/dashboard/MarketAnalysis";
 import { DollarSign, TrendingUp, Package, Download, BarChart3, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { playInfoBeep, initAudio } from "@/lib/sound";
@@ -914,6 +915,22 @@ const Reports = () => {
               </div>
               <ProductRankingPyramid rankings={productRankings} />
             </div>
+          </div>
+
+          {/* AI Market Analysis */}
+          <div className="mt-6">
+            {productsLoading || salesLoading ? (
+              <div className="lg:bg-white/80 lg:backdrop-blur-md bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
+                <Skeleton className="h-6 w-48 mb-3" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+            ) : (
+              <MarketAnalysis 
+                sales={sales} 
+                products={products}
+                isLoading={productsLoading || salesLoading}
+              />
+            )}
           </div>
       </div>
     </AppLayout>

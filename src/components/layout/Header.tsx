@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { User, Menu, Mail, Building2, X } from "lucide-react";
+import { User, Menu, Mail, Building2, X, ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -21,6 +22,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
   
   // Check if user is admin
   const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
@@ -59,9 +61,17 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
     return "U";
   };
 
+  // Get first name only
+  const getFirstName = () => {
+    if (user?.name) {
+      return user.name.split(" ")[0];
+    }
+    return isAdmin ? "Admin" : "User";
+  };
+
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 h-16 bg-white border-b border-transparent shadow-sm flex items-center justify-between px-6 z-50 transition-all duration-300",
+      "fixed top-0 left-0 right-0 h-16 bg-blue-900 border-b border-blue-800 shadow-sm flex items-center justify-between px-6 z-50 transition-all duration-300",
       "lg:left-56",
       sidebarCollapsed && "lg:left-16"
     )}>
@@ -69,36 +79,45 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
         {showMenuButton && (
           <button
             onClick={onMenuClick}
-            className="p-2 hover:bg-gray-50 text-gray-700 transition-colors lg:hidden"
+            className="p-2 hover:bg-blue-800 text-white transition-colors lg:hidden"
           >
             <Menu size={20} />
           </button>
         )}
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{title}</h1>
-          <p className="text-sm text-gray-500">{today} • {time}</p>
+          <h1 className="text-xl font-bold text-white">{title}</h1>
+          <p className="text-sm text-blue-200">{today} • {time}</p>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => setProfileModalOpen(true)}
-          className="flex items-center gap-3 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
-        >
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-gray-800">
-              {isAdmin ? "Admin" : (user?.name || "User")}
-            </p>
-            <p className="text-xs text-gray-500">
-              {isAdmin ? "System Administrator" : (user?.businessName || user?.email || "My Trading Co.")}
-            </p>
-          </div>
-          <Avatar className="h-10 w-10 border border-transparent cursor-pointer">
-            <AvatarFallback className={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-gray-500 text-white font-bold"}>
-              {isAdmin ? "A" : getUserInitials()}
-            </AvatarFallback>
-          </Avatar>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setProfileModalOpen(true)}
+            className="flex items-center gap-3 hover:bg-blue-800 rounded-lg px-2 py-1 transition-colors"
+          >
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-white">
+                {getFirstName()}
+              </p>
+              <p className="text-xs text-blue-200">
+                {isAdmin ? "System Administrator" : (user?.businessName || user?.email || "My Trading Co.")}
+              </p>
+            </div>
+            <Avatar className="h-10 w-10 border border-blue-700 cursor-pointer">
+              <AvatarFallback className={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-blue-700 text-white font-bold"}>
+                {isAdmin ? "A" : getUserInitials()}
+              </AvatarFallback>
+            </Avatar>
+          </button>
+          <button
+            onClick={() => navigate("/settings")}
+            className="p-1.5 hover:bg-blue-800 rounded-lg transition-colors"
+            title="Settings"
+          >
+            <ChevronDown className="h-4 w-4 text-white" />
+          </button>
+        </div>
       </div>
 
       {/* Profile Modal */}

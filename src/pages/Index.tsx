@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
 import { LowStockAlert } from "@/components/dashboard/LowStockAlert";
-import { MarketAnalysis } from "@/components/dashboard/MarketAnalysis";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Calendar, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useOffline } from "@/hooks/useOffline";
+import { formatDateWithTime } from "@/lib/utils";
 
 interface Product {
   id?: number;
@@ -61,6 +62,8 @@ interface Sale {
   cost: number;
   profit: number;
   date: string;
+  timestamp?: string;
+  paymentMethod?: string;
 }
 
 interface BulkSaleFormData {
@@ -263,6 +266,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 const Dashboard = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const {
     items: products,
     isLoading: productsLoading,
@@ -320,6 +324,17 @@ const Dashboard = () => {
     
     return { totalStockValue, totalItems };
   }, [products]);
+
+  // Get recent sales (last 10, sorted by date descending)
+  const recentSales = useMemo(() => {
+    return [...sales]
+      .sort((a, b) => {
+        const dateA = new Date(a.timestamp || a.date).getTime();
+        const dateB = new Date(b.timestamp || b.date).getTime();
+        return dateB - dateA; // Most recent first
+      })
+      .slice(0, 10);
+  }, [sales]);
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -795,93 +810,63 @@ const Dashboard = () => {
 
   return (
     <AppLayout title="Dashboard">
-      {/* Mobile: 2 cards per row with background image and white text */}
-      <div className="lg:hidden grid grid-cols-2 gap-4 mb-6">
+      {/* Mobile: Single card showing today's profit with revenue */}
+      <div className="lg:hidden mb-6">
         {isLoading ? (
-          <>
-            <KPICardSkeleton />
-            <KPICardSkeleton />
-            <KPICardSkeleton />
-            <KPICardSkeleton />
-          </>
+          <KPICardSkeleton />
         ) : (
-          <>
-            <KPICard
-              title={t("todaysItems")}
-              value={todayStats.totalItems.toString()}
-              subtitle={t("language") === "rw" ? "ibintu byagurishwe" : "items sold"}
-              icon={ShoppingCart}
-              bgColor="bg-white/80 backdrop-blur-sm"
-              valueColor="text-orange-600"
-            />
-            <KPICard
-              title={t("todaysRevenue")}
-              value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
-              icon={DollarSign}
-              bgColor="bg-white/80 backdrop-blur-sm"
-              valueColor="text-blue-600"
-            />
-            <KPICard
-              title={t("todaysProfit")}
-              value={`${todayStats.totalProfit.toLocaleString()} rwf`}
-              icon={TrendingUp}
-              bgColor="bg-white/80 backdrop-blur-sm"
-              valueColor="text-green-600"
-            />
-            <KPICard
-              title={t("currentStockValue")}
-              value={`${stockStats.totalStockValue.toLocaleString()} rwf`}
-              subtitle={`${stockStats.totalItems} ${t("items")}`}
-              icon={Package}
-              bgColor="bg-white/80 backdrop-blur-sm"
-              valueColor="text-purple-600"
-            />
-          </>
+          <div className="bg-blue-900 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-200">{t("todaysProfit")}</p>
+                <p className="text-2xl font-bold text-white">
+                  {todayStats.totalProfit.toLocaleString()} rwf
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-blue-200">{t("todaysRevenue")}</p>
+                <p className="text-sm font-medium text-white">
+                  {todayStats.totalRevenue.toLocaleString()} rwf
+                </p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Desktop: Individual KPI Cards */}
-      <div className="hidden lg:grid grid-cols-4 gap-4 mb-6">
+      {/* Desktop: KPI Cards */}
+      <div className="hidden lg:block mb-6">
         {isLoading ? (
-          <>
-            <KPICardSkeleton />
-            <KPICardSkeleton />
-            <KPICardSkeleton />
-            <KPICardSkeleton />
-          </>
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <KPICardSkeleton key={i} />
+            ))}
+          </div>
         ) : (
-          <>
+          <div className="grid grid-cols-4 gap-4">
             <KPICard
-              title={t("todaysItems")}
-              value={todayStats.totalItems.toString()}
+              title={t("language") === "rw" ? "Ibintu by'uyu munsi" : "Today's Items"}
+              value={`${todayStats.totalItems}`}
               subtitle={t("language") === "rw" ? "ibintu byagurishwe" : "items sold"}
               icon={ShoppingCart}
-              bgColor="bg-white/80 backdrop-blur-md"
-              valueColor="text-orange-600"
             />
             <KPICard
               title={t("todaysRevenue")}
               value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
               icon={DollarSign}
-              bgColor="bg-white/80 backdrop-blur-md"
-              valueColor="text-blue-600"
             />
             <KPICard
               title={t("todaysProfit")}
               value={`${todayStats.totalProfit.toLocaleString()} rwf`}
               icon={TrendingUp}
-              bgColor="bg-white/80 backdrop-blur-md"
-              valueColor="text-green-600"
             />
             <KPICard
-              title={t("currentStockValue")}
+              title={t("language") === "rw" ? "Agaciro k'ibicuruzwa" : "Current Stock Value"}
               value={`${stockStats.totalStockValue.toLocaleString()} rwf`}
-              subtitle={`${stockStats.totalItems} ${t("items")}`}
+              subtitle={`${stockStats.totalItems} ${t("language") === "rw" ? "ibicuruzwa" : "items"}`}
               icon={Package}
-              bgColor="bg-white/80 backdrop-blur-md"
-              valueColor="text-purple-600"
             />
-          </>
+          </div>
         )}
       </div>
 
@@ -1239,15 +1224,189 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Charts and Alerts */}
+      {/* Charts and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2">
+        {/* Sales Trend Chart - Desktop Only */}
+        <div className="hidden lg:block lg:col-span-2">
           {isLoading ? (
-            <ChartSkeleton />
+            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
+              <Skeleton className="h-6 w-48 mb-4" />
+              <Skeleton className="h-64 w-full" />
+            </div>
           ) : (
             <SalesTrendChart sales={sales} />
           )}
         </div>
+        
+        {/* Quick Actions - Desktop Only */}
+        <div className="hidden lg:block">
+          <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-gray-600" />
+              <h3 className="text-base font-semibold text-gray-900">
+                {t("language") === "rw" ? "Ibyemezo byihuse" : "Quick Actions"}
+              </h3>
+            </div>
+            <p className="text-xs text-gray-600 mb-4">
+              {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {/* Record Sale */}
+              <Button
+                onClick={handleRecordSale}
+                disabled={isRecordingSale}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart size={18} />
+                <span className="text-xs font-medium">
+                  {isRecordingSale ? t("recording") : t("recordSale")}
+                </span>
+              </Button>
+
+              {/* Add Product */}
+              <Button
+                onClick={() => navigate("/add-product")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Plus size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Ongeraho icuruzwa" : "Add Product"}
+                </span>
+              </Button>
+
+              {/* View Products */}
+              <Button
+                onClick={() => navigate("/products")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Package size={18} />
+                <span className="text-xs font-medium">
+                  {t("products")}
+                </span>
+              </Button>
+
+              {/* View Sales */}
+              <Button
+                onClick={() => navigate("/sales")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <ShoppingCart size={18} />
+                <span className="text-xs font-medium">
+                  {t("sales")}
+                </span>
+              </Button>
+
+              {/* View Reports */}
+              <Button
+                onClick={() => navigate("/reports")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <FileText size={18} />
+                <span className="text-xs font-medium">
+                  {t("reports")}
+                </span>
+              </Button>
+
+              {/* Schedules */}
+              <Button
+                onClick={() => navigate("/schedules")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Calendar size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Gahunda" : "Schedules"}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Quick Actions - Mobile Only */}
+        <div className="lg:hidden">
+          <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-gray-600" />
+              <h3 className="text-base font-semibold text-gray-900">
+                {t("language") === "rw" ? "Ibyemezo byihuse" : "Quick Actions"}
+              </h3>
+            </div>
+            <p className="text-xs text-gray-600 mb-4">
+              {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
+            </p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Record Sale */}
+              <Button
+                onClick={handleRecordSale}
+                disabled={isRecordingSale}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart size={18} />
+                <span className="text-xs font-medium">
+                  {isRecordingSale ? t("recording") : t("recordSale")}
+                </span>
+              </Button>
+
+              {/* Add Product */}
+              <Button
+                onClick={() => navigate("/add-product")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Plus size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Ongeraho icuruzwa" : "Add Product"}
+                </span>
+              </Button>
+
+              {/* View Products */}
+              <Button
+                onClick={() => navigate("/products")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Package size={18} />
+                <span className="text-xs font-medium">
+                  {t("products")}
+                </span>
+              </Button>
+
+              {/* View Sales */}
+              <Button
+                onClick={() => navigate("/sales")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <ShoppingCart size={18} />
+                <span className="text-xs font-medium">
+                  {t("sales")}
+                </span>
+              </Button>
+
+              {/* View Reports */}
+              <Button
+                onClick={() => navigate("/reports")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <FileText size={18} />
+                <span className="text-xs font-medium">
+                  {t("reports")}
+                </span>
+              </Button>
+
+              {/* Schedules */}
+              <Button
+                onClick={() => navigate("/schedules")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Calendar size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Gahunda" : "Schedules"}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Low Stock Alert - Desktop Only */}
         <div className="hidden lg:block">
           {isLoading ? (
             <LowStockSkeleton />
@@ -1257,21 +1416,120 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* AI Market Analysis */}
-      <div className="mt-6">
-        {isLoading || productsLoading || salesLoading ? (
-          <div className="lg:bg-white/80 lg:backdrop-blur-md bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
-            <Skeleton className="h-6 w-48 mb-3" />
-            <Skeleton className="h-32 w-full" />
+      {/* Recent Sales Table */}
+      <div className="mb-6">
+        <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("language") === "rw" ? "Ubucuruzi bwa vuba" : "Recent Sales"}
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              {t("language") === "rw" ? "Ubucuruzi bwa nyuma bw'ibihumbi 10" : "Last 10 sales"}
+            </p>
+          </div>
+          
+          {isLoading || salesLoading ? (
+            <div className="p-4">
+              <Skeleton className="h-12 w-full mb-2" />
+              <Skeleton className="h-12 w-full mb-2" />
+              <Skeleton className="h-12 w-full mb-2" />
+            </div>
+          ) : recentSales.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                      {t("product")}
+                    </th>
+                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                      {t("quantity")}
+                    </th>
+                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                      {t("revenue")}
+                    </th>
+                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4">
+                      {t("profit")}
+                    </th>
+                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4 hidden sm:table-cell">
+                      {t("paymentMethod")}
+                    </th>
+                    <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 px-4 hidden md:table-cell">
+                      {t("date")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {recentSales.map((sale, index) => (
+                    <tr 
+                      key={(sale as any)._id || sale.id || index}
+                      className={cn(
+                        "hover:bg-gray-50 transition-colors",
+                        index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                      )}
+                    >
+                      <td className="py-3 px-4">
+                        <div className="text-xs sm:text-sm text-gray-900 font-medium">
+                          {sale.product}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-xs sm:text-sm text-gray-700">
+                          {sale.quantity}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-xs sm:text-sm text-gray-700 font-medium">
+                          {sale.revenue.toLocaleString()} rwf
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className={cn(
+                          "text-xs sm:text-sm font-medium",
+                          sale.profit >= 0 ? "text-green-700" : "text-red-700"
+                        )}>
+                          {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 hidden sm:table-cell">
+                        <div className="text-xs sm:text-sm text-gray-700">
+                          {sale.paymentMethod === 'cash' && t("cash")}
+                          {sale.paymentMethod === 'card' && t("card")}
+                          {sale.paymentMethod === 'momo' && t("momoPay")}
+                          {sale.paymentMethod === 'airtel' && t("airtelPay")}
+                          {sale.paymentMethod === 'transfer' && t("bankTransfer")}
+                          {!sale.paymentMethod && t("cash")}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 hidden md:table-cell">
+                        <div className="text-xs sm:text-sm text-gray-600">
+                          {formatDateWithTime(sale.timestamp || sale.date)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
           </div>
         ) : (
-          <MarketAnalysis 
-            sales={sales} 
-            products={products}
-            isLoading={isLoading || productsLoading || salesLoading}
-          />
+            <div className="p-12 text-center">
+              <div className="flex flex-col items-center justify-center text-gray-400">
+                <ShoppingCart size={48} className="mb-4 opacity-50" />
+                <p className="text-base font-medium">
+                  {t("language") === "rw" ? "Nta bucuruzi bugezweho" : "No recent sales"}
+                </p>
+                <p className="text-sm mt-1">
+                  {t("language") === "rw" ? "Ubucuruzi bwa vuba buzakagaragara hano" : "Recent sales will appear here"}
+                </p>
+              </div>
+            </div>
         )}
       </div>
+      </div>
+
       <AddToHomeScreen />
     </AppLayout>
   );
