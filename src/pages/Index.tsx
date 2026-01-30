@@ -336,6 +336,31 @@ const Dashboard = () => {
       })
       .slice(0, 10);
   }, [sales]);
+
+  // Listen for sales updates from other pages (Sales page, RecordSaleModal, etc.)
+  useEffect(() => {
+    const handleSaleRecorded = () => {
+      // Refresh sales when a sale is recorded from another page
+      refreshSales();
+    };
+
+    // Listen for custom event when sales are created
+    window.addEventListener('sale-recorded', handleSaleRecorded);
+    window.addEventListener('sales-should-refresh', handleSaleRecorded);
+    
+    // Also refresh when window gains focus (user switches back to this tab)
+    const handleFocus = () => {
+      refreshSales();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('sale-recorded', handleSaleRecorded);
+      window.removeEventListener('sales-should-refresh', handleSaleRecorded);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshSales]);
+
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -560,6 +585,8 @@ const Dashboard = () => {
         
         // Dispatch event to notify other pages (like Products page) to refresh
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        // Dispatch event to refresh sales in dashboard and other pages
+        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
 
           playSaleBeep();
 
@@ -696,6 +723,8 @@ const Dashboard = () => {
         
         // Dispatch event to notify other pages (like Products page) to refresh
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        // Dispatch event to refresh sales in dashboard and other pages
+        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
 
         // Play sale beep after recording (audio context should still be active from button click)
         // The playSaleBeep function will handle resuming if needed

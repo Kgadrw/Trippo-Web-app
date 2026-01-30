@@ -724,8 +724,9 @@ const Sales = () => {
             // Silently ignore refresh errors
           }
           
-          // Dispatch event to notify other pages (like Products page) to refresh
+          // Dispatch event to notify other pages (like Products page and Dashboard) to refresh
           window.dispatchEvent(new CustomEvent('products-should-refresh'));
+          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
         
           // Play sale beep after recording (audio context should still be active from button click)
           // The playSaleBeep function will handle resuming if needed
@@ -1546,11 +1547,11 @@ const Sales = () => {
         </div>
         </div>
           
-      {/* Mobile Card View - Full Page Scroll - Outside flex container */}
-      <div className="lg:hidden mt-4 p-4 pb-20 space-y-4">
+      {/* Mobile Table View - Full Page Scroll - Outside flex container */}
+      <div className="lg:hidden mt-4 pb-20">
             {/* Mobile Delete All Button */}
             {sales.length > 0 && (
-              <div className="mb-4 pb-4 border-b border-gray-200">
+              <div className="mb-4 px-4 pt-4 pb-4 border-b border-gray-200">
                 <Button
                   onClick={handleDeleteAll}
                   className="w-full bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2.5 font-semibold flex items-center justify-center gap-2"
@@ -1561,72 +1562,103 @@ const Sales = () => {
               </div>
             )}
             
-            {filteredSales.length > 0 ? (
-              filteredSales.map((sale) => {
-                const saleId = (sale as any)._id || sale.id;
-                const idString = saleId?.toString() || '';
-                const isSelected = selectedSales.has(idString);
-                return (
-                  <div key={saleId || sale.id} className={cn("lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4", isSelected && "bg-gray-50 border-gray-300")}>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
+            <div className="overflow-auto">
+              <div className="min-w-full">
+                <table className="w-full border-collapse">
+                  <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3 w-10">
+                        {selectedSales.size > 0 && (
                           <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => handleSelectSale(idString)}
-                            className="h-5 w-5 shrink-0"
+                            checked={allSelected}
+                            onCheckedChange={handleSelectAll}
+                            className="h-4 w-4"
                           />
-                          <h4 className="text-base font-semibold text-gray-900 truncate">{sale.product}</h4>
-                        </div>
-                        <div className="text-sm text-gray-600 mb-2">
-                          {formatDateWithTime(sale.timestamp || sale.date)}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteSingle(sale)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors shrink-0"
-                        title="Delete sale"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
-                      <div>
-                        <span className="text-gray-500">Quantity:</span>
-                        <span className="ml-2 font-medium text-gray-900">{sale.quantity}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Revenue:</span>
-                        <span className="ml-2 font-semibold text-gray-900">{sale.revenue.toLocaleString()} rwf</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Cost:</span>
-                        <span className="ml-2 text-gray-600">{sale.cost.toLocaleString()} rwf</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Profit:</span>
-                        <span className="ml-2 font-semibold text-green-600">{sale.profit.toLocaleString()} rwf</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">{t("paymentMethod")}:</span>
-                        <span className="ml-2 text-gray-600">
-                          {sale.paymentMethod === 'cash' && t("cash")}
-                          {sale.paymentMethod === 'card' && t("card")}
-                          {sale.paymentMethod === 'momo' && t("momoPay")}
-                          {sale.paymentMethod === 'airtel' && t("airtelPay")}
-                          {sale.paymentMethod === 'transfer' && t("bankTransfer")}
-                          {!sale.paymentMethod && t("cash")}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                No sales found matching your filters
+                        )}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("product")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("actions")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {filteredSales.length > 0 ? (
+                      filteredSales.map((sale, index) => {
+                        const saleId = (sale as any)._id || sale.id;
+                        const idString = saleId?.toString() || '';
+                        const isSelected = selectedSales.has(idString);
+                        return (
+                          <tr key={saleId || sale.id} className={cn(
+                            "border-b border-gray-200",
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50",
+                            isSelected && "bg-blue-50"
+                          )}>
+                            <td className="py-3 px-3">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => handleSelectSale(idString)}
+                                className="h-4 w-4"
+                              />
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="flex flex-col gap-1">
+                                <div className="text-xs font-medium text-gray-900">{sale.product}</div>
+                                <div className="text-[10px] text-gray-500">
+                                  {formatDateWithTime(sale.timestamp || sale.date)}
+                                </div>
+                                <div className="text-[10px] text-gray-500">
+                                  {sale.paymentMethod === 'cash' && t("cash")}
+                                  {sale.paymentMethod === 'card' && t("card")}
+                                  {sale.paymentMethod === 'momo' && t("momoPay")}
+                                  {sale.paymentMethod === 'airtel' && t("airtelPay")}
+                                  {sale.paymentMethod === 'transfer' && t("bankTransfer")}
+                                  {!sale.paymentMethod && t("cash")}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-xs text-gray-700">{sale.quantity}</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-xs text-gray-700">{sale.revenue.toLocaleString()} rwf</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className={cn(
+                                "text-xs font-medium",
+                                sale.profit >= 0 ? "text-green-700" : "text-red-700"
+                              )}>
+                                {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <button
+                                onClick={() => handleDeleteSingle(sale)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Delete sale"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center">
+                          <div className="flex flex-col items-center justify-center text-gray-400">
+                            <ShoppingCart size={48} className="mb-4 opacity-50" />
+                            <p className="text-sm font-medium">No sales found matching your filters</p>
+                            <p className="text-xs mt-1">Try adjusting your search or date range</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+            </div>
         </div>
       </div>
       </div>

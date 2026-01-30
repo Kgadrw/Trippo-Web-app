@@ -378,10 +378,11 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
         }
       }
       
-      // Dispatch custom event to notify all pages (especially Sales page) to refresh
+      // Dispatch custom event to notify all pages (especially Sales page and Dashboard) to refresh
       window.dispatchEvent(new CustomEvent('sale-recorded', { 
         detail: { sale: newSale } 
       }));
+      window.dispatchEvent(new CustomEvent('sales-should-refresh'));
       
       onSaleRecorded?.();
       
