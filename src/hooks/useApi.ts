@@ -107,17 +107,21 @@ export function useApi<T extends { _id?: string; id?: number }>({
         }
       
         // Check cache first to reduce API requests (for non-sales)
+      // BUT: For products, always fetch fresh on initial load to ensure accurate stock
       const cacheKey = `/${endpoint}`;
       const cached = apiCache.get(cacheKey);
-      
-      // If we have valid cached data and no local changes, use cache
       const lastSyncTime = localStorage.getItem("profit-pilot-last-sync");
       const hasLocalChanges = localStorage.getItem(`profit-pilot-${endpoint}-changed`) === "true";
       
-      if (cached && !hasLocalChanges && lastSyncTime) {
+      // For products, skip cache on initial load to ensure fresh stock data
+      // Only use cache if it's very fresh (less than 30 seconds) and no local changes
+      const isProductsEndpoint = endpoint === 'products';
+      const cacheMaxAge = isProductsEndpoint ? 30 * 1000 : 2 * 60 * 1000; // 30s for products, 2min for others
+      
+      if (cached && !hasLocalChanges && lastSyncTime && !isProductsEndpoint) {
         const cacheAge = Date.now() - parseInt(lastSyncTime);
-        // If cache is fresh (less than 2 minutes old), use it
-        if (cacheAge < 2 * 60 * 1000) {
+        // If cache is fresh, use it (but not for products on initial load)
+        if (cacheAge < cacheMaxAge) {
           const cachedItems = cached.data;
           const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
           setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
@@ -125,7 +129,22 @@ export function useApi<T extends { _id?: string; id?: number }>({
           isLoadingDataRef.current = false;
           return;
         }
+      }
+      
+      // For products, even if cache exists, still fetch fresh data in background
+      // but show cached data immediately if available
+      if (isProductsEndpoint && cached && !hasLocalChanges && lastSyncTime) {
+        const cacheAge = Date.now() - parseInt(lastSyncTime);
+        if (cacheAge < 5 * 60 * 1000) { // Show cached data if less than 5 minutes old
+          const cachedItems = cached.data;
+          const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
+          if (mappedItems.length > 0) {
+            setItems(mappedItems);
+            setIsLoading(false);
+            // Continue to fetch fresh data below (don't return early)
+          }
         }
+      }
       } else {
         // For sales, check cache first to reduce API calls and avoid rate limiting
         const cacheKey = `/${endpoint}`;
