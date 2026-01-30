@@ -505,20 +505,73 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
   }, [endpoint, defaultValue, mapItem, onError, syncManager]);
 
+  // Track last load time to prevent excessive reloads
+  const lastLoadTimeRef = useRef<number>(0);
+  const itemsLengthRef = useRef<number>(0);
+  const MIN_RELOAD_INTERVAL = 2000; // 2 seconds minimum between reloads
+
+  // Update items length ref when items change
+  useEffect(() => {
+    itemsLengthRef.current = items.length;
+  }, [items.length]);
+
   // Load data on mount and when force refresh is requested
   useEffect(() => {
     loadData();
+    lastLoadTimeRef.current = Date.now();
+    itemsLengthRef.current = items.length;
     
     // Listen for force refresh events (when caches are cleared)
     const handleForceRefresh = () => {
       console.log(`[useApi] Force refresh requested for ${endpoint}`);
       loadData();
+      lastLoadTimeRef.current = Date.now();
+    };
+    
+    // Reload data when page becomes visible (user returns to tab/window)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const now = Date.now();
+        const timeSinceLastLoad = now - lastLoadTimeRef.current;
+        const currentItemsLength = itemsLengthRef.current;
+        
+        // Always reload if items are empty (data was lost), otherwise respect interval
+        const shouldReload = currentItemsLength === 0 || 
+          (timeSinceLastLoad >= MIN_RELOAD_INTERVAL && !isLoadingDataRef.current);
+        
+        if (shouldReload) {
+          console.log(`[useApi] Page became visible, reloading ${endpoint}${currentItemsLength === 0 ? ' (items empty)' : ''}`);
+          lastLoadTimeRef.current = now;
+          loadData();
+        }
+      }
+    };
+    
+    // Reload data when window regains focus (user switches back to app)
+    const handleFocus = () => {
+      const now = Date.now();
+      const timeSinceLastLoad = now - lastLoadTimeRef.current;
+      const currentItemsLength = itemsLengthRef.current;
+      
+      // Always reload if items are empty (data was lost), otherwise respect interval
+      const shouldReload = currentItemsLength === 0 || 
+        (timeSinceLastLoad >= MIN_RELOAD_INTERVAL && !isLoadingDataRef.current);
+      
+      if (shouldReload) {
+        console.log(`[useApi] Window regained focus, reloading ${endpoint}${currentItemsLength === 0 ? ' (items empty)' : ''}`);
+        lastLoadTimeRef.current = now;
+        loadData();
+      }
     };
     
     window.addEventListener('force-refresh-data', handleForceRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
     
     return () => {
       window.removeEventListener('force-refresh-data', handleForceRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
