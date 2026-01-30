@@ -11,19 +11,22 @@ self.addEventListener("install", (event) => {
   self.skipWaiting(); // Activate immediately
 });
 
-// Activate event - clean up ALL old caches and start background sync
+// Activate event - clean up only app's old caches and start background sync
 self.addEventListener("activate", (event) => {
   console.log("Service Worker activating, clearing old caches...");
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          console.log("Deleting old cache:", cacheName);
-          return caches.delete(cacheName);
-        })
+        // Only delete caches that belong to this app (trippo- prefix)
+        cacheNames
+          .filter((name) => name.startsWith("trippo-"))
+          .map((cacheName) => {
+            console.log("Deleting old cache:", cacheName);
+            return caches.delete(cacheName);
+          })
       );
     }).then(() => {
-      console.log("All old caches cleared");
+      console.log("App caches cleared");
       return self.clients.claim();
     }).then(() => {
       // Start background notification checking
@@ -32,26 +35,44 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch event - Network First strategy (better for development)
+// Fetch event - NEVER cache API calls, only cache static assets
 self.addEventListener("fetch", (event) => {
   // Only handle GET requests
   if (event.request.method !== "GET") {
     return;
   }
 
-  // Skip caching for Vite dev server assets (they have hashes)
   const url = new URL(event.request.url);
-  if (url.pathname.includes('/node_modules/') || 
-      url.pathname.includes('/@vite/') ||
-      url.pathname.includes('/src/') ||
-      url.searchParams.has('t') ||
-      url.searchParams.has('v')) {
+
+  // ✅ 1) NEVER cache backend API calls - always fetch fresh
+  if (url.origin === "https://profit-backend-e4w1.onrender.com" || url.pathname.startsWith("/api")) {
+    event.respondWith(
+      fetch(event.request, { 
+        cache: "no-store", // Force fresh data, never cache
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
+    );
+    return;
+  }
+
+  // Skip caching for Vite dev server assets (they have hashes)
+  if (
+    url.pathname.includes("/node_modules/") ||
+    url.pathname.includes("/@vite/") ||
+    url.pathname.includes("/src/") ||
+    url.searchParams.has("t") ||
+    url.searchParams.has("v")
+  ) {
     // For development assets with hashes, always fetch from network
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Network First strategy - try network, fallback to cache if offline
+  // ✅ 2) For non-API static assets: Network-first + cache fallback
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
@@ -85,31 +106,46 @@ self.addEventListener("fetch", (event) => {
 
 // Message handler for sync requests and notification setup
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
+  if (!event.data) return;
+
+  if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
   }
   
-  if (event.data && event.data.type === "SYNC_REQUEST") {
+  if (event.data.type === "SYNC_REQUEST") {
     // Trigger sync when online
     if (navigator.onLine) {
       event.waitUntil(syncData(event.data.payload));
     }
+    return;
   }
 
   // Handle notification check requests from client
-  if (event.data && event.data.type === "CHECK_NOTIFICATIONS") {
+  if (event.data.type === "CHECK_NOTIFICATIONS") {
     event.waitUntil(checkForNotifications());
+    return;
   }
 
   // Handle notification data from client
-  if (event.data && event.data.type === "SHOW_NOTIFICATION") {
+  if (event.data.type === "SHOW_NOTIFICATION") {
     event.waitUntil(showNotification(event.data.notification));
+    return;
   }
 
   // Store userId for background checks
-  if (event.data && event.data.type === "SET_USER_ID") {
+  if (event.data.type === "SET_USER_ID") {
     // Store in a variable (in a real app, you might use IndexedDB in service worker)
     self.userId = event.data.userId;
+    return;
+  }
+
+  // Respond to keep-alive messages
+  if (event.data.type === "KEEP_ALIVE") {
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ alive: true });
+    }
+    return;
   }
 });
 
@@ -196,9 +232,16 @@ async function checkAndNotify(userId) {
 
     // Check for low stock and out of stock products
     try {
+      // ✅ Force fresh data - never use cache for API calls
       const productsResponse = await fetch(`${API_BASE_URL}/products`, {
         method: 'GET',
-        headers,
+        headers: {
+          ...headers,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store', // Explicitly disable caching
       });
 
       if (productsResponse.ok) {
@@ -369,8 +412,10 @@ self.addEventListener("notificationclick", (event) => {
           }
         }
         // Otherwise, open a new window
+        // ✅ Fix: route already includes leading slash, don't add another
         if (clients.openWindow) {
-          return clients.openWindow(`/${data.route}`);
+          const route = data.route.startsWith('/') ? data.route : `/${data.route}`;
+          return clients.openWindow(route);
         }
       })
     );
@@ -395,11 +440,34 @@ if ('periodicSync' in self.registration) {
   });
 }
 
-// Keep service worker alive by responding to messages
-// This ensures notifications work even when app is closed
-self.addEventListener('message', (event) => {
-  // Respond to keep-alive messages
-  if (event.data && event.data.type === 'KEEP_ALIVE') {
-    event.ports[0].postMessage({ alive: true });
+// ✅ Push notification support for real-time notifications when app is closed
+// This is the proper way to get real-time notifications - server sends push events
+self.addEventListener("push", (event) => {
+  console.log("Push event received:", event);
+  
+  let data = {};
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    console.error("Error parsing push data:", e);
+    data = {
+      title: "Trippo",
+      body: event.data ? event.data.text() : "You have a new update",
+    };
   }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Trippo", {
+      body: data.body || "You have a new update",
+      icon: data.icon || "/logo.png",
+      badge: data.badge || "/logo.png",
+      data: data.data || {},
+      tag: data.tag || "trippo-push",
+      requireInteraction: !!data.requireInteraction,
+      vibrate: [200, 100, 200],
+      timestamp: Date.now(),
+    })
+  );
 });

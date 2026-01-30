@@ -55,35 +55,32 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
         .then((registration) => {
           console.log("Service Worker registered successfully:", registration.scope);
 
-          // Check for updates but don't reload automatically on update found
+          // ✅ Force update check on registration
+          registration.update();
+
+          // ✅ Check for updates and auto-activate new worker
           registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener("statechange", () => {
-                if (newWorker.state === "installed") {
-                  if (navigator.serviceWorker.controller) {
-                    console.log("New service worker available. Waiting for user to reload...");
-                    // Don't automatically reload - let user choose when to reload
-                    // Only reload if this is a critical update (you can add conditions here)
-                    // For now, we'll just log it
-                  } else {
-                    console.log("Service Worker installed for the first time");
-                  }
+                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  // New service worker is ready - activate it immediately
+                  console.log("New service worker available, activating...");
+                  newWorker.postMessage({ type: "SKIP_WAITING" });
+                } else if (newWorker.state === "installed") {
+                  console.log("Service Worker installed for the first time");
                 }
               });
             }
           });
 
-          // Remove automatic reload on controller change
-          // Only reload if user explicitly wants to update
+          // ✅ Reload when controller changes (new SW activated)
           const handleControllerChange = () => {
-            console.log("Service Worker controller changed");
-            // Don't automatically reload - this can cause infinite loops
-            // User can manually refresh if needed
+            console.log("Service Worker controller changed, reloading to use new version");
+            window.location.reload();
           };
 
-          // Use a more controlled approach - only listen once, not continuously
-          navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange, { once: true });
+          navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 
           return registration;
         })
