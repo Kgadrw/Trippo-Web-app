@@ -184,6 +184,8 @@ async function checkForNotifications() {
 
 // Store last notification times to prevent duplicates
 const lastNotificationTimes = new Map();
+// Store last known product IDs to track when products are removed
+let lastKnownProductIds = new Set();
 
 async function checkAndNotify(userId) {
   try {
@@ -202,12 +204,27 @@ async function checkAndNotify(userId) {
       if (productsResponse.ok) {
         const productsData = await productsResponse.json();
         if (productsData.data && Array.isArray(productsData.data)) {
+          // Check if there are any products - skip notification check if no products exist
+          if (productsData.data.length === 0) {
+            console.log("No products found, skipping notification check");
+            // Clear all product-related notifications when no products exist
+            lastNotificationTimes.clear();
+            lastKnownProductIds.clear();
+            return;
+          }
+          
+          // Track current product IDs to detect removals
+          const currentProductIds = new Set();
+          
           for (const product of productsData.data) {
             const minStock = product.minStock || 5;
             const productId = product._id || product.id;
             const notificationKey = `product-${productId}`;
             const now = Date.now();
             const lastTime = lastNotificationTimes.get(notificationKey) || 0;
+            
+            // Track this product ID
+            currentProductIds.add(productId?.toString());
             
             // Check if we should notify (out of stock or low stock)
             const isOutOfStock = product.stock === 0;
@@ -256,6 +273,19 @@ async function checkAndNotify(userId) {
               }
             }
           }
+          
+          // Clean up notifications for products that no longer exist
+          for (const oldProductId of lastKnownProductIds) {
+            if (!currentProductIds.has(oldProductId)) {
+              // Product was removed, clear its notification tracking
+              const oldNotificationKey = `product-${oldProductId}`;
+              lastNotificationTimes.delete(oldNotificationKey);
+              console.log(`Cleared notification tracking for removed product: ${oldProductId}`);
+            }
+          }
+          
+          // Update last known product IDs
+          lastKnownProductIds = currentProductIds;
         }
       }
     } catch (error) {
