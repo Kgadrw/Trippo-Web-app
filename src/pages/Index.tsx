@@ -313,15 +313,22 @@ const Dashboard = () => {
     const today = getTodayDate();
     const todaySales = sales.filter((sale) => {
       // Handle both string dates and Date objects from MongoDB
-      const saleDate = typeof sale.date === 'string' 
-        ? sale.date.split('T')[0] 
-        : new Date(sale.date).toISOString().split('T')[0];
+      let saleDate: string;
+      if (typeof sale.date === 'string') {
+        saleDate = sale.date.split('T')[0];
+      } else if (sale.date instanceof Date) {
+        saleDate = sale.date.toISOString().split('T')[0];
+      } else {
+        // Handle timestamp field if date is not available
+        const dateObj = sale.timestamp ? new Date(sale.timestamp) : new Date(sale.date);
+        saleDate = dateObj.toISOString().split('T')[0];
+      }
       return saleDate === today;
     });
     
-    const totalItems = todaySales.reduce((sum, sale) => sum + sale.quantity, 0);
-    const totalRevenue = todaySales.reduce((sum, sale) => sum + sale.revenue, 0);
-    const totalProfit = todaySales.reduce((sum, sale) => sum + sale.profit, 0);
+    const totalItems = todaySales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
+    const totalRevenue = todaySales.reduce((sum, sale) => sum + (sale.revenue || 0), 0);
+    const totalProfit = todaySales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
     
     return { totalItems, totalRevenue, totalProfit };
   }, [sales]);
@@ -1023,18 +1030,18 @@ const Dashboard = () => {
         {isLoading ? (
           <KPICardSkeleton />
         ) : (
-          <div className="bg-blue-900 rounded-lg p-4 shadow-sm">
+          <div className="rounded-lg p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-200">{t("todaysProfit")}</p>
-                <p className="text-2xl font-bold text-white">
-                  {todayStats.totalProfit.toLocaleString()} rwf
+                <p className="text-sm text-gray-600">{t("todaysProfit")}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {(todayStats?.totalProfit || 0).toLocaleString()} rwf
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-blue-200">{t("todaysRevenue")}</p>
-                <p className="text-sm font-medium text-white">
-                  {todayStats.totalRevenue.toLocaleString()} rwf
+                <p className="text-xs text-gray-600">{t("todaysRevenue")}</p>
+                <p className="text-sm font-medium text-blue-600">
+                  {(todayStats?.totalRevenue || 0).toLocaleString()} rwf
                 </p>
               </div>
             </div>
