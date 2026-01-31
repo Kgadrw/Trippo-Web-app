@@ -159,7 +159,15 @@ const AddProduct = () => {
     
     try {
       const productId = outOfStockProduct._id || outOfStockProduct.id;
-      const newStock = parseInt(pendingProductData.stock) || 0;
+      const packageQty = pendingProductData.packageQuantity && pendingProductData.packageQuantity.trim() !== "" 
+        ? parseInt(pendingProductData.packageQuantity) 
+        : undefined;
+      const stockValue = parseInt(pendingProductData.stock) || 0;
+      const minStockValue = pendingProductData.minStock ? parseInt(pendingProductData.minStock) : undefined;
+      
+      // If product is packaged, convert stock from packages to individual items
+      const newStock = packageQty ? stockValue * packageQty : stockValue;
+      const minStock = packageQty && minStockValue ? minStockValue * packageQty : minStockValue;
       const currentStock = outOfStockProduct.stock || 0;
       
       // Update product with new stock (add to existing stock)
@@ -169,7 +177,7 @@ const AddProduct = () => {
         // Update other fields if provided
         costPrice: pendingProductData.costPrice !== undefined ? parseFloat(pendingProductData.costPrice) : outOfStockProduct.costPrice,
         sellingPrice: pendingProductData.sellingPrice !== undefined ? parseFloat(pendingProductData.sellingPrice) : outOfStockProduct.sellingPrice,
-        minStock: pendingProductData.minStock ? parseInt(pendingProductData.minStock) : outOfStockProduct.minStock,
+        minStock: minStock !== undefined ? minStock : outOfStockProduct.minStock,
       };
       
       await updateProduct(updatedProduct as any);
@@ -215,21 +223,31 @@ const AddProduct = () => {
       // Bulk add mode
       const newProducts = bulkProducts
         .filter((p) => p.name.trim() !== "") // Only add products with names
-        .map((p) => ({
-          name: p.name,
-          category: p.category,
-          manufacturedDate: p.manufacturedDate || undefined,
-          expiryDate: p.expiryDate || undefined,
-          costPrice: parseFloat(p.costPrice) || 0,
-          sellingPrice: parseFloat(p.sellingPrice) || 0,
-          stock: parseInt(p.stock) || 0,
-          isPackage: p.packageQuantity && p.packageQuantity.trim() !== "" ? true : false,
-          packageQuantity: p.packageQuantity && p.packageQuantity.trim() !== "" ? parseInt(p.packageQuantity) : undefined,
-          priceType: p.packageQuantity && p.packageQuantity.trim() !== "" ? p.priceType : undefined,
-          costPriceType: p.packageQuantity && p.packageQuantity.trim() !== "" ? p.costPriceType : undefined,
-          productType: p.productType || undefined,
-          minStock: p.minStock ? parseInt(p.minStock) : undefined,
-        }));
+        .map((p) => {
+          const packageQty = p.packageQuantity && p.packageQuantity.trim() !== "" ? parseInt(p.packageQuantity) : undefined;
+          const stockValue = parseInt(p.stock) || 0;
+          const minStockValue = p.minStock ? parseInt(p.minStock) : undefined;
+          
+          // If product is packaged, convert stock from packages to individual items
+          const stock = packageQty ? stockValue * packageQty : stockValue;
+          const minStock = packageQty && minStockValue ? minStockValue * packageQty : minStockValue;
+          
+          return {
+            name: p.name,
+            category: p.category,
+            manufacturedDate: p.manufacturedDate || undefined,
+            expiryDate: p.expiryDate || undefined,
+            costPrice: parseFloat(p.costPrice) || 0,
+            sellingPrice: parseFloat(p.sellingPrice) || 0,
+            stock: stock,
+            isPackage: packageQty ? true : false,
+            packageQuantity: packageQty,
+            priceType: packageQty ? p.priceType : undefined,
+            costPriceType: packageQty ? p.costPriceType : undefined,
+            productType: p.productType || undefined,
+            minStock: minStock,
+          };
+        });
       
       if (newProducts.length > 0) {
         // Check for duplicates and separate out-of-stock ones
@@ -455,6 +473,14 @@ const AddProduct = () => {
         return;
       }
       
+      const packageQty = formData.packageQuantity && formData.packageQuantity.trim() !== "" ? parseInt(formData.packageQuantity) : undefined;
+      const stockValue = parseInt(formData.stock) || 0;
+      const minStockValue = formData.minStock ? parseInt(formData.minStock) : undefined;
+      
+      // If product is packaged, convert stock from packages to individual items
+      const stock = packageQty ? stockValue * packageQty : stockValue;
+      const minStock = packageQty && minStockValue ? minStockValue * packageQty : minStockValue;
+      
       const newProduct = {
         name: formData.name,
         category: formData.category,
@@ -462,13 +488,13 @@ const AddProduct = () => {
         expiryDate: formData.expiryDate || undefined,
         costPrice: parseFloat(formData.costPrice) || 0,
         sellingPrice: parseFloat(formData.sellingPrice) || 0,
-        stock: parseInt(formData.stock) || 0,
-        isPackage: formData.packageQuantity && formData.packageQuantity.trim() !== "" ? true : false,
-        packageQuantity: formData.packageQuantity && formData.packageQuantity.trim() !== "" ? parseInt(formData.packageQuantity) : undefined,
-        priceType: formData.packageQuantity && formData.packageQuantity.trim() !== "" ? formData.priceType : undefined,
-        costPriceType: formData.packageQuantity && formData.packageQuantity.trim() !== "" ? formData.costPriceType : undefined,
+        stock: stock,
+        isPackage: packageQty ? true : false,
+        packageQuantity: packageQty,
+        priceType: packageQty ? formData.priceType : undefined,
+        costPriceType: packageQty ? formData.costPriceType : undefined,
         productType: formData.productType || undefined,
-        minStock: formData.minStock ? parseInt(formData.minStock) : undefined,
+        minStock: minStock,
       };
 
       // Check for duplicate
@@ -729,7 +755,11 @@ const AddProduct = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Stock</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                            Stock {product.packageQuantity && product.packageQuantity.trim() !== "" 
+                              ? `(per package)` 
+                              : `(per product)`}
+                          </Label>
                           <Input
                             type="number"
                             min="0"
@@ -739,13 +769,21 @@ const AddProduct = () => {
                             placeholder="0"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
-                            {t("language") === "rw" 
-                              ? "Umubare w'ibicuruzwa bisigaye" 
-                              : "Remaining quantity"}
+                            {product.packageQuantity && product.packageQuantity.trim() !== "" 
+                              ? (t("language") === "rw" 
+                                  ? `Umubare w'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki` 
+                                  : `Number of packages - ${product.packageQuantity} items per package`)
+                              : (t("language") === "rw" 
+                                  ? "Umubare w'ibicuruzwa bisigaye" 
+                                  : "Number of individual products")}
                           </p>
                         </div>
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Min Stock</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                            Min Stock {product.packageQuantity && product.packageQuantity.trim() !== "" 
+                              ? `(per package)` 
+                              : `(per product)`}
+                          </Label>
                           <Input
                             type="number"
                             min="0"
@@ -754,6 +792,15 @@ const AddProduct = () => {
                             className="h-12 text-base"
                             placeholder="5"
                           />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {product.packageQuantity && product.packageQuantity.trim() !== "" 
+                              ? (t("language") === "rw" 
+                                  ? `Icyitonderwa cy'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki` 
+                                  : `Alert threshold for packages - ${product.packageQuantity} items per package`)
+                              : (t("language") === "rw" 
+                                  ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" 
+                                  : "Alert when stock reaches this level")}
+                          </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -792,113 +839,119 @@ const AddProduct = () => {
                 <table className="w-full">
                   <thead className="lg:bg-white bg-white/80 backdrop-blur-sm border-b border-transparent">
                     <tr>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Product Name</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Category</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Type</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Package</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Cost Price</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Selling Price</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Stock</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">Min Stock</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">MFD (Optional)</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground">EXP (Optional)</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[180px]">Product Name</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[150px]">Category</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Type</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Package</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[140px]">Cost Price</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[140px]">Selling Price</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Stock</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Min Stock</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[160px]">MFD (Optional)</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[160px]">EXP (Optional)</th>
                       <th className="text-left p-2 text-xs font-medium text-foreground w-12"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {bulkProducts.map((product, index) => (
                       <tr key={index} className="border-b border-transparent last:border-0">
-                        <td className="p-2">
+                        <td className="p-2 min-w-[180px]">
                           <Input
                             value={product.name}
                             onChange={(e) => updateBulkProduct(index, "name", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="Enter product name"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[150px]">
                           <Input
                             value={product.category}
                             onChange={(e) => updateBulkProduct(index, "category", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="Enter category"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[120px]">
                           <Input
                             value={product.productType}
                             onChange={(e) => updateBulkProduct(index, "productType", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="e.g., Small, Large"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[120px]">
                           <Input
                             type="number"
                             min="1"
                             value={product.packageQuantity}
                             onChange={(e) => updateBulkProduct(index, "packageQuantity", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="Optional"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[140px]">
                           <Input
                             type="number"
                             value={product.costPrice}
                             onChange={(e) => updateBulkProduct(index, "costPrice", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="0.00"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[140px]">
                           <Input
                             type="number"
                             value={product.sellingPrice}
                             onChange={(e) => updateBulkProduct(index, "sellingPrice", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="0.00"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[120px]">
                           <Input
                             type="number"
                             min="0"
                             value={product.stock}
                             onChange={(e) => updateBulkProduct(index, "stock", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="0"
+                            title={product.packageQuantity && product.packageQuantity.trim() !== "" 
+                              ? `Enter number of packages. Each package contains ${product.packageQuantity} items.`
+                              : "Enter number of individual products"}
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[120px]">
                           <Input
                             type="number"
                             min="0"
                             value={product.minStock}
                             onChange={(e) => updateBulkProduct(index, "minStock", e.target.value)}
-                            className="input-field h-9 text-sm"
+                            className="input-field h-9 text-sm w-full"
                             placeholder="5"
+                            title={product.packageQuantity && product.packageQuantity.trim() !== "" 
+                              ? `Enter minimum stock threshold for packages. Each package contains ${product.packageQuantity} items.`
+                              : "Enter minimum stock threshold (number of products)"}
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[160px]">
                           <div className="relative">
                             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                             <Input
                               type="date"
                               value={product.manufacturedDate}
                               onChange={(e) => updateBulkProduct(index, "manufacturedDate", e.target.value)}
-                              className="input-field h-9 text-sm pr-9"
+                              className="input-field h-9 text-sm pr-9 w-full"
                             />
                           </div>
                         </td>
-                        <td className="p-2">
+                        <td className="p-2 min-w-[160px]">
                           <div className="relative">
                             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                             <Input
                               type="date"
                               value={product.expiryDate}
                               onChange={(e) => updateBulkProduct(index, "expiryDate", e.target.value)}
-                              className="input-field h-9 text-sm pr-9"
+                              className="input-field h-9 text-sm pr-9 w-full"
                             />
                           </div>
                         </td>
@@ -1076,7 +1129,11 @@ const AddProduct = () => {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Initial Stock Quantity</Label>
+                  <Label>
+                    Initial Stock Quantity {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
+                      ? "(per package)" 
+                      : "(per product)"}
+                  </Label>
                   <Input
                     type="number"
                     min="0"
@@ -1086,13 +1143,21 @@ const AddProduct = () => {
                     placeholder="0"
                   />
                   <p className="text-xs text-muted-foreground">
-                    {t("language") === "rw" 
-                      ? "Umubare w'ibicuruzwa bisigaye mu stoki (bikurwaho igihe ubucuruzi bukorerwa)" 
-                      : "Remaining quantity in stock (automatically reduced when sales are made)"}
+                    {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
+                      ? (t("language") === "rw" 
+                          ? `Umubare w'amapaki - ${formData.packageQuantity} ibicuruzwa kuri gipaki. Bikurwaho igihe ubucuruzi bukorerwa.` 
+                          : `Number of packages - ${formData.packageQuantity} items per package. Automatically reduced when sales are made.`)
+                      : (t("language") === "rw" 
+                          ? "Umubare w'ibicuruzwa bisigaye mu stoki (bikurwaho igihe ubucuruzi bukorerwa)" 
+                          : "Number of individual products in stock (automatically reduced when sales are made)")}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Minimum Stock Alert</Label>
+                  <Label>
+                    Minimum Stock Alert {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
+                      ? "(per package)" 
+                      : "(per product)"}
+                  </Label>
                   <Input
                     type="number"
                     min="0"
@@ -1101,7 +1166,15 @@ const AddProduct = () => {
                     className="input-field"
                     placeholder="5"
                   />
-                  <p className="text-xs text-muted-foreground">Alert when stock reaches this level</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
+                      ? (t("language") === "rw" 
+                          ? `Icyitonderwa cy'amapaki - ${formData.packageQuantity} ibicuruzwa kuri gipaki` 
+                          : `Alert threshold for packages - ${formData.packageQuantity} items per package`)
+                      : (t("language") === "rw" 
+                          ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" 
+                          : "Alert when stock reaches this level")}
+                  </p>
                 </div>
               </div>
             </div>

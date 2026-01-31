@@ -589,6 +589,30 @@ export const adminApi = {
       method: 'DELETE',
     });
   },
+
+  // Send email to single user
+  async sendEmailToUser(userId: string, subject: string, message: string, html?: string): Promise<ApiResponse> {
+    return request('/admin/send-email', {
+      method: 'POST',
+      body: JSON.stringify({ userId, subject, message, html }),
+    });
+  },
+
+  // Send bulk email to multiple users
+  async sendBulkEmail(userIds: string[], subject: string, message: string, html?: string): Promise<ApiResponse> {
+    return request('/admin/send-bulk-email', {
+      method: 'POST',
+      body: JSON.stringify({ userIds, subject, message, html }),
+    });
+  },
+
+  // Test email configuration
+  async testEmail(to: string): Promise<ApiResponse> {
+    return request('/admin/test-email', {
+      method: 'POST',
+      body: JSON.stringify({ to }),
+    });
+  },
 };
 
 // Client API functions

@@ -13,6 +13,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Users, 
   Package, 
@@ -71,6 +83,7 @@ interface User {
   _id: string;
   name: string;
   email?: string;
+  phone?: string;
   businessName?: string;
   createdAt: string;
   productCount: number;
@@ -205,6 +218,13 @@ const AdminDashboard = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isBulkEmailMode, setIsBulkEmailMode] = useState(false);
 
   const loadApiStats = async () => {
     try {
@@ -310,6 +330,86 @@ const AdminDashboard = () => {
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
     setDeleteDialogOpen(true);
+  };
+
+  const handleSendEmailClick = (user: User | null = null) => {
+    if (user) {
+      setSelectedUser(user);
+      setIsBulkEmailMode(false);
+      setSelectedUsers(new Set());
+    } else {
+      // Bulk email mode
+      setSelectedUser(null);
+      setIsBulkEmailMode(true);
+    }
+    setEmailSubject("");
+    setEmailMessage("");
+    setEmailDialogOpen(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailSubject.trim() || !emailMessage.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in both subject and message fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      if (isBulkEmailMode && selectedUsers.size > 0) {
+        // Send bulk email
+        const userIds = Array.from(selectedUsers);
+        const response = await adminApi.sendBulkEmail(userIds, emailSubject, emailMessage);
+        
+        if (response.data) {
+          const { successful, total } = response.data;
+          toast({
+            title: "Emails Sent",
+            description: `Successfully sent ${successful} of ${total} emails.`,
+          });
+        }
+      } else if (selectedUser) {
+        // Send single email
+        const response = await adminApi.sendEmailToUser(selectedUser._id, emailSubject, emailMessage);
+        
+        if (response.data) {
+          toast({
+            title: "Email Sent",
+            description: `Email sent successfully to ${selectedUser.name}.`,
+          });
+        }
+      }
+
+      setEmailDialogOpen(false);
+      setEmailSubject("");
+      setEmailMessage("");
+      setSelectedUser(null);
+      setSelectedUsers(new Set());
+      setIsBulkEmailMode(false);
+    } catch (error: any) {
+      toast({
+        title: "Failed to Send Email",
+        description: error?.message || "An error occurred while sending the email.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
   };
 
   const handleDeleteConfirm = async () => {
@@ -504,6 +604,7 @@ const AdminDashboard = () => {
                     <tr className="border-b">
                       <th className="text-left p-2 text-sm">Name</th>
                       <th className="text-left p-2 text-sm">Email</th>
+                      <th className="text-left p-2 text-sm">Phone</th>
                       <th className="text-left p-2 text-sm">Business</th>
                       <th className="text-left p-2 text-sm">Products</th>
                       <th className="text-left p-2 text-sm">Sales</th>
@@ -518,6 +619,7 @@ const AdminDashboard = () => {
                       <tr key={user._id} className="border-b hover:bg-gray-50">
                         <td className="p-2 text-sm">{user.name}</td>
                         <td className="p-2 text-sm text-muted-foreground">{user.email || "-"}</td>
+                        <td className="p-2 text-sm text-muted-foreground">{user.phone || "-"}</td>
                         <td className="p-2 text-sm text-muted-foreground">
                           {user.businessName || "-"}
                         </td>
@@ -531,15 +633,28 @@ const AdminDashboard = () => {
                           {formatDate(user.createdAt)}
                         </td>
                         <td className="p-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(user)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Delete user and all their data"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {user.email && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleSendEmailClick(user)}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                title="Send email to user"
+                              >
+                                <Mail size={16} />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteClick(user)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Delete user and all their data"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1386,6 +1501,102 @@ const AdminDashboard = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Email Dialog */}
+        <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {isBulkEmailMode ? "Send Bulk Email" : `Send Email to ${selectedUser?.name || "User"}`}
+              </DialogTitle>
+              <DialogDescription>
+                {isBulkEmailMode 
+                  ? "Select users and compose your email message. The email will be personalized for each recipient."
+                  : `Send a personalized email to ${selectedUser?.email || "this user"}.`
+                }
+              </DialogDescription>
+            </DialogHeader>
+
+            {isBulkEmailMode && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Select Users ({selectedUsers.size} selected)</Label>
+                  <div className="mt-2 max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
+                    {users.filter(u => u.email).map((user) => (
+                      <div key={user._id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`user-${user._id}`}
+                          checked={selectedUsers.has(user._id)}
+                          onCheckedChange={() => toggleUserSelection(user._id)}
+                        />
+                        <label
+                          htmlFor={`user-${user._id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                        >
+                          {user.name} ({user.email})
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {users.filter(u => u.email).length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      No users with email addresses found.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="email-subject">Subject *</Label>
+                <Input
+                  id="email-subject"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Email subject"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email-message">Message *</Label>
+                <Textarea
+                  id="email-message"
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  placeholder="Enter your email message here. Use {name} to personalize (e.g., Hello {name}, ...)"
+                  className="mt-1 min-h-[200px]"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tip: Use {"{name}"} in your message to personalize it for each recipient.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEmailDialogOpen(false);
+                  setEmailSubject("");
+                  setEmailMessage("");
+                  setSelectedUser(null);
+                  setSelectedUsers(new Set());
+                  setIsBulkEmailMode(false);
+                }}
+                disabled={isSendingEmail}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendEmail}
+                disabled={isSendingEmail || (isBulkEmailMode && selectedUsers.size === 0) || !emailSubject.trim() || !emailMessage.trim()}
+              >
+                {isSendingEmail ? "Sending..." : "Send Email"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       <AddToHomeScreen />
     </AdminLayout>
