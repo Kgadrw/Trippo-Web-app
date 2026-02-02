@@ -300,32 +300,71 @@ const Dashboard = () => {
 
   // Refresh products and sales every time dashboard is opened (only once on mount)
   useEffect(() => {
-    console.log('[Dashboard] Page opened, dispatching refresh event');
+    console.log('[Dashboard] Page opened, forcing refresh of products and sales data');
+    // Force refresh products and sales to get real data from API (bypass cache)
+    refreshProducts(true);
+    refreshSales(true);
     window.dispatchEvent(new CustomEvent('page-opened'));
     // Note: useApi hook will handle the actual refresh via the event listener
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount, not when refresh functions change
   
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
+  // Get today's date in YYYY-MM-DD format (consistent across all devices)
+  const getTodayDate = () => {
+    const now = new Date();
+    // Use local date to ensure consistency (not UTC)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   
-  // Calculate KPI values from real data
+  // Calculate KPI values from real data - always uses fresh sales data
   const todayStats = useMemo(() => {
     const today = getTodayDate();
+    
+    // Filter sales for today - handle all date formats consistently
     const todaySales = sales.filter((sale) => {
-      // Handle both string dates and Date objects from MongoDB
       let saleDate: string;
-      if (typeof sale.date === 'string') {
-        saleDate = sale.date.split('T')[0];
+      
+      // Prefer timestamp if available (most accurate)
+      if (sale.timestamp) {
+        const dateObj = new Date(sale.timestamp);
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        saleDate = `${year}-${month}-${day}`;
+      } else if (typeof sale.date === 'string') {
+        // Handle string dates (ISO format or date-only)
+        if (sale.date.includes('T')) {
+          saleDate = sale.date.split('T')[0];
+        } else {
+          saleDate = sale.date;
+        }
       } else if (sale.date instanceof Date) {
-        saleDate = sale.date.toISOString().split('T')[0];
+        // Handle Date objects
+        const dateObj = sale.date;
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        saleDate = `${year}-${month}-${day}`;
       } else {
-        // Handle timestamp field if date is not available
-        const dateObj = sale.timestamp ? new Date(sale.timestamp) : new Date(sale.date);
-        saleDate = dateObj.toISOString().split('T')[0];
+        // Fallback: try to parse as date
+        const dateObj = new Date(sale.date);
+        if (!isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          saleDate = `${year}-${month}-${day}`;
+        } else {
+          return false; // Invalid date, exclude from today's sales
+        }
       }
+      
       return saleDate === today;
     });
     
+    // Calculate totals from today's sales
     const totalItems = todaySales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
     const totalRevenue = todaySales.reduce((sum, sale) => sum + (sale.revenue || 0), 0);
     const totalProfit = todaySales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
@@ -357,31 +396,19 @@ const Dashboard = () => {
   // Listen for sales updates from other pages (Sales page, RecordSaleModal, etc.)
   useEffect(() => {
     let debounceTimeout: NodeJS.Timeout | null = null;
-    let lastRefreshTime = 0;
-    const DEBOUNCE_DELAY = 2000; // 2 second debounce
-    const MIN_REFRESH_INTERVAL = 30 * 1000; // 30 seconds minimum between refreshes (increased to reduce API calls)
+    const DEBOUNCE_DELAY = 1000; // 1 second debounce
 
     const handleSaleRecorded = () => {
-      const now = Date.now();
-      
       // Clear any pending debounced refresh
       if (debounceTimeout) {
         clearTimeout(debounceTimeout);
         debounceTimeout = null;
       }
       
-      // Check if enough time has passed since last refresh
-      if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
-        // Debounce the refresh
-        debounceTimeout = setTimeout(() => {
-          lastRefreshTime = Date.now();
-          refreshSales();
-        }, DEBOUNCE_DELAY);
-      } else {
-        // Refresh immediately
-        lastRefreshTime = Date.now();
-        refreshSales();
-      }
+      // Always force refresh to get real data from API (bypass cache)
+      debounceTimeout = setTimeout(() => {
+        refreshSales(true); // Force refresh to get fresh data
+      }, DEBOUNCE_DELAY);
     };
 
     // Listen for custom event when sales are created
@@ -396,6 +423,35 @@ const Dashboard = () => {
       }
     };
   }, [refreshSales]);
+
+  // Listen for products updates from other pages (Products page, etc.)
+  useEffect(() => {
+    let debounceTimeout: NodeJS.Timeout | null = null;
+    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+
+    const handleProductUpdate = () => {
+      // Clear any pending debounced refresh
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = null;
+      }
+      
+      // Always force refresh to get real data from API (bypass cache)
+      debounceTimeout = setTimeout(() => {
+        refreshProducts(true); // Force refresh to get fresh data
+      }, DEBOUNCE_DELAY);
+    };
+
+    // Listen for custom event when products are updated
+    window.addEventListener('products-should-refresh', handleProductUpdate);
+
+    return () => {
+      window.removeEventListener('products-should-refresh', handleProductUpdate);
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+    };
+  }, [refreshProducts]);
 
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");

@@ -320,13 +320,16 @@ const Sales = () => {
     },
   });
 
-  // Refresh sales every time this page is opened (only once on mount)
+  // Refresh products and sales every time this page is opened (only once on mount)
   useEffect(() => {
-    console.log('[Sales] Page opened, dispatching refresh event');
+    console.log('[Sales] Page opened, forcing refresh of products and sales data');
+    // Force refresh products and sales to get real data from API (bypass cache)
+    refreshProducts(true);
+    refreshSales(true);
     window.dispatchEvent(new CustomEvent('page-opened'));
     // Note: useApi hook will handle the actual refresh via the event listener
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount, not when refreshSales changes
+  }, []); // Only run once on mount, not when refresh functions change
   const { hasPin, verifyPin } = usePinAuth();
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getYearStartDate = () => {
@@ -372,45 +375,26 @@ const Sales = () => {
   // Listen for sale-recorded events to auto-refresh the sales list
   useEffect(() => {
     let debounceTimeout: NodeJS.Timeout | null = null;
-    let lastRefreshTime = 0;
-    const DEBOUNCE_DELAY = 2000; // 2 second debounce
-    const MIN_REFRESH_INTERVAL = 30 * 1000; // 30 seconds minimum between refreshes (increased to reduce API calls)
+    const DEBOUNCE_DELAY = 1000; // 1 second debounce
 
     const handleSaleRecorded = async () => {
-      const now = Date.now();
-      
       // Clear any pending debounced refresh
       if (debounceTimeout) {
         clearTimeout(debounceTimeout);
         debounceTimeout = null;
       }
       
-      // Check if enough time has passed since last refresh
-      if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
-        // Debounce the refresh
-        debounceTimeout = setTimeout(async () => {
-          lastRefreshTime = Date.now();
-          try {
-            await refreshSales();
-            // Also refresh products to update stock levels
-            await refreshProducts();
-          } catch (error) {
-            // Silently handle errors - the useApi hook will handle offline scenarios
-            console.log("Auto-refresh after sale recorded:", error);
-          }
-        }, DEBOUNCE_DELAY);
-      } else {
-        // Refresh immediately
-        lastRefreshTime = Date.now();
+      // Always force refresh to get real data from API (bypass cache)
+      debounceTimeout = setTimeout(async () => {
         try {
-          await refreshSales();
+          await refreshSales(true); // Force refresh to get fresh data
           // Also refresh products to update stock levels
-          await refreshProducts();
+          await refreshProducts(true);
         } catch (error) {
           // Silently handle errors - the useApi hook will handle offline scenarios
           console.log("Auto-refresh after sale recorded:", error);
         }
-      }
+      }, DEBOUNCE_DELAY);
     };
 
     window.addEventListener('sale-recorded', handleSaleRecorded);

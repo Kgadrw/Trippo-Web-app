@@ -114,7 +114,9 @@ const Products = () => {
 
   // Refresh products every time this page is opened (only once on mount)
   useEffect(() => {
-    console.log('[Products] Page opened, dispatching refresh event');
+    console.log('[Products] Page opened, forcing refresh of products data');
+    // Force refresh products to get real data from API (bypass cache)
+    refreshProducts(true);
     window.dispatchEvent(new CustomEvent('page-opened'));
     // Note: useApi hook will handle the actual refresh via the event listener
     // eslint-disable-next-line react-hooks/exhaustive-deps

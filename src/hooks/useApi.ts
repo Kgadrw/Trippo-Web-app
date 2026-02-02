@@ -6,6 +6,7 @@ import { initDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearSto
 import { generateUniqueId } from "@/lib/idGenerator";
 import { apiCache } from "@/lib/apiCache";
 import { logger } from "@/lib/logger";
+import { websocketManager } from "@/lib/websocketManager";
 
 interface UseApiOptions<T> {
   endpoint: 'products' | 'sales' | 'clients' | 'schedules';
@@ -84,7 +85,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
       
       // ✅ Smart caching strategy: Load from IndexedDB first (fast), then refresh from API in background
       // This gives instant UI while ensuring fresh data
+      // For sales and products, always fetch fresh from API to ensure real data (no stale cache)
       const shouldUseOfflineFirst = endpoint === 'products' || endpoint === 'sales';
+      const isProductsEndpoint = endpoint === 'products';
+      const shouldAlwaysFetchFresh = isSalesEndpoint || isProductsEndpoint; // Always fetch fresh sales and products data from API
       
       // For all endpoints, try to load from IndexedDB first for instant UI
       if (!isSalesEndpoint && !shouldUseOfflineFirst) {
@@ -129,74 +133,76 @@ export function useApi<T extends { _id?: string; id?: number }>({
           return;
         }
         }
-      } else {
-        // For sales and products, use offline-first: load from IndexedDB, then refresh from API
-        if (shouldUseOfflineFirst) {
-          // Load from IndexedDB first for instant UI
-          try {
-            const localItems = await getAllItems<T>(storeName);
-            
-            // Filter items by userId if they have a userId field
-            const filteredItems = localItems.filter((item: any) => {
-              if (item.userId !== undefined) {
-                return item.userId === userId;
-              }
-              // Include items without userId for backward compatibility
-              return true;
-            });
-            
-            if (filteredItems.length > 0) {
-              const mappedItems = filteredItems.map(mapItem);
-              
-              // Sort by timestamp (newest first) for sales
-              if (isSalesEndpoint) {
-                mappedItems.sort((a, b) => {
-                  const aTime = (a as any).timestamp || (a as any).date;
-                  const bTime = (b as any).timestamp || (b as any).date;
-                  return new Date(bTime).getTime() - new Date(aTime).getTime();
-                });
-              }
-              
-              // Show IndexedDB data immediately (instant UI)
-              setItems(mappedItems);
-              setIsLoading(false);
-              console.log(`[useApi] ${endpoint}: Loaded ${mappedItems.length} items from IndexedDB (showing immediately, refreshing from API in background)...`);
-              
-              // Now fetch from API in background to update IndexedDB and UI
-              // Don't block - this happens asynchronously
-              setTimeout(async () => {
-                try {
-                  // Check if we should refresh (not too soon after last refresh)
-                  const lastSyncTime = localStorage.getItem(`profit-pilot-${endpoint}-last-refresh`);
-                  const now = Date.now();
-                  const timeSinceLastRefresh = lastSyncTime ? now - parseInt(lastSyncTime) : Infinity;
-                  
-                  // Only refresh if it's been at least 30 seconds since last refresh
-                  // This prevents excessive API calls while still keeping data fresh
-                  if (timeSinceLastRefresh >= 30 * 1000) {
-                    await fetchAndUpdateFromAPI();
-                    localStorage.setItem(`profit-pilot-${endpoint}-last-refresh`, String(now));
-                  } else {
-                    console.log(`[useApi] ${endpoint}: Skipping background refresh (only ${Math.round(timeSinceLastRefresh / 1000)}s since last refresh)`);
-                  }
-                } catch (error) {
-                  // Silently fail - we already have IndexedDB data showing
-                  console.log(`[useApi] ${endpoint}: Background refresh failed, using IndexedDB data:`, error);
-                }
-              }, 100); // Small delay to let UI render first
-              
-              // Return early - we'll update from API in background
-              isLoadingDataRef.current = false;
-              return;
-            }
-          } catch (error) {
-            console.warn(`[useApi] ${endpoint}: Error loading from IndexedDB, will fetch from API:`, error);
-            // Continue to API fetch below
-          }
-          
-          // If IndexedDB is empty or failed, fetch from API
-          console.log(`[useApi] ${endpoint}: IndexedDB empty or failed, fetching from API...`);
         } else {
+          // For sales and products, use offline-first: load from IndexedDB, then refresh from API
+          // BUT for sales and products, always fetch fresh from API to ensure real data (no stale cache)
+          if (shouldUseOfflineFirst) {
+            // For sales and products, skip IndexedDB and always fetch fresh from API
+            if (shouldAlwaysFetchFresh) {
+              console.log(`[useApi] ${endpoint}: Always fetching fresh data from API (bypassing IndexedDB cache)...`);
+              // Don't load from IndexedDB - go straight to API fetch
+            } else {
+              // For products, load from IndexedDB first for instant UI
+              try {
+                const localItems = await getAllItems<T>(storeName);
+                
+                // Filter items by userId if they have a userId field
+                const filteredItems = localItems.filter((item: any) => {
+                  if (item.userId !== undefined) {
+                    return item.userId === userId;
+                  }
+                  // Include items without userId for backward compatibility
+                  return true;
+                });
+                
+                if (filteredItems.length > 0) {
+                  const mappedItems = filteredItems.map(mapItem);
+                  
+                  // Show IndexedDB data immediately (instant UI)
+                  setItems(mappedItems);
+                  setIsLoading(false);
+                  console.log(`[useApi] ${endpoint}: Loaded ${mappedItems.length} items from IndexedDB (showing immediately, refreshing from API in background)...`);
+                  
+                  // Now fetch from API in background to update IndexedDB and UI
+                  // Don't block - this happens asynchronously
+                  setTimeout(async () => {
+                    try {
+                      // Check if we should refresh (not too soon after last refresh)
+                      const lastSyncTime = localStorage.getItem(`profit-pilot-${endpoint}-last-refresh`);
+                      const now = Date.now();
+                      const timeSinceLastRefresh = lastSyncTime ? now - parseInt(lastSyncTime) : Infinity;
+                      
+                      // Only refresh if it's been at least 30 seconds since last refresh
+                      // This prevents excessive API calls while still keeping data fresh
+                      if (timeSinceLastRefresh >= 30 * 1000) {
+                        await fetchAndUpdateFromAPI();
+                        localStorage.setItem(`profit-pilot-${endpoint}-last-refresh`, String(now));
+                      } else {
+                        console.log(`[useApi] ${endpoint}: Skipping background refresh (only ${Math.round(timeSinceLastRefresh / 1000)}s since last refresh)`);
+                      }
+                    } catch (error) {
+                      // Silently fail - we already have IndexedDB data showing
+                      console.log(`[useApi] ${endpoint}: Background refresh failed, using IndexedDB data:`, error);
+                    }
+                  }, 100); // Small delay to let UI render first
+                  
+                  // Return early - we'll update from API in background
+                  isLoadingDataRef.current = false;
+                  return;
+                }
+              } catch (error) {
+                console.warn(`[useApi] ${endpoint}: Error loading from IndexedDB, will fetch from API:`, error);
+                // Continue to API fetch below
+              }
+            }
+            
+            // If IndexedDB is empty or failed, or if sales (always fetch fresh), fetch from API
+            if (shouldAlwaysFetchFresh) {
+              console.log(`[useApi] ${endpoint}: Fetching fresh data from API (bypassing IndexedDB)...`);
+            } else {
+              console.log(`[useApi] ${endpoint}: IndexedDB empty or failed, fetching from API...`);
+            }
+          } else {
           // For other endpoints, check cache first to reduce API calls
           const cacheKey = `/${endpoint}`;
           const cached = apiCache.get(cacheKey);
@@ -659,14 +665,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
     
     window.addEventListener('force-refresh-data', handleForceRefresh);
     window.addEventListener('page-opened', handlePageOpen);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    // REMOVED: visibilitychange and focus listeners - using WebSocket instead of polling
     
     return () => {
       window.removeEventListener('force-refresh-data', handleForceRefresh);
       window.removeEventListener('page-opened', handlePageOpen);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
@@ -1380,8 +1383,13 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
   // Refresh function that resets error state with rate limiting
   const refresh = useCallback((force = false) => {
+    // For sales and products endpoints, always force refresh to get real data from API
+    const isSalesEndpoint = endpoint === 'sales';
+    const isProductsEndpoint = endpoint === 'products';
+    const shouldForce = force || isSalesEndpoint || isProductsEndpoint;
+    
     // Don't refresh if already loading (unless forced)
-    if (isLoadingDataRef.current && !force) {
+    if (isLoadingDataRef.current && !shouldForce) {
       return;
     }
     
@@ -1396,13 +1404,21 @@ export function useApi<T extends { _id?: string; id?: number }>({
     const now = Date.now();
     const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
     
-    // If forced, invalidate cache and refresh immediately
-    if (force) {
+    // If forced (or sales endpoint), invalidate cache and refresh immediately
+    if (shouldForce) {
       apiCache.invalidateStore(endpoint);
-      lastRefreshTimeRef.current = 0; // Reset to bypass cooldown
+      // Clear the last refresh time to bypass cooldown
+      lastRefreshTimeRef.current = 0;
+      // Also clear the last refresh timestamp in localStorage to force API fetch
+      localStorage.removeItem(`profit-pilot-${endpoint}-last-refresh`);
     }
     
-    if (timeSinceLastRefresh < REFRESH_COOLDOWN && !force) {
+    // For sales and products, always refresh immediately (bypass cooldown)
+    if (isSalesEndpoint || isProductsEndpoint || timeSinceLastRefresh >= REFRESH_COOLDOWN || shouldForce) {
+      // Refresh immediately (loadData already checks isLoadingDataRef)
+      lastRefreshTimeRef.current = Date.now();
+      loadData();
+    } else {
       // Schedule refresh after cooldown period
       const remainingTime = REFRESH_COOLDOWN - timeSinceLastRefresh;
       refreshTimeoutRef.current = setTimeout(() => {
@@ -1412,12 +1428,56 @@ export function useApi<T extends { _id?: string; id?: number }>({
           loadData();
         }
       }, remainingTime);
-    } else {
-      // Refresh immediately (loadData already checks isLoadingDataRef)
-      lastRefreshTimeRef.current = Date.now();
-      loadData();
     }
   }, [loadData, endpoint]);
+
+  // ✅ WebSocket integration - listen for real-time updates (NO POLLING)
+  useEffect(() => {
+    let websocketUnsubscribes: (() => void)[] = [];
+    
+    if (endpoint === 'products') {
+      // Subscribe to product WebSocket events
+      const unsubscribeCreated = websocketManager.subscribe('product:created', (product) => {
+        console.log(`[useApi] WebSocket: Product created, refreshing products list`);
+        refresh(true); // Force refresh to get fresh data
+      });
+      
+      const unsubscribeUpdated = websocketManager.subscribe('product:updated', (product) => {
+        console.log(`[useApi] WebSocket: Product updated, refreshing products list`);
+        refresh(true); // Force refresh to get fresh data
+      });
+      
+      const unsubscribeDeleted = websocketManager.subscribe('product:deleted', (data) => {
+        console.log(`[useApi] WebSocket: Product deleted, refreshing products list`);
+        refresh(true); // Force refresh to get fresh data
+      });
+      
+      websocketUnsubscribes = [unsubscribeCreated, unsubscribeUpdated, unsubscribeDeleted];
+    } else if (endpoint === 'sales') {
+      // Subscribe to sales WebSocket events
+      const unsubscribeCreated = websocketManager.subscribe('sale:created', (sale) => {
+        console.log(`[useApi] WebSocket: Sale created, refreshing sales list`);
+        refresh(true); // Force refresh to get fresh data
+      });
+      
+      const unsubscribeUpdated = websocketManager.subscribe('sale:updated', (sale) => {
+        console.log(`[useApi] WebSocket: Sale updated, refreshing sales list`);
+        refresh(true); // Force refresh to get fresh data
+      });
+      
+      const unsubscribeDeleted = websocketManager.subscribe('sale:deleted', (data) => {
+        console.log(`[useApi] WebSocket: Sale deleted, refreshing sales list`);
+        refresh(true); // Force refresh to get fresh data
+      });
+      
+      websocketUnsubscribes = [unsubscribeCreated, unsubscribeUpdated, unsubscribeDeleted];
+    }
+    
+    return () => {
+      // Unsubscribe from WebSocket events
+      websocketUnsubscribes.forEach(unsubscribe => unsubscribe());
+    };
+  }, [endpoint, refresh]);
 
   return {
     items,
