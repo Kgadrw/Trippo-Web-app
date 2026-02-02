@@ -10,6 +10,7 @@ import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { SplashScreen } from "@/components/SplashScreen";
 import { NotificationManager } from "@/components/NotificationManager";
 import { StockUpdateDialog } from "@/components/StockUpdateDialog";
+import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { useSyncReminder } from "@/hooks/useSyncReminder";
 import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
@@ -94,7 +95,8 @@ const App = () => {
       <BrowserRouter>
         <ThemeProvider>
           <LanguageProvider>
-            <SplashScreen />
+            <WebSocketProvider>
+              <SplashScreen />
             <Routes>
               <Route path="/" element={<Home />} />
               <Route 
@@ -180,6 +182,7 @@ const App = () => {
               open={stockUpdateDialogOpen}
               onOpenChange={setStockUpdateDialogOpen}
             />
+            </WebSocketProvider>
           </LanguageProvider>
         </ThemeProvider>
       </BrowserRouter>
