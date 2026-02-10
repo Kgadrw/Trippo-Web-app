@@ -39,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { PinDialog } from "@/components/PinDialog";
+import { formatStockDisplay } from "@/lib/stockFormatter";
 import {
   DropdownMenu,
   DropdownMenuContent,

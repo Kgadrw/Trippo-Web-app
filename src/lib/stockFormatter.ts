@@ -4,13 +4,13 @@
  * - Non-package products: Shows as "X items" or "X units"
  */
 
-interface Product {
+export interface StockProduct {
   stock: number;
   isPackage?: boolean;
   packageQuantity?: number;
 }
 
-export function formatStockDisplay(product: Product, language: 'en' | 'rw' = 'en'): string {
+export function formatStockDisplay(product: StockProduct, language: 'en' | 'rw' = 'en'): string {
   if (product.stock === 0) {
     return language === 'rw' ? 'Nta bicuruzwa bisigaye' : 'Sold Out';
   }
@@ -46,7 +46,7 @@ export function formatStockDisplay(product: Product, language: 'en' | 'rw' = 'en
  * Get stock breakdown for package products
  * Returns { fullPackages, remainingItems, totalItems }
  */
-export function getStockBreakdown(product: Product): {
+export function getStockBreakdown(product: StockProduct): {
   fullPackages: number;
   remainingItems: number;
   totalItems: number;
