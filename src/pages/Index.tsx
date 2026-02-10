@@ -1838,83 +1838,144 @@ const Dashboard = () => {
               <Skeleton className="h-12 w-full mb-2" />
             </div>
           ) : recentSales.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead className="bg-gray-100 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("product")}
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("quantity")}
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("revenue")} (Rwf)
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("profit")} (Rwf)
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6 hidden sm:table-cell">
-                      {t("paymentMethod")}
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6 hidden md:table-cell">
-                      {t("date")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white">
-                  {recentSales.map((sale, index) => (
-                    <tr 
-                      key={(sale as any)._id || sale.id || index}
-                      className={cn(
-                        "border-b border-gray-200",
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      )}
-                    >
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-900">
-                          {sale.product}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">
-                          {sale.quantity}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">
-                          {sale.revenue.toLocaleString()}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className={cn(
-                          "text-sm",
-                          sale.profit >= 0 ? "text-green-700" : "text-red-700"
-                        )}>
-                          {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 hidden sm:table-cell">
-                        <div className="text-sm text-gray-700">
-                          {sale.paymentMethod === 'cash' && t("cash")}
-                          {sale.paymentMethod === 'card' && t("card")}
-                          {sale.paymentMethod === 'momo' && t("momoPay")}
-                          {sale.paymentMethod === 'airtel' && t("airtelPay")}
-                          {sale.paymentMethod === 'transfer' && t("bankTransfer")}
-                          {!sale.paymentMethod && t("cash")}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 hidden md:table-cell">
-                        <div className="text-sm text-gray-700">
-                          {formatDateWithTime(sale.timestamp || sale.date)}
-                        </div>
-                      </td>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead className="bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                        {t("product")}
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                        {t("quantity")}
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                        {t("revenue")} (Rwf)
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                        {t("profit")} (Rwf)
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                        {t("paymentMethod")}
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                        {t("date")}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-          </div>
-        ) : (
+                  </thead>
+                  <tbody className="bg-white">
+                    {recentSales.map((sale, index) => (
+                      <tr 
+                        key={(sale as any)._id || sale.id || index}
+                        className={cn(
+                          "border-b border-gray-200",
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        )}
+                      >
+                        <td className="py-4 px-6">
+                          <div className="text-sm text-gray-900">
+                            {sale.product}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="text-sm text-gray-700">
+                            {sale.quantity}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="text-sm text-gray-700">
+                            {sale.revenue.toLocaleString()}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className={cn(
+                            "text-sm",
+                            sale.profit >= 0 ? "text-green-700" : "text-red-700"
+                          )}>
+                            {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="text-sm text-gray-700">
+                            {sale.paymentMethod === 'cash' && t("cash")}
+                            {sale.paymentMethod === 'card' && t("card")}
+                            {sale.paymentMethod === 'momo' && t("momoPay")}
+                            {sale.paymentMethod === 'airtel' && t("airtelPay")}
+                            {sale.paymentMethod === 'transfer' && t("bankTransfer")}
+                            {!sale.paymentMethod && t("cash")}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="text-sm text-gray-700">
+                            {formatDateWithTime(sale.timestamp || sale.date)}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Table View - Matches Sales page mobile table */}
+              <div className="lg:hidden overflow-auto">
+                <div className="min-w-full">
+                  <table className="w-full border-collapse">
+                    <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                      <tr>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("product")}</th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {recentSales.map((sale, index) => (
+                        <tr 
+                          key={(sale as any)._id || sale.id || index}
+                          className={cn(
+                            "border-b border-gray-200",
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          )}
+                        >
+                          <td className="py-3 px-3">
+                            <div className="flex flex-col gap-1">
+                              <div className="text-xs font-medium text-gray-900">{sale.product}</div>
+                              <div className="text-[10px] text-gray-500">
+                                {formatDateWithTime(sale.timestamp || sale.date)}
+                              </div>
+                              <div className="text-[10px] text-gray-500">
+                                {sale.paymentMethod === 'cash' && t("cash")}
+                                {sale.paymentMethod === 'card' && t("card")}
+                                {sale.paymentMethod === 'momo' && t("momoPay")}
+                                {sale.paymentMethod === 'airtel' && t("airtelPay")}
+                                {sale.paymentMethod === 'transfer' && t("bankTransfer")}
+                                {!sale.paymentMethod && t("cash")}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="text-xs text-gray-700">{sale.quantity}</div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="text-xs text-gray-700">{sale.revenue.toLocaleString()} rwf</div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className={cn(
+                              "text-xs font-medium",
+                              sale.profit >= 0 ? "text-green-700" : "text-red-700"
+                            )}>
+                              {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
             <div className="p-12 text-center">
               <div className="flex flex-col items-center justify-center text-gray-400">
                 <ShoppingCart size={48} className="mb-4 opacity-50" />
@@ -1926,8 +1987,8 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-        )}
-      </div>
+          )}
+        </div>
       </div>
 
       <AddToHomeScreen />
