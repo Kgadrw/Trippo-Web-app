@@ -331,10 +331,15 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
           const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
           const isScheduleItem = item.path === "/schedules";
           const isScheduleActive = isScheduleItem && isActive;
+          
+          // For dashboard item on dashboard subdomain, navigate to "/" (homepage)
+          // Otherwise, use the normal path
+          const dashboardPath = isDashboardItem && subdomain === 'dashboard' ? "/" : item.path;
+          
           return (
             <Link
               key={item.path}
-              to={item.path}
+              to={dashboardPath}
               onClick={handleNavClick}
               className={cn(
                 "sidebar-item w-full",

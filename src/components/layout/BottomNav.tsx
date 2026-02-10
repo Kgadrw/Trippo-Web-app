@@ -66,10 +66,15 @@ export function BottomNav() {
             const isDashboardItem = item.path === "/dashboard";
             const isDashboardSubdomainRoot = subdomain === 'dashboard' && location.pathname === "/";
             const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
+            
+            // For dashboard item on dashboard subdomain, navigate to "/" (homepage)
+            // Otherwise, use the normal path
+            const dashboardPath = isDashboardItem && subdomain === 'dashboard' ? "/" : item.path;
+            
             return (
               <Link
                 key={item.path}
-                to={item.path}
+                to={dashboardPath}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all duration-300 ease-in-out relative",
                   isActive 
