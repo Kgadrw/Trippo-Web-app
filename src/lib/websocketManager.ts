@@ -40,8 +40,10 @@ class WebSocketManager {
 
   // Handle incoming WebSocket messages
   handleMessage(message: { type: string; data?: any }) {
+    console.log(`[WebSocketManager] Received message:`, message.type, message.data ? 'with data' : 'no data');
     const callbacks = this.listeners.get(message.type);
-    if (callbacks) {
+    if (callbacks && callbacks.size > 0) {
+      console.log(`[WebSocketManager] Found ${callbacks.size} listener(s) for ${message.type}`);
       callbacks.forEach(callback => {
         try {
           callback(message.data);
@@ -49,6 +51,8 @@ class WebSocketManager {
           console.error(`[WebSocketManager] Error in callback for ${message.type}:`, error);
         }
       });
+    } else {
+      console.log(`[WebSocketManager] No listeners for ${message.type}`);
     }
   }
 

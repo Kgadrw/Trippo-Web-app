@@ -1432,43 +1432,105 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
   }, [loadData, endpoint]);
 
-  // ✅ WebSocket integration - listen for real-time updates (NO POLLING)
+  // ✅ WebSocket integration - listen for real-time updates (ONLY when socket is open)
   useEffect(() => {
     let websocketUnsubscribes: (() => void)[] = [];
+    
+    // Always subscribe - WebSocket manager will handle connection status
+    // If not connected, messages will be queued or ignored, but subscription will be ready when connection is established
+    console.log(`[useApi] Subscribing to WebSocket events for ${endpoint} (connection status: ${websocketManager.isConnected() ? 'connected' : 'not connected'})`);
     
     if (endpoint === 'products') {
       // Subscribe to product WebSocket events
       const unsubscribeCreated = websocketManager.subscribe('product:created', (product) => {
-        console.log(`[useApi] WebSocket: Product created, refreshing products list`);
-        refresh(true); // Force refresh to get fresh data
+        console.log(`[useApi] WebSocket: Product created`, product);
+        // Optimistically add the product to the list
+        if (product && product._id) {
+          setItems((prev) => {
+            // Check if product already exists (avoid duplicates)
+            const exists = prev.some((p: any) => (p._id || p.id)?.toString() === product._id?.toString());
+            if (exists) return prev;
+            return [product, ...prev];
+          });
+        } else {
+          // Fallback to refresh if product data is incomplete
+          refresh(true);
+        }
       });
       
       const unsubscribeUpdated = websocketManager.subscribe('product:updated', (product) => {
-        console.log(`[useApi] WebSocket: Product updated, refreshing products list`);
-        refresh(true); // Force refresh to get fresh data
+        console.log(`[useApi] WebSocket: Product updated`, product);
+        // Optimistically update the product in the list
+        if (product && product._id) {
+          setItems((prev) => 
+            prev.map((p: any) => 
+              (p._id || p.id)?.toString() === product._id?.toString() ? product : p
+            )
+          );
+        } else {
+          // Fallback to refresh if product data is incomplete
+          refresh(true);
+        }
       });
       
       const unsubscribeDeleted = websocketManager.subscribe('product:deleted', (data) => {
-        console.log(`[useApi] WebSocket: Product deleted, refreshing products list`);
-        refresh(true); // Force refresh to get fresh data
+        console.log(`[useApi] WebSocket: Product deleted`, data);
+        // Optimistically remove the product from the list
+        if (data && data._id) {
+          setItems((prev) => 
+            prev.filter((p: any) => (p._id || p.id)?.toString() !== data._id?.toString())
+          );
+        } else {
+          // Fallback to refresh if deletion data is incomplete
+          refresh(true);
+        }
       });
       
       websocketUnsubscribes = [unsubscribeCreated, unsubscribeUpdated, unsubscribeDeleted];
     } else if (endpoint === 'sales') {
       // Subscribe to sales WebSocket events
       const unsubscribeCreated = websocketManager.subscribe('sale:created', (sale) => {
-        console.log(`[useApi] WebSocket: Sale created, refreshing sales list`);
-        refresh(true); // Force refresh to get fresh data
+        console.log(`[useApi] WebSocket: Sale created`, sale);
+        // Optimistically add the sale to the list
+        if (sale && (sale._id || sale.id)) {
+          setItems((prev) => {
+            // Check if sale already exists (avoid duplicates)
+            const exists = prev.some((s: any) => (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString());
+            if (exists) return prev;
+            return [sale, ...prev];
+          });
+        } else {
+          // Fallback to refresh if sale data is incomplete
+          refresh(true);
+        }
       });
       
       const unsubscribeUpdated = websocketManager.subscribe('sale:updated', (sale) => {
-        console.log(`[useApi] WebSocket: Sale updated, refreshing sales list`);
-        refresh(true); // Force refresh to get fresh data
+        console.log(`[useApi] WebSocket: Sale updated`, sale);
+        // Optimistically update the sale in the list
+        if (sale && (sale._id || sale.id)) {
+          setItems((prev) => 
+            prev.map((s: any) => 
+              (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString() ? sale : s
+            )
+          );
+        } else {
+          // Fallback to refresh if sale data is incomplete
+          refresh(true);
+        }
       });
       
       const unsubscribeDeleted = websocketManager.subscribe('sale:deleted', (data) => {
-        console.log(`[useApi] WebSocket: Sale deleted, refreshing sales list`);
-        refresh(true); // Force refresh to get fresh data
+        console.log(`[useApi] WebSocket: Sale deleted`, data);
+        // Optimistically remove the sale from the list
+        if (data && data._id) {
+          setItems((prev) => 
+            prev.filter((s: any) => (s._id || s.id)?.toString() !== data._id?.toString())
+          );
+        } else {
+          // Fallback to refresh if deletion data is incomplete
+          refresh(true);
+        }
       });
       
       websocketUnsubscribes = [unsubscribeCreated, unsubscribeUpdated, unsubscribeDeleted];
@@ -1478,7 +1540,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       // Unsubscribe from WebSocket events
       websocketUnsubscribes.forEach(unsubscribe => unsubscribe());
     };
-  }, [endpoint, refresh]);
+  }, [endpoint, refresh, setItems]);
 
   return {
     items,
