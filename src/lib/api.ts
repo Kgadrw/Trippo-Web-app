@@ -119,9 +119,11 @@ async function request<T>(
     }
   } else {
     // For non-admin endpoints, sanitize and send userId if present
-    const sanitizedUserId = userId ? sanitizeInput(userId) : null;
-    if (sanitizedUserId) {
-      defaultHeaders['X-User-Id'] = sanitizedUserId;
+    if (userId) {
+      const sanitizedUserId = sanitizeInput(userId);
+      if (sanitizedUserId) {
+        defaultHeaders['X-User-Id'] = sanitizedUserId;
+      }
     }
   }
   
@@ -151,7 +153,9 @@ async function request<T>(
   try {
     // Check cache for GET requests (deduplication)
     const isGet = (options.method || 'GET').toUpperCase() === 'GET';
-    const cacheKey = `${options.method || 'GET'}:${endpoint}:${sanitizedUserId || 'anonymous'}`;
+    // Get userId for cache key (use the value from defaultHeaders if set, otherwise 'anonymous')
+    const userIdForCache = defaultHeaders['X-User-Id'] || userId || 'anonymous';
+    const cacheKey = `${options.method || 'GET'}:${endpoint}:${userIdForCache}`;
     
     if (isGet && retryCount === 0) {
       const cached = requestCache.get(cacheKey);
