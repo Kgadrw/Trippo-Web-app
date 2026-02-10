@@ -375,7 +375,7 @@ const Sales = () => {
   // Listen for sale-recorded events to auto-refresh the sales list
   useEffect(() => {
     let debounceTimeout: NodeJS.Timeout | null = null;
-    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+    const DEBOUNCE_DELAY = 300; // 300ms debounce for faster updates
 
     const handleSaleRecorded = async () => {
       // Clear any pending debounced refresh
@@ -390,6 +390,7 @@ const Sales = () => {
           await refreshSales(true); // Force refresh to get fresh data
           // Also refresh products to update stock levels
           await refreshProducts(true);
+          console.log('[Sales] Auto-refreshed sales list after sale recorded');
         } catch (error) {
           // Silently handle errors - the useApi hook will handle offline scenarios
           console.log("Auto-refresh after sale recorded:", error);
@@ -634,11 +635,6 @@ const Sales = () => {
             // Reset bulk form
             setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
             setIsBulkMode(false);
-
-            toast({
-              title: "Sales Recorded",
-              description: `Successfully recorded ${salesToCreate.length} sale(s).`,
-            });
           } catch (bulkError: any) {
             // Check if it's a connection error
             if (bulkError?.response?.connectionError) {
@@ -837,11 +833,6 @@ const Sales = () => {
           
           // Show success toast immediately
           sonnerToast.success("Sale Recorded", {
-            description: `Successfully recorded sale of ${qty}x ${product.name}`,
-          });
-          
-          toast({
-            title: "Sale Recorded",
             description: `Successfully recorded sale of ${qty}x ${product.name}`,
           });
           

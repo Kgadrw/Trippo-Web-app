@@ -746,19 +746,6 @@ const Dashboard = () => {
           // Reset bulk form
           setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
           setIsBulkMode(false);
-
-          // Check if offline mode
-          if (!isOnline) {
-            toast({
-              title: "Sales Recorded (Offline Mode)",
-              description: `Successfully recorded ${salesToCreate.length} sale(s). Changes will sync when you're back online.`,
-            });
-          } else {
-            toast({
-              title: "Sales Recorded",
-              description: `Successfully recorded ${salesToCreate.length} sale(s).`,
-            });
-          }
       } else {
         playWarningBeep();
         toast({
@@ -936,11 +923,6 @@ const Dashboard = () => {
         
         // Show success toast immediately
         sonnerToast.success("Sale Recorded", {
-          description: `Successfully recorded sale of ${qty}x ${product.name}`,
-        });
-        
-        toast({
-          title: "Sale Recorded",
           description: `Successfully recorded sale of ${qty}x ${product.name}`,
         });
         
