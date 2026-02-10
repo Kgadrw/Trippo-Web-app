@@ -89,16 +89,40 @@ async function request<T>(
     );
   }
   
-  // Sanitize userId if present
-  const sanitizedUserId = userId ? sanitizeInput(userId) : null;
-  
   // Build headers - merge default headers with any provided headers
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   
-  if (sanitizedUserId) {
-    defaultHeaders['X-User-Id'] = sanitizedUserId;
+  // For admin endpoints, always check if admin is logged in
+  if (isAdminEndpoint) {
+    const adminId = localStorage.getItem("profit-pilot-user-id");
+    if (adminId === 'admin') {
+      defaultHeaders['X-User-Id'] = 'admin';
+      // Debug logging (only in development)
+      if (import.meta.env.DEV) {
+        console.log('[API] Admin endpoint - sending X-User-Id: admin');
+      }
+    } else if (userId) {
+      // Fallback: use regular userId if admin check fails
+      const sanitizedUserId = sanitizeInput(userId);
+      if (sanitizedUserId) {
+        defaultHeaders['X-User-Id'] = sanitizedUserId;
+        if (import.meta.env.DEV) {
+          console.log('[API] Admin endpoint - using fallback userId:', sanitizedUserId);
+        }
+      }
+    } else {
+      if (import.meta.env.DEV) {
+        console.warn('[API] Admin endpoint - no userId found in localStorage');
+      }
+    }
+  } else {
+    // For non-admin endpoints, sanitize and send userId if present
+    const sanitizedUserId = userId ? sanitizeInput(userId) : null;
+    if (sanitizedUserId) {
+      defaultHeaders['X-User-Id'] = sanitizedUserId;
+    }
   }
   
   const mergedHeaders = {
