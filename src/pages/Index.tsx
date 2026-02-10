@@ -1108,13 +1108,13 @@ const Dashboard = () => {
               title={t("todaysRevenue")}
               value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
               icon={DollarSign}
-              valueColor="text-green-600"
+              valueColor="text-blue-600"
             />
             <KPICard
               title={t("todaysProfit")}
               value={`${todayStats.totalProfit.toLocaleString()} rwf`}
               icon={TrendingUp}
-              valueColor="text-purple-600"
+              valueColor="text-green-600"
             />
             <KPICard
               title={t("language") === "rw" ? "Agaciro k'ibicuruzwa" : "Current Stock Value"}
