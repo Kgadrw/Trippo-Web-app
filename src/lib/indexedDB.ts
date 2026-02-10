@@ -1,7 +1,7 @@
 // IndexedDB utilities for offline storage
 
 const DB_NAME = "stockaDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 interface StoreConfig {
   name: string;

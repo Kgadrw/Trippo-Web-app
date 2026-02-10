@@ -1021,6 +1021,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       const itemData = { ...item };
       delete (itemData as any).id;
       delete (itemData as any)._id;
+      delete (itemData as any).__v; // Remove MongoDB version field to avoid version conflicts
       
       try {
         let response;

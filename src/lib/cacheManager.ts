@@ -18,8 +18,13 @@ export async function clearAllCachesAndData(): Promise<void> {
       const { clearStore } = await import('./indexedDB');
       await clearStore('products');
       console.log('[CacheManager] ✓ Cleared products store');
-    } catch (error) {
-      console.error('[CacheManager] Error clearing IndexedDB:', error);
+    } catch (error: any) {
+      // Handle version errors gracefully - database might be at a different version
+      if (error?.name === 'VersionError' || error?.message?.includes('version')) {
+        console.warn('[CacheManager] IndexedDB version mismatch, skipping clear. This is safe to ignore.');
+      } else {
+        console.error('[CacheManager] Error clearing IndexedDB:', error);
+      }
       // Don't throw - continue with other cache clearing
     }
     
