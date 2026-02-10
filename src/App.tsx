@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
@@ -15,7 +15,17 @@ import { useSyncReminder } from "@/hooks/useSyncReminder";
 import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { useSubdomain, getSubdomainUrl } from "@/hooks/useSubdomain";
 import Home from "./pages/Home";
+
+// Component to handle cross-domain redirects
+const SubdomainRedirect = ({ subdomain }: { subdomain: 'admin' | 'dashboard' }) => {
+  useEffect(() => {
+    const url = getSubdomainUrl(subdomain);
+    window.location.href = url;
+  }, [subdomain]);
+  return null;
+};
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import AddProduct from "./pages/AddProduct";
@@ -28,6 +38,232 @@ import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+// Subdomain-based router component
+const SubdomainRouter = () => {
+  const subdomain = useSubdomain();
+
+  // If on admin subdomain, show admin dashboard at root, but allow other routes
+  if (subdomain === 'admin') {
+    return (
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        {/* Allow other routes to work on admin subdomain too */}
+        <Route 
+          path="/products" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Products />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/products/add" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <AddProduct />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/sales" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Sales />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/clients" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Clients />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/schedules" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Schedules />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reports" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Reports />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Settings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    );
+  }
+
+  // If on dashboard subdomain, show user dashboard at root, but allow other routes
+  if (subdomain === 'dashboard') {
+    return (
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          } 
+        />
+        {/* Allow other routes to work on dashboard subdomain */}
+        <Route 
+          path="/products" 
+          element={
+            <ProtectedRoute>
+              <Products />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/products/add" 
+          element={
+            <ProtectedRoute>
+              <AddProduct />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/sales" 
+          element={
+            <ProtectedRoute>
+              <Sales />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/clients" 
+          element={
+            <ProtectedRoute>
+              <Clients />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/schedules" 
+          element={
+            <ProtectedRoute>
+              <Schedules />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reports" 
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    );
+  }
+
+  // Main domain - use normal routing
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      {/* Redirect old paths to appropriate subdomains */}
+      <Route 
+        path="/dashboard" 
+        element={<SubdomainRedirect subdomain="dashboard" />} 
+      />
+      <Route 
+        path="/admin-dashboard" 
+        element={<SubdomainRedirect subdomain="admin" />} 
+      />
+      <Route 
+        path="/products" 
+        element={
+          <ProtectedRoute>
+            <Products />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/products/add" 
+        element={
+          <ProtectedRoute>
+            <AddProduct />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/sales" 
+        element={
+          <ProtectedRoute>
+            <Sales />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/clients" 
+        element={
+          <ProtectedRoute>
+            <Clients />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/schedules" 
+        element={
+          <ProtectedRoute>
+            <Schedules />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/reports" 
+        element={
+          <ProtectedRoute>
+            <Reports />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } 
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => {
   // State for stock update dialog from notification
@@ -97,82 +333,7 @@ const App = () => {
           <LanguageProvider>
             <WebSocketProvider>
               <SplashScreen />
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/products" 
-                element={
-                  <ProtectedRoute>
-                    <Products />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/products/add" 
-                element={
-                  <ProtectedRoute>
-                    <AddProduct />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/sales" 
-                element={
-                  <ProtectedRoute>
-                    <Sales />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/clients" 
-                element={
-                  <ProtectedRoute>
-                    <Clients />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/schedules" 
-                element={
-                  <ProtectedRoute>
-                    <Schedules />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/reports" 
-                element={
-                  <ProtectedRoute>
-                    <Reports />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/settings" 
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin-dashboard" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+              <SubdomainRouter />
             <OfflineIndicator />
             <NotificationManager />
             <StockUpdateDialog

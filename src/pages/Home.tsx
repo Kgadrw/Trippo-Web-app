@@ -6,6 +6,7 @@ import { LoginModal } from "@/components/LoginModal";
 import { User, Instagram, Phone } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLanguage } from "@/hooks/useLanguage";
+import { getSubdomainUrl } from "@/hooks/useSubdomain";
 
 const Home = () => {
   const { t } = useTranslation();
@@ -15,21 +16,29 @@ const Home = () => {
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
   const [isMobile, setIsMobile] = useState(false);
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users to dashboard based on subdomain
   useEffect(() => {
     const userId = localStorage.getItem("profit-pilot-user-id");
     const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
     const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
 
     if (userId && authenticated) {
-      // User is already logged in, redirect to appropriate dashboard
+      // User is already logged in, redirect to appropriate subdomain
       if (isAdmin && userId === "admin") {
-        navigate("/admin-dashboard", { replace: true });
+        // Redirect to admin subdomain
+        const adminUrl = getSubdomainUrl('admin');
+        if (window.location.hostname !== new URL(adminUrl).hostname) {
+          window.location.href = adminUrl;
+        }
       } else {
-        navigate("/dashboard", { replace: true });
+        // Redirect to dashboard subdomain
+        const dashboardUrl = getSubdomainUrl('dashboard');
+        if (window.location.hostname !== new URL(dashboardUrl).hostname) {
+          window.location.href = dashboardUrl;
+        }
       }
     }
-  }, [navigate]);
+  }, []);
 
   // Force English language on homepage
   useEffect(() => {

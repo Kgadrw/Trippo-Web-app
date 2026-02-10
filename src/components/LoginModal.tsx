@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
+import { getSubdomainUrl } from "@/hooks/useSubdomain";
 import { Lock, User, Mail, Phone } from "lucide-react";
 
 interface LoginModalProps {
@@ -154,7 +155,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           });
           
           onOpenChange(false);
-          navigate("/admin-dashboard", { replace: true });
+          // Redirect to admin subdomain
+          const adminUrl = getSubdomainUrl('admin');
+          window.location.href = adminUrl;
           return;
         }
 
@@ -194,7 +197,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           description: "You have successfully logged in.",
         });
         onOpenChange(false);
-        navigate("/dashboard", { replace: true });
+        // Redirect to dashboard subdomain
+        const dashboardUrl = getSubdomainUrl('dashboard');
+        window.location.href = dashboardUrl;
       }
     } catch (error: any) {
       const errorMessage = error.response?.error || error.message || "Login failed. Please try again.";

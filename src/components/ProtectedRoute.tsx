@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useSubdomain, getSubdomainUrl } from "@/hooks/useSubdomain";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,6 +9,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const location = useLocation();
+  const subdomain = useSubdomain();
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -110,13 +112,38 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (!isAuthenticated) {
-    // Just redirect to home - Home page has its own login modal
+    // Redirect to main domain home page
+    const homeUrl = getSubdomainUrl(null);
+    if (window.location.hostname !== new URL(homeUrl).hostname) {
+      window.location.href = homeUrl;
+      return null;
+    }
     return <Navigate to="/" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    // Just redirect to home - Home page has its own login modal
+    // Redirect to main domain home page
+    const homeUrl = getSubdomainUrl(null);
+    if (window.location.hostname !== new URL(homeUrl).hostname) {
+      window.location.href = homeUrl;
+      return null;
+    }
     return <Navigate to="/" replace />;
+  }
+
+  // Check if user is on wrong subdomain
+  if (requireAdmin && subdomain !== 'admin') {
+    // Admin should be on admin subdomain
+    const adminUrl = getSubdomainUrl('admin');
+    window.location.href = adminUrl;
+    return null;
+  }
+
+  if (!requireAdmin && subdomain === 'admin') {
+    // Regular user should not be on admin subdomain, redirect to dashboard
+    const dashboardUrl = getSubdomainUrl('dashboard');
+    window.location.href = dashboardUrl;
+    return null;
   }
 
   return <>{children}</>;
