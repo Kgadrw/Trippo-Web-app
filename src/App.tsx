@@ -19,10 +19,34 @@ import { useSubdomain, getSubdomainUrl } from "@/hooks/useSubdomain";
 import Home from "./pages/Home";
 
 // Component to handle cross-domain redirects
+// Only redirects if user is authenticated
 const SubdomainRedirect = ({ subdomain }: { subdomain: 'admin' | 'dashboard' }) => {
   useEffect(() => {
-    const url = getSubdomainUrl(subdomain);
-    window.location.href = url;
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+    const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
+    
+    // Only redirect if authenticated
+    if (userId && authenticated) {
+      // For admin subdomain, check if user is admin
+      if (subdomain === 'admin' && isAdmin && userId === "admin") {
+        const url = getSubdomainUrl(subdomain);
+        window.location.href = url;
+        return;
+      }
+      // For dashboard subdomain, allow any authenticated user
+      if (subdomain === 'dashboard') {
+        const url = getSubdomainUrl(subdomain);
+        window.location.href = url;
+        return;
+      }
+    }
+    
+    // If not authenticated or wrong role, redirect to home
+    const homeUrl = getSubdomainUrl(null);
+    if (window.location.hostname !== new URL(homeUrl).hostname) {
+      window.location.href = homeUrl;
+    }
   }, [subdomain]);
   return null;
 };
@@ -43,7 +67,8 @@ const queryClient = new QueryClient();
 const SubdomainRouter = () => {
   const subdomain = useSubdomain();
 
-  // If on admin subdomain, show admin dashboard at root, but allow other routes
+  // Prevent Home page from being accessed on subdomains
+  // If on subdomain, only show protected routes, no Home page
   if (subdomain === 'admin') {
     return (
       <Routes>
@@ -192,10 +217,11 @@ const SubdomainRouter = () => {
   }
 
   // Main domain - use normal routing
+  // Only allow Home page on main domain (trippo.rw)
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      {/* Redirect old paths to appropriate subdomains */}
+      {/* Redirect old paths to appropriate subdomains (only if authenticated) */}
       <Route 
         path="/dashboard" 
         element={<SubdomainRedirect subdomain="dashboard" />} 

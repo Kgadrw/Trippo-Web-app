@@ -16,28 +16,24 @@ const Home = () => {
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
   const [isMobile, setIsMobile] = useState(false);
 
-  // Redirect authenticated users to dashboard based on subdomain
+  // Only allow Home page on main domain
+  // If user is on subdomain, they should be redirected by App.tsx routing
   useEffect(() => {
-    const userId = localStorage.getItem("profit-pilot-user-id");
-    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
-    const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
-
-    if (userId && authenticated) {
-      // User is already logged in, redirect to appropriate subdomain
-      if (isAdmin && userId === "admin") {
-        // Redirect to admin subdomain
-        const adminUrl = getSubdomainUrl('admin');
-        if (window.location.hostname !== new URL(adminUrl).hostname) {
-          window.location.href = adminUrl;
-        }
-      } else {
-        // Redirect to dashboard subdomain
-        const dashboardUrl = getSubdomainUrl('dashboard');
-        if (window.location.hostname !== new URL(dashboardUrl).hostname) {
-          window.location.href = dashboardUrl;
-        }
-      }
+    const hostname = window.location.hostname;
+    const isMainDomain = hostname === 'trippo.rw' || 
+                         hostname === 'localhost' || 
+                         hostname === '127.0.0.1' ||
+                         (hostname.includes('localhost') && !hostname.startsWith('admin.') && !hostname.startsWith('dashboard.'));
+    
+    // If somehow on subdomain, redirect to main domain
+    if (!isMainDomain && (hostname.startsWith('admin.') || hostname.startsWith('dashboard.'))) {
+      const mainUrl = getSubdomainUrl(null);
+      window.location.replace(mainUrl);
+      return;
     }
+
+    // Don't auto-redirect authenticated users - let them choose via login
+    // After login, LoginModal will handle redirect to appropriate subdomain
   }, []);
 
   // Force English language on homepage

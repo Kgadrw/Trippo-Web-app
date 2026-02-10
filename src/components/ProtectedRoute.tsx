@@ -112,22 +112,35 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (!isAuthenticated) {
-    // Redirect to main domain home page
+    // Always redirect to main domain home page for login
     const homeUrl = getSubdomainUrl(null);
-    if (window.location.hostname !== new URL(homeUrl).hostname) {
-      window.location.href = homeUrl;
+    const currentHost = window.location.hostname;
+    const homeHost = new URL(homeUrl).hostname;
+    
+    // Only redirect if we're on a subdomain
+    if (currentHost !== homeHost && (currentHost.includes('admin.') || currentHost.includes('dashboard.'))) {
+      // Redirect to main domain and stay there (no redirect loop)
+      window.location.replace(homeUrl);
       return null;
     }
+    
+    // If already on main domain, show home page
     return <Navigate to="/" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    // Redirect to main domain home page
+    // User is not admin, redirect to main domain home page
     const homeUrl = getSubdomainUrl(null);
-    if (window.location.hostname !== new URL(homeUrl).hostname) {
-      window.location.href = homeUrl;
+    const currentHost = window.location.hostname;
+    const homeHost = new URL(homeUrl).hostname;
+    
+    // Only redirect if we're on a subdomain
+    if (currentHost !== homeHost && (currentHost.includes('admin.') || currentHost.includes('dashboard.'))) {
+      window.location.replace(homeUrl);
       return null;
     }
+    
+    // If already on main domain, show home page
     return <Navigate to="/" replace />;
   }
 
