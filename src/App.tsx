@@ -218,14 +218,11 @@ const SubdomainRouter = () => {
 
   // Main domain - use normal routing
   // Only allow Home page on main domain (trippo.rw)
+  // Dashboard route removed - only accessible via dashboard.trippo.rw subdomain
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      {/* Redirect old paths to appropriate subdomains (only if authenticated) */}
-      <Route 
-        path="/dashboard" 
-        element={<SubdomainRedirect subdomain="dashboard" />} 
-      />
+      {/* Redirect old admin path to admin subdomain (only if authenticated) */}
       <Route 
         path="/admin-dashboard" 
         element={<SubdomainRedirect subdomain="admin" />} 
