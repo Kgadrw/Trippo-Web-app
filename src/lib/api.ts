@@ -96,26 +96,31 @@ async function request<T>(
   
   // For admin endpoints, always check if admin is logged in
   if (isAdminEndpoint) {
+    // Always check localStorage directly for admin endpoints
     const adminId = localStorage.getItem("profit-pilot-user-id");
-    if (adminId === 'admin') {
+    const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
+    
+    // Always log admin endpoint requests for debugging
+    console.log('[API] Admin endpoint request:', {
+      endpoint,
+      'adminId-from-storage': adminId,
+      'isAdmin-flag': isAdmin,
+      'userId-from-param': userId,
+      'localStorage-keys': Object.keys(localStorage).filter(k => k.includes('profit-pilot'))
+    });
+    
+    if (adminId === 'admin' || isAdmin) {
       defaultHeaders['X-User-Id'] = 'admin';
-      // Debug logging (only in development)
-      if (import.meta.env.DEV) {
-        console.log('[API] Admin endpoint - sending X-User-Id: admin');
-      }
+      console.log('[API] ✅ Sending X-User-Id: admin for endpoint:', endpoint);
     } else if (userId) {
       // Fallback: use regular userId if admin check fails
       const sanitizedUserId = sanitizeInput(userId);
       if (sanitizedUserId) {
         defaultHeaders['X-User-Id'] = sanitizedUserId;
-        if (import.meta.env.DEV) {
-          console.log('[API] Admin endpoint - using fallback userId:', sanitizedUserId);
-        }
+        console.warn('[API] ⚠️ Admin endpoint - using fallback userId:', sanitizedUserId, 'for endpoint:', endpoint);
       }
     } else {
-      if (import.meta.env.DEV) {
-        console.warn('[API] Admin endpoint - no userId found in localStorage');
-      }
+      console.error('[API] ❌ Admin endpoint - no userId found in localStorage for endpoint:', endpoint);
     }
   } else {
     // For non-admin endpoints, sanitize and send userId if present
