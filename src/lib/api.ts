@@ -2,7 +2,6 @@
 import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
-import { getAuthValue } from './authStorage';
 
 // API URL Configuration
 // Priority: VITE_API_URL env variable > localhost (dev mode) > deployed URL
@@ -69,8 +68,8 @@ async function request<T>(
   const sanitizedEndpoint = sanitizeInput(endpoint);
   const url = `${API_BASE_URL}${sanitizedEndpoint}`;
   
-  // Get userId from auth storage (cookie for subdomain access, localStorage as fallback)
-  const userId = getAuthValue("profit-pilot-user-id");
+  // Get userId from localStorage - REQUIRED for all requests except auth endpoints
+  const userId = localStorage.getItem("profit-pilot-user-id");
   
   // For non-auth endpoints, userId is required for data isolation
   const isAuthEndpoint = endpoint.startsWith('/auth/register') || 
@@ -97,9 +96,9 @@ async function request<T>(
   
   // For admin endpoints, always check if admin is logged in
   if (isAdminEndpoint) {
-    // Always check auth storage directly for admin endpoints (cookie for subdomain access)
-    const adminId = getAuthValue("profit-pilot-user-id");
-    const isAdmin = getAuthValue("profit-pilot-is-admin") === "true";
+    // Always check localStorage directly for admin endpoints
+    const adminId = localStorage.getItem("profit-pilot-user-id");
+    const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
     
     // Always log admin endpoint requests for debugging
     console.log('[API] Admin endpoint request:', {

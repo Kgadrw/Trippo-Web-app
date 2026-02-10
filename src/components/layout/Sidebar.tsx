@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useSubdomain } from "@/hooks/useSubdomain";
 
 const getMenuItems = (t: (key: string) => string) => {
   // Calculate if NEW banner should show (for one month from today)
@@ -60,6 +61,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const { t, language } = useTranslation();
+  const subdomain = useSubdomain();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [menuItems, setMenuItems] = useState(getMenuItems(t));
   const [isHovered, setIsHovered] = useState(false);
@@ -323,7 +325,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
       {/* Navigation */}
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-thin">
         {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          // For dashboard item: active if path matches OR if on dashboard subdomain root
+          const isDashboardItem = item.path === "/dashboard";
+          const isDashboardSubdomainRoot = subdomain === 'dashboard' && location.pathname === "/";
+          const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
           const isScheduleItem = item.path === "/schedules";
           const isScheduleActive = isScheduleItem && isActive;
           return (

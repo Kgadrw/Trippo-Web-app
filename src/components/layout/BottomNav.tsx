@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
+import { useSubdomain } from "@/hooks/useSubdomain";
 
 const getMenuItems = (t: (key: string) => string) => {
   // Calculate if NEW banner should show (for one month from today)
@@ -32,6 +33,7 @@ const getMenuItems = (t: (key: string) => string) => {
 export function BottomNav() {
   const location = useLocation();
   const { t, language } = useTranslation();
+  const subdomain = useSubdomain();
   const menuItems = getMenuItems(t);
   const [saleModalOpen, setSaleModalOpen] = useState(false);
 
@@ -60,7 +62,10 @@ export function BottomNav() {
       >
         <div className="flex items-center justify-around h-14 px-2">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            // For dashboard item: active if path matches OR if on dashboard subdomain root
+            const isDashboardItem = item.path === "/dashboard";
+            const isDashboardSubdomainRoot = subdomain === 'dashboard' && location.pathname === "/";
+            const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
             return (
               <Link
                 key={item.path}

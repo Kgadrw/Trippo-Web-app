@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useSubdomain, getSubdomainUrl } from "@/hooks/useSubdomain";
-import { getAuthValue } from "@/lib/authStorage";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -18,10 +17,9 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   useEffect(() => {
     // Check authentication status - run on every location change
     const checkAuth = () => {
-      // Use cross-subdomain auth storage (cookie for subdomains, localStorage as fallback)
-      const userId = getAuthValue("profit-pilot-user-id");
-      const authenticated = getAuthValue("profit-pilot-authenticated") === "true";
-      const adminStatus = getAuthValue("profit-pilot-is-admin") === "true";
+      const userId = localStorage.getItem("profit-pilot-user-id");
+      const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+      const adminStatus = localStorage.getItem("profit-pilot-is-admin") === "true";
 
       // For admin routes, check admin status instead of regular userId
       if (requireAdmin) {
@@ -80,8 +78,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     const handlePopState = () => {
       // Small delay to allow location to update
       setTimeout(() => {
-        const userId = getAuthValue("profit-pilot-user-id");
-        const authenticated = getAuthValue("profit-pilot-authenticated") === "true";
+        const userId = localStorage.getItem("profit-pilot-user-id");
+        const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
         const currentPath = window.location.pathname;
         const protectedRoutes = ['/dashboard', '/products', '/sales', '/reports', '/settings', '/admin-dashboard'];
         const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));

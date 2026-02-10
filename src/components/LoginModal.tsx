@@ -14,7 +14,6 @@ import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
 import { getSubdomainUrl } from "@/hooks/useSubdomain";
-import { setAuthValue, removeAuthValue } from "@/lib/authStorage";
 import { Lock, User, Mail, Phone } from "lucide-react";
 
 interface LoginModalProps {
@@ -131,18 +130,18 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       if (response.user) {
         // Check if admin login
         if (response.isAdmin || response.user.email === 'admin') {
-          // Store admin info in cross-subdomain storage
-          setAuthValue("profit-pilot-user-name", response.user.name || "Admin");
-          setAuthValue("profit-pilot-user-email", "admin");
-          setAuthValue("profit-pilot-business-name", "System Administrator");
-          setAuthValue("profit-pilot-is-admin", "true");
+          // Store admin info
+          localStorage.setItem("profit-pilot-user-name", response.user.name || "Admin");
+          localStorage.setItem("profit-pilot-user-email", "admin");
+          localStorage.setItem("profit-pilot-business-name", "System Administrator");
+          localStorage.setItem("profit-pilot-is-admin", "true");
           
           // Store a special admin userId (required for ProtectedRoute)
           // Use a special identifier for admin since backend doesn't return _id for admin
-          setAuthValue("profit-pilot-user-id", "admin");
+          localStorage.setItem("profit-pilot-user-id", "admin");
           
-          // Set authentication flag in cross-subdomain storage
-          setAuthValue("profit-pilot-authenticated", "true");
+          // Set authentication flag in localStorage for persistence
+          localStorage.setItem("profit-pilot-authenticated", "true");
           
           // Dispatch authentication event
           window.dispatchEvent(new Event("pin-auth-changed"));
@@ -174,27 +173,27 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         // Store PIN in localStorage for backward compatibility
         setPin(loginPin);
         
-        // Store user info and ID in cross-subdomain storage
+        // Store user info and ID
         if (response.user.name) {
-          setAuthValue("profit-pilot-user-name", response.user.name);
+          localStorage.setItem("profit-pilot-user-name", response.user.name);
         }
         if (response.user.email) {
-          setAuthValue("profit-pilot-user-email", response.user.email);
+          localStorage.setItem("profit-pilot-user-email", response.user.email);
         }
         // Only store businessName if it exists and is not empty
         if (response.user.businessName && response.user.businessName.trim()) {
-          setAuthValue("profit-pilot-business-name", response.user.businessName.trim());
+          localStorage.setItem("profit-pilot-business-name", response.user.businessName.trim());
         } else {
           // Clear businessName if it's empty or undefined
-          removeAuthValue("profit-pilot-business-name");
+          localStorage.removeItem("profit-pilot-business-name");
         }
         // Store user ID for API requests
         if (response.user._id || response.user.id) {
-          setAuthValue("profit-pilot-user-id", response.user._id || response.user.id);
+          localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
         }
 
-        // Set authentication flag in cross-subdomain storage
-        setAuthValue("profit-pilot-authenticated", "true");
+        // Set authentication flag in sessionStorage
+        localStorage.setItem("profit-pilot-authenticated", "true");
         
         // Dispatch authentication event
         window.dispatchEvent(new Event("pin-auth-changed"));
@@ -302,27 +301,27 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         // Store PIN in localStorage for backward compatibility
         setPin(createPin);
         
-        // Store user info and ID in cross-subdomain storage
+        // Store user info and ID
         if (response.user.name) {
-          setAuthValue("profit-pilot-user-name", response.user.name);
+          localStorage.setItem("profit-pilot-user-name", response.user.name);
         }
         if (response.user.email) {
-          setAuthValue("profit-pilot-user-email", response.user.email);
+          localStorage.setItem("profit-pilot-user-email", response.user.email);
         }
         // Only store businessName if it exists and is not empty
         if (response.user.businessName && response.user.businessName.trim()) {
-          setAuthValue("profit-pilot-business-name", response.user.businessName.trim());
+          localStorage.setItem("profit-pilot-business-name", response.user.businessName.trim());
         } else {
           // Clear businessName if it's empty or undefined
-          removeAuthValue("profit-pilot-business-name");
+          localStorage.removeItem("profit-pilot-business-name");
         }
         // Store user ID for API requests
         if (response.user._id || response.user.id) {
-          setAuthValue("profit-pilot-user-id", response.user._id || response.user.id);
+          localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
         }
 
-        // Set authentication flag in cross-subdomain storage
-        setAuthValue("profit-pilot-authenticated", "true");
+        // Set authentication flag in sessionStorage
+        localStorage.setItem("profit-pilot-authenticated", "true");
         
         // Dispatch authentication event
         window.dispatchEvent(new Event("pin-auth-changed"));
