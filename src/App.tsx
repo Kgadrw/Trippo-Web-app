@@ -299,6 +299,50 @@ const App = () => {
   const [stockUpdateCurrentStock, setStockUpdateCurrentStock] = useState<number | undefined>(undefined);
   const [stockUpdateMinStock, setStockUpdateMinStock] = useState<number | undefined>(undefined);
 
+  // Restore authentication from URL hash when arriving from main domain
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#auth=')) {
+      try {
+        const authToken = hash.substring(6); // Remove '#auth='
+        const authData = JSON.parse(atob(authToken));
+        
+        // Restore localStorage from auth data
+        if (authData.userId) {
+          localStorage.setItem("profit-pilot-user-id", authData.userId);
+        }
+        if (authData.isAdmin !== undefined) {
+          localStorage.setItem("profit-pilot-is-admin", String(authData.isAdmin));
+        }
+        if (authData.authenticated !== undefined) {
+          localStorage.setItem("profit-pilot-authenticated", String(authData.authenticated));
+        }
+        if (authData.name) {
+          localStorage.setItem("profit-pilot-user-name", authData.name);
+        }
+        if (authData.email) {
+          localStorage.setItem("profit-pilot-user-email", authData.email);
+        }
+        if (authData.businessName) {
+          localStorage.setItem("profit-pilot-business-name", authData.businessName);
+        }
+        
+        // Clear the hash from URL
+        window.history.replaceState(null, '', window.location.pathname);
+        
+        // Dispatch auth change event
+        window.dispatchEvent(new Event("pin-auth-changed"));
+        window.dispatchEvent(new Event("user-data-changed"));
+        
+        console.log('[App] ✅ Authentication restored from URL hash');
+      } catch (error) {
+        console.error('[App] ❌ Failed to restore auth from URL hash:', error);
+        // Clear invalid hash
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, []);
+
   // Enable sync reminder notifications
   useSyncReminder();
 
