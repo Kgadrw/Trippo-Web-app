@@ -334,6 +334,17 @@ const AddProduct = () => {
             
             await refreshProducts();
             
+            // Dispatch event to notify all pages (Products, Dashboard, etc.) to refresh
+            window.dispatchEvent(new CustomEvent('products-should-refresh'));
+            if (addedCount > 0) {
+              // Dispatch product-created event for each new product
+              productsToAdd.slice(0, addedCount).forEach((product) => {
+                window.dispatchEvent(new CustomEvent('product-created', { 
+                  detail: { product, bulk: true } 
+                }));
+              });
+            }
+            
             if (addedCount > 0 || updatedCount > 0) {
               playProductBeep();
               toast({
@@ -389,6 +400,10 @@ const AddProduct = () => {
             try {
               await addProduct(product as any);
               addedCount++;
+              // Dispatch product-created event for each successfully added product
+              window.dispatchEvent(new CustomEvent('product-created', { 
+                detail: { product, bulk: true } 
+              }));
             } catch (error: any) {
               // Check if it's a duplicate error from the backend
               if (error?.message?.toLowerCase().includes("duplicate") || error?.response?.duplicate || error?.status === 409) {
@@ -399,6 +414,9 @@ const AddProduct = () => {
               }
             }
           }
+          
+          // Dispatch refresh event after all products are processed
+          window.dispatchEvent(new CustomEvent('products-should-refresh'));
           await refreshProducts();
           
           if (addedCount > 0) {
@@ -419,6 +437,8 @@ const AddProduct = () => {
         } catch (error: any) {
           // Don't show errors for connection issues (offline mode)
           if (error?.response?.silent || error?.response?.connectionError) {
+            // Dispatch refresh event even in offline mode
+            window.dispatchEvent(new CustomEvent('products-should-refresh'));
             // Products were saved locally, show success message
             playProductBeep();
             toast({
@@ -521,6 +541,11 @@ const AddProduct = () => {
       try {
         await addProduct(newProduct as any);
         await refreshProducts();
+        // Dispatch event to notify all pages (Products, Dashboard, etc.) to refresh
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        window.dispatchEvent(new CustomEvent('product-created', { 
+          detail: { product: newProduct } 
+        }));
         playProductBeep();
         toast({
           title: "Product Added",
@@ -530,6 +555,11 @@ const AddProduct = () => {
       } catch (error: any) {
         // Don't show errors for connection issues (offline mode)
         if (error?.response?.silent || error?.response?.connectionError) {
+          // Dispatch refresh event even in offline mode
+          window.dispatchEvent(new CustomEvent('products-should-refresh'));
+          window.dispatchEvent(new CustomEvent('product-created', { 
+            detail: { product: newProduct, offline: true } 
+          }));
           // Product was saved locally, show success message
           playProductBeep();
           toast({

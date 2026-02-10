@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { playUpdateBeep, playWarningBeep, playDeleteBeep, playErrorBeep, initAudio } from "@/lib/sound";
 import { useApi } from "@/hooks/useApi";
+import { formatStockDisplay } from "@/lib/stockFormatter";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +27,8 @@ interface Product {
   minStock?: number;
   manufacturedDate?: string;
   expiryDate?: string;
+  isPackage?: boolean;
+  packageQuantity?: number;
 }
 
 interface LowStockItem {
@@ -308,7 +312,17 @@ export function LowStockAlert() {
                     ? "Out of Stock"
                     : item.isExpiringSoon
                     ? "Expiring Soon"
-                    : `${item.stock} left`}
+                    : (() => {
+                        // Find the full product to get package info
+                        const fullProduct = products.find(p => {
+                          const id = (p as any)._id || p.id;
+                          return id?.toString() === item.id?.toString();
+                        });
+                        if (fullProduct) {
+                          return formatStockDisplay(fullProduct, t("language") as 'en' | 'rw');
+                        }
+                        return `${item.stock} left`;
+                      })()}
                 </span>
                 <Button
                   size="sm"

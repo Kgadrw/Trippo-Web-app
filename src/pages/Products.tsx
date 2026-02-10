@@ -197,7 +197,11 @@ const Products = () => {
 
     const handleProductUpdate = () => {
       // Refresh products list automatically when needed
-      refreshProducts(true);
+      // Use a small debounce to prevent rapid refreshes
+      setTimeout(() => {
+        refreshProducts(true);
+        console.log('[Products] Products refreshed after product created/updated');
+      }, 300);
     };
 
     // Listen for automatic stock updates and general product refresh events
@@ -1234,13 +1238,9 @@ const Products = () => {
                     <td className="py-4 px-6">
                       <div className="flex flex-col gap-2 min-w-[120px]">
                         <div className="text-sm font-medium text-gray-900">
-                          {product.stock === 0 ? (
-                            <span className="text-gray-500 italic">Sold Out</span>
-                          ) : (
-                            <>
-                              {product.stock} {t("language") === "rw" ? "ibicuruzwa" : "units"}
-                            </>
-                          )}
+                          <span className={product.stock === 0 ? "text-gray-500 italic" : ""}>
+                            {formatStockDisplay(product, t("language") as 'en' | 'rw')}
+                          </span>
                         </div>
                         {/* Stock Level Meter */}
                         <div className="w-full">
@@ -1381,7 +1381,7 @@ const Products = () => {
                               <span className="text-gray-500 italic">Sold Out</span>
                             ) : (
                               <>
-                                {product.stock} {t("language") === "rw" ? "ibicuruzwa" : "units"}
+                                {formatStockDisplay(product, t("language") as 'en' | 'rw')}
                               </>
                             )}
                               </div>

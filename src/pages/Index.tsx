@@ -39,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useOffline } from "@/hooks/useOffline";
 import { formatDateWithTime } from "@/lib/utils";
+import { formatStockDisplay } from "@/lib/stockFormatter";
 
 interface Product {
   id?: number;
@@ -341,9 +342,9 @@ const Dashboard = () => {
         } else {
           saleDate = sale.date;
         }
-      } else if (sale.date instanceof Date) {
-        // Handle Date objects
-        const dateObj = sale.date;
+      } else if (sale.date && typeof sale.date === 'object' && sale.date !== null && 'getFullYear' in sale.date) {
+        // Handle Date-like objects (for backwards compatibility)
+        const dateObj = sale.date as any;
         const year = dateObj.getFullYear();
         const month = String(dateObj.getMonth() + 1).padStart(2, '0');
         const day = String(dateObj.getDate()).padStart(2, '0');
@@ -396,7 +397,7 @@ const Dashboard = () => {
   // Listen for sales updates from other pages (Sales page, RecordSaleModal, etc.)
   useEffect(() => {
     let debounceTimeout: NodeJS.Timeout | null = null;
-    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+    const DEBOUNCE_DELAY = 300; // Reduced to 300ms for faster updates
 
     const handleSaleRecorded = () => {
       // Clear any pending debounced refresh
@@ -406,8 +407,10 @@ const Dashboard = () => {
       }
       
       // Always force refresh to get real data from API (bypass cache)
+      // Use shorter debounce for better UX - Recent Sales should update quickly
       debounceTimeout = setTimeout(() => {
         refreshSales(true); // Force refresh to get fresh data
+        console.log('[Dashboard] Sales refreshed after sale recorded');
       }, DEBOUNCE_DELAY);
     };
 
@@ -424,10 +427,10 @@ const Dashboard = () => {
     };
   }, [refreshSales]);
 
-  // Listen for products updates from other pages (Products page, etc.)
+  // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {
     let debounceTimeout: NodeJS.Timeout | null = null;
-    const DEBOUNCE_DELAY = 1000; // 1 second debounce
+    const DEBOUNCE_DELAY = 300; // Reduced to 300ms for faster updates
 
     const handleProductUpdate = () => {
       // Clear any pending debounced refresh
@@ -437,8 +440,10 @@ const Dashboard = () => {
       }
       
       // Always force refresh to get real data from API (bypass cache)
+      // Use shorter debounce for better UX - Products should update quickly
       debounceTimeout = setTimeout(() => {
         refreshProducts(true); // Force refresh to get fresh data
+        console.log('[Dashboard] Products refreshed after product created/updated');
       }, DEBOUNCE_DELAY);
     };
 
@@ -735,6 +740,12 @@ const Dashboard = () => {
         }
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+        // Dispatch sale-recorded event for each sale to trigger immediate refresh
+        salesToCreate.forEach((sale) => {
+          window.dispatchEvent(new CustomEvent('sale-recorded', { 
+            detail: { sale, bulk: true } 
+          }));
+        });
 
           playSaleBeep();
 
@@ -952,9 +963,11 @@ const Dashboard = () => {
         }));
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
         // Dispatch event to refresh sales in dashboard and other pages
-        window.dispatchEvent(new CustomEvent('sales-should-refresh'));("Sale Recorded", {
-          description: `Successfully recorded sale of ${qty}x ${product.name}`,
-        });
+        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+        // Also dispatch sale-recorded event for immediate refresh
+        window.dispatchEvent(new CustomEvent('sale-recorded', { 
+          detail: { sale: newSale, productId, stockReduction } 
+        }));
 
         // Reset form
         setSelectedProduct("");
@@ -962,31 +975,25 @@ const Dashboard = () => {
         setSellingPrice("");
         setPaymentMethod("cash"); // Reset to default cash
         setSaleDate(getTodayDate()); // Reset to today's date
-
-        // Check if offline mode
-        if (!isOnline) {
-          toast({
-            title: "Sale Recorded (Offline Mode)",
-            description: `Successfully recorded sale of ${qty}x ${product.name}. Changes will sync when you're back online.`,
-          });
-        } else {
-          toast({
-            title: "Sale Recorded",
-            description: `Successfully recorded sale of ${qty}x ${product.name}`,
-          });
-        }
       }
       } catch (error: any) {
+        // Get product info for error messages
+        const errorProduct = products.find((p) => {
+          const id = (p as any)._id || p.id;
+          return id.toString() === selectedProduct;
+        });
+        const errorQty = parseInt(quantity) || 0;
+        
         // Check if it's an offline/connection error
-        if (error?.response?.silent || error?.response?.connectionError || !isOnline) {
+        if (error?.response?.silent || error?.response?.connectionError || !navigator.onLine) {
           // Offline mode - treat as success
           playSaleBeep();
           sonnerToast.success("Sale Recorded (Offline Mode)", {
-            description: `Successfully recorded sale of ${qty}x ${product.name}. Changes will sync when you're back online.`,
+            description: errorProduct ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.` : "Sale recorded offline. Changes will sync when you're back online.",
           });
           toast({
             title: "Sale Recorded (Offline Mode)",
-            description: `Successfully recorded sale of ${qty}x ${product.name}. Changes will sync when you're back online.`,
+            description: errorProduct ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.` : "Sale recorded offline. Changes will sync when you're back online.",
           });
           
           // Reset form
@@ -1406,27 +1413,22 @@ const Dashboard = () => {
                   className="input-field"
                   placeholder={t("enterQuantity") || "Enter quantity"}
                 />
-                {selectedProduct && (
-                  <p className="text-xs text-white/80">
-                    {t("availableStock")}: {products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    })?.stock || 0} {products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    })?.stock === 1 ? 'item' : 'items'}
-                    {(() => {
-                      const product = products.find(p => {
-                        const id = (p as any)._id || p.id;
-                        return id.toString() === selectedProduct;
-                      });
-                      if (product?.isPackage && product.packageQuantity) {
-                        return ` • Box of ${product.packageQuantity}`;
-                      }
-                      return "";
-                    })()}
-                  </p>
-                )}
+                {selectedProduct && (() => {
+                  const product = products.find(p => {
+                    const id = (p as any)._id || p.id;
+                    return id.toString() === selectedProduct;
+                  });
+                  if (!product) return null;
+                  
+                  return (
+                    <p className="text-xs text-white/80">
+                      {t("availableStock")}: {formatStockDisplay(product, t("language") as 'en' | 'rw')}
+                      {product.isPackage && product.packageQuantity && (
+                        <span className="ml-1">(Box of {product.packageQuantity})</span>
+                      )}
+                    </p>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 <Label className="text-white">{t("sellingPrice")} (rwf)</Label>
