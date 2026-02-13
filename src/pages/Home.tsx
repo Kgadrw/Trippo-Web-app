@@ -32,8 +32,23 @@ const Home = () => {
       return;
     }
 
-    // Don't auto-redirect authenticated users - let them choose via login
-    // After login, LoginModal will handle redirect to appropriate subdomain
+    // Auto-redirect authenticated users to dashboard
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+    const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
+    
+    if (userId && authenticated) {
+      // If admin, redirect to admin subdomain
+      if (isAdmin && userId === "admin") {
+        const adminUrl = getSubdomainUrl('admin');
+        window.location.href = adminUrl;
+        return;
+      }
+      // Otherwise, redirect to dashboard subdomain
+      const dashboardUrl = getSubdomainUrl('dashboard');
+      window.location.href = dashboardUrl;
+      return;
+    }
   }, []);
 
   // Force English language on homepage
@@ -54,10 +69,26 @@ const Home = () => {
   }, []);
 
   // Reset login modal state when user logs out (listen for auth changes)
+  // Also redirect authenticated users to dashboard
   useEffect(() => {
     const handleAuthChange = () => {
       const userId = localStorage.getItem("profit-pilot-user-id");
       const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+      const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
+      
+      // If user is authenticated, redirect to dashboard
+      if (userId && authenticated) {
+        // If admin, redirect to admin subdomain
+        if (isAdmin && userId === "admin") {
+          const adminUrl = getSubdomainUrl('admin');
+          window.location.href = adminUrl;
+          return;
+        }
+        // Otherwise, redirect to dashboard subdomain
+        const dashboardUrl = getSubdomainUrl('dashboard');
+        window.location.href = dashboardUrl;
+        return;
+      }
       
       // If user is logged out, ensure modal can be opened
       if (!userId || !authenticated) {
