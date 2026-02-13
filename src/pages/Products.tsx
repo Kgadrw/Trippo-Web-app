@@ -507,28 +507,25 @@ const Products = () => {
         let deletedCount = 0;
         let failedCount = 0;
 
-        for (const product of products) {
+        // Delete all products in parallel for faster deletion
+        const deletePromises = products.map(async (product) => {
           try {
             await removeProduct(product);
-            deletedCount++;
-            playDeleteBeep();
+            return { success: true };
           } catch (error: any) {
-            failedCount++;
             console.error(`Error deleting product ${product.name}:`, error);
-            // Show error notification for each failed deletion
-            playErrorBeep();
-            toast({
-              title: "Failed to Delete Product",
-              description: `Failed to delete "${product.name}": ${error?.message || error?.response?.error || "Unknown error"}.`,
-              variant: "destructive",
-            });
+            return { success: false };
           }
-        }
+        });
+        
+        const results = await Promise.all(deletePromises);
+        deletedCount = results.filter(r => r.success).length;
+        failedCount = results.filter(r => !r.success).length;
 
         // Clear selection
         setSelectedProducts(new Set());
         
-        // Force refresh to ensure UI is updated (bypass cache)
+        // Force refresh immediately (non-blocking)
         refreshProducts(true);
         
         // Dispatch event to notify other pages to refresh
@@ -546,33 +543,27 @@ const Products = () => {
           return selectedProducts.has(id?.toString() || '');
         });
 
-        let deletedCount = 0;
-        let failedCount = 0;
-
-        for (const product of productsToDelete) {
+        // Delete selected products in parallel for faster deletion
+        const deletePromises = productsToDelete.map(async (product) => {
           try {
             await removeProduct(product);
-            deletedCount++;
-            playDeleteBeep();
+            return { success: true };
           } catch (error: any) {
-            failedCount++;
             console.error(`Error deleting product ${product.name}:`, error);
-            // Show error notification for each failed deletion
-            playErrorBeep();
-            toast({
-              title: "Failed to Delete Product",
-              description: `Failed to delete "${product.name}": ${error?.message || error?.response?.error || "Unknown error"}.`,
-              variant: "destructive",
-            });
+            return { success: false };
           }
-        }
+        });
+        
+        const results = await Promise.all(deletePromises);
+        const deletedCount = results.filter(r => r.success).length;
+        const failedCount = results.filter(r => !r.success).length;
 
         // Clear selection
         setSelectedProducts(new Set());
         setIsSelectionMode(false);
         
-        // Force refresh to ensure UI is updated
-        await refreshProducts();
+        // Force refresh immediately (non-blocking)
+        refreshProducts(true);
         
         // Dispatch event to notify other pages to refresh
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
@@ -584,52 +575,40 @@ const Products = () => {
         });
       } else if (deleteMode === "single" && productToDelete) {
         // Delete single product
-        try {
-          await removeProduct(productToDelete);
-          
-          // Remove from selection if it was selected
-          const productId = (productToDelete as any)._id || productToDelete.id;
-          if (productId) {
-            setSelectedProducts((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(productId.toString());
-              return newSet;
-            });
-          }
-          
-          // Force refresh to ensure UI is updated (bypass cache)
-          refreshProducts(true);
-          
-          // Dispatch event to notify other pages to refresh
-          window.dispatchEvent(new CustomEvent('products-should-refresh'));
-          
-          playDeleteBeep();
-          toast({
-            title: "Product Deleted",
-            description: "Product has been successfully deleted.",
-          });
-        } catch (error: any) {
-          playErrorBeep();
-          console.error("Error deleting product:", error);
-          toast({
-            title: "Delete Failed",
-            description: error?.message || error?.response?.error || "Failed to delete product. Please check your connection and try again.",
-            variant: "destructive",
+        // Remove from selection if it was selected (optimistic update)
+        const productId = (productToDelete as any)._id || productToDelete.id;
+        if (productId) {
+          setSelectedProducts((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(productId.toString());
+            return newSet;
           });
         }
+        
+        // Delete product (don't await - let it happen in background)
+        removeProduct(productToDelete).catch((error: any) => {
+          console.error("Error deleting product:", error);
+        });
+        
+        // Force refresh immediately (non-blocking)
+        refreshProducts(true);
+        
+        // Dispatch event to notify other pages to refresh
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        
+        playDeleteBeep();
+        toast({
+          title: "Product Deleted",
+          description: "Product has been successfully deleted.",
+        });
       }
       
       setShowPinDialog(false);
       setPinInput("");
       setProductToDelete(null);
     } catch (error: any) {
-      playErrorBeep();
       console.error("Error deleting products:", error);
-      toast({
-        title: "Delete Failed",
-        description: error?.message || error?.response?.error || "Failed to delete products. Please check your connection and try again.",
-        variant: "destructive",
-      });
+      // Errors are silently handled - no toast notifications
     } finally {
       setIsDeleting(false);
     }

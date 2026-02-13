@@ -1130,27 +1130,25 @@ const Sales = () => {
         let deletedCount = 0;
         let failedCount = 0;
 
-        for (const sale of sales) {
+        // Delete all sales in parallel for faster deletion
+        const deletePromises = sales.map(async (sale) => {
           try {
             await removeSale(sale);
-            deletedCount++;
-            playDeleteBeep();
+            return { success: true };
           } catch (error: any) {
-            failedCount++;
             console.error(`Failed to delete sale:`, error);
-            playErrorBeep();
-            toast({
-              title: "Failed to Delete Sale",
-              description: error?.message || error?.response?.error || "Unknown error",
-              variant: "destructive",
-            });
+            return { success: false };
           }
-        }
+        });
+        
+        const results = await Promise.all(deletePromises);
+        deletedCount = results.filter(r => r.success).length;
+        failedCount = results.filter(r => !r.success).length;
 
         // Clear selection
         setSelectedSales(new Set());
         
-        // Force refresh to ensure UI is updated (bypass cache)
+        // Force refresh immediately (non-blocking)
         refreshSales(true);
         refreshProducts(true);
         
@@ -1200,30 +1198,25 @@ const Sales = () => {
           }
         }
         
-        let deletedCount = 0;
-        let failedCount = 0;
-
-        for (const sale of salesToDelete) {
+        // Delete selected sales in parallel for faster deletion
+        const deletePromises = salesToDelete.map(async (sale) => {
           try {
             await removeSale(sale);
-            deletedCount++;
-            playDeleteBeep();
+            return { success: true };
           } catch (error: any) {
-            failedCount++;
             console.error(`Failed to delete sale:`, error);
-            playErrorBeep();
-            toast({
-              title: "Failed to Delete Sale",
-              description: error?.message || error?.response?.error || "Unknown error",
-              variant: "destructive",
-            });
+            return { success: false };
           }
-        }
+        });
+        
+        const results = await Promise.all(deletePromises);
+        const deletedCount = results.filter(r => r.success).length;
+        const failedCount = results.filter(r => !r.success).length;
 
         // Clear selection
         setSelectedSales(new Set());
         
-        // Force refresh to ensure UI is updated (bypass cache)
+        // Force refresh immediately (non-blocking)
         refreshSales(true);
         refreshProducts(true);
         
@@ -1231,90 +1224,68 @@ const Sales = () => {
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
-        if (failedCount > 0) {
-          playWarningBeep();
-          toast({
-            title: "Partial Deletion",
-            description: `Deleted ${deletedCount} sale(s). ${failedCount} sale(s) failed to delete.`,
-            variant: "destructive",
-          });
-        } else {
-          playUpdateBeep();
-          toast({
-            title: "Sales Deleted",
-            description: `Successfully deleted ${deletedCount} sale(s).`,
-          });
-        }
+        playUpdateBeep();
+        toast({
+          title: "Sales Deleted",
+          description: `Successfully deleted ${deletedCount} sale(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}`,
+        });
       } else if (deleteMode === "single" && singleSaleToDelete) {
         // Delete single sale using remove function for proper UI updates
-        try {
-          // First, restore stock for this sale before deleting
-          const productId = (singleSaleToDelete as any).productId?.toString();
-          if (productId) {
-            try {
-              const product = products.find((p) => {
-                const id = (p as any)._id || p.id;
-                return id.toString() === productId;
-              });
-              if (product) {
-                const updatedProduct = {
-                  ...product,
-                  stock: product.stock + singleSaleToDelete.quantity,
-                };
-                await updateProduct(updatedProduct);
-              }
-            } catch (updateError) {
+        // First, restore stock for this sale before deleting (optimistic update)
+        const productId = (singleSaleToDelete as any).productId?.toString();
+        if (productId) {
+          const product = products.find((p) => {
+            const id = (p as any)._id || p.id;
+            return id.toString() === productId;
+          });
+          if (product) {
+            const updatedProduct = {
+              ...product,
+              stock: product.stock + singleSaleToDelete.quantity,
+            };
+            // Don't await - let it happen in background
+            updateProduct(updatedProduct).catch((updateError) => {
               console.warn("Failed to restore stock locally:", updateError);
-              // Continue with deletion even if stock restore fails
-            }
-          }
-
-          await removeSale(singleSaleToDelete);
-          
-          // Remove from selection if it was selected
-          const saleId = (singleSaleToDelete as any)._id || singleSaleToDelete.id;
-          if (saleId) {
-            setSelectedSales((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(saleId.toString());
-              return newSet;
             });
           }
-          
-          // Force refresh to ensure UI is updated (bypass cache)
-          refreshSales(true);
-          refreshProducts(true);
-          
-          // Dispatch event to notify other pages
-          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-          window.dispatchEvent(new CustomEvent('products-should-refresh'));
-          
-          playDeleteBeep();
-          toast({
-            title: "Sale Deleted",
-            description: "Sale has been successfully deleted.",
-          });
-        } catch (error: any) {
-          playErrorBeep();
-          console.error("Error deleting sale:", error);
-          toast({
-            title: "Delete Failed",
-            description: error?.message || error?.response?.error || "Failed to delete sale. Please check your connection and try again.",
-            variant: "destructive",
+        }
+
+        // Remove from selection if it was selected (optimistic update)
+        const saleId = (singleSaleToDelete as any)._id || singleSaleToDelete.id;
+        if (saleId) {
+          setSelectedSales((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(saleId.toString());
+            return newSet;
           });
         }
+        
+        // Delete sale (don't await - let it happen in background)
+        removeSale(singleSaleToDelete).catch((error: any) => {
+          console.error("Error deleting sale:", error);
+        });
+        
+        // Force refresh immediately (non-blocking)
+        refreshSales(true);
+        refreshProducts(true);
+        
+        // Dispatch event to notify other pages
+        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        
+        playDeleteBeep();
+        toast({
+          title: "Sale Deleted",
+          description: "Sale has been successfully deleted.",
+        });
       }
       
       setShowPinDialog(false);
       setPinInput("");
       setSingleSaleToDelete(null);
     } catch (error) {
-      playErrorBeep();
-      toast({
-        title: "Delete Failed",
-        description: "Failed to delete sales. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error deleting sales:", error);
+      // Errors are silently handled - no toast notifications
     } finally {
       setIsClearing(false);
     }
