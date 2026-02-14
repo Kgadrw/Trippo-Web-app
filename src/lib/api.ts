@@ -300,32 +300,55 @@ export const authApi = {
     });
   },
 
-  // Get current user (with caching to prevent excessive calls)
-  async getCurrentUser(): Promise<ApiResponse> {
-    // Check cache first
-    const cacheKey = '/auth/me';
-    const cached = apiCache.get(cacheKey);
-    const lastFetchTime = localStorage.getItem('profit-pilot-user-last-fetch');
-    const now = Date.now();
+  // Get current user (only fetch if not in localStorage or explicitly requested)
+  async getCurrentUser(forceFetch: boolean = false): Promise<ApiResponse> {
+    // Check if user data exists in localStorage first
+    const userName = localStorage.getItem('profit-pilot-user-name');
+    const userEmail = localStorage.getItem('profit-pilot-user-email');
+    const businessName = localStorage.getItem('profit-pilot-business-name');
+    const userId = localStorage.getItem('profit-pilot-user-id');
     
-    // Use cache if it's less than 5 minutes old
-    if (cached && lastFetchTime) {
-      const cacheAge = now - parseInt(lastFetchTime);
-      if (cacheAge < 5 * 60 * 1000) {
-        console.log('[API] Using cached user data');
-        return { data: cached.data, user: cached.data };
-      }
+    // If we have user data in localStorage and not forcing fetch, return it
+    if (!forceFetch && userName && userId) {
+      const cachedUser = {
+        name: userName,
+        email: userEmail || undefined,
+        businessName: businessName || undefined,
+        _id: userId,
+        id: userId,
+      };
+      console.log('[API] Using localStorage user data (no API call)');
+      return { data: cachedUser, user: cachedUser };
     }
     
-    // Fetch fresh data
+    // Only fetch from API if forced or if no user data in localStorage
     const response = await request('/auth/me', {
       method: 'GET',
     });
     
-    // Cache the response
+    // Store user data in localStorage after fetch
     if (response?.user || response?.data) {
-      apiCache.set(cacheKey, response.user || response.data);
-      localStorage.setItem('profit-pilot-user-last-fetch', String(now));
+      const userData = response.user || response.data;
+      if (userData.name) {
+        localStorage.setItem('profit-pilot-user-name', userData.name);
+      }
+      if (userData.email) {
+        localStorage.setItem('profit-pilot-user-email', userData.email);
+      }
+      if (userData.businessName) {
+        localStorage.setItem('profit-pilot-business-name', userData.businessName);
+      }
+      if (userData._id || userData.id) {
+        const fetchedUserId = userData._id || userData.id;
+        // Only update userId if it matches current userId (prevent user switching)
+        const currentUserId = localStorage.getItem('profit-pilot-user-id');
+        if (!currentUserId || currentUserId === fetchedUserId.toString()) {
+          localStorage.setItem('profit-pilot-user-id', fetchedUserId.toString());
+        }
+      }
+      
+      // Trigger event to update other components
+      window.dispatchEvent(new Event('user-data-changed'));
     }
     
     return response;

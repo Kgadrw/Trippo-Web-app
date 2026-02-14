@@ -395,23 +395,17 @@ const Dashboard = () => {
   }, [sales]);
 
   // Listen for sales updates from other pages (Sales page, RecordSaleModal, etc.)
+  // Immediate refresh for live data updates
   useEffect(() => {
-    let debounceTimeout: NodeJS.Timeout | null = null;
-    const DEBOUNCE_DELAY = 300; // Reduced to 300ms for faster updates
-
-    const handleSaleRecorded = () => {
-      // Clear any pending debounced refresh
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = null;
+    const handleSaleRecorded = async () => {
+      // Immediately refresh from backend for live data (no delay)
+      try {
+        await refreshSales(true); // Force refresh to get fresh data from backend
+        console.log('[Dashboard] Sales refreshed immediately after sale recorded - live data updated');
+      } catch (error) {
+        // Silently handle errors - the useApi hook handles offline scenarios
+        console.log("Immediate refresh after sale recorded:", error);
       }
-      
-      // Always force refresh to get real data from API (bypass cache)
-      // Use shorter debounce for better UX - Recent Sales should update quickly
-      debounceTimeout = setTimeout(() => {
-        refreshSales(true); // Force refresh to get fresh data
-        console.log('[Dashboard] Sales refreshed after sale recorded');
-      }, DEBOUNCE_DELAY);
     };
 
     // Listen for custom event when sales are created
@@ -421,9 +415,6 @@ const Dashboard = () => {
     return () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded);
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-      }
     };
   }, [refreshSales]);
 

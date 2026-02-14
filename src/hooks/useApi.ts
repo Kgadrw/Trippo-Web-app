@@ -1505,8 +1505,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
             // Add new sale at the beginning of the list (most recent first)
             return [sale, ...prev];
           });
-          // Also trigger a background refresh to ensure data consistency
-          setTimeout(() => refresh(true), 100);
+          // Immediately refresh from backend to ensure data consistency (no delay)
+          refresh(true);
         } else {
           // Fallback to immediate refresh if sale data is incomplete
           refresh(true);

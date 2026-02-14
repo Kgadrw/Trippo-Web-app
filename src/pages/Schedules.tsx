@@ -1075,38 +1075,38 @@ const Schedules = () => {
               <CalendarIcon size={20} className="text-white" />
               Schedules & Reminders
             </h3>
-                  <Button
-                    onClick={openAddModal}
-              className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-4 py-2 gap-2 w-full sm:w-auto"
-                  >
-                    <Plus size={18} />
-              <span className="hidden xs:inline">New Schedule</span>
-              <span className="xs:hidden">New</span>
-                  </Button>
-              </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                onClick={() => setDateFilter(dateFilter === "upcoming" ? "all" : "upcoming")}
+                variant={dateFilter === "upcoming" ? "default" : "outline"}
+                className={cn(
+                  "font-semibold px-4 py-2 gap-2 flex-1 sm:flex-initial",
+                  dateFilter === "upcoming" 
+                    ? "bg-white text-blue-600 hover:bg-blue-50" 
+                    : "bg-white/20 text-white border-white/30 hover:bg-white/30"
+                )}
+              >
+                <CalendarIcon size={18} />
+                <span>Upcoming</span>
+              </Button>
+              <Button
+                onClick={openAddModal}
+                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-4 py-2 gap-2 flex-1 sm:flex-initial"
+              >
+                <Plus size={18} />
+                <span>New</span>
+              </Button>
+            </div>
+          </div>
 
-              {/* Quick Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
-              <div className="text-xs text-blue-600 font-medium mb-1">Total</div>
-              <div className="text-2xl font-semibold text-blue-700">{schedules.length}</div>
-                </div>
-            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
+          {/* Quick Stats - Only Upcoming */}
+          <div className="flex justify-center sm:justify-start">
+            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4 min-w-[120px]">
               <div className="text-xs text-blue-600 font-medium mb-1">Upcoming</div>
               <div className="text-2xl font-semibold text-blue-700">{upcomingSchedules.length}</div>
-                </div>
-            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
-              <div className="text-xs text-red-600 font-medium mb-1">Overdue</div>
-              <div className="text-2xl font-semibold text-red-700">{overdueSchedules.length}</div>
-                </div>
-            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
-              <div className="text-xs text-green-600 font-medium mb-1">Completed</div>
-              <div className="text-2xl font-semibold text-green-700">
-                    {schedules.filter(s => s.status === "completed").length}
-              </div>
-                  </div>
-                </div>
-              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Filters Section */}
         <div className="form-card border-transparent flex-shrink-0 lg:bg-white bg-white/80 backdrop-blur-sm">
@@ -1311,7 +1311,7 @@ const Schedules = () => {
           <div className="p-2 sm:p-4">
               {filteredClients.length > 0 ? (
                 <div className="overflow-x-auto -mx-2 sm:mx-0 rounded-lg border border-gray-200">
-                  <table className="w-full border-collapse min-w-[800px] sm:min-w-0">
+                  <table className="w-full border-collapse min-w-[600px] sm:min-w-0">
                     <thead className="sticky top-0 z-10 lg:bg-gray-100 bg-gray-100/80 backdrop-blur-sm border-b-2 border-gray-300">
                       <tr>
                         <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6 w-10 sm:w-12"></th>
@@ -1396,9 +1396,9 @@ const Schedules = () => {
                                 )}
                               </td>
                               <td className="py-3 sm:py-4 px-3 sm:px-6">
-                                <div className="text-xs sm:text-sm font-semibold text-gray-900">{client.name}</div>
-                                <div className="text-xs text-gray-500 mt-0.5 md:hidden">{client.businessType || "-"}</div>
-                                <div className="text-xs text-gray-500 mt-0.5 lg:hidden">{client.email || "-"}</div>
+                                <div className="text-xs sm:text-sm font-semibold text-gray-900 break-words min-w-[120px] sm:min-w-0">{client.name}</div>
+                                <div className="text-xs text-gray-500 mt-0.5 md:hidden break-words">{client.businessType || "-"}</div>
+                                <div className="text-xs text-gray-500 mt-0.5 lg:hidden break-words truncate max-w-[150px]">{client.email || "-"}</div>
                               </td>
                               <td className="py-3 sm:py-4 px-3 sm:px-6 hidden md:table-cell">
                                 <div className="text-xs sm:text-sm text-gray-700">{client.businessType || "-"}</div>
@@ -1410,18 +1410,18 @@ const Schedules = () => {
                                 <div className="text-xs sm:text-sm text-gray-700">{client.phone || "-"}</div>
                               </td>
                               <td className="py-3 sm:py-4 px-3 sm:px-6">
-                                <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-100 text-gray-700">
+                                <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-100 text-gray-700 whitespace-nowrap">
                                   {clientSchedules.length} schedule{clientSchedules.length !== 1 ? 's' : ''}
                                 </div>
                               </td>
                               <td className="py-3 sm:py-4 px-3 sm:px-6">
-                                <div className="flex gap-1 sm:gap-2">
+                                <div className="flex gap-1 sm:gap-2 items-center">
                                   <button
                                     onClick={() => {
                                       setClientToDelete(client);
                                       setDeleteClientDialogOpen(true);
                                     }}
-                                    className="p-1.5 sm:p-2 text-red-600 rounded"
+                                    className="p-1.5 sm:p-2 text-red-600 rounded hover:bg-red-50 transition-colors"
                                     title="Delete client"
                                   >
                                     <Trash2 size={14} className="sm:w-4 sm:h-4" />
@@ -1436,8 +1436,8 @@ const Schedules = () => {
                                     <div className="mb-2 sm:mb-3">
                                       <h4 className="text-xs sm:text-sm font-semibold text-gray-700">Schedules for {client.name}</h4>
                                     </div>
-                                    <div className="lg:bg-white bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 overflow-x-auto">
-                                      <table className="w-full min-w-[600px] sm:min-w-0">
+                                    <div className="lg:bg-white bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 overflow-x-auto -mx-2 sm:mx-0">
+                                      <table className="w-full min-w-[500px] sm:min-w-0">
                                         <thead>
                                           <tr className="lg:bg-white bg-white/80 backdrop-blur-sm border-b border-gray-200">
                                             <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-2 sm:py-3 px-2 sm:px-4">Title</th>
@@ -1464,64 +1464,64 @@ const Schedules = () => {
                         )}
                       >
                                                 <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                                  <div>
-                                                    <div className="text-xs sm:text-sm font-medium text-gray-900">{schedule.title}</div>
+                                                  <div className="min-w-[120px] sm:min-w-0">
+                                                    <div className="text-xs sm:text-sm font-medium text-gray-900 break-words">{schedule.title}</div>
                                                     {schedule.description && (
-                                                      <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{schedule.description}</div>
+                                                      <div className="text-xs text-gray-500 mt-0.5 line-clamp-1 break-words">{schedule.description}</div>
                                                     )}
                                                     {schedule.amount && (
                                                       <div className="text-xs font-semibold text-green-600 mt-1 sm:hidden">
                                                         {schedule.amount.toLocaleString()} RWF
-                              </div>
+                                                      </div>
                                                     )}
-                              </div>
+                                                  </div>
                                                 </td>
                                                 <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                                  <span className={cn(
-                                                      "inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-semibold",
+                                                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 min-w-[100px] sm:min-w-0">
+                                                    <span className={cn(
+                                                      "inline-flex items-center px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold whitespace-nowrap",
                                                       schedule.status === "completed" && "bg-green-100 text-green-700",
                                                       schedule.status === "pending" && "bg-yellow-100 text-yellow-700",
                                                       schedule.status === "cancelled" && "bg-gray-100 text-gray-700"
-                                  )}>
-                                    {schedule.status}
-                                  </span>
-                                  {overdue && schedule.status === "pending" && (
-                                                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                      Overdue
-                                    </span>
-                                  )}
-                                  {isToday && !overdue && schedule.status === "pending" && (
-                                                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                                      Due Today
-                                    </span>
-                                  )}
-                                </div>
+                                                    )}>
+                                                      {schedule.status}
+                                                    </span>
+                                                    {overdue && schedule.status === "pending" && (
+                                                      <span className="inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-red-100 text-red-700 whitespace-nowrap">
+                                                        Overdue
+                                                      </span>
+                                                    )}
+                                                    {isToday && !overdue && schedule.status === "pending" && (
+                                                      <span className="inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-blue-100 text-blue-700 whitespace-nowrap">
+                                                        Due Today
+                                                      </span>
+                                                    )}
+                                                  </div>
                                                 </td>
                                                 <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                <div>
-                                                    <div className="text-xs sm:text-sm font-medium text-gray-900">
-                                    {new Date(schedule.dueDate).toLocaleDateString('en-US', { 
-                                      weekday: 'short',
-                                      month: 'short', 
-                                      day: 'numeric',
-                                      year: 'numeric'
-                                    })}
-                                  </div>
-                                  {schedule.status === "pending" && (
-                                    <div className={cn(
-                                                        "text-xs mt-0.5 sm:mt-1 font-medium",
+                                                  <div className="min-w-[100px] sm:min-w-0">
+                                                    <div className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">
+                                                      {new Date(schedule.dueDate).toLocaleDateString('en-US', { 
+                                                        weekday: 'short',
+                                                        month: 'short', 
+                                                        day: 'numeric',
+                                                        year: 'numeric'
+                                                      })}
+                                                    </div>
+                                                    {schedule.status === "pending" && (
+                                                      <div className={cn(
+                                                        "text-[10px] sm:text-xs mt-0.5 sm:mt-1 font-medium whitespace-nowrap",
                                                         overdue && "text-red-600",
                                                         isToday && !overdue && "text-blue-600",
-                                      !overdue && !isToday && "text-gray-500"
-                                    )}>
-                                      {overdue ? `${Math.abs(daysUntil)} days overdue` : 
-                                       isToday ? "Due today" : 
-                                       daysUntil === 1 ? "Due tomorrow" : 
-                                       `${daysUntil} days remaining`}
-                                    </div>
-                                  )}
-                                </div>
+                                                        !overdue && !isToday && "text-gray-500"
+                                                      )}>
+                                                        {overdue ? `${Math.abs(daysUntil)} days overdue` : 
+                                                         isToday ? "Due today" : 
+                                                         daysUntil === 1 ? "Due tomorrow" : 
+                                                         `${daysUntil} days remaining`}
+                                                      </div>
+                                                    )}
+                                                  </div>
                                                 </td>
                                                 <td className="py-2 sm:py-3 px-2 sm:px-4 hidden sm:table-cell">
                                                   {schedule.amount ? (
@@ -1557,31 +1557,31 @@ const Schedules = () => {
                                                   )}
                                                 </td>
                                                 <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                                  <div className="flex gap-1 sm:gap-2">
-                            {schedule.status === "pending" && (
-                              <button
-                                onClick={() => handleCompleteClick(schedule)}
-                                                        className="p-1.5 sm:p-2 text-green-600 rounded"
-                                title="Mark as completed"
-                              >
+                                                  <div className="flex gap-1 sm:gap-2 items-center">
+                                                    {schedule.status === "pending" && (
+                                                      <button
+                                                        onClick={() => handleCompleteClick(schedule)}
+                                                        className="p-1.5 sm:p-2 text-green-600 rounded hover:bg-green-50 transition-colors"
+                                                        title="Mark as completed"
+                                                      >
                                                         <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => openEditModal(schedule)}
-                                                      className="p-1.5 sm:p-2 text-blue-600 rounded"
-                              title="Edit schedule"
-                            >
+                                                      </button>
+                                                    )}
+                                                    <button
+                                                      onClick={() => openEditModal(schedule)}
+                                                      className="p-1.5 sm:p-2 text-blue-600 rounded hover:bg-blue-50 transition-colors"
+                                                      title="Edit schedule"
+                                                    >
                                                       <Pencil size={14} className="sm:w-4 sm:h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(schedule)}
-                                                      className="p-1.5 sm:p-2 text-red-600 rounded"
-                              title="Delete schedule"
-                            >
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleDeleteClick(schedule)}
+                                                      className="p-1.5 sm:p-2 text-red-600 rounded hover:bg-red-50 transition-colors"
+                                                      title="Delete schedule"
+                                                    >
                                                       <Trash2 size={14} className="sm:w-4 sm:h-4" />
-                            </button>
-                          </div>
+                                                    </button>
+                                                  </div>
                                                 </td>
                                               </tr>
                                             );

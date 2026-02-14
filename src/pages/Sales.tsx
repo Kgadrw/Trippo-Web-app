@@ -372,23 +372,19 @@ const Sales = () => {
     setSaleDate(getTodayDate());
   }, []);
 
-  // Listen for sale-recorded events to auto-refresh the sales list
-  // Note: WebSocket events in useApi hook handle immediate updates, this is a fallback
+  // Listen for sale-recorded events to auto-refresh the sales list immediately
+  // WebSocket events in useApi hook handle immediate updates, this ensures backend refresh
   useEffect(() => {
     const handleSaleRecorded = async () => {
-      // If WebSocket is connected, the useApi hook will handle the update immediately
-      // This is just a fallback for when WebSocket is not available
+      // Immediately refresh from backend for live data (no delay)
       try {
-        // Small delay to let WebSocket update first, then refresh to ensure consistency
-        setTimeout(async () => {
-          await refreshSales(true); // Force refresh to get fresh data
-          // Also refresh products to update stock levels
-          await refreshProducts(true);
-          console.log('[Sales] Fallback refresh after sale recorded (WebSocket should have updated already)');
-        }, 50); // Very short delay to prioritize WebSocket updates
+        await refreshSales(true); // Force refresh to get fresh data from backend
+        // Also refresh products to update stock levels
+        await refreshProducts(true);
+        console.log('[Sales] Immediate refresh after sale recorded - live data updated');
       } catch (error) {
-        // Silently handle errors - the useApi hook will handle offline scenarios
-        console.log("Fallback refresh after sale recorded:", error);
+        // Silently handle errors - the useApi hook handles offline scenarios
+        console.log("Immediate refresh after sale recorded:", error);
       }
     };
 
@@ -602,12 +598,17 @@ const Sales = () => {
               }
             }
             
-            // Refresh sales to ensure table updates immediately with latest data
+            // Immediately refresh sales from backend to ensure table updates with live data
             try {
-              await refreshSales();
+              await refreshSales(true); // Force refresh to get fresh data from backend
+              console.log('[Sales] Bulk sales refreshed immediately - live data updated');
             } catch (refreshError) {
               // Silently ignore refresh errors
+              console.log('[Sales] Refresh error (may be offline):', refreshError);
             }
+            
+            // Dispatch event to notify all pages to refresh immediately
+            window.dispatchEvent(new CustomEvent('sales-should-refresh'));
             
             // Stock is automatically updated via updateProduct above
             // Dispatch event to automatically notify all components
@@ -848,11 +849,13 @@ const Sales = () => {
             console.warn("Failed to update product stock via API, but stock is reduced locally:", updateError);
           }
           
-          // Refresh sales to ensure table updates immediately with latest data
+          // Immediately refresh sales from backend to ensure table updates with live data
           try {
-            await refreshSales();
+            await refreshSales(true); // Force refresh to get fresh data from backend
+            console.log('[Sales] Single sale refreshed immediately - live data updated');
           } catch (refreshError) {
             // Silently ignore refresh errors
+            console.log('[Sales] Refresh error (may be offline):', refreshError);
           }
           
           // Stock is automatically updated via updateProduct above
@@ -861,9 +864,12 @@ const Sales = () => {
             detail: { productId, newStock: updatedProduct.stock } 
           }));
           
-          // Dispatch event to notify other pages (like Products page and Dashboard) to refresh
+          // Dispatch event to notify other pages (like Products page and Dashboard) to refresh immediately
           window.dispatchEvent(new CustomEvent('products-should-refresh'));
           window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+          window.dispatchEvent(new CustomEvent('sale-recorded', { 
+            detail: { sale: newSale, productId, stockReduction } 
+          }));
 
           // Reset form
           setSelectedProduct("");

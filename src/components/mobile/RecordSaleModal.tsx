@@ -526,16 +526,16 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       setPaymentMethod("cash");
       setSaleDate(new Date().toISOString().split("T")[0]);
 
-      // Always refresh sales list immediately (works both online and offline)
+      // Immediately refresh sales list from backend (no delay for live updates)
       try {
-        await refreshSales(true); // Force refresh to get fresh data
-        console.log('[RecordSaleModal] Sales list refreshed after recording sale');
+        await refreshSales(true); // Force refresh to get fresh data from backend
+        console.log('[RecordSaleModal] Sales list refreshed immediately after recording sale');
       } catch (refreshError) {
         // Silently ignore refresh errors - the useApi hook handles offline scenarios
         console.log('[RecordSaleModal] Refresh error (may be offline):', refreshError);
       }
       
-      // Dispatch custom event to notify all pages (especially Sales page and Dashboard) to refresh
+      // Dispatch custom event to notify all pages (especially Sales page and Dashboard) to refresh immediately
       window.dispatchEvent(new CustomEvent('sale-recorded', { 
         detail: { sale: newSale, productId: product._id || product.id, stockReduction } 
       }));

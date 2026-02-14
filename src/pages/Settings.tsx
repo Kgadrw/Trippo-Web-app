@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,77 +75,15 @@ const Settings = () => {
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
-  // Track last user fetch time to prevent excessive API calls
-  const lastUserFetchRef = useRef<number>(0);
-  const MIN_USER_FETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes minimum between user fetches
-
-  // Load user data when component mounts or user changes
+  // Load user data from localStorage only (no API calls)
   useEffect(() => {
-    const loadUserData = async () => {
-      // Get current userId from localStorage to ensure we don't switch users
-      const currentUserId = localStorage.getItem("profit-pilot-user-id");
-      
-      // Use localStorage data immediately (fast, no API call)
-      if (user) {
-        setOwnerName(user.name || "");
-        setEmail(user.email || "");
-        setBusinessName(user.businessName || "");
-      }
-      
-      // Only load from backend if we have a userId and enough time has passed since last fetch
-      if (currentUserId && user) {
-        const now = Date.now();
-        const timeSinceLastFetch = now - lastUserFetchRef.current;
-        
-        // Only fetch if it's been at least 5 minutes since last fetch
-        if (timeSinceLastFetch < MIN_USER_FETCH_INTERVAL) {
-          console.log(`[Settings] Skipping user fetch (only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch)`);
-          return;
-        }
-        
-        try {
-          // Try to load from backend, but verify it's the same user
-          const response = await authApi.getCurrentUser();
-          lastUserFetchRef.current = now; // Update last fetch time
-          
-          if (response?.user) {
-            const backendUser = response.user;
-            const backendUserId = (backendUser as any)._id || (backendUser as any).id;
-            
-            // Only update if the backend user matches the current logged-in user
-            // This prevents auto-switching users
-            if (backendUserId && backendUserId.toString() === currentUserId.toString()) {
-              setOwnerName(backendUser.name || user?.name || "");
-              setEmail(backendUser.email || user?.email || "");
-              setBusinessName(backendUser.businessName || user?.businessName || "");
-              
-              // Update localStorage with fresh data
-              if (backendUser.name) {
-                localStorage.setItem("profit-pilot-user-name", backendUser.name);
-              }
-              if (backendUser.email) {
-                localStorage.setItem("profit-pilot-user-email", backendUser.email);
-              }
-              if (backendUser.businessName) {
-                localStorage.setItem("profit-pilot-business-name", backendUser.businessName);
-              }
-              
-              // Trigger event to update other components
-              window.dispatchEvent(new Event("user-data-changed"));
-            } else {
-              // Backend returned different user - use localStorage data instead
-              console.warn("Backend user ID mismatch, using localStorage data");
-            }
-          }
-        } catch (error) {
-          // If backend fails, use localStorage data (don't switch users)
-          console.error("Failed to load user from backend:", error);
-        }
-      }
-    };
-
-    loadUserData();
-  }, [user]); // Removed updateUser from dependencies to prevent unnecessary re-runs
+    // Use localStorage data immediately (fast, no API call)
+    if (user) {
+      setOwnerName(user.name || "");
+      setEmail(user.email || "");
+      setBusinessName(user.businessName || "");
+    }
+  }, [user]);
 
   const handleSaveBusinessInfo = async () => {
     initAudio();
