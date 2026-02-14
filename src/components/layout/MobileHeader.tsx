@@ -227,7 +227,19 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
 
         {/* Notification Sheet Modal */}
         <Sheet open={notificationOpen} onOpenChange={setNotificationOpen}>
-          <SheetContent side="right" className="w-full sm:w-[400px] p-0">
+            <SheetContent side="right" className="w-full sm:w-[400px] p-0 relative">
+            {/* Mark as Read Button - Positioned below X close button */}
+            {selectedNotification && !selectedNotification.read && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleMarkAsRead(selectedNotification.id)}
+                className="absolute right-4 top-12 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 z-10"
+              >
+                <CheckCheck size={14} className="mr-1" />
+                Mark as read
+              </Button>
+            )}
             <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <SheetTitle className="text-xl font-bold">Notifications</SheetTitle>
