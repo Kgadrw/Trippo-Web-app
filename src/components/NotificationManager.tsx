@@ -81,10 +81,27 @@ export function NotificationManager() {
       return;
     }
 
+    // Update badge on app open
+    const updateBadge = async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          registration.active?.postMessage({ type: 'UPDATE_BADGE' });
+        }
+      } catch (error) {
+        console.error('Error updating badge:', error);
+      }
+    };
+
+    // Update badge immediately when app opens
+    updateBadge();
+
     // Trigger notification check using the background sync manager
     const triggerNotificationCheck = async () => {
       try {
         await backgroundSyncManager.requestNotificationCheck();
+        // Update badge after checking notifications
+        await updateBadge();
       } catch (error) {
         console.error('Error triggering notification check:', error);
       }

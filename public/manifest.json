@@ -4,6 +4,7 @@
   "description": "Manage your stock, track sales, calculate profits, and generate reports with Trippo - your complete business management solution",
   "start_url": "/",
   "scope": "/",
+  "id": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#ffffff",

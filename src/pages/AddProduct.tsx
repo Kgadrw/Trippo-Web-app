@@ -66,6 +66,8 @@ const AddProduct = () => {
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
   const isBulkMode = searchParams.get("mode") === "bulk";
+  const editProductId = searchParams.get("edit");
+  const isEditMode = !!editProductId;
   
   const { toast } = useToast();
   const {
@@ -103,6 +105,44 @@ const AddProduct = () => {
     productType: "",
     minStock: "",
   });
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Load product data when in edit mode
+  useEffect(() => {
+    if (isEditMode && editProductId && products.length > 0) {
+      const product = products.find(p => {
+        const id = (p as any)._id || p.id;
+        return id?.toString() === editProductId;
+      });
+      
+      if (product) {
+        setEditingProduct(product);
+        // Convert stock from individual items to packages if it's a package product
+        const stockValue = product.isPackage && product.packageQuantity 
+          ? Math.floor(product.stock / product.packageQuantity)
+          : product.stock;
+        const minStockValue = product.isPackage && product.packageQuantity && product.minStock
+          ? Math.floor(product.minStock / product.packageQuantity)
+          : product.minStock;
+        
+        setFormData({
+          name: product.name,
+          category: product.category,
+          manufacturedDate: product.manufacturedDate || "",
+          expiryDate: product.expiryDate || "",
+          costPrice: product.costPrice.toString(),
+          sellingPrice: product.sellingPrice.toString(),
+          stock: stockValue.toString(),
+          isPackage: product.isPackage || false,
+          packageQuantity: product.packageQuantity?.toString() || "",
+          priceType: product.priceType || "perQuantity",
+          costPriceType: product.costPriceType || "perQuantity",
+          productType: product.productType || "",
+          minStock: minStockValue?.toString() || "",
+        });
+      }
+    }
+  }, [isEditMode, editProductId, products]);
   const [bulkProducts, setBulkProducts] = useState<ProductFormData[]>([
     { name: "", category: categoryFromUrl || "", manufacturedDate: "", expiryDate: "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", priceType: "perQuantity", costPriceType: "perQuantity", productType: "", minStock: "" }
   ]);
@@ -218,6 +258,68 @@ const AddProduct = () => {
 
   const handleSave = async () => {
     initAudio();
+
+    // Handle edit mode
+    if (isEditMode && editingProduct) {
+      const packageQty = formData.packageQuantity && formData.packageQuantity.trim() !== "" ? parseInt(formData.packageQuantity) : undefined;
+      const stockValue = parseInt(formData.stock) || 0;
+      const minStockValue = formData.minStock ? parseInt(formData.minStock) : undefined;
+      
+      // If product is packaged, convert stock from packages to individual items
+      const stock = packageQty ? stockValue * packageQty : stockValue;
+      const minStock = packageQty && minStockValue ? minStockValue * packageQty : minStockValue;
+      
+      const updatedProduct: Product = {
+        ...editingProduct,
+        name: formData.name,
+        category: formData.category,
+        manufacturedDate: formData.manufacturedDate || undefined,
+        expiryDate: formData.expiryDate || undefined,
+        costPrice: parseFloat(formData.costPrice) || 0,
+        sellingPrice: parseFloat(formData.sellingPrice) || 0,
+        stock: stock,
+        isPackage: packageQty ? true : false,
+        packageQuantity: packageQty,
+        priceType: packageQty ? formData.priceType : undefined,
+        costPriceType: packageQty ? formData.costPriceType : undefined,
+        productType: formData.productType || undefined,
+        minStock: minStock,
+      };
+      
+      try {
+        await updateProduct(updatedProduct);
+        await refreshProducts();
+        // Dispatch event to notify all pages (Products, Dashboard, etc.) to refresh
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        playProductBeep();
+        toast({
+          title: "Product Updated",
+          description: "Product has been updated successfully.",
+        });
+        navigate("/products");
+      } catch (error: any) {
+        // Don't show errors for connection issues (offline mode)
+        if (error?.response?.silent || error?.response?.connectionError) {
+          // Dispatch refresh event even in offline mode
+          window.dispatchEvent(new CustomEvent('products-should-refresh'));
+          // Product was saved locally, show success message
+          playProductBeep();
+          toast({
+            title: "Product Updated",
+            description: "Product has been updated. It will sync when you're back online.",
+          });
+          navigate("/products");
+          return;
+        }
+        playErrorBeep();
+        toast({
+          title: "Update Failed",
+          description: error?.message || error?.response?.error || "Failed to update product. Please check your connection and try again.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
 
     if (mode === "bulk") {
       // Bulk add mode
@@ -620,7 +722,7 @@ const AddProduct = () => {
   }
 
   return (
-    <AppLayout title={mode === "bulk" ? t("bulkAddProducts") : t("addProduct")}>
+    <AppLayout title={isEditMode ? t("editProduct") : (mode === "bulk" ? t("bulkAddProducts") : t("addProduct"))}>
       <div className="w-full">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -634,26 +736,28 @@ const AddProduct = () => {
               <ArrowLeft size={18} />
             </Button>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant={mode === "single" ? "default" : "outline"}
-              onClick={() => setMode("single")}
-              className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
-            >
-              {t("language") === "rw" ? "Icuruzwa kimwe" : "Single Product"}
-            </Button>
-            <Button
-              variant={mode === "bulk" ? "default" : "outline"}
-              onClick={() => setMode("bulk")}
-              className={mode === "bulk" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
-            >
-              {t("bulkAdd")}
-            </Button>
-          </div>
+          {!isEditMode && (
+            <div className="flex gap-2">
+              <Button
+                variant={mode === "single" ? "default" : "outline"}
+                onClick={() => setMode("single")}
+                className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+              >
+                {t("language") === "rw" ? "Icuruzwa kimwe" : "Single Product"}
+              </Button>
+              <Button
+                variant={mode === "bulk" ? "default" : "outline"}
+                onClick={() => setMode("bulk")}
+                className={mode === "bulk" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+              >
+                {t("bulkAdd")}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Form */}
-        <div className="form-card lg:bg-white bg-white/80 backdrop-blur-sm">
+        <div className="form-card lg:bg-white bg-white/80 backdrop-blur-sm pb-24 lg:pb-6">
           {mode === "bulk" ? (
             /* Bulk Add Form */
             <div className="space-y-4">
@@ -1210,14 +1314,23 @@ const AddProduct = () => {
             </div>
           )}
           
-          {/* Footer Actions */}
-          <div className="flex justify-end gap-3 mt-6 pt-6 border-t">
-            <Button variant="outline" onClick={() => navigate("/products")} className="btn-secondary">
-              Cancel
-            </Button>
-            <Button onClick={handleSave} className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg">
-              {mode === "bulk" ? "Add Products" : "Add Product"}
-            </Button>
+          {/* Footer Actions - Sticky on mobile */}
+          <div className="sticky bottom-0 left-0 right-0 bg-white border-t shadow-lg pt-4 pb-4 mt-6 z-10 lg:relative lg:bg-transparent lg:shadow-none lg:border-t lg:pt-6 lg:pb-0 lg:mt-6 lg:z-auto">
+            <div className="flex justify-end gap-3 px-4 lg:px-0 max-w-7xl mx-auto">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate("/products")} 
+                className="btn-secondary flex-1 lg:flex-initial min-w-[100px]"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSave} 
+                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg flex-1 lg:flex-initial min-w-[120px]"
+              >
+                {isEditMode ? "Save Changes" : (mode === "bulk" ? "Add Products" : "Add Product")}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

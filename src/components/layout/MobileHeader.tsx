@@ -113,12 +113,30 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     onNotificationClick?.();
   };
 
-  const handleMarkAsRead = (notificationId: string) => {
+  const handleMarkAsRead = async (notificationId: string) => {
     notificationStore.markAsRead(notificationId);
+    // Update badge after marking as read
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        registration.active?.postMessage({ type: 'UPDATE_BADGE' });
+      } catch (error) {
+        console.error('Error updating badge:', error);
+      }
+    }
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     notificationStore.markAllAsRead();
+    // Clear badge after marking all as read
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        registration.active?.postMessage({ type: 'CLEAR_BADGE' });
+      } catch (error) {
+        console.error('Error clearing badge:', error);
+      }
+    }
   };
 
   const handleNotificationClick = (notification: StoredNotification) => {

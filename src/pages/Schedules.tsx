@@ -143,6 +143,7 @@ const Schedules = () => {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [frequencyFilter, setFrequencyFilter] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
@@ -1109,36 +1110,154 @@ const Schedules = () => {
 
         {/* Filters Section */}
         <div className="form-card border-transparent flex-shrink-0 lg:bg-white bg-white/80 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-                  <Input
-                placeholder="Search clients or schedules..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 input-field"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
+          {/* Mobile Filter Section */}
+          <div className="lg:hidden mb-4 space-y-3">
+            {/* Search Bar with Filter Icon */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                <Input
+                  placeholder="Search clients or schedules..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
+                variant="outline"
+                className={cn(
+                  "bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-3 py-2",
+                  showFilters && "bg-blue-50 border-blue-300 text-blue-700"
+                )}
+              >
+                <Filter size={18} />
+              </Button>
+            </div>
+            
+            {/* Filter Options - Collapsible */}
+            {showFilters && (
+              <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Status Filter */}
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Date Filter */}
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                      <SelectValue placeholder="Date" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Dates</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="thisWeek">This Week</SelectItem>
+                      <SelectItem value="thisMonth">This Month</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Frequency Filter */}
+                  <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
+                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                      <SelectValue placeholder="Frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Frequency</SelectItem>
+                      <SelectItem value="once">Once</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Client Filter */}
+                  <Select value={clientFilter} onValueChange={setClientFilter}>
+                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                      <SelectValue placeholder="Client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Clients</SelectItem>
+                      {clients.map((client) => {
+                        const clientId = ((client as any)._id || client.id)?.toString();
+                        return (
+                          <SelectItem key={clientId} value={clientId}>
+                            {client.name}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                
+                {/* Clear Filters */}
+                <Button
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setDateFilter("all");
+                    setFrequencyFilter("all");
+                    setClientFilter("all");
+                    setSearchQuery("");
+                  }}
+                  variant="outline"
+                  className="w-full bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Filter Section */}
+          <div className="hidden lg:flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+              <Input
+                placeholder="Search clients or schedules..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 input-field"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="input-field w-full sm:w-48">
-                    <Filter size={16} className="mr-2" />
+                <Filter size={16} className="mr-2" />
                 <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
               <SelectTrigger className="input-field w-full sm:w-48">
                 <CalendarIcon size={16} className="mr-2" />
@@ -1171,21 +1290,21 @@ const Schedules = () => {
               <SelectTrigger className="input-field w-full sm:w-48">
                 <User size={16} className="mr-2" />
                 <SelectValue placeholder="Client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Clients</SelectItem>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Clients</SelectItem>
                 {clients.map((client) => {
                   const clientId = ((client as any)._id || client.id)?.toString();
-                      return (
+                  return (
                     <SelectItem key={clientId} value={clientId}>
                       {client.name}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-            </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
           </div>
+        </div>
 
           {/* Content Section */}
         <div className="lg:bg-white bg-white/80 backdrop-blur-sm shadow-sm rounded-lg">

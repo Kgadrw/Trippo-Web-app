@@ -328,6 +328,15 @@ const Products = () => {
   };
 
   const openEditModal = (product: Product) => {
+    // On mobile, navigate to edit page instead of opening modal
+    const isMobile = window.innerWidth < 1024;
+    if (isMobile) {
+      const productId = (product as any)._id || product.id;
+      navigate(`/products/add?edit=${productId}`);
+      return;
+    }
+    
+    // On desktop, use modal
     setEditingProduct(product);
     setFormData({
       name: product.name,

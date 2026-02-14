@@ -5,6 +5,54 @@ const CACHE_NAME = `trippo-${CACHE_VERSION}`;
 const API_BASE_URL = 'https://profit-backend-e4w1.onrender.com/api';
 const NOTIFICATION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
+// Badge API support - track active notifications for app icon badge
+let activeNotificationCount = 0;
+
+// Update app icon badge with notification count
+async function updateBadge(count) {
+  try {
+    // Badge API is available on navigator in service workers
+    // Check if Badge API is supported
+    if ('setAppBadge' in self.navigator) {
+      if (count > 0) {
+        await self.navigator.setAppBadge(count);
+        console.log(`[SW] Badge updated to ${count}`);
+      } else {
+        await self.navigator.clearAppBadge();
+        console.log('[SW] Badge cleared');
+      }
+    } else if (self.registration && 'setAppBadge' in self.registration) {
+      // Some browsers expose it on registration
+      if (count > 0) {
+        await self.registration.setAppBadge(count);
+        console.log(`[SW] Badge updated to ${count}`);
+      } else {
+        await self.registration.clearAppBadge();
+        console.log('[SW] Badge cleared');
+      }
+    } else {
+      console.log('[SW] Badge API not supported on this platform');
+    }
+  } catch (error) {
+    console.error('[SW] Error updating badge:', error);
+  }
+}
+
+// Count active notifications
+async function countActiveNotifications() {
+  try {
+    const registration = self.registration;
+    if (!registration || !('getNotifications' in registration)) {
+      return 0;
+    }
+    const notifications = await registration.getNotifications();
+    return notifications.length;
+  } catch (error) {
+    console.error('[SW] Error counting notifications:', error);
+    return 0;
+  }
+}
+
 // Install event - cache resources
 self.addEventListener("install", (event) => {
   console.log("Service Worker installing with cache version:", CACHE_VERSION);
@@ -25,8 +73,12 @@ self.addEventListener("activate", (event) => {
           return caches.delete(cacheName);
         })
       );
-    }).then(() => {
+    }).then(async () => {
       console.log("App caches cleared");
+      // Initialize badge count on activation
+      const count = await countActiveNotifications();
+      activeNotificationCount = count;
+      await updateBadge(count);
       return self.clients.claim();
     })
   );
@@ -147,6 +199,21 @@ self.addEventListener("message", (event) => {
     console.log('[SW] Cleared all notification tracking data');
     return;
   }
+
+  // Handle badge update requests from client
+  if (event.data.type === "UPDATE_BADGE") {
+    const count = event.data.count !== undefined ? event.data.count : await countActiveNotifications();
+    activeNotificationCount = count;
+    await updateBadge(count);
+    return;
+  }
+
+  // Handle clear badge requests
+  if (event.data.type === "CLEAR_BADGE") {
+    activeNotificationCount = 0;
+    await updateBadge(0);
+    return;
+  }
 });
 
 // Sync data function (called when online)
@@ -239,6 +306,10 @@ async function closeNotificationByTag(tag) {
     notifs.forEach(n => n.close());
     if (notifs.length > 0) {
       console.log(`Closed ${notifs.length} notification(s) with tag: ${tag}`);
+      // Update badge after closing notifications
+      const count = await countActiveNotifications();
+      activeNotificationCount = count;
+      await updateBadge(count);
     }
   } catch (e) {
     console.error("Failed to close notifications:", e);
@@ -417,7 +488,12 @@ async function showNotification(options) {
       timestamp: Date.now(),
     });
     
-    console.log("Notification shown:", options.title);
+    // Update badge count after showing notification
+    const count = await countActiveNotifications();
+    activeNotificationCount = count;
+    await updateBadge(count);
+    
+    console.log("Notification shown:", options.title, `Badge: ${count}`);
   } catch (error) {
     console.error("Error showing notification:", error);
     // If permission is denied, we can't show notifications
@@ -426,8 +502,13 @@ async function showNotification(options) {
 }
 
 // Handle notification clicks
-self.addEventListener("notificationclick", (event) => {
+self.addEventListener("notificationclick", async (event) => {
   event.notification.close();
+
+  // Update badge after closing notification
+  const count = await countActiveNotifications();
+  activeNotificationCount = count;
+  await updateBadge(count);
 
   const data = event.notification.data;
   
@@ -450,7 +531,9 @@ self.addEventListener("notificationclick", (event) => {
         if (clientList.length > 0) {
           return clientList[0].focus();
         } else if (clients.openWindow) {
-          return clients.openWindow('/products');
+          // Use current origin to support subdomains
+          const url = new URL('/products', self.location.origin);
+          return clients.openWindow(url);
         }
       })
     );
@@ -468,10 +551,11 @@ self.addEventListener("notificationclick", (event) => {
           }
         }
         // Otherwise, open a new window
-        // ✅ Fix: route already includes leading slash, don't add another
+        // ✅ Use current origin to support subdomains
         if (clients.openWindow) {
           const route = data.route.startsWith('/') ? data.route : `/${data.route}`;
-          return clients.openWindow(route);
+          const url = new URL(route, self.location.origin);
+          return clients.openWindow(url);
         }
       })
     );
