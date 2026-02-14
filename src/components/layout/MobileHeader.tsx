@@ -227,33 +227,36 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
 
         {/* Notification Sheet Modal */}
         <Sheet open={notificationOpen} onOpenChange={setNotificationOpen}>
-            <SheetContent side="right" className="w-full sm:w-[400px] p-0 relative">
-            {/* Mark as Read Button - Positioned below X close button */}
-            {selectedNotification && !selectedNotification.read && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleMarkAsRead(selectedNotification.id)}
-                className="absolute right-4 top-12 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 z-10"
-              >
-                <CheckCheck size={14} className="mr-1" />
-                Mark as read
-              </Button>
-            )}
+          <SheetContent side="right" className="w-full sm:w-[400px] p-0">
             <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <SheetTitle className="text-xl font-bold">Notifications</SheetTitle>
-                {notifications.length > 0 && unreadCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleMarkAllAsRead}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    <CheckCheck size={14} className="mr-1" />
-                    Mark all read
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* Mark as Read Button - Only show when viewing a single unread notification */}
+                  {selectedNotification && !selectedNotification.read && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleMarkAsRead(selectedNotification.id)}
+                      className="text-xs text-blue-600 hover:text-blue-700"
+                    >
+                      <CheckCheck size={14} className="mr-1" />
+                      Mark as read
+                    </Button>
+                  )}
+                  {/* Mark all read - Only show when in list view with unread notifications */}
+                  {!selectedNotification && notifications.length > 0 && unreadCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleMarkAllAsRead}
+                      className="text-xs text-blue-600 hover:text-blue-700"
+                    >
+                      <CheckCheck size={14} className="mr-1" />
+                      Mark all read
+                    </Button>
+                  )}
+                </div>
               </div>
               <SheetDescription className="text-xs text-gray-500">
                 {unreadCount > 0
