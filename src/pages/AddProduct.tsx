@@ -4,10 +4,10 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X, ArrowLeft, Calendar } from "lucide-react";
+import { Plus, X, ArrowLeft, Calendar, Trash2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
-import { playProductBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib/sound";
+import { playProductBeep, playErrorBeep, playWarningBeep, playDeleteBeep, initAudio } from "@/lib/sound";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
@@ -27,6 +27,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { usePinAuth } from "@/hooks/usePinAuth";
 
 interface Product {
   id?: number;
@@ -75,6 +84,7 @@ const AddProduct = () => {
     isLoading,
     add: addProduct,
     update: updateProduct,
+    remove: removeProduct,
     refresh: refreshProducts,
   } = useApi<Product>({
     endpoint: "products",
@@ -88,6 +98,11 @@ const AddProduct = () => {
       console.error("Error with products:", error);
     },
   });
+
+  const { hasPin, verifyPin } = usePinAuth();
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [mode, setMode] = useState<"single" | "bulk">(isBulkMode ? "bulk" : "single");
   const [formData, setFormData] = useState<ProductFormData>({
@@ -253,6 +268,70 @@ const AddProduct = () => {
         description: error?.message || error?.response?.error || "Failed to update product. Please check your connection and try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (!editingProduct) return;
+    
+    if (!hasPin) {
+      toast({
+        title: "PIN Required",
+        description: "Please set a PIN in Settings before deleting products.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowPinDialog(true);
+    setPinInput("");
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!editingProduct) return;
+    
+    if (!verifyPin(pinInput)) {
+      playErrorBeep();
+      toast({
+        title: "Incorrect PIN",
+        description: "The PIN you entered is incorrect.",
+        variant: "destructive",
+      });
+      setPinInput("");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // Delete product (don't await - let it happen in background)
+      removeProduct(editingProduct).catch((error: any) => {
+        console.error("Error deleting product:", error);
+      });
+      
+      // Force refresh immediately (non-blocking)
+      refreshProducts(true);
+      
+      // Dispatch event to notify other pages to refresh
+      window.dispatchEvent(new CustomEvent('products-should-refresh'));
+      
+      playDeleteBeep();
+      toast({
+        title: "Product Deleted",
+        description: "Product has been successfully deleted.",
+      });
+      
+      setShowPinDialog(false);
+      setPinInput("");
+      navigate("/products");
+    } catch (error: any) {
+      console.error("Error deleting product:", error);
+      playErrorBeep();
+      toast({
+        title: "Delete Failed",
+        description: error?.message || error?.response?.error || "Failed to delete product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -736,24 +815,36 @@ const AddProduct = () => {
               <ArrowLeft size={18} />
             </Button>
           </div>
-          {!isEditMode && (
-            <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {isEditMode && editingProduct && (
               <Button
-                variant={mode === "single" ? "default" : "outline"}
-                onClick={() => setMode("single")}
-                className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+                variant="ghost"
+                onClick={handleDeleteClick}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                title={t("deleteProduct")}
               >
-                {t("language") === "rw" ? "Icuruzwa kimwe" : "Single Product"}
+                <Trash2 size={20} />
               </Button>
-              <Button
-                variant={mode === "bulk" ? "default" : "outline"}
-                onClick={() => setMode("bulk")}
-                className={mode === "bulk" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
-              >
-                {t("bulkAdd")}
-              </Button>
-            </div>
-          )}
+            )}
+            {!isEditMode && (
+              <div className="flex gap-2">
+                <Button
+                  variant={mode === "single" ? "default" : "outline"}
+                  onClick={() => setMode("single")}
+                  className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+                >
+                  {t("language") === "rw" ? "Icuruzwa kimwe" : "Single Product"}
+                </Button>
+                <Button
+                  variant={mode === "bulk" ? "default" : "outline"}
+                  onClick={() => setMode("bulk")}
+                  className={mode === "bulk" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+                >
+                  {t("bulkAdd")}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Form */}
@@ -1367,6 +1458,69 @@ const AddProduct = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* PIN Dialog for Delete Operation */}
+      <Dialog open={showPinDialog} onOpenChange={setShowPinDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock size={20} className="text-red-600" />
+              Delete Product
+            </DialogTitle>
+            <DialogDescription>
+              {editingProduct && (
+                <>
+                  This action will permanently delete <strong>{editingProduct.name}</strong>. This cannot be undone.
+                  <br />
+                  <span className="font-semibold text-red-600 mt-2 block">Please enter your PIN to confirm.</span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="pin">Enter PIN</Label>
+              <Input
+                id="pin"
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                className="input-field h-12 text-center text-2xl tracking-widest font-mono"
+                placeholder="••••"
+                autoFocus
+                autoComplete="new-password"
+                name="pin-verification"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && pinInput.length === 4) {
+                    handleDeleteConfirm();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPinDialog(false);
+                setPinInput("");
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteConfirm}
+              disabled={pinInput.length !== 4 || isDeleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

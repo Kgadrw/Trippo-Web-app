@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { User, Menu, Mail, Building2, X, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -49,8 +49,8 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
     hour12: true,
   });
 
-  // Get user initials for avatar
-  const getUserInitials = () => {
+  // Get user initials for avatar - memoized to prevent shaking
+  const userInitials = useMemo(() => {
     if (user?.name) {
       const names = user.name.split(" ");
       if (names.length >= 2) {
@@ -58,16 +58,21 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
       }
       return user.name.substring(0, 2).toUpperCase();
     }
-    return "U";
-  };
+    return isAdmin ? "A" : "U";
+  }, [user?.name, isAdmin]);
 
-  // Get first name only
-  const getFirstName = () => {
+  // Get first name only - memoized to prevent shaking
+  const firstName = useMemo(() => {
     if (user?.name) {
       return user.name.split(" ")[0];
     }
     return isAdmin ? "Admin" : "User";
-  };
+  }, [user?.name, isAdmin]);
+
+  // Get subtitle (business name or email) - memoized to prevent shaking
+  const subtitle = useMemo(() => {
+    return isAdmin ? "System Administrator" : (user?.businessName || user?.email || "My Trading Co.");
+  }, [isAdmin, user?.businessName, user?.email]);
 
   return (
     <header className={cn(
@@ -98,15 +103,15 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
           >
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold text-white">
-                {getFirstName()}
+                {firstName}
               </p>
               <p className="text-xs text-blue-200">
-                {isAdmin ? "System Administrator" : (user?.businessName || user?.email || "My Trading Co.")}
+                {subtitle}
               </p>
             </div>
             <Avatar className="h-10 w-10 border border-blue-700 cursor-pointer">
               <AvatarFallback className={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-blue-700 text-white font-bold"}>
-                {isAdmin ? "A" : getUserInitials()}
+                {userInitials}
               </AvatarFallback>
             </Avatar>
           </button>
@@ -133,7 +138,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
             <div className="flex items-center justify-center">
               <Avatar className={cn("h-20 w-20 border-2", isAdmin ? "border-purple-500" : "border-gray-500")}>
                 <AvatarFallback className={cn("text-white font-bold text-2xl", isAdmin ? "bg-purple-500" : "bg-gray-500")}>
-                  {isAdmin ? "A" : getUserInitials()}
+                  {userInitials}
                 </AvatarFallback>
               </Avatar>
             </div>

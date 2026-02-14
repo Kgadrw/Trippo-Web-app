@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Bell, ArrowLeft, CheckCheck, ChevronDown, Package, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -47,8 +47,8 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     defaultValue: [],
   });
 
-  // Get user initials for avatar
-  const getUserInitials = () => {
+  // Get user initials for avatar - memoized to prevent shaking
+  const userInitials = useMemo(() => {
     if (user?.name) {
       const names = user.name.split(" ");
       if (names.length >= 2) {
@@ -57,15 +57,15 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
       return user.name.substring(0, 2).toUpperCase();
     }
     return "U";
-  };
+  }, [user?.name]);
 
-  // Get first name only
-  const getFirstName = () => {
+  // Get first name only - memoized to prevent shaking
+  const firstName = useMemo(() => {
     if (user?.name) {
       return user.name.split(" ")[0];
     }
     return "User";
-  };
+  }, [user?.name]);
 
   // Load notifications and listen for updates
   useEffect(() => {
@@ -183,14 +183,14 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <Avatar className="h-10 w-10 rounded-full border border-blue-700 flex-shrink-0">
           <AvatarFallback className="bg-blue-700 text-white font-bold">
-            {getUserInitials()}
+            {userInitials}
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1">
             <span className="text-sm text-blue-200">Hi,</span>
             <span className="text-sm font-semibold text-white truncate">
-              {getFirstName()}
+              {firstName}
             </span>
             <ChevronDown 
               className="h-4 w-4 text-white flex-shrink-0 cursor-pointer hover:text-blue-200" 

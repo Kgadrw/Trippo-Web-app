@@ -373,29 +373,23 @@ const Sales = () => {
   }, []);
 
   // Listen for sale-recorded events to auto-refresh the sales list
+  // Note: WebSocket events in useApi hook handle immediate updates, this is a fallback
   useEffect(() => {
-    let debounceTimeout: NodeJS.Timeout | null = null;
-    const DEBOUNCE_DELAY = 300; // 300ms debounce for faster updates
-
     const handleSaleRecorded = async () => {
-      // Clear any pending debounced refresh
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = null;
-      }
-      
-      // Always force refresh to get real data from API (bypass cache)
-      debounceTimeout = setTimeout(async () => {
-        try {
+      // If WebSocket is connected, the useApi hook will handle the update immediately
+      // This is just a fallback for when WebSocket is not available
+      try {
+        // Small delay to let WebSocket update first, then refresh to ensure consistency
+        setTimeout(async () => {
           await refreshSales(true); // Force refresh to get fresh data
           // Also refresh products to update stock levels
           await refreshProducts(true);
-          console.log('[Sales] Auto-refreshed sales list after sale recorded');
-        } catch (error) {
-          // Silently handle errors - the useApi hook will handle offline scenarios
-          console.log("Auto-refresh after sale recorded:", error);
-        }
-      }, DEBOUNCE_DELAY);
+          console.log('[Sales] Fallback refresh after sale recorded (WebSocket should have updated already)');
+        }, 50); // Very short delay to prioritize WebSocket updates
+      } catch (error) {
+        // Silently handle errors - the useApi hook will handle offline scenarios
+        console.log("Fallback refresh after sale recorded:", error);
+      }
     };
 
     window.addEventListener('sale-recorded', handleSaleRecorded);
@@ -404,9 +398,6 @@ const Sales = () => {
     return () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded);
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-      }
     };
   }, [refreshSales, refreshProducts]);
 

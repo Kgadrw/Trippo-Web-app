@@ -1488,26 +1488,36 @@ export function useApi<T extends { _id?: string; id?: number }>({
       
       websocketUnsubscribes = [unsubscribeCreated, unsubscribeUpdated, unsubscribeDeleted];
     } else if (endpoint === 'sales') {
-      // Subscribe to sales WebSocket events
+      // Subscribe to sales WebSocket events for instant real-time updates
       const unsubscribeCreated = websocketManager.subscribe('sale:created', (sale) => {
-        console.log(`[useApi] WebSocket: Sale created`, sale);
-        // Optimistically add the sale to the list
+        console.log(`[useApi] WebSocket: Sale created - immediate update`, sale);
+        // Immediately add the sale to the list (optimistic update)
         if (sale && (sale._id || sale.id)) {
           setItems((prev) => {
             // Check if sale already exists (avoid duplicates)
             const exists = prev.some((s: any) => (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString());
-            if (exists) return prev;
+            if (exists) {
+              // If exists, update it instead of adding duplicate
+              return prev.map((s: any) => 
+                (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString() ? sale : s
+              );
+            }
+            // Add new sale at the beginning of the list (most recent first)
             return [sale, ...prev];
           });
+          // Also trigger a background refresh to ensure data consistency
+          setTimeout(() => refresh(true), 100);
         } else {
-          // Fallback to refresh if sale data is incomplete
+          // Fallback to immediate refresh if sale data is incomplete
           refresh(true);
         }
+        // Dispatch event to notify other components
+        window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale } }));
       });
       
       const unsubscribeUpdated = websocketManager.subscribe('sale:updated', (sale) => {
-        console.log(`[useApi] WebSocket: Sale updated`, sale);
-        // Optimistically update the sale in the list
+        console.log(`[useApi] WebSocket: Sale updated - immediate update`, sale);
+        // Immediately update the sale in the list
         if (sale && (sale._id || sale.id)) {
           setItems((prev) => 
             prev.map((s: any) => 
@@ -1515,20 +1525,20 @@ export function useApi<T extends { _id?: string; id?: number }>({
             )
           );
         } else {
-          // Fallback to refresh if sale data is incomplete
+          // Fallback to immediate refresh if sale data is incomplete
           refresh(true);
         }
       });
       
       const unsubscribeDeleted = websocketManager.subscribe('sale:deleted', (data) => {
-        console.log(`[useApi] WebSocket: Sale deleted`, data);
-        // Optimistically remove the sale from the list
+        console.log(`[useApi] WebSocket: Sale deleted - immediate update`, data);
+        // Immediately remove the sale from the list
         if (data && data._id) {
           setItems((prev) => 
             prev.filter((s: any) => (s._id || s.id)?.toString() !== data._id?.toString())
           );
         } else {
-          // Fallback to refresh if deletion data is incomplete
+          // Fallback to immediate refresh if deletion data is incomplete
           refresh(true);
         }
       });
