@@ -561,72 +561,73 @@ const Sales = () => {
           try {
             await bulkAddSales(salesToCreate as any);
             
-            // Reduce product stock locally immediately for instant UI feedback
-            // Group sales by productId to handle multiple sales of the same product
-            const stockReductions = new Map<string, number>();
-            salesToCreate.forEach((sale: any) => {
-              const productId = sale.productId?.toString();
-              if (productId) {
-                const currentReduction = stockReductions.get(productId) || 0;
-                stockReductions.set(productId, currentReduction + sale.quantity);
-              }
-            });
-            
-            // Update each product's stock immediately for instant UI feedback
-            for (const [productId, totalQuantity] of stockReductions.entries()) {
-              try {
-                const product = products.find((p) => {
-                  const id = (p as any)._id || p.id;
-                  return id.toString() === productId;
-                });
-                if (product) {
-                  // Ensure we have the correct ID format
-                  const productId = (product as any)._id || product.id;
-                  const updatedProduct = {
-                    ...product,
-                    _id: productId,
-                    id: productId,
-                    stock: Math.max(0, product.stock - totalQuantity),
-                  };
-                  // Update via useApi hook (this updates IndexedDB and UI state immediately)
-                  await updateProduct(updatedProduct);
-                  console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-                }
-              } catch (updateError) {
-                // If update fails, log but continue - backend will handle stock reduction
-                console.warn(`Failed to update product stock via API for product ${productId}:`, updateError);
-              }
-            }
-            
-            // Immediately refresh sales from backend to ensure table updates with live data
-            try {
-              await refreshSales(true); // Force refresh to get fresh data from backend
-              console.log('[Sales] Bulk sales refreshed immediately - live data updated');
-            } catch (refreshError) {
-              // Silently ignore refresh errors
-              console.log('[Sales] Refresh error (may be offline):', refreshError);
-            }
-            
-            // Dispatch event to notify all pages to refresh immediately
-            window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-            
-            // Stock is automatically updated via updateProduct above
-            // Dispatch event to automatically notify all components
-            window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-              detail: { productId, newStock: updatedProduct.stock } 
-            }));
-            
-            // Dispatch event to notify other pages (like Products page) to refresh
-            window.dispatchEvent(new CustomEvent('products-should-refresh'));
-
+            // Show success immediately (bulkAddSales already updates UI)
             playSaleBeep();
             sonnerToast.success("Sales Recorded", {
               description: `Successfully recorded ${salesToCreate.length} sale(s).`,
             });
 
-            // Reset bulk form
+            // Reset bulk form immediately for better UX
             setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
             setIsBulkMode(false);
+
+            // Dispatch events immediately (non-blocking)
+            window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+            window.dispatchEvent(new CustomEvent('products-should-refresh'));
+            
+            // Run non-blocking operations in parallel (don't wait for them)
+            // These happen in the background and don't slow down the user experience
+            Promise.all([
+              // Update product stock for all affected products (non-blocking)
+              (async () => {
+                const stockReductions = new Map<string, number>();
+                salesToCreate.forEach((sale: any) => {
+                  const productId = sale.productId?.toString();
+                  if (productId) {
+                    const currentReduction = stockReductions.get(productId) || 0;
+                    stockReductions.set(productId, currentReduction + sale.quantity);
+                  }
+                });
+                
+                // Update each product's stock (non-blocking)
+                const updatePromises = Array.from(stockReductions.entries()).map(async ([productId, totalQuantity]) => {
+                  try {
+                    const product = products.find((p) => {
+                      const id = (p as any)._id || p.id;
+                      return id.toString() === productId;
+                    });
+                    if (product) {
+                      const updatedProduct = {
+                        ...product,
+                        _id: productId,
+                        id: productId,
+                        stock: Math.max(0, product.stock - totalQuantity),
+                      };
+                      await updateProduct(updatedProduct);
+                      console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
+                      window.dispatchEvent(new CustomEvent('product-stock-updated', { 
+                        detail: { productId, newStock: updatedProduct.stock } 
+                      }));
+                    }
+                  } catch (updateError) {
+                    console.warn(`Failed to update product stock via API for product ${productId}:`, updateError);
+                  }
+                });
+                await Promise.all(updatePromises);
+              })(),
+              // Refresh sales list (non-blocking - happens in background)
+              (async () => {
+                try {
+                  await refreshSales(true);
+                  console.log('[Sales] Bulk sales refreshed in background');
+                } catch (refreshError) {
+                  console.log('[Sales] Refresh error (may be offline):', refreshError);
+                }
+              })()
+            ]).catch(err => {
+              // Silently handle any errors in background operations
+              console.log('[Sales] Background operation error:', err);
+            });
           } catch (bulkError: any) {
             // Check if it's a connection error
             if (bulkError?.response?.connectionError) {
@@ -820,63 +821,61 @@ const Sales = () => {
         try {
           await addSale(newSale as any);
           
-          // Play sale beep immediately after successful sale recording
+          // Show success immediately (addSale already updates UI)
           playSaleBeep();
-          
-          // Show success toast immediately
           sonnerToast.success("Sale Recorded", {
             description: `Successfully recorded sale of ${qty}x ${product.name}`,
           });
-          
-          // Reduce product stock locally immediately for instant UI feedback
-          // Update the product in the products list immediately (optimistic update)
-          // Ensure we have the correct ID format
-          const productId = (product as any)._id || product.id;
-          const updatedProduct = {
-            ...product,
-            _id: productId,
-            id: productId,
-            stock: Math.max(0, product.stock - stockReduction),
-          };
-          
-          // Update via useApi hook (this updates IndexedDB and UI state immediately)
-          try {
-            await updateProduct(updatedProduct);
-            console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-          } catch (updateError) {
-            // If update fails, still update locally for instant feedback
-            // Backend will handle the actual stock reduction
-            console.warn("Failed to update product stock via API, but stock is reduced locally:", updateError);
-          }
-          
-          // Immediately refresh sales from backend to ensure table updates with live data
-          try {
-            await refreshSales(true); // Force refresh to get fresh data from backend
-            console.log('[Sales] Single sale refreshed immediately - live data updated');
-          } catch (refreshError) {
-            // Silently ignore refresh errors
-            console.log('[Sales] Refresh error (may be offline):', refreshError);
-          }
-          
-          // Stock is automatically updated via updateProduct above
-          // Dispatch event to automatically notify all components
-          window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-            detail: { productId, newStock: updatedProduct.stock } 
-          }));
-          
-          // Dispatch event to notify other pages (like Products page and Dashboard) to refresh immediately
-          window.dispatchEvent(new CustomEvent('products-should-refresh'));
-          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-          window.dispatchEvent(new CustomEvent('sale-recorded', { 
-            detail: { sale: newSale, productId, stockReduction } 
-          }));
 
-          // Reset form
+          // Reset form immediately for better UX
           setSelectedProduct("");
           setQuantity("1");
           setSellingPrice("");
           setPaymentMethod("cash");
           setSaleDate(getTodayDate());
+
+          // Dispatch events immediately (non-blocking)
+          const productId = (product as any)._id || product.id;
+          window.dispatchEvent(new CustomEvent('sale-recorded', { 
+            detail: { sale: newSale, productId, stockReduction } 
+          }));
+          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+          window.dispatchEvent(new CustomEvent('products-should-refresh'));
+          
+          // Run non-blocking operations in parallel (don't wait for them)
+          // These happen in the background and don't slow down the user experience
+          Promise.all([
+            // Update product stock (non-blocking)
+            (async () => {
+              try {
+                const updatedProduct = {
+                  ...product,
+                  _id: productId,
+                  id: productId,
+                  stock: Math.max(0, product.stock - stockReduction),
+                };
+                await updateProduct(updatedProduct);
+                console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
+                window.dispatchEvent(new CustomEvent('product-stock-updated', { 
+                  detail: { productId, newStock: updatedProduct.stock } 
+                }));
+              } catch (updateError) {
+                console.warn("Failed to update product stock via API:", updateError);
+              }
+            })(),
+            // Refresh sales list (non-blocking - happens in background)
+            (async () => {
+              try {
+                await refreshSales(true);
+                console.log('[Sales] Single sale refreshed in background');
+              } catch (refreshError) {
+                console.log('[Sales] Refresh error (may be offline):', refreshError);
+              }
+            })()
+          ]).catch(err => {
+            // Silently handle any errors in background operations
+            console.log('[Sales] Background operation error:', err);
+          });
         } catch (saleError: any) {
           // Check if it's a connection error
           if (saleError?.response?.connectionError) {

@@ -486,6 +486,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       };
 
       await addSale(newSale);
+      
+      // Show success immediately (addSale already updates UI)
       playSaleBeep();
       
       // Check if offline mode
@@ -503,45 +505,53 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
         });
       }
 
-      // Reduce product stock locally immediately for instant UI feedback
-      try {
-        // Ensure we have the correct ID format
-        const productId = (product as any)._id || product.id;
-        const updatedProduct = {
-          ...product,
-          _id: productId,
-          id: productId,
-          stock: Math.max(0, product.stock - stockReduction),
-        };
-        await updateProduct(updatedProduct);
-        console.log(`[RecordSaleModal] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-      } catch (updateError) {
-        console.warn("Failed to update product stock in modal:", updateError);
-      }
-
-      // Reset form
+      // Reset form immediately for better UX
       setSelectedProduct("");
       setQuantity("1");
       setSellingPrice("");
       setPaymentMethod("cash");
       setSaleDate(new Date().toISOString().split("T")[0]);
 
-      // Immediately refresh sales list from backend (no delay for live updates)
-      try {
-        await refreshSales(true); // Force refresh to get fresh data from backend
-        console.log('[RecordSaleModal] Sales list refreshed immediately after recording sale');
-      } catch (refreshError) {
-        // Silently ignore refresh errors - the useApi hook handles offline scenarios
-        console.log('[RecordSaleModal] Refresh error (may be offline):', refreshError);
-      }
-      
-      // Dispatch custom event to notify all pages (especially Sales page and Dashboard) to refresh immediately
+      // Dispatch events immediately (non-blocking)
+      const productId = (product as any)._id || product.id;
       window.dispatchEvent(new CustomEvent('sale-recorded', { 
-        detail: { sale: newSale, productId: product._id || product.id, stockReduction } 
+        detail: { sale: newSale, productId, stockReduction } 
       }));
       window.dispatchEvent(new CustomEvent('sales-should-refresh'));
       
       onSaleRecorded?.();
+      
+      // Run non-blocking operations in parallel (don't wait for them)
+      // These happen in the background and don't slow down the user experience
+      Promise.all([
+        // Update product stock (non-blocking)
+        (async () => {
+          try {
+            const updatedProduct = {
+              ...product,
+              _id: productId,
+              id: productId,
+              stock: Math.max(0, product.stock - stockReduction),
+            };
+            await updateProduct(updatedProduct);
+            console.log(`[RecordSaleModal] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
+          } catch (updateError) {
+            console.warn("Failed to update product stock in modal:", updateError);
+          }
+        })(),
+        // Refresh sales list (non-blocking - happens in background)
+        (async () => {
+          try {
+            await refreshSales(true);
+            console.log('[RecordSaleModal] Sales list refreshed in background');
+          } catch (refreshError) {
+            console.log('[RecordSaleModal] Refresh error (may be offline):', refreshError);
+          }
+        })()
+      ]).catch(err => {
+        // Silently handle any errors in background operations
+        console.log('[RecordSaleModal] Background operation error:', err);
+      });
       
       // Close modal after a short delay
       setTimeout(() => {

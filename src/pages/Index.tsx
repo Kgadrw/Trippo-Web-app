@@ -920,52 +920,52 @@ const Dashboard = () => {
 
         await addSale(newSale as any);
         
-        // Play sale beep immediately after successful sale recording
+        // Show success immediately (addSale already updates UI)
         playSaleBeep();
-        
-        // Show success toast immediately
         sonnerToast.success("Sale Recorded", {
           description: `Successfully recorded sale of ${qty}x ${product.name}`,
         });
-        
-        // Reduce product stock locally immediately for instant UI feedback
-        // Ensure we have the correct ID format
-        const productId = (product as any)._id || product.id;
-        const updatedProduct = {
-          ...product,
-          _id: productId,
-          id: productId,
-          stock: Math.max(0, product.stock - stockReduction),
-        };
-        
-        // Update via useApi hook (this updates IndexedDB and UI state immediately)
-        try {
-          await updateProduct(updatedProduct);
-          console.log(`[Dashboard] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-        } catch (updateError) {
-          // If update fails, log but continue - backend will handle stock reduction
-          console.warn("Failed to update product stock via API:", updateError);
-        }
-        
-        // Stock is automatically updated via updateProduct above
-        // Dispatch event to automatically notify all components
-        window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-          detail: { productId, newStock: updatedProduct.stock } 
-        }));
-        window.dispatchEvent(new CustomEvent('products-should-refresh'));
-        // Dispatch event to refresh sales in dashboard and other pages
-        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        // Also dispatch sale-recorded event for immediate refresh
-        window.dispatchEvent(new CustomEvent('sale-recorded', { 
-          detail: { sale: newSale, productId, stockReduction } 
-        }));
 
-        // Reset form
+        // Reset form immediately for better UX
         setSelectedProduct("");
         setQuantity("1");
         setSellingPrice("");
-        setPaymentMethod("cash"); // Reset to default cash
-        setSaleDate(getTodayDate()); // Reset to today's date
+        setPaymentMethod("cash");
+        setSaleDate(getTodayDate());
+
+        // Dispatch events immediately (non-blocking)
+        const productId = (product as any)._id || product.id;
+        window.dispatchEvent(new CustomEvent('sale-recorded', { 
+          detail: { sale: newSale, productId, stockReduction } 
+        }));
+        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
+        
+        // Run non-blocking operations in parallel (don't wait for them)
+        // These happen in the background and don't slow down the user experience
+        Promise.all([
+          // Update product stock (non-blocking)
+          (async () => {
+            try {
+              const updatedProduct = {
+                ...product,
+                _id: productId,
+                id: productId,
+                stock: Math.max(0, product.stock - stockReduction),
+              };
+              await updateProduct(updatedProduct);
+              console.log(`[Dashboard] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
+              window.dispatchEvent(new CustomEvent('product-stock-updated', { 
+                detail: { productId, newStock: updatedProduct.stock } 
+              }));
+            } catch (updateError) {
+              console.warn("Failed to update product stock via API:", updateError);
+            }
+          })()
+        ]).catch(err => {
+          // Silently handle any errors in background operations
+          console.log('[Dashboard] Background operation error:', err);
+        });
       }
       } catch (error: any) {
         // Get product info for error messages
