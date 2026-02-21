@@ -394,18 +394,15 @@ const Dashboard = () => {
       .slice(0, 10);
   }, [sales]);
 
-  // Listen for sales updates from other pages (Sales page, RecordSaleModal, etc.)
-  // Immediate refresh for live data updates
+  // Listen for sales updates - UI is already updated immediately by useApi hook
+  // WebSocket will also update in real-time, so we don't need to refresh here
+  // This listener is kept for compatibility but doesn't block the UI
   useEffect(() => {
-    const handleSaleRecorded = async () => {
-      // Immediately refresh from backend for live data (no delay)
-      try {
-        await refreshSales(true); // Force refresh to get fresh data from backend
-        console.log('[Dashboard] Sales refreshed immediately after sale recorded - live data updated');
-      } catch (error) {
-        // Silently handle errors - the useApi hook handles offline scenarios
-        console.log("Immediate refresh after sale recorded:", error);
-      }
+    const handleSaleRecorded = () => {
+      // UI is already updated immediately by useApi hook
+      // WebSocket will handle real-time updates
+      // No need to refresh - it would cause unnecessary delay
+      console.log('[Dashboard] Sale recorded - UI already updated immediately');
     };
 
     // Listen for custom event when sales are created
@@ -416,7 +413,7 @@ const Dashboard = () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded);
     };
-  }, [refreshSales]);
+  }, []);
 
   // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {

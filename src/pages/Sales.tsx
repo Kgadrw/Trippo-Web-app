@@ -372,20 +372,15 @@ const Sales = () => {
     setSaleDate(getTodayDate());
   }, []);
 
-  // Listen for sale-recorded events to auto-refresh the sales list immediately
-  // WebSocket events in useApi hook handle immediate updates, this ensures backend refresh
+  // Listen for sale-recorded events - UI is already updated immediately by useApi hook
+  // WebSocket will also update in real-time, so we don't need to refresh here
+  // This listener is kept for compatibility but doesn't block the UI
   useEffect(() => {
-    const handleSaleRecorded = async () => {
-      // Immediately refresh from backend for live data (no delay)
-      try {
-        await refreshSales(true); // Force refresh to get fresh data from backend
-        // Also refresh products to update stock levels
-        await refreshProducts(true);
-        console.log('[Sales] Immediate refresh after sale recorded - live data updated');
-      } catch (error) {
-        // Silently handle errors - the useApi hook handles offline scenarios
-        console.log("Immediate refresh after sale recorded:", error);
-      }
+    const handleSaleRecorded = () => {
+      // UI is already updated immediately by useApi hook
+      // WebSocket will handle real-time updates
+      // No need to refresh - it would cause unnecessary delay
+      console.log('[Sales] Sale recorded - UI already updated immediately');
     };
 
     window.addEventListener('sale-recorded', handleSaleRecorded);
@@ -395,7 +390,7 @@ const Sales = () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded);
     };
-  }, [refreshSales, refreshProducts]);
+  }, []);
 
   // Clear selected product if it becomes out of stock
   useEffect(() => {
