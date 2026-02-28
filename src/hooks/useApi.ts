@@ -1565,6 +1565,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   }, [loadData, endpoint]);
 
   // Reload from IndexedDB only (instant, no API call) - for optimistic updates
+  // Merges with existing items to preserve optimistic updates
   const reloadFromIndexedDB = useCallback(async () => {
     const userId = localStorage.getItem("profit-pilot-user-id");
     if (!userId) {
@@ -1596,14 +1597,47 @@ export function useApi<T extends { _id?: string; id?: number }>({
           });
         }
         
-        // Update UI immediately with IndexedDB data
-        setItems(mappedItems);
-        console.log(`[useApi] ${endpoint}: Reloaded ${mappedItems.length} items from IndexedDB (instant update)`);
+        // Merge with existing items to preserve optimistic updates
+        // This ensures newly added items don't disappear if IndexedDB hasn't updated yet
+        setItems((prevItems) => {
+          // Create a map of existing items by ID for quick lookup
+          const existingMap = new Map<string, T>();
+          prevItems.forEach((item: any) => {
+            const id = (item._id || item.id)?.toString();
+            if (id) {
+              existingMap.set(id, item);
+            }
+          });
+          
+          // Add all IndexedDB items to the map (will overwrite existing with same ID)
+          mappedItems.forEach((item: any) => {
+            const id = (item._id || item.id)?.toString();
+            if (id) {
+              existingMap.set(id, item);
+            }
+          });
+          
+          // Convert map back to array
+          const merged = Array.from(existingMap.values());
+          
+          // For sales, re-sort after merge
+          if (endpoint === 'sales') {
+            merged.sort((a, b) => {
+              const aTime = (a as any).timestamp || (a as any).date;
+              const bTime = (b as any).timestamp || (b as any).date;
+              return new Date(bTime).getTime() - new Date(aTime).getTime();
+            });
+          }
+          
+          return merged;
+        });
+        
+        console.log(`[useApi] ${endpoint}: Reloaded ${mappedItems.length} items from IndexedDB (merged with existing)`);
       }
     } catch (error) {
       console.warn(`[useApi] ${endpoint}: Error reloading from IndexedDB:`, error);
     }
-  }, [endpoint, mapItem]);
+  }, [endpoint, mapItem, setItems]);
 
   // ✅ WebSocket integration - listen for real-time updates (ONLY when socket is open)
   useEffect(() => {

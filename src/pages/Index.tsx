@@ -434,18 +434,18 @@ const Dashboard = () => {
       
       // Small delay to ensure IndexedDB transaction has committed
       // This ensures we can read the newly saved sale
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Reload from IndexedDB to get the actual saved sale (with proper ID)
-      // This shows the sale instantly without waiting for API response
-      console.log('[Dashboard] Sale recorded - reloading from IndexedDB (instant)');
+      // This merges with existing items, so optimistic update is preserved
+      console.log('[Dashboard] Sale recorded - reloading from IndexedDB (merged update)');
       await reloadSalesFromIndexedDB();
       
       // Retry once more after a short delay in case IndexedDB wasn't ready
       setTimeout(async () => {
         await reloadSalesFromIndexedDB();
-        console.log('[Dashboard] Retried reload from IndexedDB to ensure sale appears');
-      }, 200);
+        console.log('[Dashboard] Retried reload from IndexedDB (merged update)');
+      }, 300);
       
       // Also refresh from API in background to get server data (non-blocking)
       // This ensures we have the real server ID and any server-side updates
@@ -2038,18 +2038,18 @@ const Dashboard = () => {
         onOpenChange={setSaleModalOpen}
         onSaleRecorded={async () => {
           // Small delay to ensure IndexedDB transaction has committed
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise(resolve => setTimeout(resolve, 200));
           
           // Reload from IndexedDB immediately when sale is recorded from mobile modal
-          // This ensures the sale appears in recent sales instantly (no API wait)
-          console.log('[Dashboard] Sale recorded via mobile modal - reloading from IndexedDB');
+          // This merges with existing items, so optimistic update is preserved
+          console.log('[Dashboard] Sale recorded via mobile modal - reloading from IndexedDB (merged)');
           await reloadSalesFromIndexedDB();
           
           // Retry once more after a short delay in case IndexedDB wasn't ready
           setTimeout(async () => {
             await reloadSalesFromIndexedDB();
-            console.log('[Dashboard] Retried reload from IndexedDB (mobile modal callback)');
-          }, 200);
+            console.log('[Dashboard] Retried reload from IndexedDB (mobile modal callback, merged)');
+          }, 300);
           
           // Refresh from API in background to get server data (non-blocking)
           setTimeout(() => {
