@@ -394,15 +394,14 @@ const Dashboard = () => {
       .slice(0, 10);
   }, [sales]);
 
-  // Listen for sales updates - UI is already updated immediately by useApi hook
-  // WebSocket will also update in real-time, so we don't need to refresh here
-  // This listener is kept for compatibility but doesn't block the UI
+  // Listen for sales updates from mobile modal and other sources
+  // Refresh sales list to ensure recent sales are displayed immediately
   useEffect(() => {
     const handleSaleRecorded = () => {
-      // UI is already updated immediately by useApi hook
-      // WebSocket will handle real-time updates
-      // No need to refresh - it would cause unnecessary delay
-      console.log('[Dashboard] Sale recorded - UI already updated immediately');
+      // Refresh sales list to get the latest data including the newly recorded sale
+      // This ensures mobile-recorded sales appear immediately in recent sales
+      console.log('[Dashboard] Sale recorded - refreshing sales list');
+      refreshSales(true); // Force refresh to get latest data
     };
 
     // Listen for custom event when sales are created
@@ -413,7 +412,7 @@ const Dashboard = () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded);
     };
-  }, []);
+  }, [refreshSales]);
 
   // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {
@@ -1987,6 +1986,11 @@ const Dashboard = () => {
       <RecordSaleModal 
         open={saleModalOpen} 
         onOpenChange={setSaleModalOpen}
+        onSaleRecorded={() => {
+          // Refresh sales list immediately when sale is recorded from mobile modal
+          // This ensures the sale appears in recent sales right away
+          refreshSales(true);
+        }}
       />
     </AppLayout>
   );
