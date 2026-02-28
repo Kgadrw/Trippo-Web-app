@@ -490,7 +490,6 @@ const Dashboard = () => {
   const [bulkSales, setBulkSales] = useState<BulkSaleFormData[]>([
     { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }
   ]);
-  const [isRecordingSale, setIsRecordingSale] = useState(false);
 
   // Sync sale date with today's date on component mount
   useEffect(() => {
