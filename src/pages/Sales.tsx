@@ -574,38 +574,38 @@ const Sales = () => {
             // API calls for sales are already happening in background via useApi
             // No refresh needed - UI already updated immediately
             (async () => {
-              const stockReductions = new Map<string, number>();
-              salesToCreate.forEach((sale: any) => {
-                const productId = sale.productId?.toString();
-                if (productId) {
-                  const currentReduction = stockReductions.get(productId) || 0;
-                  stockReductions.set(productId, currentReduction + sale.quantity);
-                }
-              });
-              
+            const stockReductions = new Map<string, number>();
+            salesToCreate.forEach((sale: any) => {
+              const productId = sale.productId?.toString();
+              if (productId) {
+                const currentReduction = stockReductions.get(productId) || 0;
+                stockReductions.set(productId, currentReduction + sale.quantity);
+              }
+            });
+            
               // Update each product's stock (non-blocking)
               const updatePromises = Array.from(stockReductions.entries()).map(async ([productId, totalQuantity]) => {
-                try {
-                  const product = products.find((p) => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === productId;
-                  });
-                  if (product) {
-                    const updatedProduct = {
-                      ...product,
-                      _id: productId,
-                      id: productId,
-                      stock: Math.max(0, product.stock - totalQuantity),
-                    };
-                    await updateProduct(updatedProduct);
-                    console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
+              try {
+                const product = products.find((p) => {
+                  const id = (p as any)._id || p.id;
+                  return id.toString() === productId;
+                });
+                if (product) {
+                  const updatedProduct = {
+                    ...product,
+                    _id: productId,
+                    id: productId,
+                    stock: Math.max(0, product.stock - totalQuantity),
+                  };
+                  await updateProduct(updatedProduct);
+                  console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
                     window.dispatchEvent(new CustomEvent('product-stock-updated', { 
                       detail: { productId, newStock: updatedProduct.stock } 
                     }));
-                  }
-                } catch (updateError) {
-                  console.warn(`Failed to update product stock via API for product ${productId}:`, updateError);
                 }
+              } catch (updateError) {
+                console.warn(`Failed to update product stock via API for product ${productId}:`, updateError);
+              }
               });
               await Promise.all(updatePromises);
             })().catch(err => {
@@ -811,7 +811,7 @@ const Sales = () => {
           sonnerToast.success("Sale Recorded", {
             description: `Successfully recorded sale of ${qty}x ${product.name}`,
           });
-
+          
           // Reset form immediately for better UX
           setSelectedProduct("");
           setQuantity("1");
@@ -832,17 +832,17 @@ const Sales = () => {
           // No refresh needed - UI already updated immediately
           (async () => {
             try {
-              const updatedProduct = {
-                ...product,
-                _id: productId,
-                id: productId,
-                stock: Math.max(0, product.stock - stockReduction),
-              };
-              await updateProduct(updatedProduct);
-              console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-              window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-                detail: { productId, newStock: updatedProduct.stock } 
-              }));
+          const updatedProduct = {
+            ...product,
+            _id: productId,
+            id: productId,
+            stock: Math.max(0, product.stock - stockReduction),
+          };
+            await updateProduct(updatedProduct);
+            console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
+          window.dispatchEvent(new CustomEvent('product-stock-updated', { 
+            detail: { productId, newStock: updatedProduct.stock } 
+          }));
             } catch (updateError) {
               console.warn("Failed to update product stock via API:", updateError);
             }
@@ -1193,60 +1193,60 @@ const Sales = () => {
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
-        playUpdateBeep();
-        toast({
-          title: "Sales Deleted",
+          playUpdateBeep();
+          toast({
+            title: "Sales Deleted",
           description: `Successfully deleted ${deletedCount} sale(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}`,
-        });
+          });
       } else if (deleteMode === "single" && singleSaleToDelete) {
         // Delete single sale using remove function for proper UI updates
         // First, restore stock for this sale before deleting (optimistic update)
-        const productId = (singleSaleToDelete as any).productId?.toString();
-        if (productId) {
-          const product = products.find((p) => {
-            const id = (p as any)._id || p.id;
-            return id.toString() === productId;
-          });
-          if (product) {
-            const updatedProduct = {
-              ...product,
-              stock: product.stock + singleSaleToDelete.quantity,
-            };
+          const productId = (singleSaleToDelete as any).productId?.toString();
+          if (productId) {
+              const product = products.find((p) => {
+                const id = (p as any)._id || p.id;
+                return id.toString() === productId;
+              });
+              if (product) {
+                const updatedProduct = {
+                  ...product,
+                  stock: product.stock + singleSaleToDelete.quantity,
+                };
             // Don't await - let it happen in background
             updateProduct(updatedProduct).catch((updateError) => {
               console.warn("Failed to restore stock locally:", updateError);
             });
+            }
           }
-        }
 
         // Remove from selection if it was selected (optimistic update)
-        const saleId = (singleSaleToDelete as any)._id || singleSaleToDelete.id;
-        if (saleId) {
-          setSelectedSales((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(saleId.toString());
-            return newSet;
-          });
-        }
-        
+          const saleId = (singleSaleToDelete as any)._id || singleSaleToDelete.id;
+          if (saleId) {
+            setSelectedSales((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(saleId.toString());
+              return newSet;
+            });
+          }
+          
         // Delete sale (don't await - let it happen in background)
         removeSale(singleSaleToDelete).catch((error: any) => {
           console.error("Error deleting sale:", error);
         });
         
         // Force refresh immediately (non-blocking)
-        refreshSales(true);
-        refreshProducts(true);
-        
-        // Dispatch event to notify other pages
-        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        window.dispatchEvent(new CustomEvent('products-should-refresh'));
-        
-        playDeleteBeep();
-        toast({
-          title: "Sale Deleted",
-          description: "Sale has been successfully deleted.",
-        });
+          refreshSales(true);
+          refreshProducts(true);
+          
+          // Dispatch event to notify other pages
+          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+          window.dispatchEvent(new CustomEvent('products-should-refresh'));
+          
+          playDeleteBeep();
+          toast({
+            title: "Sale Deleted",
+            description: "Sale has been successfully deleted.",
+          });
       }
       
       setShowPinDialog(false);
