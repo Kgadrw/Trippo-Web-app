@@ -748,6 +748,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
         // Save to IndexedDB for offline support, but don't show in UI yet
         await addItem(storeName, itemWithId);
         
+        // Dispatch event to notify that sale recording has started
+        // This allows Dashboard and Sales pages to show loading state
+        window.dispatchEvent(new CustomEvent('sale-recording-started', { 
+          detail: { sale: item } 
+        }));
+        
         // Make API call and wait for response before updating UI
         // This ensures we only show sales that are confirmed by backend
         // Prepare item data for API call
@@ -838,6 +844,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
           // Dispatch event to notify other components (after backend confirms)
           window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale: syncedItem } }));
           window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+          
+          // Dispatch event to notify that sale recording has completed successfully
+          window.dispatchEvent(new CustomEvent('sale-recording-completed', { 
+            detail: { sale: syncedItem, success: true } 
+          }));
         } catch (error) {
           // If API call fails, remove from IndexedDB and throw error
           try {
@@ -849,6 +860,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
             console.warn('[useApi] Error removing failed sale from IndexedDB:', deleteError);
           }
           console.error(`[useApi] Error saving sale to backend:`, error);
+          
+          // Dispatch event to notify that sale recording has completed with failure
+          window.dispatchEvent(new CustomEvent('sale-recording-completed', { 
+            detail: { sale: item, success: false, error } 
+          }));
+          
           throw error; // Re-throw so caller knows it failed
         }
         

@@ -396,6 +396,37 @@ const Dashboard = () => {
       .slice(0, 10);
   }, [sales]);
 
+  // Track if sale recording is in progress (for loading state)
+  const [isRecordingSale, setIsRecordingSale] = useState(false);
+
+  // Listen for sale recording state changes
+  useEffect(() => {
+    const handleSaleRecordingStarted = () => {
+      console.log('[Dashboard] Sale recording started - showing loading state');
+      setIsRecordingSale(true);
+    };
+
+    const handleSaleRecordingCompleted = async (event: CustomEvent) => {
+      console.log('[Dashboard] Sale recording completed - hiding loading state');
+      setIsRecordingSale(false);
+      
+      // Refresh sales list after backend confirms
+      if (event.detail?.success) {
+        console.log('[Dashboard] Sale confirmed by backend - refreshing sales list');
+        await refreshSales(true);
+      }
+    };
+
+    // Listen for sale recording state events
+    window.addEventListener('sale-recording-started', handleSaleRecordingStarted as EventListener);
+    window.addEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
+
+    return () => {
+      window.removeEventListener('sale-recording-started', handleSaleRecordingStarted as EventListener);
+      window.removeEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
+    };
+  }, [refreshSales]);
+
   // Listen for sales updates from mobile modal and other sources
   // Only refresh after backend confirms the sale (no optimistic updates)
   useEffect(() => {
@@ -1823,7 +1854,7 @@ const Dashboard = () => {
             </p>
           </div>
           
-          {isLoading || salesLoading ? (
+          {isLoading || salesLoading || isRecordingSale ? (
             <div className="p-4">
               <Skeleton className="h-12 w-full mb-2" />
               <Skeleton className="h-12 w-full mb-2" />
