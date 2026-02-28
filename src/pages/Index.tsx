@@ -397,64 +397,17 @@ const Dashboard = () => {
   }, [sales]);
 
   // Listen for sales updates from mobile modal and other sources
-  // Reload from IndexedDB immediately (instant) - sale is already saved there
+  // Only refresh after backend confirms the sale (no optimistic updates)
   useEffect(() => {
-    const handleSaleRecorded = async (event?: CustomEvent) => {
-      // Get sale data from event if available (for immediate optimistic update)
-      const saleData = event?.detail?.sale;
-      
-      // If we have sale data, add it optimistically to the list immediately
-      if (saleData) {
-        const newSale = {
-          ...saleData,
-          _id: saleData._id || saleData.id || `temp-${Date.now()}`,
-          id: saleData.id || saleData._id || `temp-${Date.now()}`,
-          timestamp: saleData.timestamp || saleData.date || new Date().toISOString(),
-        };
-        
-        // Add to list immediately (optimistic update)
-        setSales((prev) => {
-          // Check if sale already exists (avoid duplicates)
-          const exists = prev.some((s: any) => {
-            const sId = (s._id || s.id)?.toString();
-            const newId = (newSale._id || newSale.id)?.toString();
-            return sId === newId;
-          });
-          
-          if (exists) {
-            return prev; // Already exists, don't add duplicate
-          }
-          
-          // Add at the beginning (most recent first)
-          return [newSale as Sale, ...prev];
-        });
-        
-        console.log('[Dashboard] Added sale optimistically to list (instant update)');
-      }
-      
-      // Small delay to ensure IndexedDB transaction has committed
-      // This ensures we can read the newly saved sale
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Reload from IndexedDB to get the actual saved sale (with proper ID)
-      // This merges with existing items, so optimistic update is preserved
-      console.log('[Dashboard] Sale recorded - reloading from IndexedDB (merged update)');
-      await reloadSalesFromIndexedDB();
-      
-      // Retry once more after a short delay in case IndexedDB wasn't ready
-      setTimeout(async () => {
-        await reloadSalesFromIndexedDB();
-        console.log('[Dashboard] Retried reload from IndexedDB (merged update)');
-      }, 300);
-      
-      // Also refresh from API in background to get server data (non-blocking)
-      // This ensures we have the real server ID and any server-side updates
-      setTimeout(() => {
-        refreshSales(true);
-      }, 1000); // Small delay to let IndexedDB update first
+    const handleSaleRecorded = async () => {
+      // Wait for backend to confirm sale before showing it
+      // The sale is already added to UI by useApi after backend confirms
+      // Just refresh to ensure we have the latest data
+      console.log('[Dashboard] Sale confirmed by backend - refreshing sales list');
+      await refreshSales(true);
     };
 
-    // Listen for custom event when sales are created
+    // Listen for custom event when sales are created (after backend confirms)
     window.addEventListener('sale-recorded', handleSaleRecorded as EventListener);
     window.addEventListener('sales-should-refresh', handleSaleRecorded as EventListener);
 
@@ -462,7 +415,7 @@ const Dashboard = () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded as EventListener);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded as EventListener);
     };
-  }, [reloadSalesFromIndexedDB, refreshSales, setSales]);
+  }, [refreshSales]);
 
   // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {
@@ -2037,24 +1990,11 @@ const Dashboard = () => {
         open={saleModalOpen} 
         onOpenChange={setSaleModalOpen}
         onSaleRecorded={async () => {
-          // Small delay to ensure IndexedDB transaction has committed
-          await new Promise(resolve => setTimeout(resolve, 200));
-          
-          // Reload from IndexedDB immediately when sale is recorded from mobile modal
-          // This merges with existing items, so optimistic update is preserved
-          console.log('[Dashboard] Sale recorded via mobile modal - reloading from IndexedDB (merged)');
-          await reloadSalesFromIndexedDB();
-          
-          // Retry once more after a short delay in case IndexedDB wasn't ready
-          setTimeout(async () => {
-            await reloadSalesFromIndexedDB();
-            console.log('[Dashboard] Retried reload from IndexedDB (mobile modal callback, merged)');
-          }, 300);
-          
-          // Refresh from API in background to get server data (non-blocking)
-          setTimeout(() => {
-            refreshSales(true);
-          }, 1000);
+          // Wait for backend to confirm sale before showing it
+          // The sale is already added to UI by useApi after backend confirms
+          // Just refresh to ensure we have the latest data
+          console.log('[Dashboard] Sale confirmed by backend (mobile modal) - refreshing sales list');
+          await refreshSales(true);
         }}
       />
     </AppLayout>
