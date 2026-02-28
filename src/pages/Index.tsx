@@ -291,6 +291,7 @@ const Dashboard = () => {
     bulkAdd: bulkAddSales,
     refresh: refreshSales,
     reloadFromIndexedDB: reloadSalesFromIndexedDB,
+    setItems: setSales,
   } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
@@ -398,11 +399,53 @@ const Dashboard = () => {
   // Listen for sales updates from mobile modal and other sources
   // Reload from IndexedDB immediately (instant) - sale is already saved there
   useEffect(() => {
-    const handleSaleRecorded = () => {
-      // Reload from IndexedDB immediately - sale was just saved there by addSale()
+    const handleSaleRecorded = async (event?: CustomEvent) => {
+      // Get sale data from event if available (for immediate optimistic update)
+      const saleData = event?.detail?.sale;
+      
+      // If we have sale data, add it optimistically to the list immediately
+      if (saleData) {
+        const newSale = {
+          ...saleData,
+          _id: saleData._id || saleData.id || `temp-${Date.now()}`,
+          id: saleData.id || saleData._id || `temp-${Date.now()}`,
+          timestamp: saleData.timestamp || saleData.date || new Date().toISOString(),
+        };
+        
+        // Add to list immediately (optimistic update)
+        setSales((prev) => {
+          // Check if sale already exists (avoid duplicates)
+          const exists = prev.some((s: any) => {
+            const sId = (s._id || s.id)?.toString();
+            const newId = (newSale._id || newSale.id)?.toString();
+            return sId === newId;
+          });
+          
+          if (exists) {
+            return prev; // Already exists, don't add duplicate
+          }
+          
+          // Add at the beginning (most recent first)
+          return [newSale as Sale, ...prev];
+        });
+        
+        console.log('[Dashboard] Added sale optimistically to list (instant update)');
+      }
+      
+      // Small delay to ensure IndexedDB transaction has committed
+      // This ensures we can read the newly saved sale
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      // Reload from IndexedDB to get the actual saved sale (with proper ID)
       // This shows the sale instantly without waiting for API response
       console.log('[Dashboard] Sale recorded - reloading from IndexedDB (instant)');
-      reloadSalesFromIndexedDB();
+      await reloadSalesFromIndexedDB();
+      
+      // Retry once more after a short delay in case IndexedDB wasn't ready
+      setTimeout(async () => {
+        await reloadSalesFromIndexedDB();
+        console.log('[Dashboard] Retried reload from IndexedDB to ensure sale appears');
+      }, 200);
       
       // Also refresh from API in background to get server data (non-blocking)
       // This ensures we have the real server ID and any server-side updates
@@ -412,14 +455,14 @@ const Dashboard = () => {
     };
 
     // Listen for custom event when sales are created
-    window.addEventListener('sale-recorded', handleSaleRecorded);
-    window.addEventListener('sales-should-refresh', handleSaleRecorded);
+    window.addEventListener('sale-recorded', handleSaleRecorded as EventListener);
+    window.addEventListener('sales-should-refresh', handleSaleRecorded as EventListener);
 
     return () => {
-      window.removeEventListener('sale-recorded', handleSaleRecorded);
-      window.removeEventListener('sales-should-refresh', handleSaleRecorded);
+      window.removeEventListener('sale-recorded', handleSaleRecorded as EventListener);
+      window.removeEventListener('sales-should-refresh', handleSaleRecorded as EventListener);
     };
-  }, [reloadSalesFromIndexedDB, refreshSales]);
+  }, [reloadSalesFromIndexedDB, refreshSales, setSales]);
 
   // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {
@@ -1993,11 +2036,20 @@ const Dashboard = () => {
       <RecordSaleModal 
         open={saleModalOpen} 
         onOpenChange={setSaleModalOpen}
-        onSaleRecorded={() => {
+        onSaleRecorded={async () => {
+          // Small delay to ensure IndexedDB transaction has committed
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
           // Reload from IndexedDB immediately when sale is recorded from mobile modal
           // This ensures the sale appears in recent sales instantly (no API wait)
           console.log('[Dashboard] Sale recorded via mobile modal - reloading from IndexedDB');
-          reloadSalesFromIndexedDB();
+          await reloadSalesFromIndexedDB();
+          
+          // Retry once more after a short delay in case IndexedDB wasn't ready
+          setTimeout(async () => {
+            await reloadSalesFromIndexedDB();
+            console.log('[Dashboard] Retried reload from IndexedDB (mobile modal callback)');
+          }, 200);
           
           // Refresh from API in background to get server data (non-blocking)
           setTimeout(() => {

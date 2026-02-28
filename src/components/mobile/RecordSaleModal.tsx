@@ -489,6 +489,10 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       // Sale is added to IndexedDB and UI state immediately (< 50ms)
       await addSale(newSale);
       
+      // Wait a tiny bit to ensure IndexedDB transaction commits before notifying other components
+      // This ensures the Index page can read the sale from IndexedDB immediately
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       // Success message shows instantly - UI is already updated
       playSaleBeep();
       
@@ -514,7 +518,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       setPaymentMethod("cash");
       setSaleDate(new Date().toISOString().split("T")[0]);
 
-      // Dispatch events immediately (non-blocking) - other pages will update via WebSocket
+      // Dispatch events after IndexedDB write completes - other pages will reload from IndexedDB
       const productId = (product as any)._id || product.id;
       window.dispatchEvent(new CustomEvent('sale-recorded', { 
         detail: { sale: newSale, productId, stockReduction } 
@@ -522,6 +526,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       window.dispatchEvent(new CustomEvent('sales-should-refresh'));
       window.dispatchEvent(new CustomEvent('products-should-refresh'));
       
+      // Call callback to trigger Index page reload (after IndexedDB write completes)
       onSaleRecorded?.();
       
       // Update product stock in background (non-blocking)
