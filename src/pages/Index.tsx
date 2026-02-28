@@ -290,6 +290,7 @@ const Dashboard = () => {
     add: addSale,
     bulkAdd: bulkAddSales,
     refresh: refreshSales,
+    reloadFromIndexedDB: reloadSalesFromIndexedDB,
   } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
@@ -395,13 +396,19 @@ const Dashboard = () => {
   }, [sales]);
 
   // Listen for sales updates from mobile modal and other sources
-  // Refresh sales list to ensure recent sales are displayed immediately
+  // Reload from IndexedDB immediately (instant) - sale is already saved there
   useEffect(() => {
     const handleSaleRecorded = () => {
-      // Refresh sales list to get the latest data including the newly recorded sale
-      // This ensures mobile-recorded sales appear immediately in recent sales
-      console.log('[Dashboard] Sale recorded - refreshing sales list');
-      refreshSales(true); // Force refresh to get latest data
+      // Reload from IndexedDB immediately - sale was just saved there by addSale()
+      // This shows the sale instantly without waiting for API response
+      console.log('[Dashboard] Sale recorded - reloading from IndexedDB (instant)');
+      reloadSalesFromIndexedDB();
+      
+      // Also refresh from API in background to get server data (non-blocking)
+      // This ensures we have the real server ID and any server-side updates
+      setTimeout(() => {
+        refreshSales(true);
+      }, 1000); // Small delay to let IndexedDB update first
     };
 
     // Listen for custom event when sales are created
@@ -412,7 +419,7 @@ const Dashboard = () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
       window.removeEventListener('sales-should-refresh', handleSaleRecorded);
     };
-  }, [refreshSales]);
+  }, [reloadSalesFromIndexedDB, refreshSales]);
 
   // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {
@@ -1987,9 +1994,15 @@ const Dashboard = () => {
         open={saleModalOpen} 
         onOpenChange={setSaleModalOpen}
         onSaleRecorded={() => {
-          // Refresh sales list immediately when sale is recorded from mobile modal
-          // This ensures the sale appears in recent sales right away
-          refreshSales(true);
+          // Reload from IndexedDB immediately when sale is recorded from mobile modal
+          // This ensures the sale appears in recent sales instantly (no API wait)
+          console.log('[Dashboard] Sale recorded via mobile modal - reloading from IndexedDB');
+          reloadSalesFromIndexedDB();
+          
+          // Refresh from API in background to get server data (non-blocking)
+          setTimeout(() => {
+            refreshSales(true);
+          }, 1000);
         }}
       />
     </AppLayout>

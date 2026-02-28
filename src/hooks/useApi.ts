@@ -1564,6 +1564,47 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
   }, [loadData, endpoint]);
 
+  // Reload from IndexedDB only (instant, no API call) - for optimistic updates
+  const reloadFromIndexedDB = useCallback(async () => {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) {
+      return;
+    }
+
+    try {
+      await initDB();
+      const storeName = endpoint;
+      const localItems = await getAllItems<T>(storeName);
+      
+      // Filter items by userId for data isolation
+      const filteredItems = localItems.filter((item: any) => {
+        if (item.userId !== undefined) {
+          return item.userId === userId;
+        }
+        return false; // Don't use items without userId for security
+      });
+      
+      if (filteredItems.length > 0) {
+        const mappedItems = filteredItems.map(mapItem);
+        
+        // For sales, sort by timestamp (newest first)
+        if (endpoint === 'sales') {
+          mappedItems.sort((a, b) => {
+            const aTime = (a as any).timestamp || (a as any).date;
+            const bTime = (b as any).timestamp || (b as any).date;
+            return new Date(bTime).getTime() - new Date(aTime).getTime();
+          });
+        }
+        
+        // Update UI immediately with IndexedDB data
+        setItems(mappedItems);
+        console.log(`[useApi] ${endpoint}: Reloaded ${mappedItems.length} items from IndexedDB (instant update)`);
+      }
+    } catch (error) {
+      console.warn(`[useApi] ${endpoint}: Error reloading from IndexedDB:`, error);
+    }
+  }, [endpoint, mapItem]);
+
   // ✅ WebSocket integration - listen for real-time updates (ONLY when socket is open)
   useEffect(() => {
     let websocketUnsubscribes: (() => void)[] = [];
@@ -1637,11 +1678,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
             // Add new sale at the beginning of the list (most recent first)
             return [sale, ...prev];
           });
-          // Immediately refresh from backend to ensure data consistency (no delay)
-          refresh(true);
+          // Reload from IndexedDB to ensure we have the latest data (instant, no API wait)
+          reloadFromIndexedDB();
         } else {
-          // Fallback to immediate refresh if sale data is incomplete
-          refresh(true);
+          // Fallback to reload from IndexedDB if sale data is incomplete
+          reloadFromIndexedDB();
         }
         // Dispatch event to notify other components
         window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale } }));
@@ -1682,7 +1723,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       // Unsubscribe from WebSocket events
       websocketUnsubscribes.forEach(unsubscribe => unsubscribe());
     };
-  }, [endpoint, refresh, setItems]);
+  }, [endpoint, refresh, setItems, reloadFromIndexedDB]);
 
   return {
     items,
@@ -1694,5 +1735,6 @@ export function useApi<T extends { _id?: string; id?: number }>({
     bulkAdd,
     setItems: setItemsDirect,
     refresh,
+    reloadFromIndexedDB,
   };
 }

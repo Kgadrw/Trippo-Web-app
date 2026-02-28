@@ -1,5 +1,6 @@
 // Hook to get current logged-in user data
-import { useState, useEffect, useCallback } from "react";
+// Fetches user data ONCE and caches it to prevent shaking during other data fetches
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const USER_NAME_KEY = "profit-pilot-user-name";
 const USER_EMAIL_KEY = "profit-pilot-user-email";
@@ -11,33 +12,111 @@ export interface CurrentUser {
   businessName?: string;
 }
 
-export const useCurrentUser = () => {
-  const [user, setUser] = useState<CurrentUser | null>(null);
+// Global cache for user data - fetched once, shared across all components
+let globalUserCache: CurrentUser | null = null;
+let isUserDataInitialized = false;
 
-  // Load user data from localStorage
+// Initialize user data from localStorage once (called on app startup)
+const initializeUserData = (): CurrentUser | null => {
+  if (isUserDataInitialized && globalUserCache) {
+    return globalUserCache;
+  }
+
+  const name = localStorage.getItem(USER_NAME_KEY);
+  const email = localStorage.getItem(USER_EMAIL_KEY);
+  const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
+
+  if (name) {
+    globalUserCache = {
+      name,
+      email: email || undefined,
+      businessName: businessName || undefined,
+    };
+  } else {
+    globalUserCache = null;
+  }
+
+  isUserDataInitialized = true;
+  return globalUserCache;
+};
+
+export const useCurrentUser = () => {
+  // Initialize with cached data immediately (no loading state)
+  const [user, setUser] = useState<CurrentUser | null>(() => {
+    // Initialize from cache on first render
+    if (!isUserDataInitialized) {
+      return initializeUserData();
+    }
+    return globalUserCache;
+  });
+
+  // Track if we've loaded user data to prevent unnecessary re-reads
+  const hasLoadedRef = useRef(false);
+
+  // Load user data from localStorage (only updates if data actually changed)
   const loadUser = useCallback(() => {
     const name = localStorage.getItem(USER_NAME_KEY);
     const email = localStorage.getItem(USER_EMAIL_KEY);
     const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
 
-    if (name) {
-      setUser({
+    const newUser: CurrentUser | null = name ? {
+      name,
+      email: email || undefined,
+      businessName: businessName || undefined,
+    } : null;
+
+    // Only update state if user data actually changed (prevents unnecessary re-renders)
+    setUser((prevUser) => {
+      if (
+        prevUser?.name === newUser?.name &&
+        prevUser?.email === newUser?.email &&
+        prevUser?.businessName === newUser?.businessName
+      ) {
+        // No change, return previous value to prevent re-render
+        return prevUser;
+      }
+      // Data changed, update cache and return new value
+      globalUserCache = newUser;
+      return newUser;
+    });
+  }, []);
+
+  // Load user on mount (only once)
+  useEffect(() => {
+    // Only load if not already loaded
+    if (!hasLoadedRef.current) {
+      // Initialize from cache first (instant, no localStorage read)
+      if (globalUserCache) {
+        setUser(globalUserCache);
+      } else {
+        // Load from localStorage only if cache is empty
+        loadUser();
+      }
+      hasLoadedRef.current = true;
+    }
+
+    // Listen for storage changes (only update when user data actually changes)
+    const handleStorageChange = () => {
+      // Only reload if user data was actually modified
+      const name = localStorage.getItem(USER_NAME_KEY);
+      const email = localStorage.getItem(USER_EMAIL_KEY);
+      const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
+      
+      const newUser: CurrentUser | null = name ? {
         name,
         email: email || undefined,
         businessName: businessName || undefined,
-      });
-    } else {
-      setUser(null);
-    }
-  }, []);
+      } : null;
 
-  // Load user on mount
-  useEffect(() => {
-    loadUser();
-
-    // Listen for storage changes
-    const handleStorageChange = () => {
-      loadUser();
+      // Only update if data actually changed
+      if (
+        globalUserCache?.name !== newUser?.name ||
+        globalUserCache?.email !== newUser?.email ||
+        globalUserCache?.businessName !== newUser?.businessName
+      ) {
+        globalUserCache = newUser;
+        setUser(newUser);
+      }
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -59,6 +138,7 @@ export const useCurrentUser = () => {
       return;
     }
 
+    // Update localStorage
     if (userData.name) {
       localStorage.setItem(USER_NAME_KEY, userData.name);
     }
@@ -84,16 +164,42 @@ export const useCurrentUser = () => {
       localStorage.setItem("profit-pilot-user-id", currentUserId);
     }
     
+    // Update global cache immediately (no localStorage read needed)
+    const name = localStorage.getItem(USER_NAME_KEY);
+    const email = localStorage.getItem(USER_EMAIL_KEY);
+    const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
+    
+    const updatedUser: CurrentUser | null = name ? {
+      name,
+      email: email || undefined,
+      businessName: businessName || undefined,
+    } : null;
+    
+    globalUserCache = updatedUser;
+    
+    // Update state only if it changed
+    setUser((prevUser) => {
+      if (
+        prevUser?.name === updatedUser?.name &&
+        prevUser?.email === updatedUser?.email &&
+        prevUser?.businessName === updatedUser?.businessName
+      ) {
+        return prevUser; // No change, prevent re-render
+      }
+      return updatedUser;
+    });
+    
     // Trigger event to update other components
     window.dispatchEvent(new Event("user-data-changed"));
-    loadUser();
-  }, [loadUser]);
+  }, []);
 
   // Clear user data
   const clearUser = useCallback(() => {
     localStorage.removeItem(USER_NAME_KEY);
     localStorage.removeItem(USER_EMAIL_KEY);
     localStorage.removeItem(BUSINESS_NAME_KEY);
+    globalUserCache = null;
+    isUserDataInitialized = false;
     setUser(null);
     window.dispatchEvent(new Event("user-data-changed"));
   }, []);
