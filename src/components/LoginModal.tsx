@@ -124,7 +124,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     try {
       const response = await authApi.login({ 
         pin: loginPin,
-        email: loginEmail.trim()
+        email: loginEmail.trim().toLowerCase()
       });
 
       if (response.user) {
@@ -292,7 +292,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     try {
       const response = await authApi.register({
         name: name.trim(),
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         phone: phone.trim(),
         pin: createPin,
       });
@@ -374,7 +374,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     setErrors((prev) => ({ ...prev, resetEmail: undefined }));
 
     try {
-      const response = await authApi.forgotPin({ email: resetEmail.trim() });
+      const response = await authApi.forgotPin({ email: resetEmail.trim().toLowerCase() });
       
       if (response.message) {
         setOtpSent(true);
