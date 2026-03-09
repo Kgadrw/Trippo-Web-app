@@ -335,7 +335,17 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         });
         
         onOpenChange(false);
-        navigate("/dashboard");
+        // Redirect to dashboard subdomain with auth token (same as login flow)
+        const authToken = btoa(JSON.stringify({
+          userId: response.user._id || response.user.id,
+          isAdmin: false,
+          authenticated: true,
+          name: response.user.name,
+          email: response.user.email,
+          businessName: response.user.businessName || ''
+        }));
+        const dashboardUrl = getSubdomainUrl('dashboard', `#auth=${authToken}`);
+        window.location.href = dashboardUrl;
       }
     } catch (error: any) {
       const errorMessage = error.response?.error || error.message || "Failed to create account. Please try again.";
