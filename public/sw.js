@@ -148,7 +148,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 // Message handler for sync requests and notification setup
-self.addEventListener("message", (event) => {
+self.addEventListener("message", async (event) => {
   if (!event.data) return;
 
   if (event.data.type === "SKIP_WAITING") {

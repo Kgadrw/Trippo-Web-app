@@ -42,6 +42,7 @@ interface LowStockItem {
 
 export function LowStockAlert() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const {
     items: products,
     update: updateProduct,
