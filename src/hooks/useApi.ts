@@ -35,7 +35,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
   }, []);
 
   // Load data from IndexedDB first, then try to sync with API
-  const loadData = useCallback(async () => {
+  // silent: if true, skip setting isLoading (keeps existing data visible during background refresh)
+  const loadData = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent || false;
+    
     // Prevent multiple simultaneous requests
     if (isLoadingDataRef.current) {
       return;
@@ -51,13 +54,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
 
     isLoadingDataRef.current = true;
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
     hasErrorShownRef.current = false;
     
     // Minimum loading time to prevent flickering (500ms for better UX)
+    // Skip for silent refreshes (data already visible on screen)
     const startTime = Date.now();
-    const minLoadingTime = 500;
+    const minLoadingTime = silent ? 0 : 500;
     
     try {
       // Initialize IndexedDB
@@ -1530,8 +1536,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
     // For sales and products, always refresh immediately (bypass cooldown)
     if (isSalesEndpoint || isProductsEndpoint || timeSinceLastRefresh >= REFRESH_COOLDOWN || shouldForce) {
       // Refresh immediately (loadData already checks isLoadingDataRef)
+      // Use silent mode for forced refreshes so existing data stays visible (no skeleton flash)
       lastRefreshTimeRef.current = Date.now();
-      loadData();
+      loadData({ silent: shouldForce });
     } else {
       // Schedule refresh after cooldown period
       const remainingTime = REFRESH_COOLDOWN - timeSinceLastRefresh;

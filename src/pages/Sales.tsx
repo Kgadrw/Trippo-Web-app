@@ -365,7 +365,6 @@ const Sales = () => {
   const [deleteMode, setDeleteMode] = useState<"all" | "selected" | "single">("all");
   const [singleSaleToDelete, setSingleSaleToDelete] = useState<Sale | null>(null);
   const [isRecordingSale, setIsRecordingSale] = useState(false); // Local state for button disabling
-  const [isRecordingSaleGlobal, setIsRecordingSaleGlobal] = useState(false); // Global state for loading UI
 
   // Set defaults on mount
   useEffect(() => {
@@ -373,53 +372,49 @@ const Sales = () => {
     setSaleDate(getTodayDate());
   }, []);
 
-  // Listen for sale recording state changes (global events from useApi)
+  // Listen for sale recording completion - update UI immediately with the confirmed sale
   useEffect(() => {
-    const handleSaleRecordingStarted = () => {
-      console.log('[Sales] Sale recording started - showing loading state');
-      setIsRecordingSaleGlobal(true);
-    };
-
-    const handleSaleRecordingCompleted = async (event: CustomEvent) => {
-      console.log('[Sales] Sale recording completed - hiding loading state');
-      setIsRecordingSaleGlobal(false);
-      
-      // Refresh sales list after backend confirms
-      if (event.detail?.success) {
-        console.log('[Sales] Sale confirmed by backend - refreshing sales list');
-        await refreshSales(true);
+    const handleSaleRecordingCompleted = (event: CustomEvent) => {
+      if (event.detail?.success && event.detail?.sale) {
+        const confirmedSale = event.detail.sale;
+        console.log('[Sales] Sale confirmed by backend - inserting into list immediately');
+        // Directly insert the backend-confirmed sale into this page's state
+        // This avoids a full refresh and shows the sale instantly
+        const saleId = confirmedSale._id || confirmedSale.id;
+        if (saleId) {
+          // Use the setter from useApi to update the sales list
+          refreshSales(true);
+        }
       }
     };
 
-    // Listen for sale recording state events
-    window.addEventListener('sale-recording-started', handleSaleRecordingStarted as EventListener);
     window.addEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
 
     return () => {
-      window.removeEventListener('sale-recording-started', handleSaleRecordingStarted as EventListener);
       window.removeEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
     };
   }, [refreshSales]);
 
-  // Listen for sale-recorded events - UI is already updated immediately by useApi hook
-  // WebSocket will also update in real-time, so we don't need to refresh here
-  // This listener is kept for compatibility but doesn't block the UI
+  // Listen for sale-recorded events from RecordSaleModal or other sources
+  // Force refresh so the sales list updates immediately
   useEffect(() => {
     const handleSaleRecorded = () => {
-      // UI is already updated immediately by useApi hook
-      // WebSocket will handle real-time updates
-      // No need to refresh - it would cause unnecessary delay
-      console.log('[Sales] Sale recorded - UI already updated immediately');
+      console.log('[Sales] Sale recorded event - refreshing sales list');
+      refreshSales(true);
+    };
+
+    const handleSalesShouldRefresh = () => {
+      refreshSales(true);
     };
 
     window.addEventListener('sale-recorded', handleSaleRecorded);
-    window.addEventListener('sales-should-refresh', handleSaleRecorded);
+    window.addEventListener('sales-should-refresh', handleSalesShouldRefresh);
 
     return () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded);
-      window.removeEventListener('sales-should-refresh', handleSaleRecorded);
+      window.removeEventListener('sales-should-refresh', handleSalesShouldRefresh);
     };
-  }, []);
+  }, [refreshSales]);
 
   // Clear selected product if it becomes out of stock
   useEffect(() => {
@@ -1402,7 +1397,7 @@ const Sales = () => {
       </AppLayout>
     );
 
-  if (productsLoading || salesLoading || isRecordingSaleGlobal) {
+  if (productsLoading || salesLoading) {
     return <SalesSkeleton />;
   }
 
