@@ -773,3 +773,49 @@ export const scheduleApi = {
     });
   },
 };
+
+// Notification API functions
+export const notificationApi = {
+  // Get all notifications for the current user
+  async getAll(): Promise<ApiResponse> {
+    return request('/notifications', {
+      method: 'GET',
+    });
+  },
+
+  // Create a notification
+  async create(data: { type: string; title: string; body: string; icon?: string; data?: any }): Promise<ApiResponse> {
+    return request('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Mark a single notification as read
+  async markAsRead(id: string): Promise<ApiResponse> {
+    return request(`/notifications/${id}/read`, {
+      method: 'PUT',
+    });
+  },
+
+  // Mark all notifications as read
+  async markAllAsRead(): Promise<ApiResponse> {
+    return request('/notifications/read-all', {
+      method: 'PUT',
+    });
+  },
+
+  // Delete a single notification
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/notifications/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Clear all notifications
+  async clearAll(): Promise<ApiResponse> {
+    return request('/notifications/all', {
+      method: 'DELETE',
+    });
+  },
+};

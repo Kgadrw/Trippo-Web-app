@@ -93,31 +93,35 @@ class NotificationService {
   }
 
   /**
-   * Show a notification (prefers service worker for background support)
+   * Check if user is currently logged in
+   */
+  private isUserLoggedIn(): boolean {
+    const userId = localStorage.getItem('profit-pilot-user-id');
+    return !!userId && userId !== 'admin';
+  }
+
+  /**
+   * Show a notification — always saves to backend store;
+   * only shows a browser popup if the user is logged in.
    */
   public async showNotification(
     type: NotificationType,
     data: NotificationData
   ): Promise<void> {
-    if (!this.isAllowed()) {
-      // logger.warn('Notifications not allowed. Permission:', this.permission);
-      return;
-    }
-
     // Check debounce - prevent duplicate notifications
     const notificationKey = `${type}-${data.tag || data.title}`;
     const lastTime = this.lastNotificationTimes.get(notificationKey);
     const now = Date.now();
 
     if (lastTime && now - lastTime < this.notificationDebounceTime) {
-      // logger.log('Notification debounced:', notificationKey);
       return;
     }
 
     this.lastNotificationTimes.set(notificationKey, now);
 
-    // Store notification in notification store
-    notificationStore.addNotification({
+    // Always persist notification to backend (via notificationStore)
+    // This is the core change: notifications are saved to the user's account
+    await notificationStore.addNotification({
       type,
       title: data.title,
       body: data.body,
@@ -125,12 +129,16 @@ class NotificationService {
       data: data.data,
     });
 
+    // Only show browser popup if user is logged in AND permission is granted
+    if (!this.isUserLoggedIn() || !this.isAllowed()) {
+      return;
+    }
+
     try {
       // Try to use service worker for background notifications
       if ('serviceWorker' in navigator) {
         const registration = await navigator.serviceWorker.ready;
         
-        // Send notification to service worker (works even when app is closed)
         registration.active?.postMessage({
           type: 'SHOW_NOTIFICATION',
           notification: {
@@ -145,7 +153,6 @@ class NotificationService {
           },
         });
 
-        // Also show directly as fallback
         await registration.showNotification(data.title, {
           body: data.body,
           icon: data.icon || '/logo.png',
@@ -156,7 +163,6 @@ class NotificationService {
           data: data.data || {},
         });
       } else {
-        // Fallback to regular Notification API
         const notificationOptions: NotificationOptions = {
           body: data.body,
           icon: data.icon || '/logo.png',
@@ -169,20 +175,15 @@ class NotificationService {
 
         const notification = new Notification(data.title, notificationOptions);
 
-        // Handle notification click
         notification.onclick = (event) => {
           event.preventDefault();
           window.focus();
-          
-          // Handle navigation if data contains route
           if (data.data?.route) {
             window.location.href = data.data.route;
           }
-          
           notification.close();
         };
 
-        // Auto-close after 5 seconds (unless requireInteraction is true)
         if (!data.requireInteraction) {
           setTimeout(() => {
             notification.close();
@@ -190,7 +191,7 @@ class NotificationService {
         }
       }
     } catch (error) {
-      // logger.error('Error showing notification:', error);
+      // Silently fail — notification is already saved to backend
     }
   }
 

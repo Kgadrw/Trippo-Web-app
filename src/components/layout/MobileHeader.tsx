@@ -67,54 +67,59 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     return "User";
   }, [user?.name]);
 
-  // Load notifications and listen for updates
+  // Load notifications from cache and sync from backend
   useEffect(() => {
     const loadNotifications = () => {
-      // Get notifications filtered by current user
       const allNotifications = notificationStore.getAllNotifications();
       setNotifications(allNotifications);
       setUnreadCount(notificationStore.getUnreadCount());
     };
 
-    // Load notifications when component mounts or user changes
+    // Load from cache immediately, then sync from backend
     loadNotifications();
+    if (user) {
+      notificationStore.syncFromBackend();
+    }
 
-    // Listen for notification updates
+    // Listen for notification updates (from store sync or new notifications)
     const handleNotificationUpdate = () => {
       loadNotifications();
     };
 
     window.addEventListener('notifications-updated', handleNotificationUpdate);
-    
-    // Also listen for storage changes (user login/logout)
+
     const handleStorageChange = () => {
       const currentUserId = localStorage.getItem('profit-pilot-user-id');
       if (currentUserId) {
-        // User logged in - reload notifications for this user
         loadNotifications();
+        notificationStore.syncFromBackend();
       } else {
-        // User logged out - clear notifications
         setNotifications([]);
         setUnreadCount(0);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       window.removeEventListener('notifications-updated', handleNotificationUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [user]); // Re-run when user changes
+  }, [user]);
 
   const handleNotificationBellClick = () => {
-    setNotificationOpen(!notificationOpen);
-    setSelectedNotification(null); // Reset selected notification when opening/closing
+    const opening = !notificationOpen;
+    setNotificationOpen(opening);
+    setSelectedNotification(null);
     onNotificationClick?.();
+    // Sync fresh data from backend whenever the panel is opened
+    if (opening) {
+      notificationStore.syncFromBackend();
+    }
   };
 
   const handleMarkAsRead = async (notificationId: string) => {
-    notificationStore.markAsRead(notificationId);
+    await notificationStore.markAsRead(notificationId);
     // Update badge after marking as read
     if ('serviceWorker' in navigator) {
       try {
@@ -127,7 +132,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   };
 
   const handleMarkAllAsRead = async () => {
-    notificationStore.markAllAsRead();
+    await notificationStore.markAllAsRead();
     // Clear badge after marking all as read
     if ('serviceWorker' in navigator) {
       try {
