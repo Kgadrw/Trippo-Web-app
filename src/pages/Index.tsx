@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { KPICard } from "@/components/dashboard/KPICard";
@@ -396,57 +396,109 @@ const Dashboard = () => {
       .slice(0, 10);
   }, [sales]);
 
-  // Track if sale recording is in progress (for loading state)
-  const [isRecordingSale, setIsRecordingSale] = useState(false);
+  // === Poll-until-found mechanism for Recent Sales ===
+  // After recording a sale, poll the backend until the new sale appears in the list
+  const [isWaitingForSale, setIsWaitingForSale] = useState(false);
+  const pendingSaleRef = useRef<{ product: string; timestamp: string } | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Listen for sale recording state changes
+  // Stop polling and clear all timers
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+    pendingSaleRef.current = null;
+    setIsWaitingForSale(false);
+  }, []);
+
+  // Check if the pending sale has appeared in the sales list
   useEffect(() => {
-    const handleSaleRecordingStarted = () => {
-      console.log('[Dashboard] Sale recording started - showing loading state');
-      setIsRecordingSale(true);
-    };
+    if (!pendingSaleRef.current || !isWaitingForSale) return;
 
-    const handleSaleRecordingCompleted = async (event: CustomEvent) => {
-      console.log('[Dashboard] Sale recording completed - hiding loading state');
-      setIsRecordingSale(false);
-      
-      // Refresh sales list after backend confirms
-      if (event.detail?.success) {
-        console.log('[Dashboard] Sale confirmed by backend - refreshing sales list');
-        await refreshSales(true);
+    const pending = pendingSaleRef.current;
+    const pendingTime = new Date(pending.timestamp).getTime();
+
+    // Look for a sale matching product name with a timestamp within 60s of the recorded one
+    const found = sales.some((sale) => {
+      if (sale.product !== pending.product) return false;
+      const saleTime = new Date(sale.timestamp || sale.date).getTime();
+      return Math.abs(saleTime - pendingTime) < 60000; // within 60 seconds
+    });
+
+    if (found) {
+      console.log('[Dashboard] New sale found in list - stopping poll');
+      stopPolling();
+    }
+  }, [sales, isWaitingForSale, stopPolling]);
+
+  // Start polling for the new sale
+  const startPollingForSale = useCallback((saleDetail: { product: string; timestamp: string }) => {
+    // Clear any existing poll
+    stopPolling();
+
+    pendingSaleRef.current = saleDetail;
+    setIsWaitingForSale(true);
+
+    // First immediate refresh
+    refreshSales(true);
+
+    // Poll every 1.5s
+    pollIntervalRef.current = setInterval(() => {
+      console.log('[Dashboard] Polling for new sale...');
+      refreshSales(true);
+    }, 1500);
+
+    // Safety timeout: stop polling after 15s regardless
+    pollTimeoutRef.current = setTimeout(() => {
+      console.log('[Dashboard] Poll timeout reached - stopping');
+      stopPolling();
+    }, 15000);
+  }, [refreshSales, stopPolling]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
+
+  // Listen for sale-recorded events and start polling
+  useEffect(() => {
+    const handleSaleRecorded = (event: CustomEvent) => {
+      const sale = event.detail?.sale;
+      if (sale) {
+        console.log('[Dashboard] Sale recorded - start polling until it appears in list');
+        startPollingForSale({
+          product: sale.product,
+          timestamp: sale.timestamp || sale.date || new Date().toISOString(),
+        });
+      } else {
+        // No sale detail, just do a one-time refresh
+        refreshSales(true);
       }
     };
 
-    // Listen for sale recording state events
-    window.addEventListener('sale-recording-started', handleSaleRecordingStarted as EventListener);
-    window.addEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
-
-    return () => {
-      window.removeEventListener('sale-recording-started', handleSaleRecordingStarted as EventListener);
-      window.removeEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
-    };
-  }, [refreshSales]);
-
-  // Listen for sales updates from mobile modal and other sources
-  // Only refresh after backend confirms the sale (no optimistic updates)
-  useEffect(() => {
-    const handleSaleRecorded = async () => {
-      // Wait for backend to confirm sale before showing it
-      // The sale is already added to UI by useApi after backend confirms
-      // Just refresh to ensure we have the latest data
-      console.log('[Dashboard] Sale confirmed by backend - refreshing sales list');
-      await refreshSales(true);
+    const handleSalesShouldRefresh = () => {
+      // If already polling, let it continue; otherwise just refresh
+      if (!isWaitingForSale) {
+        refreshSales(true);
+      }
     };
 
-    // Listen for custom event when sales are created (after backend confirms)
     window.addEventListener('sale-recorded', handleSaleRecorded as EventListener);
-    window.addEventListener('sales-should-refresh', handleSaleRecorded as EventListener);
+    window.addEventListener('sales-should-refresh', handleSalesShouldRefresh as EventListener);
 
     return () => {
       window.removeEventListener('sale-recorded', handleSaleRecorded as EventListener);
-      window.removeEventListener('sales-should-refresh', handleSaleRecorded as EventListener);
+      window.removeEventListener('sales-should-refresh', handleSalesShouldRefresh as EventListener);
     };
-  }, [refreshSales]);
+  }, [refreshSales, startPollingForSale, isWaitingForSale]);
 
   // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {
@@ -1853,7 +1905,7 @@ const Dashboard = () => {
             </p>
           </div>
           
-          {isLoading || salesLoading || isRecordingSale ? (
+          {isLoading || salesLoading || isWaitingForSale ? (
             <div className="p-4">
               <Skeleton className="h-12 w-full mb-2" />
               <Skeleton className="h-12 w-full mb-2" />
@@ -2019,13 +2071,6 @@ const Dashboard = () => {
       <RecordSaleModal 
         open={saleModalOpen} 
         onOpenChange={setSaleModalOpen}
-        onSaleRecorded={async () => {
-          // Wait for backend to confirm sale before showing it
-          // The sale is already added to UI by useApi after backend confirms
-          // Just refresh to ensure we have the latest data
-          console.log('[Dashboard] Sale confirmed by backend (mobile modal) - refreshing sales list');
-          await refreshSales(true);
-        }}
       />
     </AppLayout>
   );
