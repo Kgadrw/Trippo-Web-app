@@ -396,6 +396,9 @@ const Dashboard = () => {
       .slice(0, 10);
   }, [sales]);
 
+  // Track if sale recording is in progress (for button disabling)
+  const [isRecordingSale, setIsRecordingSale] = useState(false);
+
   // === Poll-until-found mechanism for Recent Sales ===
   // After recording a sale, poll the backend until the new sale appears in the list
   const [isWaitingForSale, setIsWaitingForSale] = useState(false);
