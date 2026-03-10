@@ -982,80 +982,96 @@ const Schedules = () => {
     return schedules.filter((s) => isOverdue(s.dueDate) && s.status === "pending");
   }, [schedules]);
 
-  // Schedules Page Skeleton
+  // Flat filtered schedule list for card grid
+  const filteredSchedules = useMemo(() => {
+    let list = [...schedules];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((s) => {
+        const clientName = getClientName(s.clientId).toLowerCase();
+        return (
+          s.title.toLowerCase().includes(q) ||
+          s.description?.toLowerCase().includes(q) ||
+          clientName.includes(q)
+        );
+      });
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      list = list.filter((s) => s.status === statusFilter);
+    }
+
+    // Date filter
+    if (dateFilter !== "all") {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const today = new Date(now);
+      const nextWeek = new Date(now);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const nextMonth = new Date(now);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+      list = list.filter((s) => {
+        const d = new Date(s.dueDate);
+        d.setHours(0, 0, 0, 0);
+        switch (dateFilter) {
+          case "today": return d.getTime() === today.getTime();
+          case "thisWeek": return d >= today && d <= nextWeek;
+          case "thisMonth": return d >= today && d <= nextMonth;
+          case "overdue": return d < today && s.status === "pending";
+          case "upcoming": return d > today && s.status === "pending";
+          default: return true;
+        }
+      });
+    }
+
+    // Frequency filter
+    if (frequencyFilter !== "all") {
+      list = list.filter((s) => s.frequency === frequencyFilter);
+    }
+
+    // Client filter
+    if (clientFilter !== "all") {
+      list = list.filter((s) => {
+        const sid = (s as any).clientId;
+        const linkedId = typeof sid === "object" ? (sid?._id || sid?.id) : sid;
+        return linkedId?.toString() === clientFilter;
+      });
+    }
+
+    // Sort: overdue first, then by due date ascending
+    list.sort((a, b) => {
+      const aOverdue = isOverdue(a.dueDate) && a.status === "pending" ? 0 : 1;
+      const bOverdue = isOverdue(b.dueDate) && b.status === "pending" ? 0 : 1;
+      if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
+
+    return list;
+  }, [schedules, searchQuery, statusFilter, dateFilter, frequencyFilter, clientFilter]);
+
+  // Stats
+  const activeCount = schedules.filter((s) => s.status === "pending").length;
+  const completedCount = schedules.filter((s) => s.status === "completed").length;
+  const overdueCount = overdueSchedules.length;
+
+  // Skeleton
   const SchedulesSkeleton = () => (
-    <AppLayout title="Schedules">
+    <AppLayout title="Email Automations">
       <div className="flex flex-col gap-4 pb-4">
-        {/* Stats Section Skeleton */}
-        <div className="form-card border-transparent flex-shrink-0 bg-blue-500 border-blue-600 lg:bg-blue-500">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-            <Skeleton className="h-6 w-48 bg-white/20" />
-            <Skeleton className="h-10 w-32 bg-white/20" />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4">
-                <Skeleton className="h-4 w-16 mb-2" />
-                <Skeleton className="h-8 w-20" />
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div><Skeleton className="h-7 w-48 mb-1" /><Skeleton className="h-4 w-64" /></div>
+          <Skeleton className="h-10 w-40 rounded-lg" />
         </div>
-
-        {/* Filters Section Skeleton */}
-        <div className="form-card border-transparent flex-shrink-0 lg:bg-white bg-white/80 backdrop-blur-md">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Skeleton className="h-10 flex-1 rounded-lg" />
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-10 w-full sm:w-48 rounded-lg" />
-            ))}
-          </div>
+        <div className="grid grid-cols-3 gap-3">
+          {[1,2,3].map(i=>(<div key={i} className="bg-white border border-gray-200 rounded-xl p-4"><Skeleton className="h-4 w-16 mb-2" /><Skeleton className="h-7 w-10" /></div>))}
         </div>
-
-        {/* Content Section Skeleton */}
-        <div className="lg:bg-white bg-white/80 backdrop-blur-md shadow-sm rounded-lg">
-          <div className="p-2 sm:p-4">
-            <div className="overflow-x-auto -mx-2 sm:mx-0 rounded-lg border border-gray-200">
-              <table className="w-full border-collapse min-w-[800px] sm:min-w-0">
-                <thead className="sticky top-0 z-10 lg:bg-gray-100 bg-gray-100/80 backdrop-blur-sm border-b-2 border-gray-300">
-                  <tr>
-                    {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                      <th key={i} className="text-left py-3 sm:py-4 px-3 sm:px-6">
-                        <Skeleton className="h-4 w-20" />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <tr key={i} className="border-b border-gray-200">
-                      <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        <Skeleton className="h-4 w-6" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        <Skeleton className="h-4 w-32" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden md:table-cell">
-                        <Skeleton className="h-4 w-24" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden lg:table-cell">
-                        <Skeleton className="h-4 w-32" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden lg:table-cell">
-                        <Skeleton className="h-4 w-24" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        <Skeleton className="h-6 w-20 rounded-full" />
-                      </td>
-                      <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        <Skeleton className="h-8 w-8 rounded" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[1,2,3,4].map(i=>(<div key={i} className="bg-white border border-gray-200 rounded-xl p-5"><Skeleton className="h-5 w-40 mb-3" /><Skeleton className="h-4 w-56 mb-4" /><div className="flex gap-2"><Skeleton className="h-6 w-16 rounded-full" /><Skeleton className="h-6 w-20 rounded-full" /></div></div>))}
         </div>
       </div>
     </AppLayout>
@@ -1066,203 +1082,123 @@ const Schedules = () => {
   }
 
   return (
-    <AppLayout title="Schedules & Reminders">
+    <AppLayout title="Email Automations">
       <div className="flex flex-col gap-4 pb-4">
-        {/* Stats Section */}
-        <div className="form-card border-transparent flex-shrink-0 bg-blue-500 border-blue-600 lg:bg-blue-500">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-            <h3 className="section-title flex items-center gap-2 text-white">
-              <CalendarIcon size={20} className="text-white" />
-              Schedules & Reminders
-            </h3>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button
-                onClick={() => setDateFilter(dateFilter === "upcoming" ? "all" : "upcoming")}
-                variant={dateFilter === "upcoming" ? "default" : "outline"}
-                className={cn(
-                  "font-semibold px-4 py-2 gap-2 flex-1 sm:flex-initial",
-                  dateFilter === "upcoming" 
-                    ? "bg-white text-blue-600 hover:bg-blue-50" 
-                    : "bg-white/20 text-white border-white/30 hover:bg-white/30"
-                )}
-              >
-                <CalendarIcon size={18} />
-                <span>Upcoming</span>
-              </Button>
-              <Button
-                onClick={openAddModal}
-                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-4 py-2 gap-2 flex-1 sm:flex-initial"
-              >
-                <Plus size={18} />
-                <span>New</span>
-              </Button>
-            </div>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Mail size={22} className="text-blue-600" />
+              Email Automations
+            </h2>
+            <p className="text-sm text-gray-500 mt-0.5">Schedule automated email reminders for clients and yourself</p>
           </div>
-
-          {/* Quick Stats - Only Upcoming */}
-          <div className="flex justify-center sm:justify-start">
-            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-4 min-w-[120px]">
-              <div className="text-xs text-blue-600 font-medium mb-1">Upcoming</div>
-              <div className="text-2xl font-semibold text-blue-700">{upcomingSchedules.length}</div>
-            </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button onClick={openClientCreateModal} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 gap-2 flex-1 sm:flex-initial">
+              <UserPlus size={16} /> Client
+            </Button>
+            <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 gap-2 flex-1 sm:flex-initial">
+              <Plus size={16} /> New Automation
+            </Button>
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="form-card border-transparent flex-shrink-0 lg:bg-white bg-white/80 backdrop-blur-sm">
-          {/* Mobile Filter Section */}
-          <div className="lg:hidden mb-4 space-y-3">
-            {/* Search Bar with Filter Icon */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-                <Input
-                  placeholder="Search clients or schedules..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-              <Button
-                onClick={() => setShowFilters(!showFilters)}
-                variant="outline"
-                className={cn(
-                  "bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-3 py-2",
-                  showFilters && "bg-blue-50 border-blue-300 text-blue-700"
-                )}
-              >
-                <Filter size={18} />
-              </Button>
-            </div>
-            
-            {/* Filter Options - Collapsible */}
-            {showFilters && (
-              <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {/* Status Filter */}
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {/* Date Filter */}
-                  <Select value={dateFilter} onValueChange={setDateFilter}>
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                      <SelectValue placeholder="Date" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Dates</SelectItem>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="thisWeek">This Week</SelectItem>
-                      <SelectItem value="thisMonth">This Month</SelectItem>
-                      <SelectItem value="overdue">Overdue</SelectItem>
-                      <SelectItem value="upcoming">Upcoming</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {/* Frequency Filter */}
-                  <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                      <SelectValue placeholder="Frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Frequency</SelectItem>
-                      <SelectItem value="once">Once</SelectItem>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="yearly">Yearly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {/* Client Filter */}
-                  <Select value={clientFilter} onValueChange={setClientFilter}>
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                      <SelectValue placeholder="Client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Clients</SelectItem>
-                      {clients.map((client) => {
-                        const clientId = ((client as any)._id || client.id)?.toString();
-                        return (
-                          <SelectItem key={clientId} value={clientId}>
-                            {client.name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Clear Filters */}
-                <Button
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setDateFilter("all");
-                    setFrequencyFilter("all");
-                    setClientFilter("all");
-                    setSearchQuery("");
-                  }}
-                  variant="outline"
-                  className="w-full bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg"
-                >
-                  Clear Filters
-                </Button>
-              </div>
-            )}
-          </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-3 gap-3">
+          <button onClick={() => setStatusFilter(statusFilter === "pending" ? "all" : "pending")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", statusFilter === "pending" ? "bg-blue-50 border-blue-300 ring-1 ring-blue-300" : "bg-white border-gray-200 hover:border-blue-200")}>
+            <div className="text-xs font-medium text-gray-500 mb-1">Active</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-700">{activeCount}</div>
+          </button>
+          <button onClick={() => setStatusFilter(statusFilter === "completed" ? "all" : "completed")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", statusFilter === "completed" ? "bg-green-50 border-green-300 ring-1 ring-green-300" : "bg-white border-gray-200 hover:border-green-200")}>
+            <div className="text-xs font-medium text-gray-500 mb-1">Completed</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-700">{completedCount}</div>
+          </button>
+          <button onClick={() => setDateFilter(dateFilter === "overdue" ? "all" : "overdue")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", dateFilter === "overdue" ? "bg-red-50 border-red-300 ring-1 ring-red-300" : "bg-white border-gray-200 hover:border-red-200")}>
+            <div className="text-xs font-medium text-gray-500 mb-1">Overdue</div>
+            <div className={cn("text-xl sm:text-2xl font-bold", overdueCount > 0 ? "text-red-600" : "text-gray-400")}>{overdueCount}</div>
+          </button>
+        </div>
 
-          {/* Desktop Filter Section */}
-          <div className="hidden lg:flex flex-col sm:flex-row gap-3">
+        {/* Search & Filters */}
+        <div className="flex flex-col gap-3">
+          {/* Search Bar */}
+          <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Search clients or schedules..."
+                placeholder="Search automations or clients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 input-field"
+                className="pl-9 bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-400 rounded-lg"
               />
               {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                >
+                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   <X size={16} />
                 </button>
               )}
             </div>
+            <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className={cn("lg:hidden border-gray-200 px-3", showFilters && "bg-blue-50 border-blue-300 text-blue-700")}>
+              <Filter size={16} />
+            </Button>
+          </div>
+
+          {/* Mobile Filters */}
+          {showFilters && (
+            <div className="lg:hidden grid grid-cols-2 gap-2 p-3 bg-white border border-gray-200 rounded-lg">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Date" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dates</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="thisWeek">This Week</SelectItem>
+                  <SelectItem value="thisMonth">This Month</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Frequency" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Frequency</SelectItem>
+                  <SelectItem value="once">Once</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={clientFilter} onValueChange={setClientFilter}>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Client" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Clients</SelectItem>
+                  {clients.map((c) => { const cid = ((c as any)._id || c.id)?.toString(); return <SelectItem key={cid} value={cid}>{c.name}</SelectItem>; })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Desktop Filters */}
+          <div className="hidden lg:flex items-center gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="input-field w-full sm:w-48">
-                <Filter size={16} className="mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Filter size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="pending">Active</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="input-field w-full sm:w-48">
-                <CalendarIcon size={16} className="mr-2" />
-                <SelectValue placeholder="Date" />
-              </SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><CalendarIcon size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Date" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Dates</SelectItem>
                 <SelectItem value="today">Today</SelectItem>
@@ -1273,12 +1209,9 @@ const Schedules = () => {
               </SelectContent>
             </Select>
             <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-              <SelectTrigger className="input-field w-full sm:w-48">
-                <Repeat size={16} className="mr-2" />
-                <SelectValue placeholder="Frequency" />
-              </SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Repeat size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Frequency" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Frequency</SelectItem>
+                <SelectItem value="all">All Frequency</SelectItem>
                 <SelectItem value="once">Once</SelectItem>
                 <SelectItem value="daily">Daily</SelectItem>
                 <SelectItem value="weekly">Weekly</SelectItem>
@@ -1287,340 +1220,176 @@ const Schedules = () => {
               </SelectContent>
             </Select>
             <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="input-field w-full sm:w-48">
-                <User size={16} className="mr-2" />
-                <SelectValue placeholder="Client" />
-              </SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-44 h-9 text-sm"><User size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Client" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Clients</SelectItem>
-                {clients.map((client) => {
-                  const clientId = ((client as any)._id || client.id)?.toString();
-                  return (
-                    <SelectItem key={clientId} value={clientId}>
-                      {client.name}
-                    </SelectItem>
-                  );
-                })}
+                {clients.map((c) => { const cid = ((c as any)._id || c.id)?.toString(); return <SelectItem key={cid} value={cid}>{c.name}</SelectItem>; })}
               </SelectContent>
             </Select>
+            {(statusFilter !== "all" || dateFilter !== "all" || frequencyFilter !== "all" || clientFilter !== "all") && (
+              <button onClick={() => { setStatusFilter("all"); setDateFilter("all"); setFrequencyFilter("all"); setClientFilter("all"); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">
+                Clear filters
+              </button>
+            )}
           </div>
         </div>
 
-          {/* Content Section */}
-        <div className="lg:bg-white bg-white/80 backdrop-blur-sm shadow-sm rounded-lg">
-          <div className="p-2 sm:p-4">
-              {filteredClients.length > 0 ? (
-                <div className="overflow-x-auto -mx-2 sm:mx-0 rounded-lg border border-gray-200">
-                  <table className="w-full border-collapse min-w-[600px] sm:min-w-0">
-                    <thead className="sticky top-0 z-10 lg:bg-gray-100 bg-gray-100/80 backdrop-blur-sm border-b-2 border-gray-300">
-                      <tr>
-                        <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6 w-10 sm:w-12"></th>
-                        <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6">Client Name</th>
-                        <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6 hidden md:table-cell">Business Type</th>
-                        <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6 hidden lg:table-cell">Email</th>
-                        <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6 hidden lg:table-cell">Phone</th>
-                        <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6">Schedules</th>
-                        <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-3 sm:py-4 px-3 sm:px-6">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                      {filteredClients.map((client, index) => {
-                        const clientId = (client as any)._id || client.id;
-                        const clientIdStr = clientId?.toString() || "";
-                        const isExpanded = expandedClients.has(clientIdStr);
-                        const clientSchedules = getSchedulesForClient(clientIdStr);
-                        
-                        // Apply all filters to schedules
-                        let filteredClientSchedules = clientSchedules;
-                        
-                        // Status filter
-                        if (statusFilter !== "all") {
-                          filteredClientSchedules = filteredClientSchedules.filter(s => s.status === statusFilter);
-                        }
-                        
-                        // Date filter
-                        if (dateFilter !== "all") {
-                          const now = new Date();
-                          now.setHours(0, 0, 0, 0);
-                          const today = new Date(now);
-                          const tomorrow = new Date(now);
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          const nextWeek = new Date(now);
-                          nextWeek.setDate(nextWeek.getDate() + 7);
-                          const nextMonth = new Date(now);
-                          nextMonth.setMonth(nextMonth.getMonth() + 1);
-                          
-                          filteredClientSchedules = filteredClientSchedules.filter(s => {
-                            const dueDate = new Date(s.dueDate);
-                            dueDate.setHours(0, 0, 0, 0);
-                            
-                            switch (dateFilter) {
-                              case "today":
-                                return dueDate.getTime() === today.getTime();
-                              case "thisWeek":
-                                return dueDate >= today && dueDate <= nextWeek;
-                              case "thisMonth":
-                                return dueDate >= today && dueDate <= nextMonth;
-                              case "overdue":
-                                return dueDate < today && s.status === "pending";
-                              case "upcoming":
-                                return dueDate > today && s.status === "pending";
-                              default:
-                                return true;
-                            }
-                          });
-                        }
-                        
-                        // Frequency filter
-                        if (frequencyFilter !== "all") {
-                          filteredClientSchedules = filteredClientSchedules.filter(s => s.frequency === frequencyFilter);
-                        }
-                        
-                        return (
-                          <>
-                            <tr
-                              key={clientId}
-                              className={cn(
-                                "border-b border-gray-200",
-                                index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                              )}
-                            >
-                              <td className="py-3 sm:py-4 px-3 sm:px-6">
-                                {clientSchedules.length > 0 && (
-                                  <button
-                                    onClick={() => toggleClientExpansion(clientIdStr)}
-                                    className="p-1.5 sm:p-2 text-blue-600 rounded"
-                                  >
-                                    {isExpanded ? <ChevronDown size={16} className="sm:w-[18px] sm:h-[18px]" /> : <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" />}
-                                  </button>
-                                )}
-                              </td>
-                              <td className="py-3 sm:py-4 px-3 sm:px-6">
-                                <div className="text-xs sm:text-sm font-semibold text-gray-900 break-words min-w-[120px] sm:min-w-0">{client.name}</div>
-                                <div className="text-xs text-gray-500 mt-0.5 md:hidden break-words">{client.businessType || "-"}</div>
-                                <div className="text-xs text-gray-500 mt-0.5 lg:hidden break-words truncate max-w-[150px]">{client.email || "-"}</div>
-                              </td>
-                              <td className="py-3 sm:py-4 px-3 sm:px-6 hidden md:table-cell">
-                                <div className="text-xs sm:text-sm text-gray-700">{client.businessType || "-"}</div>
-                              </td>
-                              <td className="py-3 sm:py-4 px-3 sm:px-6 hidden lg:table-cell">
-                                <div className="text-xs sm:text-sm text-gray-700 truncate max-w-[150px]">{client.email || "-"}</div>
-                              </td>
-                              <td className="py-3 sm:py-4 px-3 sm:px-6 hidden lg:table-cell">
-                                <div className="text-xs sm:text-sm text-gray-700">{client.phone || "-"}</div>
-                              </td>
-                              <td className="py-3 sm:py-4 px-3 sm:px-6">
-                                <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-100 text-gray-700 whitespace-nowrap">
-                                  {clientSchedules.length} schedule{clientSchedules.length !== 1 ? 's' : ''}
-                                </div>
-                              </td>
-                              <td className="py-3 sm:py-4 px-3 sm:px-6">
-                                <div className="flex gap-1 sm:gap-2 items-center">
-                                  <button
-                                    onClick={() => {
-                                      setClientToDelete(client);
-                                      setDeleteClientDialogOpen(true);
-                                    }}
-                                    className="p-1.5 sm:p-2 text-red-600 rounded hover:bg-red-50 transition-colors"
-                                    title="Delete client"
-                                  >
-                                    <Trash2 size={14} className="sm:w-4 sm:h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                            {isExpanded && filteredClientSchedules.length > 0 && (
-                              <tr key={`${clientId}-schedules`}>
-                                <td colSpan={7} className="py-0 px-0 bg-gray-50 border-b-2 border-gray-200">
-                                  <div className="px-3 sm:px-6 py-3 sm:py-4">
-                                    <div className="mb-2 sm:mb-3">
-                                      <h4 className="text-xs sm:text-sm font-semibold text-gray-700">Schedules for {client.name}</h4>
-                                    </div>
-                                    <div className="lg:bg-white bg-white/80 backdrop-blur-sm rounded-lg border border-gray-200 overflow-x-auto -mx-2 sm:mx-0">
-                                      <table className="w-full min-w-[500px] sm:min-w-0">
-                                        <thead>
-                                          <tr className="lg:bg-white bg-white/80 backdrop-blur-sm border-b border-gray-200">
-                                            <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-2 sm:py-3 px-2 sm:px-4">Title</th>
-                                            <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-2 sm:py-3 px-2 sm:px-4">Status</th>
-                                            <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-2 sm:py-3 px-2 sm:px-4">Due Date</th>
-                                            <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-2 sm:py-3 px-2 sm:px-4 hidden sm:table-cell">Amount</th>
-                                            <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-2 sm:py-3 px-2 sm:px-4 hidden md:table-cell">Notifications</th>
-                                            <th className="text-left text-xs sm:text-sm font-semibold text-gray-700 py-2 sm:py-3 px-2 sm:px-4">Actions</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {filteredClientSchedules.map((schedule, sIndex) => {
-                    const scheduleId = (schedule as any)._id || schedule.id;
-                    const overdue = isOverdue(schedule.dueDate);
-                    const daysUntil = getDaysUntilDue(schedule.dueDate);
-                    const isToday = daysUntil === 0;
-                    
-                    return (
-                                              <tr 
-                        key={scheduleId}
-                        className={cn(
-                                                  "border-b border-gray-200",
-                                                  sIndex % 2 === 0 ? "lg:bg-white bg-white/80 backdrop-blur-sm" : "bg-gray-50"
-                        )}
-                      >
-                                                <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                                  <div className="min-w-[120px] sm:min-w-0">
-                                                    <div className="text-xs sm:text-sm font-medium text-gray-900 break-words">{schedule.title}</div>
-                                                    {schedule.description && (
-                                                      <div className="text-xs text-gray-500 mt-0.5 line-clamp-1 break-words">{schedule.description}</div>
-                                                    )}
-                                                    {schedule.amount && (
-                                                      <div className="text-xs font-semibold text-green-600 mt-1 sm:hidden">
-                                                        {schedule.amount.toLocaleString()} RWF
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </td>
-                                                <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 min-w-[100px] sm:min-w-0">
-                                                    <span className={cn(
-                                                      "inline-flex items-center px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold whitespace-nowrap",
-                                                      schedule.status === "completed" && "bg-green-100 text-green-700",
-                                                      schedule.status === "pending" && "bg-yellow-100 text-yellow-700",
-                                                      schedule.status === "cancelled" && "bg-gray-100 text-gray-700"
-                                                    )}>
-                                                      {schedule.status}
-                                                    </span>
-                                                    {overdue && schedule.status === "pending" && (
-                                                      <span className="inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-red-100 text-red-700 whitespace-nowrap">
-                                                        Overdue
-                                                      </span>
-                                                    )}
-                                                    {isToday && !overdue && schedule.status === "pending" && (
-                                                      <span className="inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-blue-100 text-blue-700 whitespace-nowrap">
-                                                        Due Today
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                </td>
-                                                <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                                  <div className="min-w-[100px] sm:min-w-0">
-                                                    <div className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">
-                                                      {new Date(schedule.dueDate).toLocaleDateString('en-US', { 
-                                                        weekday: 'short',
-                                                        month: 'short', 
-                                                        day: 'numeric',
-                                                        year: 'numeric'
-                                                      })}
-                                                    </div>
-                                                    {schedule.status === "pending" && (
-                                                      <div className={cn(
-                                                        "text-[10px] sm:text-xs mt-0.5 sm:mt-1 font-medium whitespace-nowrap",
-                                                        overdue && "text-red-600",
-                                                        isToday && !overdue && "text-blue-600",
-                                                        !overdue && !isToday && "text-gray-500"
-                                                      )}>
-                                                        {overdue ? `${Math.abs(daysUntil)} days overdue` : 
-                                                         isToday ? "Due today" : 
-                                                         daysUntil === 1 ? "Due tomorrow" : 
-                                                         `${daysUntil} days remaining`}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </td>
-                                                <td className="py-2 sm:py-3 px-2 sm:px-4 hidden sm:table-cell">
-                                                  {schedule.amount ? (
-                                                    <div className="text-xs sm:text-sm font-semibold text-green-600">
-                                      {schedule.amount.toLocaleString()} RWF
-                                    </div>
-                                                  ) : (
-                                                    <span className="text-xs sm:text-sm text-gray-400">-</span>
-                                                  )}
-                                                </td>
-                                                <td className="py-2 sm:py-3 px-2 sm:px-4 hidden md:table-cell">
-                                                  {(schedule.notifyUser || schedule.notifyClient) ? (
-                                                    <div className="space-y-1.5">
-                                                      <div className="text-xs text-gray-600">
-                                                        {schedule.notifyUser && "You"} {schedule.notifyUser && schedule.notifyClient && "&"} {schedule.notifyClient && "Client"}
-                                                        {schedule.advanceNotificationDays > 0 && ` (${schedule.advanceNotificationDays}d)`}
-                                  </div>
-                                                      {(schedule as any).lastNotified && (
-                                                        <div className="flex items-center gap-1.5 text-xs text-green-600">
-                                                          <Mail size={10} className="sm:w-3 sm:h-3 text-green-600" />
-                                                          <span className="font-medium">Sent:</span>
-                                                          <span>{new Date((schedule as any).lastNotified).toLocaleString('en-US', { 
-                                                            month: 'short', 
-                                                            day: 'numeric',
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                          })}</span>
-                                </div>
-                              )}
-                            </div>
-                                                  ) : (
-                                                    <span className="text-xs sm:text-sm text-gray-400">-</span>
-                                                  )}
-                                                </td>
-                                                <td className="py-2 sm:py-3 px-2 sm:px-4">
-                                                  <div className="flex gap-1 sm:gap-2 items-center">
-                                                    {schedule.status === "pending" && (
-                                                      <button
-                                                        onClick={() => handleCompleteClick(schedule)}
-                                                        className="p-1.5 sm:p-2 text-green-600 rounded hover:bg-green-50 transition-colors"
-                                                        title="Mark as completed"
-                                                      >
-                                                        <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
-                                                      </button>
-                                                    )}
-                                                    <button
-                                                      onClick={() => openEditModal(schedule)}
-                                                      className="p-1.5 sm:p-2 text-blue-600 rounded hover:bg-blue-50 transition-colors"
-                                                      title="Edit schedule"
-                                                    >
-                                                      <Pencil size={14} className="sm:w-4 sm:h-4" />
-                                                    </button>
-                                                    <button
-                                                      onClick={() => handleDeleteClick(schedule)}
-                                                      className="p-1.5 sm:p-2 text-red-600 rounded hover:bg-red-50 transition-colors"
-                                                      title="Delete schedule"
-                                                    >
-                                                      <Trash2 size={14} className="sm:w-4 sm:h-4" />
-                                                    </button>
-                                                  </div>
-                                                </td>
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                      </table>
+        {/* Automation Cards Grid */}
+        {filteredSchedules.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+            {filteredSchedules.map((schedule) => {
+              const scheduleId = (schedule as any)._id || schedule.id;
+              const overdue = isOverdue(schedule.dueDate) && schedule.status === "pending";
+              const daysUntil = getDaysUntilDue(schedule.dueDate);
+              const isToday = daysUntil === 0;
+              const clientInfo = getClientInfo(schedule.clientId);
+              const clientName = getClientName(schedule.clientId);
+              const clientEmail = clientInfo?.email || "";
+              const initial = clientName.charAt(0).toUpperCase();
+
+              return (
+                <div
+                  key={scheduleId}
+                  className={cn(
+                    "bg-white rounded-xl border p-4 sm:p-5 transition-all hover:shadow-md group",
+                    overdue ? "border-red-200 bg-red-50/30" :
+                    schedule.status === "completed" ? "border-green-200 bg-green-50/20 opacity-75" :
+                    "border-gray-200 hover:border-blue-200"
+                  )}
+                >
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {/* Avatar */}
+                      <div className={cn(
+                        "w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
+                        overdue ? "bg-red-100 text-red-700" :
+                        schedule.status === "completed" ? "bg-green-100 text-green-700" :
+                        "bg-blue-100 text-blue-700"
+                      )}>
+                        {initial}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-gray-900 truncate">{schedule.title}</h3>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-xs text-gray-600 truncate">{clientName}</span>
+                          {clientEmail && <span className="text-xs text-gray-400 truncate hidden sm:inline">• {clientEmail}</span>}
                         </div>
                       </div>
-                                </td>
-                              </tr>
-                            )}
-                          </>
-                    );
-                  })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-8 sm:py-16 lg:bg-white bg-white/80 backdrop-blur-sm rounded border border-dashed border-gray-300 px-4">
-                  <User size={48} className="sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-gray-300" />
-                  <p className="text-base sm:text-lg font-semibold text-gray-400 mb-2">
-                    {searchQuery ? "No clients found" : "No clients yet"}
-                  </p>
-                  <p className="text-xs sm:text-sm text-gray-500 mb-4">
-                    {searchQuery ? "Try adjusting your search terms" : "Create your first client to get started"}
-                  </p>
-                  {!searchQuery && (
-                    <Button
-                      onClick={openAddModal}
-                      className="bg-blue-600 text-white hover:bg-blue-700 text-sm sm:text-base px-4 sm:px-6"
-                    >
-                      <Plus size={16} className="sm:w-[18px] sm:h-[18px] mr-2" />
-                      Create Schedule
-                    </Button>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-0.5 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+                      {schedule.status === "pending" && (
+                        <button onClick={() => handleCompleteClick(schedule)} className="p-1.5 text-green-600 rounded-lg hover:bg-green-50" title="Complete">
+                          <CheckCircle2 size={15} />
+                        </button>
+                      )}
+                      <button onClick={() => openEditModal(schedule)} className="p-1.5 text-gray-500 rounded-lg hover:bg-gray-100" title="Edit">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => handleDeleteClick(schedule)} className="p-1.5 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-600" title="Delete">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {schedule.description && (
+                    <p className="text-xs text-gray-500 mb-3 line-clamp-2">{schedule.description}</p>
+                  )}
+
+                  {/* Badges Row */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                    {/* Status */}
+                    <span className={cn(
+                      "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                      schedule.status === "completed" && "bg-green-100 text-green-700",
+                      schedule.status === "pending" && !overdue && "bg-blue-100 text-blue-700",
+                      schedule.status === "cancelled" && "bg-gray-100 text-gray-600",
+                      overdue && "bg-red-100 text-red-700"
+                    )}>
+                      {overdue ? "Overdue" : schedule.status === "pending" ? "Active" : schedule.status}
+                    </span>
+                    {/* Frequency */}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-700">
+                      <Repeat size={10} />
+                      {schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}
+                    </span>
+                    {/* Notification indicators */}
+                    {schedule.notifyUser && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700">
+                        <Bell size={10} /> You
+                      </span>
+                    )}
+                    {schedule.notifyClient && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-cyan-50 text-cyan-700">
+                        <Mail size={10} /> Client
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Footer: Due Date & Amount */}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={13} className={cn(
+                        overdue ? "text-red-500" : isToday ? "text-blue-500" : "text-gray-400"
+                      )} />
+                      <span className={cn(
+                        "text-xs font-medium",
+                        overdue ? "text-red-600" : isToday ? "text-blue-600" : "text-gray-600"
+                      )}>
+                        {overdue
+                          ? `${Math.abs(daysUntil)}d overdue`
+                          : isToday
+                          ? "Due today"
+                          : daysUntil === 1
+                          ? "Due tomorrow"
+                          : schedule.status === "completed"
+                          ? new Date(schedule.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          : `${daysUntil}d remaining`}
+                      </span>
+                      <span className="text-[10px] text-gray-400 hidden sm:inline">
+                        {new Date(schedule.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {schedule.amount ? (
+                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                        {schedule.amount.toLocaleString()} RWF
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* Last notified */}
+                  {(schedule as any).lastNotified && (
+                    <div className="flex items-center gap-1.5 mt-2 text-[10px] text-green-600">
+                      <Mail size={10} />
+                      <span>Last sent: {new Date((schedule as any).lastNotified).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                   )}
                 </div>
-              )}
+              );
+            })}
           </div>
-        </div>
+        ) : (
+          <div className="text-center py-12 sm:py-20 bg-white rounded-xl border border-dashed border-gray-200">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+              <Mail size={28} className="text-blue-400" />
+            </div>
+            <p className="text-base font-semibold text-gray-700 mb-1">
+              {searchQuery || statusFilter !== "all" || dateFilter !== "all" ? "No automations found" : "No automations yet"}
+            </p>
+            <p className="text-sm text-gray-500 mb-5 max-w-xs mx-auto">
+              {searchQuery || statusFilter !== "all" || dateFilter !== "all"
+                ? "Try adjusting your filters"
+                : "Create your first email automation to start sending scheduled reminders"}
+            </p>
+            {!(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
+              <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 gap-2">
+                <Plus size={16} /> Create Automation
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Modal */}

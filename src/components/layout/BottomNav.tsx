@@ -4,7 +4,7 @@ import {
   Package,
   ShoppingCart,
   FileText,
-  Calendar,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -22,7 +22,7 @@ const getMenuItems = (t: (key: string) => string) => {
     { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
     { icon: Package, label: t("products"), path: "/products" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
-    { icon: Calendar, label: "Schedules", path: "/schedules", showNew: showNewBanner },
+    { icon: Mail, label: "Automate", path: "/schedules", showNew: showNewBanner },
     { icon: FileText, label: t("reports"), path: "/reports" },
   ];
 };
