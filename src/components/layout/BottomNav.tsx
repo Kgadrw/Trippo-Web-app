@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -6,11 +5,9 @@ import {
   ShoppingCart,
   FileText,
   Calendar,
-  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
-import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { useSubdomain } from "@/hooks/useSubdomain";
 
 const getMenuItems = (t: (key: string) => string) => {
@@ -35,25 +32,9 @@ export function BottomNav() {
   const { t, language } = useTranslation();
   const subdomain = useSubdomain();
   const menuItems = getMenuItems(t);
-  const [saleModalOpen, setSaleModalOpen] = useState(false);
 
   return (
     <>
-      {/* Floating Add Sale Button - Only on mobile */}
-      <button
-        onClick={() => setSaleModalOpen(true)}
-        className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 lg:hidden w-14 h-14 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center backdrop-blur-sm"
-        aria-label="Add new sale"
-      >
-        <Plus size={24} strokeWidth={2.5} />
-      </button>
-
-      {/* Record Sale Modal */}
-      <RecordSaleModal 
-        open={saleModalOpen} 
-        onOpenChange={setSaleModalOpen}
-      />
-
       <nav 
         className="fixed bottom-4 left-4 right-4 z-40 bg-white/80 backdrop-blur-md border border-gray-200/50 lg:hidden rounded-3xl shadow-lg"
         style={{ 
