@@ -73,12 +73,12 @@ export function AdminBottomNav({ activeSection, onSectionChange }: AdminBottomNa
   return (
     <>
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-blue-500/40 bg-blue-600 lg:hidden"
         style={{ 
-          paddingBottom: 'max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))',
+          paddingBottom: 'max(0.65rem, calc(env(safe-area-inset-bottom) + 0.35rem))',
         }}
       >
-        <div className="flex items-center justify-around h-16 px-2">
+        <div className="flex h-12 items-center justify-around px-1">
           {adminMenuItems.map((item) => {
             const isActive = activeSection === item.section;
             return (
@@ -86,22 +86,22 @@ export function AdminBottomNav({ activeSection, onSectionChange }: AdminBottomNa
                 key={item.section}
                 onClick={() => onSectionChange(item.section)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors",
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 transition-colors",
                   isActive 
-                    ? "text-blue-600" 
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "text-white" 
+                    : "text-blue-200 hover:text-white"
                 )}
               >
                 <item.icon 
-                  size={22} 
+                  size={18} 
                   className={cn(
                     "transition-colors",
-                    isActive ? "text-blue-600" : "text-gray-500"
+                    isActive ? "text-white" : "text-blue-200"
                   )} 
                 />
                 <span className={cn(
-                  "text-xs font-medium transition-colors",
-                  isActive ? "text-blue-600" : "text-gray-500"
+                  "text-[10px] font-medium leading-tight transition-colors",
+                  isActive ? "text-white" : "text-blue-200"
                 )}>
                   {item.label}
                 </span>
@@ -112,10 +112,10 @@ export function AdminBottomNav({ activeSection, onSectionChange }: AdminBottomNa
           {/* Logout Button */}
           <button
             onClick={handleLogoutClick}
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors text-red-600 hover:text-red-700"
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 transition-colors text-red-200 hover:text-red-100"
           >
-            <LogOut size={22} className="transition-colors" />
-            <span className="text-xs font-medium transition-colors">
+            <LogOut size={18} className="transition-colors" />
+            <span className="text-[10px] font-medium leading-tight transition-colors">
               Logout
             </span>
           </button>

@@ -36,12 +36,12 @@ export function BottomNav() {
   return (
     <>
       <nav 
-        className="fixed bottom-4 left-4 right-4 z-40 bg-white/80 backdrop-blur-md border border-gray-200/50 lg:hidden rounded-3xl shadow-lg"
+        className="fixed bottom-3 left-3 right-3 z-40 rounded-2xl border border-blue-500/40 bg-blue-600 shadow-md shadow-blue-900/20 lg:hidden"
         style={{ 
-          paddingBottom: 'max(0.5rem, calc(env(safe-area-inset-bottom) + 0.25rem))',
+          paddingBottom: 'max(0.35rem, calc(env(safe-area-inset-bottom) + 0.15rem))',
         }}
       >
-        <div className="flex items-center justify-around h-14 px-2">
+        <div className="flex h-11 items-center justify-around px-1">
           {menuItems.map((item) => {
             // For dashboard item: active if path matches OR if on dashboard subdomain root
             const isDashboardItem = item.path === "/dashboard";
@@ -57,21 +57,21 @@ export function BottomNav() {
                 key={item.path}
                 to={dashboardPath}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all duration-300 ease-in-out relative",
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-1 transition-all duration-300 ease-in-out relative",
                   isActive 
-                    ? "text-blue-600" 
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "text-white" 
+                    : "text-blue-200/90 hover:text-white"
                 )}
               >
                 <div className="relative">
                   <item.icon 
-                    size={22} 
+                    size={18} 
                     fill={isActive ? "currentColor" : "none"}
                     className={cn(
                       "transition-all duration-300 ease-in-out",
                       isActive 
-                        ? "text-blue-600 scale-110" 
-                        : "text-gray-500 scale-100"
+                        ? "scale-105 text-white" 
+                        : "scale-100 text-blue-200"
                     )} 
                   />
                   {item.showNew && item.path === "/schedules" && (
@@ -81,10 +81,10 @@ export function BottomNav() {
                   )}
                 </div>
                 <span className={cn(
-                  "text-xs transition-all duration-300 ease-in-out",
+                  "text-[10px] leading-tight transition-all duration-300 ease-in-out",
                   isActive 
-                    ? "text-blue-600 font-bold" 
-                    : "text-gray-500 font-medium"
+                    ? "font-bold text-white" 
+                    : "font-medium text-blue-200"
                 )}>
                   {item.label}
                 </span>

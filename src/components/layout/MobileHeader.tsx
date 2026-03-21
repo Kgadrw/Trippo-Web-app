@@ -183,7 +183,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-white flex items-center justify-between px-4 z-50 lg:hidden">
+    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
       {/* Left side - Account Info */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <Avatar className="h-10 w-10 rounded-full border-2 border-blue-600 flex-shrink-0 bg-white">

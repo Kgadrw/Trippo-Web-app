@@ -30,7 +30,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Calendar, Settings } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Mail, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
@@ -1225,6 +1225,14 @@ const Dashboard = () => {
     </div>
   );
 
+  const mobilePeriodToggleClass = cn(
+    "text-[11px] px-1.5 h-9 font-medium",
+    "border-blue-200/80 text-muted-foreground",
+    "hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400",
+    "data-[state=on]:bg-blue-600 data-[state=on]:text-white data-[state=on]:border-blue-600",
+    "data-[state=on]:hover:bg-blue-700 data-[state=on]:hover:text-white data-[state=on]:hover:border-blue-700"
+  );
+
   return (
     <AppLayout title="Dashboard">
       {/* Mobile: Period revenue (left) and profit (right) */}
@@ -1232,7 +1240,7 @@ const Dashboard = () => {
         {isLoading ? (
           <KPICardSkeleton />
         ) : (
-          <div className="rounded-lg p-4 shadow-sm">
+          <div className="rounded-lg border border-blue-200/90 bg-white p-4 shadow-sm">
             <ToggleGroup
               type="single"
               value={mobileRevenuePeriod}
@@ -1241,29 +1249,29 @@ const Dashboard = () => {
               variant="outline"
               size="sm"
             >
-              <ToggleGroupItem value="today" className="text-[11px] px-1.5 h-9">
+              <ToggleGroupItem value="today" className={mobilePeriodToggleClass}>
                 {t("periodToday")}
               </ToggleGroupItem>
-              <ToggleGroupItem value="week" className="text-[11px] px-1.5 h-9">
+              <ToggleGroupItem value="week" className={mobilePeriodToggleClass}>
                 {t("periodWeek")}
               </ToggleGroupItem>
-              <ToggleGroupItem value="month" className="text-[11px] px-1.5 h-9">
+              <ToggleGroupItem value="month" className={mobilePeriodToggleClass}>
                 {t("periodMonth")}
               </ToggleGroupItem>
-              <ToggleGroupItem value="year" className="text-[11px] px-1.5 h-9">
+              <ToggleGroupItem value="year" className={mobilePeriodToggleClass}>
                 {t("periodYear")}
               </ToggleGroupItem>
             </ToggleGroup>
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm text-gray-600">{mobileRevenueProfitLabels.revenue}</p>
-                <p className="text-xl font-semibold text-blue-600 truncate">
+                <p className="text-base font-normal text-blue-600 truncate tabular-nums">
                   {mobilePeriodStats.totalRevenue.toLocaleString()} rwf
                 </p>
               </div>
               <div className="text-right min-w-0 shrink-0">
                 <p className="text-sm text-gray-600">{mobileRevenueProfitLabels.profit}</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-lg font-normal text-green-600 tabular-nums">
                   {mobilePeriodStats.totalProfit.toLocaleString()} rwf
                 </p>
               </div>
@@ -1889,15 +1897,13 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* Schedules */}
+              {/* Automate (email automations / schedules) */}
               <Button
                 onClick={() => navigate("/schedules")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white shadow-sm hover:shadow-md transition-all"
               >
-                <Calendar size={18} />
-                <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Gahunda" : "Schedules"}
-                </span>
+                <Mail size={18} />
+                <span className="text-xs font-medium">Automate</span>
               </Button>
             </div>
           </div>
@@ -1972,15 +1978,13 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* Schedules */}
+              {/* Automate (email automations / schedules) */}
               <Button
                 onClick={() => navigate("/schedules")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white shadow-sm hover:shadow-md transition-all"
               >
-                <Calendar size={18} />
-                <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Gahunda" : "Schedules"}
-                </span>
+                <Mail size={18} />
+                <span className="text-xs font-medium">Automate</span>
               </Button>
             </div>
           </div>

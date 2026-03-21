@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminBottomNav } from "./AdminBottomNav";
+import { MobileFixedBackground } from "./MobileFixedBackground";
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -25,127 +25,6 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
   const [showArrow, setShowArrow] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarExpanded, setMobileSidebarExpanded] = useState(false);
-  
-  // Rotating background images for mobile (1.jpg through 5.jpg)
-  const backgroundImages = ['/1.jpg', '/2.jpg', '/3.jpg', '/4.jpg', '/5.jpg'];
-  
-  // Helper function to get today's date string (YYYY-MM-DD)
-  const getTodayDateString = () => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  };
-  
-  const [currentBgIndex, setCurrentBgIndex] = useState(() => {
-    // Load saved index and date from localStorage
-    const savedIndex = localStorage.getItem('profit-pilot-bg-index');
-    const savedDate = localStorage.getItem('profit-pilot-bg-date');
-    const todayDate = getTodayDateString();
-    
-    if (savedIndex && savedDate) {
-      // If it's the same day, use saved index
-      if (savedDate === todayDate) {
-        return parseInt(savedIndex, 10);
-      }
-      // If it's a different day, immediately rotate to next image (no animation on initial load)
-      const nextIndex = (parseInt(savedIndex, 10) + 1) % backgroundImages.length;
-      localStorage.setItem('profit-pilot-bg-index', nextIndex.toString());
-      localStorage.setItem('profit-pilot-bg-date', todayDate);
-      // Mark that we've already changed for today, so future changes in the same session will animate
-      localStorage.setItem('profit-pilot-bg-changed-today', 'true');
-      return nextIndex;
-    }
-    
-    // First time - start with index 0
-    localStorage.setItem('profit-pilot-bg-index', '0');
-    localStorage.setItem('profit-pilot-bg-date', todayDate);
-    localStorage.setItem('profit-pilot-bg-changed-today', 'false');
-    return 0;
-  });
-  
-  const [isAnimating, setIsAnimating] = useState(false);
-  
-  // Function to manually change today's background image
-  const changeTodaysBgImage = (imageIndex?: number) => {
-    if (!isMobile) return;
-    const nextIndex = imageIndex !== undefined 
-      ? Math.max(0, Math.min(imageIndex, backgroundImages.length - 1))
-      : (currentBgIndex + 1) % backgroundImages.length;
-    setIsAnimating(true);
-    
-    setTimeout(() => {
-      setCurrentBgIndex(nextIndex);
-      localStorage.setItem('profit-pilot-bg-index', nextIndex.toString());
-      localStorage.setItem('profit-pilot-bg-date', getTodayDateString());
-      localStorage.setItem('profit-pilot-bg-changed-today', 'true');
-      
-      setTimeout(() => {
-        setIsAnimating(false);
-      }, 50);
-    }, 500);
-  };
-  
-  // Expose function to window for manual control
-  // Usage: window.changeTodaysBgImage() - changes to next image
-  //        window.changeTodaysBgImage(0) - changes to image 1.jpg (index 0)
-  //        window.changeTodaysBgImage(4) - changes to image 5.jpg (index 4)
-  useEffect(() => {
-    (window as any).changeTodaysBgImage = changeTodaysBgImage;
-    return () => {
-      delete (window as any).changeTodaysBgImage;
-    };
-  }, [currentBgIndex, isMobile]);
-  
-  // Check daily rotation - changes when calendar day changes (at midnight)
-  useEffect(() => {
-    if (!isMobile) return;
-    
-    const checkAndRotate = () => {
-      const savedIndex = localStorage.getItem('profit-pilot-bg-index');
-      const savedDate = localStorage.getItem('profit-pilot-bg-date');
-      const changedToday = localStorage.getItem('profit-pilot-bg-changed-today');
-      const todayDate = getTodayDateString();
-      
-      if (savedIndex && savedDate && savedDate !== todayDate) {
-        // Day has changed! Rotate to next image
-        const nextIndex = (parseInt(savedIndex, 10) + 1) % backgroundImages.length;
-        
-        // If we haven't changed today yet (initial load), change immediately without animation
-        if (changedToday !== 'true') {
-          setCurrentBgIndex(nextIndex);
-          localStorage.setItem('profit-pilot-bg-index', nextIndex.toString());
-          localStorage.setItem('profit-pilot-bg-date', todayDate);
-          localStorage.setItem('profit-pilot-bg-changed-today', 'true');
-        } else {
-          // If day changes during the session (midnight), animate the change
-          setIsAnimating(true);
-          
-          // Change image after fade out
-          setTimeout(() => {
-            setCurrentBgIndex(nextIndex);
-            localStorage.setItem('profit-pilot-bg-index', nextIndex.toString());
-            localStorage.setItem('profit-pilot-bg-date', todayDate);
-            
-            // Fade in
-            setTimeout(() => {
-              setIsAnimating(false);
-            }, 50);
-          }, 500); // Half of animation duration
-        }
-      } else if (savedDate === todayDate && changedToday === 'true') {
-        // Same day, reset the flag for next day
-        // This ensures animation works when day changes during session
-        localStorage.setItem('profit-pilot-bg-changed-today', 'false');
-      }
-    };
-    
-    // Check immediately
-    checkAndRotate();
-    
-    // Check every minute to catch midnight changes quickly
-    const intervalId = setInterval(checkAndRotate, 60 * 1000); // Check every minute
-    
-    return () => clearInterval(intervalId);
-  }, [isMobile, backgroundImages.length]);
 
   // Save sidebar collapsed state to localStorage whenever it changes (only on desktop)
   useEffect(() => {
@@ -266,9 +145,8 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
   };
 
   return (
-    <div 
-      className="min-h-screen bg-white lg:bg-background"
-    >
+    <div className="relative min-h-screen w-full bg-transparent lg:bg-background">
+      <MobileFixedBackground />
       {/* Sidebar - Hidden on mobile, visible on desktop */}
       <div className="hidden lg:block">
         <AdminSidebar
@@ -294,7 +172,7 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
       {/* Main content */}
       <div
         className={cn(
-          "transition-all duration-300",
+          "relative z-10 transition-all duration-300",
           // On mobile, no margin (bottom nav instead of sidebar)
           // On desktop, adjust based on sidebar state
           isMobile 
