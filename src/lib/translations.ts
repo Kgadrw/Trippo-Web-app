@@ -148,6 +148,16 @@ export interface Translations {
   // Dashboard
   todaysRevenue: string;
   todaysProfit: string;
+  weekRevenue: string;
+  weekProfit: string;
+  monthRevenue: string;
+  monthProfit: string;
+  yearRevenue: string;
+  yearProfit: string;
+  periodToday: string;
+  periodWeek: string;
+  periodMonth: string;
+  periodYear: string;
   todaysItems: string;
   currentStockValue: string;
   items: string;
@@ -388,6 +398,16 @@ export const translations: Record<Language, Translations> = {
     // Dashboard
     todaysRevenue: "Today's Revenue",
     todaysProfit: "Today's Profit",
+    weekRevenue: "This Week's Revenue",
+    weekProfit: "This Week's Profit",
+    monthRevenue: "This Month's Revenue",
+    monthProfit: "This Month's Profit",
+    yearRevenue: "This Year's Revenue",
+    yearProfit: "This Year's Profit",
+    periodToday: "Today",
+    periodWeek: "Week",
+    periodMonth: "Month",
+    periodYear: "Year",
     todaysItems: "Today's Items",
     currentStockValue: "Current Stock Value",
     items: "items",
@@ -626,6 +646,16 @@ export const translations: Record<Language, Translations> = {
     // Dashboard
     todaysRevenue: "Amafaranga y'u munsi",
     todaysProfit: "Inyungu y'u munsi",
+    weekRevenue: "Amafaranga y'icyumweru",
+    weekProfit: "Inyungu y'icyumweru",
+    monthRevenue: "Amafaranga y'uku kwezi",
+    monthProfit: "Inyungu y'uku kwezi",
+    yearRevenue: "Amafaranga y'uku mwaka",
+    yearProfit: "Inyungu y'uku mwaka",
+    periodToday: "Uyu munsi",
+    periodWeek: "Icyumweru",
+    periodMonth: "Ukwezi",
+    periodYear: "Umwaka",
     todaysItems: "Ibintu by'u munsi",
     currentStockValue: "Agaciro k'stoki",
     items: "ibintu",

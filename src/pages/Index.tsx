@@ -6,6 +6,7 @@ import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
 import { LowStockAlert } from "@/components/dashboard/LowStockAlert";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,6 +77,55 @@ interface BulkSaleFormData {
   sellingPrice: string;
   paymentMethod: string;
   saleDate: string;
+}
+
+type RevenuePeriod = "today" | "week" | "month" | "year";
+
+function getSaleTimeMs(sale: Sale): number | null {
+  if (sale.timestamp) {
+    const t = new Date(sale.timestamp).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (sale.date && typeof sale.date === "object" && sale.date !== null && "getFullYear" in sale.date) {
+    return (sale.date as Date).getTime();
+  }
+  if (typeof sale.date === "string") {
+    const raw = sale.date.includes("T") ? sale.date : `${sale.date}T12:00:00`;
+    const t = new Date(raw).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (sale.date != null) {
+    const t = new Date(sale.date as string | number).getTime();
+    if (!isNaN(t)) return t;
+  }
+  return null;
+}
+
+function startOfLocalDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function startOfWeekMonday(d: Date): Date {
+  const x = startOfLocalDay(d);
+  const day = x.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+
+function getPeriodStart(period: RevenuePeriod, now: Date): Date {
+  switch (period) {
+    case "today":
+      return startOfLocalDay(now);
+    case "week":
+      return startOfWeekMonday(now);
+    case "month":
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    case "year":
+      return new Date(now.getFullYear(), 0, 1);
+  }
 }
 
 // Product Combobox Component
@@ -374,6 +424,38 @@ const Dashboard = () => {
     
     return { totalItems, totalRevenue, totalProfit };
   }, [sales]);
+
+  const [mobileRevenuePeriod, setMobileRevenuePeriod] = useState<RevenuePeriod>("today");
+
+  const mobilePeriodStats = useMemo(() => {
+    const now = new Date();
+    const start = getPeriodStart(mobileRevenuePeriod, now);
+    const startMs = start.getTime();
+    const endMs = now.getTime();
+
+    const filtered = sales.filter((sale) => {
+      const t = getSaleTimeMs(sale);
+      if (t === null) return false;
+      return t >= startMs && t <= endMs;
+    });
+
+    const totalRevenue = filtered.reduce((sum, s) => sum + (s.revenue || 0), 0);
+    const totalProfit = filtered.reduce((sum, s) => sum + (s.profit || 0), 0);
+    return { totalRevenue, totalProfit };
+  }, [sales, mobileRevenuePeriod]);
+
+  const mobileRevenueProfitLabels = useMemo(() => {
+    switch (mobileRevenuePeriod) {
+      case "today":
+        return { revenue: t("todaysRevenue"), profit: t("todaysProfit") };
+      case "week":
+        return { revenue: t("weekRevenue"), profit: t("weekProfit") };
+      case "month":
+        return { revenue: t("monthRevenue"), profit: t("monthProfit") };
+      case "year":
+        return { revenue: t("yearRevenue"), profit: t("yearProfit") };
+    }
+  }, [mobileRevenuePeriod, t]);
   
   const stockStats = useMemo(() => {
     const totalStockValue = products.reduce(
@@ -1145,23 +1227,44 @@ const Dashboard = () => {
 
   return (
     <AppLayout title="Dashboard">
-      {/* Mobile: Single card showing today's profit with revenue */}
+      {/* Mobile: Period revenue (left) and profit (right) */}
       <div className="lg:hidden mb-6">
         {isLoading ? (
           <KPICardSkeleton />
         ) : (
           <div className="rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">{t("todaysProfit")}</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {(todayStats?.totalProfit || 0).toLocaleString()} rwf
+            <ToggleGroup
+              type="single"
+              value={mobileRevenuePeriod}
+              onValueChange={(v) => v && setMobileRevenuePeriod(v as RevenuePeriod)}
+              className="grid grid-cols-4 gap-1.5 w-full mb-4"
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="today" className="text-[11px] px-1.5 h-9">
+                {t("periodToday")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="week" className="text-[11px] px-1.5 h-9">
+                {t("periodWeek")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="month" className="text-[11px] px-1.5 h-9">
+                {t("periodMonth")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="year" className="text-[11px] px-1.5 h-9">
+                {t("periodYear")}
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm text-gray-600">{mobileRevenueProfitLabels.revenue}</p>
+                <p className="text-xl font-semibold text-blue-600 truncate">
+                  {mobilePeriodStats.totalRevenue.toLocaleString()} rwf
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-600">{t("todaysRevenue")}</p>
-                <p className="text-sm font-medium text-blue-600">
-                  {(todayStats?.totalRevenue || 0).toLocaleString()} rwf
+              <div className="text-right min-w-0 shrink-0">
+                <p className="text-sm text-gray-600">{mobileRevenueProfitLabels.profit}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {mobilePeriodStats.totalProfit.toLocaleString()} rwf
                 </p>
               </div>
             </div>

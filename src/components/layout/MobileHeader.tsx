@@ -183,27 +183,27 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-blue-900 border-0 flex items-center justify-between px-4 z-50 lg:hidden shadow-sm">
+    <header className="fixed top-0 left-0 right-0 h-16 bg-white flex items-center justify-between px-4 z-50 lg:hidden">
       {/* Left side - Account Info */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <Avatar className="h-10 w-10 rounded-full border border-blue-700 flex-shrink-0">
-          <AvatarFallback className="bg-blue-700 text-white font-bold">
+        <Avatar className="h-10 w-10 rounded-full border-2 border-blue-600 flex-shrink-0 bg-white">
+          <AvatarFallback className="bg-white text-blue-600 font-bold border-0">
             {userInitials}
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <span className="text-sm text-blue-200">Hi,</span>
-            <span className="text-sm font-semibold text-white truncate">
+            <span className="text-sm text-muted-foreground">Hi,</span>
+            <span className="text-sm font-semibold text-foreground truncate">
               {firstName}
             </span>
             <ChevronDown 
-              className="h-4 w-4 text-white flex-shrink-0 cursor-pointer hover:text-blue-200" 
+              className="h-4 w-4 text-foreground flex-shrink-0 cursor-pointer hover:text-muted-foreground" 
               onClick={() => navigate("/settings")}
             />
           </div>
           {user?.businessName && (
-            <span className="text-xs text-blue-200 truncate">
+            <span className="text-xs text-muted-foreground truncate">
               {user.businessName}
             </span>
           )}
@@ -217,8 +217,8 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
           className={cn(
             "relative p-2 rounded-full transition-colors",
             notificationService.isAllowed()
-              ? "text-white hover:bg-blue-800"
-              : "text-blue-300"
+              ? "text-foreground hover:bg-muted"
+              : "text-muted-foreground"
           )}
         >
           <Bell size={22} />
