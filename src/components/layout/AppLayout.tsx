@@ -1,16 +1,27 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
 import { MobileFixedBackground } from "./MobileFixedBackground";
 import { cn } from "@/lib/utils";
 import { useSubdomain } from "@/hooks/useSubdomain";
+import { LayoutDashboard, Package, UserRound, ShoppingCart, Wallet, FileText, Settings } from "lucide-react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
   title: string;
 }
+
+const desktopMenuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Package, label: "Services", path: "/products" },
+  { icon: UserRound, label: "Barbers", path: "/barbers" },
+  { icon: ShoppingCart, label: "Sales", path: "/sales" },
+  { icon: Wallet, label: "Expenses", path: "/expenses" },
+  { icon: FileText, label: "Reports", path: "/reports" },
+  { icon: Settings, label: "Settings", path: "/settings" },
+];
 
 export function AppLayout({ children, title }: AppLayoutProps) {
   const location = useLocation();
@@ -167,16 +178,36 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         <MobileHeader />
       </div>
 
-      {/* Sidebar - Hidden on mobile, visible on desktop */}
-      <div className="hidden lg:block">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileClose={() => {}}
-          onMobileToggle={() => {}}
-          onHoverChange={setSidebarHovered}
-          mobileExpanded={false}
-        />
+      {/* Desktop top navigation header (replaces left sidebar) */}
+      <div className="hidden lg:block fixed top-0 left-0 right-0 z-50 border-b border-blue-700 bg-blue-600 shadow-sm">
+        <div className="h-16 px-4 flex items-center gap-4">
+          <Link to={subdomain === "dashboard" ? "/" : "/dashboard"} className="flex items-center gap-2 shrink-0">
+            <img src="/logo.png" alt="Trippo Logo" className="h-7 w-7 object-contain" />
+            <span className="text-lg font-normal text-white lowercase">trippo</span>
+          </Link>
+          <nav className="flex items-center gap-2 overflow-x-auto">
+            {desktopMenuItems.map((item) => {
+              const isDashboardItem = item.path === "/dashboard";
+              const isDashboardSubdomainRoot = subdomain === "dashboard" && location.pathname === "/";
+              const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
+              const path = isDashboardItem && subdomain === "dashboard" ? "/" : item.path;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={path}
+                  className={cn(
+                    "h-9 px-3 rounded-md inline-flex items-center gap-2 text-sm whitespace-nowrap transition-colors",
+                    isActive ? "bg-white text-blue-700" : "text-blue-100 hover:bg-blue-700 hover:text-white"
+                  )}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
       {/* Bottom Navigation - dashboard subdomain: only on home `/`; admin & main domain: all pages */}
@@ -193,22 +224,16 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           // On mobile, no margin (bottom nav instead of sidebar), add top padding for header
           // On desktop, adjust based on sidebar state
           // Use transition only for sidebar changes, not initial load
-          isMobile 
-            ? cn(
-                "ml-0 pt-20",
-                showBottomNav ? "pb-24" : "pb-6" // extra room for taller floating bottom nav
-              )
-            : "lg:ml-0 transition-all duration-300",
-          !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed 
-            ? "lg:ml-56" 
-            : "lg:ml-16")
+          isMobile
+            ? cn("ml-0 pt-20", showBottomNav ? "pb-24" : "pb-6")
+            : "lg:ml-0 lg:pt-20 transition-all duration-300"
         )}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         style={{ touchAction: 'pan-y' }}
       >
-        <main className="p-6 lg:pt-6 pt-6">{children}</main>
+        <main className="p-6 pt-6">{children}</main>
       </div>
     </div>
   );
