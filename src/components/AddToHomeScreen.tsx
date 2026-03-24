@@ -15,6 +15,7 @@ export function AddToHomeScreen() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isWindows, setIsWindows] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isDashboardSubdomain, setIsDashboardSubdomain] = useState(false);
 
   useEffect(() => {
     // Check if app is already installed
@@ -34,6 +35,10 @@ export function AddToHomeScreen() {
     // Detect Windows
     const windows = /Windows/.test(navigator.userAgent);
     setIsWindows(windows);
+
+    // Detect dashboard/admin subdomain context
+    const host = window.location.hostname.toLowerCase();
+    setIsDashboardSubdomain(host.startsWith("dashboard.") || host.startsWith("admin."));
 
     // Listen for the beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -122,6 +127,11 @@ export function AddToHomeScreen() {
           <p className="text-sm text-gray-600 mb-5 leading-relaxed relative z-10">
             Install Trippo as an app on your computer. It will run in its own window, work offline, and launch faster.
           </p>
+          {isDashboardSubdomain && (
+            <p className="text-xs text-blue-700 mb-4">
+              Install from this dashboard subdomain to remove the browser URL/top bar.
+            </p>
+          )}
           
           <div className="flex gap-3 relative z-10">
             <Button
@@ -175,6 +185,11 @@ export function AddToHomeScreen() {
           <p className="text-sm text-gray-600 mb-4 leading-relaxed relative z-10">
             Install Trippo as an app on Windows:
           </p>
+          {isDashboardSubdomain && (
+            <p className="text-xs text-blue-700 mb-3">
+              Tip: install while on this dashboard subdomain so it opens without browser chrome.
+            </p>
+          )}
           
           <ol className="text-sm text-gray-700 space-y-2.5 mb-5 list-decimal list-inside relative z-10 pl-2">
             <li className="leading-relaxed">Click the <strong className="text-gray-900">Install</strong> icon <span className="text-blue-600 font-bold">⊕</span> in the address bar, or</li>
