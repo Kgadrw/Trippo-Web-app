@@ -70,6 +70,14 @@ interface Sale {
   paymentMethod?: string;
 }
 
+interface Expense {
+  id?: number;
+  _id?: string;
+  title: string;
+  amount: number;
+  date: string;
+}
+
 interface BulkSaleFormData {
   product: string;
   quantity: string;
@@ -347,6 +355,10 @@ const Dashboard = () => {
       console.error("Error with sales:", error);
     },
   });
+  const { items: expenses, refresh: refreshExpenses } = useApi<Expense>({
+    endpoint: "expenses",
+    defaultValue: [],
+  });
 
   // Refresh products and sales every time dashboard is opened (only once on mount)
   useEffect(() => {
@@ -354,6 +366,7 @@ const Dashboard = () => {
     // Force refresh products and sales to get real data from API (bypass cache)
     refreshProducts(true);
     refreshSales(true);
+    refreshExpenses(true);
     window.dispatchEvent(new CustomEvent('page-opened'));
     // Note: useApi hook will handle the actual refresh via the event listener
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -414,13 +427,21 @@ const Dashboard = () => {
       return saleDate === today;
     });
     
+    const todayExpenses = expenses.filter((expense) => {
+      const d = new Date(expense.date);
+      const expenseDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      return expenseDate === today;
+    });
+
     // Calculate totals from today's sales
     const totalItems = todaySales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
     const totalRevenue = todaySales.reduce((sum, sale) => sum + (sale.revenue || 0), 0);
-    const totalProfit = todaySales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
+    const grossProfit = todaySales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
+    const totalExpenses = todayExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+    const totalProfit = grossProfit - totalExpenses;
     
     return { totalItems, totalRevenue, totalProfit };
-  }, [sales]);
+  }, [sales, expenses]);
 
   const [mobileRevenuePeriod, setMobileRevenuePeriod] = useState<RevenuePeriod>("today");
 
@@ -435,11 +456,18 @@ const Dashboard = () => {
       if (t === null) return false;
       return t >= startMs && t <= endMs;
     });
+    const filteredExpenses = expenses.filter((expense) => {
+      const t = new Date(expense.date).getTime();
+      if (isNaN(t)) return false;
+      return t >= startMs && t <= endMs;
+    });
 
     const totalRevenue = filtered.reduce((sum, s) => sum + (s.revenue || 0), 0);
-    const totalProfit = filtered.reduce((sum, s) => sum + (s.profit || 0), 0);
+    const grossProfit = filtered.reduce((sum, s) => sum + (s.profit || 0), 0);
+    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalProfit = grossProfit - totalExpenses;
     return { totalRevenue, totalProfit };
-  }, [sales, mobileRevenuePeriod]);
+  }, [sales, expenses, mobileRevenuePeriod]);
 
   const mobileRevenueProfitLabels = useMemo(() => {
     switch (mobileRevenuePeriod) {

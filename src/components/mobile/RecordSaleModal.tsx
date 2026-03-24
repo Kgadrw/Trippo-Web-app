@@ -267,7 +267,6 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   const [serviceName, setServiceName] = useState("");
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [serviceAmount, setServiceAmount] = useState("");
-  const [serviceCost, setServiceCost] = useState("0");
   const [quantity, setQuantity] = useState("1");
   const [sellingPrice, setSellingPrice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -281,7 +280,6 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       setServiceName("");
       setSelectedWorkerId("");
       setServiceAmount("");
-      setServiceCost("0");
       setSelectedProduct("");
       setQuantity("1");
       setSellingPrice("");
@@ -376,12 +374,11 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       }
 
       const amount = parseFloat(serviceAmount);
-      const costValue = parseFloat(serviceCost || "0");
-      if (isNaN(amount) || amount <= 0 || isNaN(costValue) || costValue < 0) {
+      if (isNaN(amount) || amount <= 0) {
         playErrorBeep();
         toast({
           title: isRw ? "Amafaranga atari yo" : "Invalid Amount",
-          description: isRw ? "Amafaranga ya serivisi agomba kurenza 0 kandi ikiguzi ntikigomba kuba munsi ya 0." : "Service amount must be greater than 0 and cost cannot be negative.",
+          description: isRw ? "Amafaranga ya serivisi agomba kurenza 0." : "Service amount must be greater than 0.",
           variant: "destructive",
         });
         return;
@@ -414,8 +411,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
           product: serviceName.trim(),
           quantity: 1,
           revenue: amount,
-          cost: costValue,
-          profit: amount - costValue,
+          cost: 0,
+          profit: 0,
           date: saleDateTime.toISOString(),
           timestamp: new Date().toISOString(),
           paymentMethod,
@@ -438,7 +435,6 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
         setServiceName("");
         setSelectedWorkerId("");
         setServiceAmount("");
-        setServiceCost("0");
         setPaymentMethod("cash");
         setSaleDate(new Date().toISOString().split("T")[0]);
 
@@ -855,17 +851,6 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                       onChange={(e) => setServiceAmount(e.target.value)}
                       className="h-10 text-base bg-gray-50 border-gray-200"
                       placeholder={isRw ? "Amafaranga" : "Amount"}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Ikiguzi (rwf)" : "Cost (rwf)"}</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={serviceCost}
-                      onChange={(e) => setServiceCost(e.target.value)}
-                      className="h-10 text-base bg-gray-50 border-gray-200"
-                      placeholder="0"
                     />
                   </div>
                 </div>

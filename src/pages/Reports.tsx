@@ -55,9 +55,18 @@ interface Sale {
   serviceName?: string;
 }
 
+interface Expense {
+  id?: number;
+  _id?: string;
+  title: string;
+  amount: number;
+  date: string;
+  category?: string;
+}
+
 const Reports = () => {
-  const { t } = useTranslation();
-  const isRw = t("language") === "rw";
+  const { t, language } = useTranslation();
+  const isRw = language === "rw";
   const { toast } = useToast();
   const {
     isLoading: productsLoading,
@@ -97,6 +106,10 @@ const Reports = () => {
         variant: "destructive",
       });
     },
+  });
+  const { items: expenses } = useApi<Expense>({
+    endpoint: "expenses",
+    defaultValue: [],
   });
 
   const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -143,6 +156,22 @@ const Reports = () => {
       return true;
     });
   }, [sales, startDate, endDate]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!startDate && !endDate) return expenses;
+    return expenses.filter((expense) => {
+      const expenseDate = new Date(expense.date);
+      expenseDate.setHours(0, 0, 0, 0);
+      const start = startDate ? new Date(startDate) : null;
+      if (start) start.setHours(0, 0, 0, 0);
+      const end = endDate ? new Date(endDate) : null;
+      if (end) end.setHours(23, 59, 59, 999);
+      if (start && end) return expenseDate >= start && expenseDate <= end;
+      if (start) return expenseDate >= start;
+      if (end) return expenseDate <= end;
+      return true;
+    });
+  }, [expenses, startDate, endDate]);
 
   // Aggregate sales data by product
   const salesByProduct = useMemo(() => {
@@ -302,24 +331,25 @@ const Reports = () => {
 
   const totalRevenue = salesByProduct.reduce((sum, item) => sum + item.revenue, 0);
   const totalCost = salesByProduct.reduce((sum, item) => sum + item.cost, 0);
-  const totalProfit = salesByProduct.reduce((sum, item) => sum + item.profit, 0);
+  const grossProfit = salesByProduct.reduce((sum, item) => sum + item.profit, 0);
+  const totalExpenses = filteredExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const totalProfit = grossProfit - totalExpenses;
   const totalQuantity = salesByProduct.reduce((sum, item) => sum + item.quantity, 0);
   const bestSelling = salesByProduct.length > 0 
     ? salesByProduct.reduce((best, item) => item.quantity > best.quantity ? item : best)
     : { product: "N/A", quantity: 0 };
 
   const salesByBarber = useMemo(() => {
-    const map: Record<string, { barber: string; services: number; revenue: number; profit: number }> = {};
+    const map: Record<string, { barber: string; services: number; revenue: number }> = {};
     filteredSales
       .filter((s) => s.saleType === "service" || !!s.workerName)
       .forEach((sale) => {
         const barber = sale.workerName || "Unassigned";
         if (!map[barber]) {
-          map[barber] = { barber, services: 0, revenue: 0, profit: 0 };
+          map[barber] = { barber, services: 0, revenue: 0 };
         }
         map[barber].services += sale.quantity || 1;
         map[barber].revenue += sale.revenue || 0;
-        map[barber].profit += sale.profit || 0;
       });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
   }, [filteredSales]);
@@ -736,7 +766,7 @@ const Reports = () => {
                 <TrendingUp className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{t("totalProfit")}</p>
+                <p className="text-xs text-muted-foreground">{isRw ? "Inyungu isigaye" : "Net Profit"}</p>
                 <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalProfit.toLocaleString()}</p>
               </div>
             </div>
@@ -745,14 +775,9 @@ const Reports = () => {
                 <Trophy className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">
-                  {t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
-                </p>
+                <p className="text-xs text-muted-foreground">{isRw ? "Amafaranga yakoreshejwe" : "Total Expenses"}</p>
                 <p className="mt-1 truncate text-lg font-medium text-foreground">
-                  {bestSelling.product.split(" ").slice(0, 2).join(" ")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {bestSelling.quantity} {t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}
+                  {totalExpenses.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -960,7 +985,6 @@ const Reports = () => {
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -969,7 +993,6 @@ const Reports = () => {
                         <td className="py-3 px-3 text-sm text-gray-900">{row.product}</td>
                         <td className="py-3 px-3 text-sm text-gray-700">{row.quantity}</td>
                         <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
-                        <td className="py-3 px-3 text-sm text-gray-700">{row.profit.toLocaleString()} rwf</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1007,7 +1030,6 @@ const Reports = () => {
                         {t("language") === "rw" ? "Serivisi" : "Services"}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -1016,7 +1038,6 @@ const Reports = () => {
                         <td className="py-3 px-3 text-sm text-gray-900">{row.barber}</td>
                         <td className="py-3 px-3 text-sm text-gray-700">{row.services}</td>
                         <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
-                        <td className="py-3 px-3 text-sm text-gray-700">{row.profit.toLocaleString()} rwf</td>
                       </tr>
                     ))}
                   </tbody>

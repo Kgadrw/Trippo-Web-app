@@ -1,6 +1,6 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, saleApi, clientApi, scheduleApi } from "@/lib/api";
+import { productApi, saleApi, clientApi, scheduleApi, expenseApi } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
 import { initDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 import { websocketManager } from "@/lib/websocketManager";
 
 interface UseApiOptions<T> {
-  endpoint: 'products' | 'sales' | 'clients' | 'schedules';
+  endpoint: 'products' | 'sales' | 'clients' | 'schedules' | 'expenses';
   defaultValue: T[];
   onError?: (error: Error) => void;
 }
@@ -80,7 +80,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           await clearStore(storeName);
           // Clear cache as well
           const cacheKey = `/${endpoint}`;
-          apiCache.delete(cacheKey);
+          apiCache.invalidate(cacheKey);
         } catch (clearError) {
           // Log but don't fail - continue with API fetch
           console.warn("Error clearing IndexedDB on user change:", clearError);
@@ -272,6 +272,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await clientApi.getAll();
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.getAll();
+        } else if (endpoint === 'expenses') {
+          response = await expenseApi.getAll();
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -351,7 +353,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
             
             // ✅ For products, replace all IndexedDB data with fresh server data (no merge)
             // This ensures we don't show deleted products or stale data
-            if (endpoint === 'products') {
+            if ((endpoint as string) === 'products') {
               // Clear existing products first
               try {
                 await clearStore(storeName);
@@ -768,7 +770,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
         delete (itemData as any)._id;
         
         // Ensure timestamp is present for sales
-        if (!itemData.timestamp) {
+        if (!(itemData as any).timestamp) {
           (itemData as any).timestamp = new Date().toISOString();
         }
         
@@ -792,9 +794,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
           const syncedItem = mapItem(responseData);
           
           // Ensure timestamp is preserved
-          if (!syncedItem.timestamp && (item as any).timestamp) {
+          if (!(syncedItem as any).timestamp && (item as any).timestamp) {
             (syncedItem as any).timestamp = (item as any).timestamp;
-          } else if (!syncedItem.timestamp) {
+          } else if (!(syncedItem as any).timestamp) {
             (syncedItem as any).timestamp = new Date().toISOString();
           }
           
@@ -886,7 +888,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       delete (itemData as any)._id;
       
       // Ensure timestamp is present for sales (preserve if exists, add if missing)
-      if (endpoint === 'sales' && !itemData.timestamp) {
+      if ((endpoint as string) === 'sales' && !(itemData as any).timestamp) {
         (itemData as any).timestamp = new Date().toISOString();
       }
       
@@ -900,6 +902,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await clientApi.create(itemData);
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.create(itemData);
+        } else if (endpoint === 'expenses') {
+          response = await expenseApi.create(itemData);
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -924,10 +928,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
         const syncedItem = mapItem(responseData);
         
         // Ensure timestamp is preserved for sales (use server timestamp if available, otherwise use original)
-        if (endpoint === 'sales') {
-          if (!syncedItem.timestamp && (item as any).timestamp) {
+        if ((endpoint as string) === 'sales') {
+          if (!(syncedItem as any).timestamp && (item as any).timestamp) {
             (syncedItem as any).timestamp = (item as any).timestamp;
-          } else if (!syncedItem.timestamp) {
+          } else if (!(syncedItem as any).timestamp) {
             (syncedItem as any).timestamp = new Date().toISOString();
           }
         }
@@ -1152,6 +1156,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await clientApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'expenses') {
+          response = await expenseApi.update(itemId.toString(), itemData);
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -1292,6 +1298,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           await clientApi.delete(itemId.toString());
         } else if (endpoint === 'schedules') {
           await scheduleApi.delete(itemId.toString());
+        } else if (endpoint === 'expenses') {
+          await expenseApi.delete(itemId.toString());
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -1376,7 +1384,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
         delete (itemData as any)._id;
         
         // Ensure timestamp is present for each sale (preserve if exists, add if missing)
-        if (!itemData.timestamp) {
+        if (!(itemData as any).timestamp) {
           (itemData as any).timestamp = new Date().toISOString();
         }
         
@@ -1414,9 +1422,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
           const mapped = mapItem(responseItem);
           
           // Ensure timestamp is preserved for sales (use server timestamp if available, otherwise use original)
-          if (!mapped.timestamp && itemsToAdd[index] && (itemsToAdd[index] as any).timestamp) {
+          if (!(mapped as any).timestamp && itemsToAdd[index] && (itemsToAdd[index] as any).timestamp) {
             (mapped as any).timestamp = (itemsToAdd[index] as any).timestamp;
-          } else if (!mapped.timestamp) {
+          } else if (!(mapped as any).timestamp) {
             (mapped as any).timestamp = new Date().toISOString();
           }
           

@@ -83,7 +83,7 @@ class ApiCacheManager {
   }
 
   // Invalidate all caches for a store (e.g., invalidate all sales-related caches)
-  public invalidateStore(store: 'products' | 'sales' | 'clients' | 'schedules'): void {
+  public invalidateStore(store: 'products' | 'sales' | 'clients' | 'schedules' | 'expenses'): void {
     const keysToDelete: string[] = [];
     
     this.cache.forEach((_, key) => {

@@ -4,6 +4,7 @@ import {
   Package,
   ShoppingCart,
   FileText,
+  Wallet,
   UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ const getMenuItems = (t: (key: string) => string) => {
     { icon: Package, label: "Services", path: "/products" },
     { icon: UserRound, label: "Barbers", path: "/barbers" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
+    { icon: Wallet, label: "Expenses", path: "/expenses" },
     { icon: FileText, label: t("reports"), path: "/reports" },
   ];
 };

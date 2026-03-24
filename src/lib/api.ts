@@ -774,6 +774,40 @@ export const scheduleApi = {
   },
 };
 
+// Expense API functions
+export const expenseApi = {
+  async getAll(params?: { startDate?: string; endDate?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/expenses?${queryString}` : "/expenses";
+    return request(url, { method: "GET" });
+  },
+
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/expenses/${id}`, { method: "GET" });
+  },
+
+  async create(data: any): Promise<ApiResponse> {
+    return request("/expenses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: any): Promise<ApiResponse> {
+    return request(`/expenses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/expenses/${id}`, { method: "DELETE" });
+  },
+};
+
 // Notification API functions
 export const notificationApi = {
   // Get all notifications for the current user

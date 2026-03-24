@@ -5,6 +5,7 @@ import {
   Package,
   ShoppingCart,
   FileText,
+  Wallet,
   Settings,
   LogOut,
   Pin,
@@ -34,6 +35,7 @@ const getMenuItems = (t: (key: string) => string) => {
     { icon: Package, label: "Services", path: "/products" },
     { icon: UserRound, label: "Barbers", path: "/barbers" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
+    { icon: Wallet, label: "Expenses", path: "/expenses" },
     { icon: FileText, label: t("reports"), path: "/reports" },
     { icon: Settings, label: t("settings"), path: "/settings" },
   ];
