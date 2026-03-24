@@ -130,6 +130,7 @@ const Clients = () => {
   const [newlyCreatedClientId, setNewlyCreatedClientId] = useState<string | null>(null);
   const [showAddScheduleDialog, setShowAddScheduleDialog] = useState(false);
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+  const [quickCreateMode, setQuickCreateMode] = useState<"client" | "worker" | null>(null);
 
   const getClientScheduleList = (clientId: string) => {
     return schedules
@@ -195,9 +196,13 @@ const Clients = () => {
     const params = new URLSearchParams(location.search);
     const create = params.get("create");
     if (create === "client") {
+      setQuickCreateMode("client");
       openAddModal("other");
     } else if (create === "worker") {
+      setQuickCreateMode("worker");
       openAddModal("worker");
+    } else {
+      setQuickCreateMode(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
@@ -377,6 +382,13 @@ const Clients = () => {
           {/* Filter Section */}
           <div className="lg:bg-white bg-white/80 backdrop-blur-sm border-b border-gray-200 px-4 py-4 flex-shrink-0">
             <div className="flex flex-col gap-4">
+              {quickCreateMode && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                  {quickCreateMode === "worker"
+                    ? "You are adding a worker for service sales. After saving, go to Record Sale > Service Sale and select this worker."
+                    : "You are adding a client. Fill the details, save, then use the client in schedules or records."}
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-gray-800">Manage Clients</h3>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -603,7 +615,13 @@ const Clients = () => {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="bg-card max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingClient ? "Edit Client" : "Add New Client"}</DialogTitle>
+            <DialogTitle>
+              {editingClient
+                ? "Edit Client"
+                : formData.clientType === "worker"
+                  ? "Add New Worker"
+                  : "Add New Client"}
+            </DialogTitle>
           </DialogHeader>
           
           <div className="py-4 space-y-4">
@@ -637,7 +655,11 @@ const Clients = () => {
               <Input
                 value={formData.businessType}
                 onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                placeholder="e.g., Starlink Internet Service, Construction Company, Retail Store, Worker Payment"
+                placeholder={
+                  formData.clientType === "worker"
+                    ? "e.g., Barber, Hair Stylist, Nail Technician"
+                    : "e.g., Starlink Internet Service, Construction Company, Retail Store"
+                }
                 className="input-field"
                 required
               />

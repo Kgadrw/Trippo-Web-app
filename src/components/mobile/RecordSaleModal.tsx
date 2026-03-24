@@ -262,7 +262,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   });
 
   const [selectedProduct, setSelectedProduct] = useState("");
-  const [saleType, setSaleType] = useState<"product" | "service">("product");
+  const [saleType, setSaleType] = useState<"product" | "service">("service");
   const [serviceName, setServiceName] = useState("");
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [serviceAmount, setServiceAmount] = useState("");
@@ -277,7 +277,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   // Reset form when modal opens/closes
   useEffect(() => {
     if (!open) {
-      setSaleType("product");
+      setSaleType("service");
       setServiceName("");
       setSelectedWorkerId("");
       setServiceAmount("");
@@ -771,7 +771,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                   <Plus size={18} className="text-white" />
                 </div>
-                <span>{t("recordNewSale")}</span>
+                <span>{t("language") === "rw" ? "Andika serivisi" : "Record Service"}</span>
               </span>
             </DialogTitle>
           </DialogHeader>
@@ -780,14 +780,16 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
           <div className="space-y-3">
             {/* Sale Type */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-gray-600">Sale Type</Label>
+              <Label className="text-xs font-medium text-gray-600">
+                {t("language") === "rw" ? "Ubwoko bw'ibyandikwa" : "Record Type"}
+              </Label>
               <Select value={saleType} onValueChange={(value: "product" | "service") => setSaleType(value)}>
                 <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="product">Product Sale</SelectItem>
                   <SelectItem value="service">Service Sale</SelectItem>
+                  <SelectItem value="product">Product Sale</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -804,7 +806,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">Barber / Worker</Label>
+                    <Label className="text-xs font-medium text-gray-600">Barber / Worker</Label>
                   <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
                     <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
                       <SelectValue placeholder="Select worker" />
@@ -822,7 +824,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                         })
                       ) : (
                         <SelectItem value="__no_worker__" disabled>
-                          No workers found. Add in Clients as Worker.
+                          No workers found. Add Worker first from Quick Actions.
                         </SelectItem>
                       )}
                     </SelectContent>

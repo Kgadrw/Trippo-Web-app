@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
-import { LowStockAlert } from "@/components/dashboard/LowStockAlert";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -457,14 +456,8 @@ const Dashboard = () => {
     }
   }, [mobileRevenuePeriod, t]);
   
-  const stockStats = useMemo(() => {
-    const totalStockValue = products.reduce(
-      (sum, product) => sum + product.costPrice * product.stock,
-      0
-    );
-    const totalItems = products.reduce((sum, product) => sum + product.stock, 0);
-    
-    return { totalStockValue, totalItems };
+  const serviceStats = useMemo(() => {
+    return { totalServices: products.length };
   }, [products]);
 
   // Get recent sales (last 10, sorted by date descending)
@@ -1291,9 +1284,9 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-4 gap-4">
             <KPICard
-              title={t("language") === "rw" ? "Ibintu by'uyu munsi" : "Today's Items"}
+              title={t("language") === "rw" ? "Serivisi z'uyu munsi" : "Services Today"}
               value={`${todayStats.totalItems}`}
-              subtitle={t("language") === "rw" ? "ibintu byagurishwe" : "items sold"}
+              subtitle={t("language") === "rw" ? "serivisi zakozwe" : "services recorded"}
               icon={ShoppingCart}
               valueColor="text-blue-600"
             />
@@ -1310,9 +1303,9 @@ const Dashboard = () => {
               valueColor="text-green-600"
             />
             <KPICard
-              title={t("language") === "rw" ? "Agaciro k'ibicuruzwa" : "Current Stock Value"}
-              value={`${stockStats.totalStockValue.toLocaleString()} rwf`}
-              subtitle={`${stockStats.totalItems} ${t("language") === "rw" ? "ibicuruzwa" : "items"}`}
+              title={t("language") === "rw" ? "Serivisi ziboneka" : "Active Services"}
+              value={`${serviceStats.totalServices}`}
+              subtitle={t("language") === "rw" ? "serivisi muri sisitemu" : "services in system"}
               icon={Package}
               valueColor="text-orange-600"
             />
@@ -1840,6 +1833,11 @@ const Dashboard = () => {
             <p className="text-xs text-gray-600 mb-4">
               {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
             </p>
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+              {t("language") === "rw"
+                ? "Kugurisha serivisi: 1) Ongeraho umukozi, 2) Jya kuri Record Sale, 3) Hitamo Service Sale n'umukozi."
+                : "For service sales: 1) Add Worker, 2) Open Record Sale, 3) choose Service Sale and select that worker."}
+            </div>
             
             <div className="grid grid-cols-2 gap-3">
               {/* Record Sale */}
@@ -1853,14 +1851,14 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* Add Product */}
+              {/* Add Service */}
               <Button
                 onClick={() => navigate("/products/add")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho icuruzwa" : "Add Product"}
+                  {t("language") === "rw" ? "Ongeraho serivisi" : "Add Service"}
                 </span>
               </Button>
 
@@ -1886,14 +1884,14 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* View Products */}
+              {/* View Services */}
               <Button
                 onClick={() => navigate("/products")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-sm hover:shadow-md transition-all"
               >
                 <Package size={18} />
                 <span className="text-xs font-medium">
-                  {t("products")}
+                  {t("language") === "rw" ? "Serivisi" : "Services"}
                 </span>
               </Button>
 
@@ -1943,6 +1941,11 @@ const Dashboard = () => {
             <p className="text-xs text-gray-600 mb-4">
               {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
             </p>
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+              {t("language") === "rw"
+                ? "Kugurisha serivisi: 1) Ongeraho umukozi, 2) Jya kuri Record Sale, 3) Hitamo Service Sale n'umukozi."
+                : "For service sales: 1) Add Worker, 2) Open Record Sale, 3) choose Service Sale and select that worker."}
+            </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {/* Record Sale */}
@@ -1956,14 +1959,14 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* Add Product */}
+              {/* Add Service */}
               <Button
                 onClick={() => navigate("/products/add")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho icuruzwa" : "Add Product"}
+                  {t("language") === "rw" ? "Ongeraho serivisi" : "Add Service"}
                 </span>
               </Button>
 
@@ -1989,14 +1992,14 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* View Products */}
+              {/* View Services */}
               <Button
                 onClick={() => navigate("/products")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-sm hover:shadow-md transition-all"
               >
                 <Package size={18} />
                 <span className="text-xs font-medium">
-                  {t("products")}
+                  {t("language") === "rw" ? "Serivisi" : "Services"}
                 </span>
               </Button>
 
@@ -2034,14 +2037,7 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Low Stock Alert - Desktop Only */}
-        <div className="hidden lg:block">
-          {isLoading ? (
-            <LowStockSkeleton />
-          ) : (
-            <LowStockAlert />
-          )}
-        </div>
+        {/* Salon-first mode: inventory low-stock panel hidden */}
       </div>
 
       {/* Recent Sales Table */}
