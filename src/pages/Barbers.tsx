@@ -24,7 +24,7 @@ interface Barber {
 
 export default function Barbers() {
   const { toast } = useToast();
-  const { items, add, update, remove, refresh } = useApi<Barber>({
+  const { items, isLoading, add, update, remove, refresh } = useApi<Barber>({
     endpoint: "clients",
     defaultValue: [],
   });
@@ -36,6 +36,7 @@ export default function Barbers() {
   const [category, setCategory] = useState("");
 
   const barbers = useMemo(() => {
+    // Strictly keep barber/worker records only to avoid mixing with other client types
     const workers = items.filter((x) => x.clientType === "worker");
     if (!query.trim()) return workers;
     const q = query.toLowerCase();
@@ -112,6 +113,10 @@ export default function Barbers() {
   return (
     <AppLayout title="Barbers">
       <div className="space-y-4">
+        <div className="rounded-lg border bg-blue-50 border-blue-200 p-3 text-sm text-blue-800">
+          This page manages <strong>only barbers/workers</strong>. Add, edit, or delete here and the list updates immediately.
+        </div>
+
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -128,30 +133,38 @@ export default function Barbers() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {barbers.map((b) => {
-            const id = (b as any)._id || b.id;
-            return (
-              <div key={id} className="rounded-lg border bg-white p-4 flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2 font-medium text-gray-900">
-                    <UserRound size={16} />
-                    {b.name}
+        {isLoading ? (
+          <div className="rounded-lg border bg-white p-6 text-sm text-gray-600">Loading barbers...</div>
+        ) : barbers.length === 0 ? (
+          <div className="rounded-lg border bg-white p-6 text-sm text-gray-600">
+            No barbers found. Click <strong>Add Barber</strong> to create one.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {barbers.map((b) => {
+              const id = (b as any)._id || b.id;
+              return (
+                <div key={id} className="rounded-lg border bg-white p-4 flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 font-medium text-gray-900">
+                      <UserRound size={16} />
+                      {b.name}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{b.businessType || "Barber"}</p>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{b.businessType || "Barber"}</p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="hover:bg-gray-100" onClick={() => openEdit(b)}>
+                      <Pencil size={14} />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(b)}>
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" className="hover:bg-gray-100" onClick={() => openEdit(b)}>
-                    <Pencil size={14} />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(b)}>
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
