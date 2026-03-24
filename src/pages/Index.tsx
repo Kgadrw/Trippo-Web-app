@@ -314,10 +314,10 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 };
 
 const Dashboard = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const isRw = t("language") === "rw";
+  const isRw = language === "rw";
   const {
     items: products,
     isLoading: productsLoading,
@@ -1318,9 +1318,9 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-4 gap-4">
             <KPICard
-              title={t("language") === "rw" ? "Serivisi z'uyu munsi" : "Services Today"}
+              title={isRw ? "Serivisi z'uyu munsi" : "Services Today"}
               value={`${todayStats.totalItems}`}
-              subtitle={t("language") === "rw" ? "serivisi zakozwe" : "services recorded"}
+              subtitle={isRw ? "serivisi zakozwe" : "services recorded"}
               icon={ShoppingCart}
               valueColor="text-blue-600"
             />
@@ -1337,9 +1337,9 @@ const Dashboard = () => {
               valueColor="text-green-600"
             />
             <KPICard
-              title={t("language") === "rw" ? "Serivisi ziboneka" : "Active Services"}
+              title={isRw ? "Serivisi ziboneka" : "Active Services"}
               value={`${serviceStats.totalServices}`}
-              subtitle={t("language") === "rw" ? "serivisi muri sisitemu" : "services in system"}
+              subtitle={isRw ? "serivisi muri sisitemu" : "services in system"}
               icon={Package}
               valueColor="text-orange-600"
             />
@@ -1570,7 +1570,7 @@ const Dashboard = () => {
                       return id.toString() === selectedProduct;
                     });
                     if (product?.isPackage && packageSaleMode === "wholePackage") {
-                      return t("language") === "rw" ? "Igipaki" : "Package";
+                      return isRw ? "Igipaki" : "Package";
                     }
                     return t("quantity");
                   })()}
@@ -1706,7 +1706,7 @@ const Dashboard = () => {
                 return (
                   <div className="space-y-2">
                     <Label className="text-white">
-                      {t("language") === "rw" ? "Uburyo bwo kugurisha" : "Sale Mode"}
+                      {isRw ? "Uburyo bwo kugurisha" : "Sale Mode"}
                     </Label>
                     <Select
                       value={packageSaleMode}
@@ -1717,10 +1717,10 @@ const Dashboard = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="quantity">
-                          {t("language") === "rw" ? "Kugurisha ku mubare" : "Sell by Quantity"}
+                          {isRw ? "Kugurisha ku mubare" : "Sell by Quantity"}
                         </SelectItem>
                         <SelectItem value="wholePackage">
-                          {t("language") === "rw" ? "Kugurisha igipaki cyose" : "Sell Whole Package"}
+                          {isRw ? "Kugurisha igipaki cyose" : "Sell Whole Package"}
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -1863,11 +1863,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
               <h3 className="text-base font-semibold text-gray-900">
-                {t("language") === "rw" ? "Ibyibanze" : "Quick Actions"}
+                {isRw ? "Ibyibanze" : "Quick Actions"}
               </h3>
             </div>
             <p className="text-xs text-gray-600 mb-4">
-              {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
+              {isRw ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
             </p>
             
             
@@ -1879,7 +1879,7 @@ const Dashboard = () => {
               >
                 <Package size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Serivisi" : "Services"}
+                  {isRw ? "Serivisi" : "Services"}
                 </span>
               </Button>
 
@@ -1890,7 +1890,7 @@ const Dashboard = () => {
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Andika serivisi" : "Record Service"}
+                  {isRw ? "Andika serivisi" : "Record Service"}
                 </span>
               </Button>
 
@@ -1901,7 +1901,7 @@ const Dashboard = () => {
               >
                 <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Umwogoshi" : "Barbers"}
+                  {isRw ? "Umwogoshi" : "Barbers"}
                 </span>
               </Button>
 
@@ -1937,11 +1937,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
               <h3 className="text-base font-semibold text-gray-900">
-                {t("language") === "rw" ? "Ibyibanze" : "Quick Actions"}
+                {isRw ? "Ibyibanze" : "Quick Actions"}
               </h3>
             </div>
             <p className="text-xs text-gray-600 mb-4">
-              {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
+              {isRw ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
             </p>
             
             
@@ -1953,7 +1953,7 @@ const Dashboard = () => {
               >
                 <Package size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Serivisi" : "Services"}
+                  {isRw ? "Serivisi" : "Services"}
                 </span>
               </Button>
 
@@ -1964,7 +1964,7 @@ const Dashboard = () => {
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Andika serivisi" : "Record Service"}
+                  {isRw ? "Andika serivisi" : "Record Service"}
                 </span>
               </Button>
 
@@ -1975,7 +1975,7 @@ const Dashboard = () => {
               >
                 <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Umwogoshi" : "Barbers"}
+                  {isRw ? "Umwogoshi" : "Barbers"}
                 </span>
               </Button>
 
@@ -2015,11 +2015,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-gray-600" />
               <h3 className="text-lg font-semibold text-gray-900">
-                {t("language") === "rw" ? "Serivisi zatanzwe" : "Recent Sales"}
+                {isRw ? "Serivisi zatanzwe" : "Recent Sales"}
               </h3>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {t("language") === "rw" ? "Iminsi uyu munsi" : "Last 10 sales"}
+              {isRw ? "Iminsi uyu munsi" : "Last 10 sales"}
             </p>
           </div>
           
@@ -2172,10 +2172,10 @@ const Dashboard = () => {
               <div className="flex flex-col items-center justify-center text-gray-400">
                 <ShoppingCart size={48} className="mb-4 opacity-50" />
                 <p className="text-base font-medium">
-                  {t("language") === "rw" ? "Nta bucuruzi bugezweho" : "No recent sales"}
+                  {isRw ? "Nta bucuruzi bugezweho" : "No recent sales"}
                 </p>
                 <p className="text-sm mt-1">
-                  {t("language") === "rw" ? "Serivisi zatanzwe zizagaragara hano" : "Recent sales will appear here"}
+                  {isRw ? "Serivisi zatanzwe zizagaragara hano" : "Recent sales will appear here"}
                 </p>
               </div>
             </div>

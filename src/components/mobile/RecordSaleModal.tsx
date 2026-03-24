@@ -238,8 +238,8 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 };
 
 export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSaleModalProps) {
-  const { t } = useTranslation();
-  const isRw = t("language") === "rw";
+  const { t, language } = useTranslation();
+  const isRw = language === "rw";
   const { toast } = useToast();
   const { isOnline } = useOffline();
   const {
@@ -779,7 +779,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                   <Plus size={18} className="text-white" />
                 </div>
-                <span>{t("language") === "rw" ? "Andika serivisi" : "Record Service"}</span>
+                <span>{isRw ? "Andika serivisi" : "Record Service"}</span>
               </span>
             </DialogTitle>
           </DialogHeader>

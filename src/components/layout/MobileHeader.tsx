@@ -34,7 +34,7 @@ interface Product {
 
 export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   const { user } = useCurrentUser();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const subdomain = useSubdomain();
@@ -218,7 +218,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1">
             <span className="text-sm text-muted-foreground">
-              {t("language") === "rw" ? "Muraho" : "Hi,"}
+              {language === "rw" ? "Muraho" : "Hi,"}
             </span>
             <span className="text-sm font-semibold text-foreground truncate">
               {firstName}
