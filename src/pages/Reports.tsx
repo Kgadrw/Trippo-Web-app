@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { KPICard } from "@/components/dashboard/KPICard";
-import { ProductRankingPyramid } from "@/components/reports/ProductRankingPyramid";
-import { MarketAnalysis } from "@/components/dashboard/MarketAnalysis";
-import { DollarSign, TrendingUp, Package, Download, BarChart3, Trophy, Filter } from "lucide-react";
+import { Banknote, Download, Package, TrendingUp, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { playInfoBeep, initAudio } from "@/lib/sound";
 import { useApi } from "@/hooks/useApi";
@@ -22,10 +19,10 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
-import { cn } from "@/lib/utils";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -59,7 +56,6 @@ const Reports = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const {
-    items: products,
     isLoading: productsLoading,
   } = useApi<Product>({
     endpoint: "products",
@@ -110,7 +106,6 @@ const Reports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reportType, setReportType] = useState("weekly");
-  const [showFilters, setShowFilters] = useState<boolean>(false);
 
 
   // Filter sales by date range
@@ -167,45 +162,6 @@ const Reports = () => {
 
     return Object.values(aggregated).sort((a, b) => b.revenue - a.revenue);
   }, [filteredSales]);
-
-  // Calculate product rankings by purchase frequency (quantity sold) - only for products in stock
-  const productRankings = useMemo(() => {
-    const productSales: Record<string, { productId: string; productName: string; totalQuantity: number; stock: number }> = {};
-    
-    // Aggregate sales by product
-    filteredSales.forEach(sale => {
-      const productIdentifier = sale.product;
-      
-      // Find product by ID or name
-      const product = products.find(p => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === productIdentifier || p.name === productIdentifier;
-      });
-      
-      // Only process if product exists and is in stock
-      if (product && product.stock > 0) {
-        const productId = ((product as any)._id || product.id).toString();
-        
-        if (!productSales[productId]) {
-          productSales[productId] = {
-            productId,
-            productName: product.name,
-            totalQuantity: 0,
-            stock: product.stock,
-          };
-        }
-        
-        productSales[productId].totalQuantity += sale.quantity;
-      }
-    });
-
-    // Convert to array, sort by quantity (descending), and return top products
-    return Object.values(productSales)
-      .sort((a, b) => b.totalQuantity - a.totalQuantity)
-      .slice(0, 10); // Top 10 products for pyramid
-  }, [filteredSales, products]);
-
-
 
   // Prepare sales over time data based on report type
   const salesOverTimeData = useMemo(() => {
@@ -680,59 +636,32 @@ const Reports = () => {
   };
 
 
-  // Reports Page Skeleton
   const ReportsSkeleton = () => (
-    <AppLayout title="Reports">
-      <div className="flex flex-col space-y-6 pb-6">
-        {/* Report Filters Skeleton */}
-        <div className="form-card border-transparent lg:bg-white bg-white/80 backdrop-blur-md">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-10 w-full rounded-lg" />
+    <AppLayout title={t("reports")}>
+      <div className="mx-auto max-w-5xl space-y-6 pb-8">
+        <div className="rounded-lg border border-border bg-white p-5">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex gap-3">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-7 w-24" />
+                </div>
               </div>
             ))}
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Skeleton className="h-10 w-full sm:w-32 rounded-lg" />
-            <Skeleton className="h-10 w-full sm:w-32 rounded-lg" />
+        </div>
+        <div className="rounded-lg border border-border bg-white p-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-10 w-full rounded-md" />
+            ))}
           </div>
         </div>
-
-        {/* Report Summary Cards Skeleton */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="kpi-card">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-8 w-32" />
-                </div>
-                <div className="ml-4 shrink-0">
-                  <Skeleton className="w-12 h-12 rounded" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Charts Section Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6 overflow-x-auto">
-            <div className="flex items-center gap-2 mb-6">
-              <Skeleton className="w-5 h-5 rounded" />
-              <Skeleton className="h-6 w-48" />
-            </div>
-            <Skeleton className="h-96 w-full rounded" />
-          </div>
-          <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Skeleton className="w-5 h-5 rounded" />
-              <Skeleton className="h-6 w-48" />
-            </div>
-            <Skeleton className="h-96 w-full rounded" />
-          </div>
+        <div className="rounded-lg border border-border bg-white p-4">
+          <Skeleton className="mb-4 h-4 w-48" />
+          <Skeleton className="h-80 w-full rounded" />
         </div>
       </div>
     </AppLayout>
@@ -742,303 +671,251 @@ const Reports = () => {
     return <ReportsSkeleton />;
   }
 
-  return (
-    <AppLayout title="Reports">
-      <div className="flex flex-col space-y-6 pb-6">
-      {/* Report Summary Cards - Mobile First */}
-      <div className="lg:hidden">
-        <div className="text-xs text-gray-500 mb-2 text-center">
-          {t("language") === "rw" ? "Agaciro kose ni Rwf" : "All amounts in Rwf"}
-        </div>
-        <div className="grid grid-cols-2 gap-4 mb-2">
-            <KPICard
-              title={t("totalRevenue")}
-              value={totalRevenue.toLocaleString()}
-              icon={DollarSign}
-            />
-            <KPICard
-              title={t("language") === "rw" ? "Agaciro" : "Total Cost"}
-              value={totalCost.toLocaleString()}
-              icon={Package}
-            />
-            <KPICard
-              title={t("totalProfit")}
-              value={totalProfit.toLocaleString()}
-              icon={TrendingUp}
-            />
-            <KPICard
-              title={t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
-              value={bestSelling.product.split(" ").slice(0, 2).join(" ")}
-              subtitle={`${bestSelling.quantity} ${t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}`}
-              icon={Package}
-            />
-          </div>
-      </div>
+  const reportTypeLabel =
+    reportType === "daily"
+      ? t("language") === "rw"
+        ? "Buri munsi"
+        : "Daily"
+      : reportType === "weekly"
+        ? t("language") === "rw"
+          ? "Buri cyumweru"
+          : "Weekly"
+        : t("language") === "rw"
+          ? "Buri kwezi"
+          : "Monthly";
 
-      {/* Report Filters */}
-      <div className="form-card border-transparent">
-        {/* Mobile Filter Section */}
-        <div className="lg:hidden mb-4 space-y-3">
-          {/* Filter Icon Button and Export Buttons */}
-          <div className="flex items-center justify-center gap-2">
-            <Button
-              onClick={() => setShowFilters(!showFilters)}
-              variant="outline"
-              className={cn(
-                "bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-3 py-2",
-                showFilters && "bg-blue-50 border-blue-300 text-blue-700"
-              )}
-            >
-              <Filter size={18} />
-            </Button>
-            {/* Export Buttons on Same Line */}
-            <Button onClick={() => handleExport("pdf")} className="bg-red-500 text-white hover:bg-red-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2">
-              <Download size={16} />
-              {t("exportPdf")}
-            </Button>
-            <Button onClick={() => handleExport("excel")} className="bg-green-500 text-white hover:bg-green-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2">
-              <Download size={16} />
-              {t("exportExcel")}
-            </Button>
-          </div>
-          
-          {/* Filter Options - Collapsible */}
-          {showFilters && (
-            <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
-              <div className="grid grid-cols-1 gap-3">
-                <div className="space-y-2">
-                  <Label>{t("startDate")}</Label>
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("endDate")}</Label>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Report Type</Label>
-                  <Select value={reportType} onValueChange={setReportType}>
-                    <SelectTrigger className="input-field">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+  return (
+    <AppLayout title={t("reports")}>
+      <div className="mx-auto max-w-5xl space-y-8 pb-8">
+        {/* Summary */}
+        <div className="rounded-lg border border-border bg-white px-4 py-5 sm:px-6">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            <div className="flex min-w-0 gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                <Banknote className="h-5 w-5" aria-hidden />
               </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{t("totalRevenue")}</p>
+                <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="flex min-w-0 gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <Package className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{t("language") === "rw" ? "Agaciro" : "Total Cost"}</p>
+                <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalCost.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="flex min-w-0 gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <TrendingUp className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{t("totalProfit")}</p>
+                <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalProfit.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="flex min-w-0 gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                <Trophy className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">
+                  {t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
+                </p>
+                <p className="mt-1 truncate text-lg font-medium text-foreground">
+                  {bestSelling.product.split(" ").slice(0, 2).join(" ")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {bestSelling.quantity} {t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-normal text-muted-foreground">{t("startDate")}</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="h-9 border-border bg-background"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-normal text-muted-foreground">{t("endDate")}</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="h-9 border-border bg-background"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+                <Label className="text-xs font-normal text-muted-foreground">
+                  {t("language") === "rw" ? "Ubwoko bw'raporo" : "Report type"}
+                </Label>
+                <Select value={reportType} onValueChange={setReportType}>
+                  <SelectTrigger className="h-9 border-border bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">{t("language") === "rw" ? "Buri munsi" : "Daily"}</SelectItem>
+                    <SelectItem value="weekly">{t("language") === "rw" ? "Buri cyumweru" : "Weekly"}</SelectItem>
+                    <SelectItem value="monthly">{t("language") === "rw" ? "Buri kwezi" : "Monthly"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => handleExport("pdf")}>
+                <Download className="h-3.5 w-3.5" />
+                {t("exportPdf")}
+              </Button>
+              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => handleExport("excel")}>
+                <Download className="h-3.5 w-3.5" />
+                {t("exportExcel")}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Single overview chart: revenue, profit (Rwf) + quantity (units) */}
+        <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
+          <h3 className="mb-1 text-sm font-medium text-foreground">
+            {t("language") === "rw" ? "Incamake y'ubucuruzi" : "Sales overview"}
+          </h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {t("revenue")}, {t("profit")}, {t("quantity")} · {reportTypeLabel}
+          </p>
+          {salesOverTimeData.length > 0 ? (
+            <div className="w-full overflow-x-auto">
+              <ResponsiveContainer width="100%" minWidth={300} height={380}>
+                <ComposedChart
+                  data={salesOverTimeData}
+                  margin={{ top: 8, right: 12, left: 4, bottom: reportType === "daily" ? 72 : 56 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="monthDay"
+                    tick={{ fontSize: reportType === "daily" ? 9 : 11, fill: "#6b7280" }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={reportType === "daily" ? 100 : 80}
+                    interval={
+                      reportType === "daily"
+                        ? Math.max(0, Math.floor(salesOverTimeData.length / 12) - 1)
+                        : 0
+                    }
+                    tickFormatter={(value) => {
+                      if (reportType === "daily") {
+                        const item = salesOverTimeData.find((d) => d.monthDay === value);
+                        if (item) {
+                          const date = new Date(item.date);
+                          return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                        }
+                      }
+                      return value;
+                    }}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    tickFormatter={(value) => {
+                      if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+                      if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
+                      return `${value}`;
+                    }}
+                    label={{
+                      value: "Rwf",
+                      angle: -90,
+                      position: "insideLeft",
+                      style: { fill: "#9ca3af", fontSize: 11 },
+                    }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    label={{
+                      value: t("quantity"),
+                      angle: 90,
+                      position: "insideRight",
+                      style: { fill: "#9ca3af", fontSize: 11 },
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                      padding: "10px",
+                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    }}
+                    labelStyle={{ color: "#374151", fontWeight: 600, marginBottom: "4px" }}
+                    labelFormatter={(value) => {
+                      const item = salesOverTimeData.find((d) => d.monthDay === value);
+                      if (!item) return value;
+                      if (reportType === "daily") {
+                        const date = new Date(item.date);
+                        return date.toLocaleDateString("en-US", {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        });
+                      }
+                      return item.label;
+                    }}
+                    formatter={(value: number, name: string) => {
+                      if (name === "revenue") return [`rwf ${value.toLocaleString()}`, t("revenue")];
+                      if (name === "profit") return [`rwf ${value.toLocaleString()}`, t("profit")];
+                      if (name === "quantity") return [value.toLocaleString(), t("quantity")];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: "16px" }} />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="revenue"
+                    fill="#3b82f6"
+                    name={t("revenue")}
+                    radius={[2, 2, 0, 0]}
+                    maxBarSize={48}
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="profit"
+                    fill="#10b981"
+                    name={t("profit")}
+                    radius={[2, 2, 0, 0]}
+                    maxBarSize={48}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="quantity"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: "#f59e0b" }}
+                    name={t("quantity")}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+              {t("language") === "rw" ? "Nta makuru y'ubucuruzi aboneka" : "No sales data available"}
             </div>
           )}
         </div>
-
-        {/* Desktop Filter Section */}
-        <div className="hidden lg:grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="space-y-2">
-            <Label>{t("startDate")}</Label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t("endDate")}</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Report Type</Label>
-            <Select value={reportType} onValueChange={setReportType}>
-              <SelectTrigger className="input-field">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="hidden lg:flex flex-col sm:flex-row gap-3">
-          <Button onClick={() => handleExport("pdf")} className="bg-red-500 text-white hover:bg-red-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
-            <Download size={16} />
-            {t("exportPdf")}
-          </Button>
-          <Button onClick={() => handleExport("excel")} className="bg-green-500 text-white hover:bg-green-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 w-full sm:w-auto">
-            <Download size={16} />
-            {t("exportExcel")}
-          </Button>
-        </div>
-      </div>
-
-      {/* Report Summary Cards - Desktop */}
-          <div className="hidden lg:block">
-            <div className="text-xs text-gray-500 mb-2">
-              {t("language") === "rw" ? "Agaciro kose ni Rwf" : "All amounts in Rwf"}
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-              <KPICard
-                title={t("totalRevenue")}
-                value={totalRevenue.toLocaleString()}
-                icon={DollarSign}
-              />
-              <KPICard
-                title={t("language") === "rw" ? "Agaciro" : "Total Cost"}
-                value={totalCost.toLocaleString()}
-                icon={Package}
-              />
-              <KPICard
-                title={t("totalProfit")}
-                value={totalProfit.toLocaleString()}
-                icon={TrendingUp}
-              />
-              <KPICard
-                title={t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Best-Selling Product"}
-                value={bestSelling.product.split(" ").slice(0, 2).join(" ")}
-                subtitle={`${bestSelling.quantity} ${t("language") === "rw" ? "ibintu byagurishwe" : "units sold"}`}
-                icon={Package}
-              />
-            </div>
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Sales Over Time Histogram - Based on Report Type */}
-            <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <BarChart3 size={20} className="text-gray-600 shrink-0" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-800 text-center">
-                  {t("salesTrend")} - {reportType === "daily" ? (t("language") === "rw" ? "Buri munsi" : "Daily") : reportType === "weekly" ? (t("language") === "rw" ? "Buri cyumweru" : "Weekly") : (t("language") === "rw" ? "Buri kwezi" : "Monthly")}
-                </h3>
-              </div>
-              {salesOverTimeData.length > 0 ? (
-                <div className="w-full flex justify-center overflow-x-auto">
-                  <ResponsiveContainer width="100%" minWidth={300} height={400}>
-                  <BarChart data={salesOverTimeData} margin={{ top: 20, right: 30, left: 20, bottom: reportType === "daily" ? 80 : 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey={reportType === "monthly" ? "monthDay" : reportType === "weekly" ? "monthDay" : "monthDay"}
-                      tick={{ fontSize: reportType === "daily" ? 9 : 11, fill: '#6b7280' }}
-                      angle={reportType === "daily" ? -45 : -45}
-                      textAnchor="end"
-                      height={reportType === "daily" ? 100 : 80}
-                      interval={reportType === "daily" ? Math.max(0, Math.floor(salesOverTimeData.length / 12) - 1) : reportType === "weekly" ? 0 : 0}
-                      tickFormatter={(value) => {
-                        if (reportType === "daily") {
-                          const item = salesOverTimeData.find(d => d.monthDay === value);
-                          if (item) {
-                            const date = new Date(item.date);
-                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                          }
-                        }
-                        return value;
-                      }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 12, fill: '#6b7280' }}
-                      tickFormatter={(value) => {
-                        if (value >= 1000000) return `rwf ${(value / 1000000).toFixed(1)}M`;
-                        if (value >= 1000) return `rwf ${(value / 1000).toFixed(0)}k`;
-                        return `rwf ${value}`;
-                      }}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        padding: '10px',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                      }}
-                      labelStyle={{ color: '#374151', fontWeight: 600, marginBottom: '4px' }}
-                      labelFormatter={(value) => {
-                        const item = salesOverTimeData.find(d => d.monthDay === value);
-                        if (!item) return value;
-                        
-                        if (reportType === "daily") {
-                          const date = new Date(item.date);
-                          return date.toLocaleDateString('en-US', { 
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          });
-                        } else if (reportType === "weekly") {
-                          return item.label;
-                        } else {
-                          return item.label;
-                        }
-                      }}
-                      formatter={(value: number, name: string) => {
-                        if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("revenue")];
-                        if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("profit")];
-                        return [value, name];
-                      }}
-                    />
-                    <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
-                      iconType="rect"
-                    />
-                    <Bar dataKey="revenue" fill="#3b82f6" name={t("revenue")} radius={[2, 2, 0, 0]} />
-                    <Bar dataKey="profit" fill="#10b981" name={t("profit")} radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-[400px] text-gray-500">
-                  {t("language") === "rw" ? "Nta makuru y'ubucuruzi aboneka" : "No sales data available"}
-                      </div>
-              )}
-            </div>
-
-            {/* Product Rankings Pyramid */}
-            <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <Trophy size={20} className="text-gray-600 shrink-0" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-800 text-center">
-                  {t("language") === "rw" ? "Icuruzwa cyagurishwe cyane" : "Product Rankings by Sales"}
-                </h3>
-              </div>
-              <div className="flex justify-center">
-                <ProductRankingPyramid rankings={productRankings} />
-              </div>
-            </div>
-          </div>
-
-          {/* AI Market Analysis */}
-          <div className="mt-6 w-full">
-            {productsLoading || salesLoading ? (
-              <div className="bg-white/80 backdrop-blur-md lg:bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-                <Skeleton className="h-6 w-48 mb-3" />
-                <Skeleton className="h-32 w-full" />
-              </div>
-            ) : (
-              <div className="w-full">
-                <MarketAnalysis 
-                  sales={sales} 
-                  products={products}
-                  isLoading={productsLoading || salesLoading}
-                />
-              </div>
-            )}
-          </div>
       </div>
     </AppLayout>
   );

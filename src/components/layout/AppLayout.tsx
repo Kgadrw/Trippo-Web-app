@@ -16,11 +16,11 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const location = useLocation();
   const subdomain = useSubdomain();
 
-  /** Merchant dashboard home: hide bottom bar unless user is admin (admin subdomain uses AdminLayout + AdminBottomNav for `/`). */
+  /** Dashboard (IMS): bottom bar only on home `/`. Other subdomains keep the bar on all pages. */
   const showBottomNav = useMemo(() => {
-    const isAdmin = typeof window !== "undefined" && localStorage.getItem("profit-pilot-is-admin") === "true";
-    const isMerchantDashboardHome = subdomain === "dashboard" && location.pathname === "/";
-    if (isMerchantDashboardHome && !isAdmin) return false;
+    if (subdomain === "dashboard") {
+      return location.pathname === "/";
+    }
     return true;
   }, [subdomain, location.pathname]);
 
@@ -179,7 +179,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         />
       </div>
 
-      {/* Bottom Navigation - hidden on merchant dashboard home; admins still see it */}
+      {/* Bottom Navigation - dashboard subdomain: only on home `/`; admin & main domain: all pages */}
       {showBottomNav && (
         <div className="lg:hidden">
           <BottomNav />

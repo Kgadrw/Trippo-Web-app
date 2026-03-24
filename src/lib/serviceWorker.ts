@@ -58,15 +58,15 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
           }
         });
 
-        // Only reload once when controller changes (not on every change)
-        let hasReloaded = false;
+        // Never force page reload on controller changes.
+        // Auto-reload can get stuck in refresh loops on some browsers/environments.
         const handleControllerChange = () => {
-          if (!hasReloaded && navigator.serviceWorker.controller) {
-            hasReloaded = true;
-            console.log("Service Worker controller changed, reloading to use new version");
-            // Remove listener to prevent multiple reloads
+          if (navigator.serviceWorker.controller) {
+            console.log("Service Worker controller changed. Update is ready and will apply on next navigation.");
+            // Remove listener to avoid duplicate logs/events.
             navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-            window.location.reload();
+            // Let UI decide how to notify users (toast/banner) without hard-refreshing.
+            window.dispatchEvent(new CustomEvent("sw-update-ready"));
           }
         };
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Bell, ArrowLeft, CheckCheck, ChevronDown, Package, AlertTriangle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { notificationService } from "@/lib/notifications";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StockUpdateDialog } from "@/components/StockUpdateDialog";
 import { useApi } from "@/hooks/useApi";
+import { useSubdomain } from "@/hooks/useSubdomain";
 
 interface MobileHeaderProps {
   onNotificationClick?: () => void;
@@ -184,8 +185,18 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
-      {/* Left side - Account Info */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
+      {/* Left side - Back (IMS inner pages) + Account Info */}
+      <div className="flex items-center gap-2 flex-1 min-w-0 sm:gap-3">
+        {showDashboardBack && (
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60"
+            aria-label="Back to dashboard"
+          >
+            <ArrowLeft className="h-6 w-6" strokeWidth={2.25} />
+          </button>
+        )}
         <Avatar className="h-10 w-10 rounded-full border-2 border-blue-600 flex-shrink-0 bg-white">
           <AvatarFallback className="bg-white text-blue-600 font-bold border-0">
             {userInitials}
