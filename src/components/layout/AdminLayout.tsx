@@ -176,7 +176,7 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
           // On mobile, no margin (bottom nav instead of sidebar)
           // On desktop, adjust based on sidebar state
           isMobile 
-            ? "ml-0 pb-16" // Add bottom padding for bottom nav
+            ? "ml-0 pb-24" // Extra room for taller floating bottom nav
             : "lg:ml-0",
           !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed 
             ? "lg:ml-56" 

@@ -74,6 +74,26 @@ interface Sale {
   date: string;
 }
 
+interface Service {
+  id?: number;
+  _id?: string;
+  name: string;
+  category?: string;
+  defaultPrice?: number;
+  isActive?: boolean;
+}
+
+interface Client {
+  id?: number;
+  _id?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  businessType?: string;
+  clientType?: "debtor" | "worker" | "other";
+  notes?: string;
+}
+
 type SortOption = "newest" | "oldest" | "name-asc" | "name-desc" | "price-asc" | "price-desc" | "stock-asc" | "stock-desc";
 
 interface ProductFormData {
@@ -133,6 +153,30 @@ const Products = () => {
       console.log("Error loading sales:", error);
     },
   });
+  const {
+    items: services,
+    add: addService,
+    remove: removeService,
+    refresh: refreshServices,
+  } = useApi<Service>({
+    endpoint: "services",
+    defaultValue: [],
+    onError: (error) => {
+      console.log("Error loading services:", error);
+    },
+  });
+  const {
+    items: clients,
+    add: addClient,
+    remove: removeClient,
+    refresh: refreshClients,
+  } = useApi<Client>({
+    endpoint: "clients",
+    defaultValue: [],
+    onError: (error) => {
+      console.log("Error loading clients:", error);
+    },
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -141,6 +185,20 @@ const Products = () => {
   const [productTypeFilter, setProductTypeFilter] = useState<string>("all");
   const [packageFilter, setPackageFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+  const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
+  const [serviceForm, setServiceForm] = useState({
+    name: "",
+    category: "",
+    defaultPrice: "",
+  });
+  const [workerForm, setWorkerForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    businessType: "",
+    notes: "",
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
@@ -225,6 +283,10 @@ const Products = () => {
     const types = new Set(products.map(p => p.productType).filter(Boolean));
     return Array.from(types).sort();
   }, [products]);
+
+  const workers = useMemo(() => {
+    return clients.filter((c) => c.clientType === "worker");
+  }, [clients]);
 
   const filteredProducts = useMemo(() => {
     // Always exclude products with stock = 0 from the product list
@@ -317,6 +379,107 @@ const Products = () => {
     setProductTypeFilter("all");
     setPackageFilter("all");
     setSortBy("newest");
+  };
+
+  const handleAddService = async () => {
+    if (!serviceForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Service name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await addService({
+        name: serviceForm.name.trim(),
+        category: serviceForm.category.trim() || undefined,
+        defaultPrice: serviceForm.defaultPrice ? Number(serviceForm.defaultPrice) : undefined,
+      } as any);
+      await refreshServices(true);
+      setServiceDialogOpen(false);
+      setServiceForm({ name: "", category: "", defaultPrice: "" });
+      toast({
+        title: "Service Added",
+        description: "Service created successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Add Failed",
+        description: error?.message || "Failed to create service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteService = async (service: Service) => {
+    if (!window.confirm(`Delete service "${service.name}"?`)) return;
+    try {
+      await removeService(service as any);
+      await refreshServices(true);
+      toast({
+        title: "Service Deleted",
+        description: "Service deleted successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Delete Failed",
+        description: error?.message || "Failed to delete service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddWorker = async () => {
+    if (!workerForm.name.trim() || !workerForm.email.trim() || !workerForm.businessType.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Name, email, and business type are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await addClient({
+        name: workerForm.name.trim(),
+        email: workerForm.email.trim(),
+        phone: workerForm.phone.trim() || undefined,
+        businessType: workerForm.businessType.trim(),
+        clientType: "worker",
+        notes: workerForm.notes.trim() || undefined,
+      } as any);
+      await refreshClients(true);
+      setWorkerDialogOpen(false);
+      setWorkerForm({ name: "", email: "", phone: "", businessType: "", notes: "" });
+      toast({
+        title: "Worker Added",
+        description: "Worker created successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Add Failed",
+        description: error?.message || "Failed to create worker.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteWorker = async (worker: Client) => {
+    if (!window.confirm(`Delete worker "${worker.name}"?`)) return;
+    try {
+      await removeClient(worker as any);
+      await refreshClients(true);
+      toast({
+        title: "Worker Deleted",
+        description: "Worker deleted successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Delete Failed",
+        description: error?.message || "Failed to delete worker.",
+        variant: "destructive",
+      });
+    }
   };
 
   const openAddModal = () => {
@@ -769,6 +932,91 @@ const Products = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Services and Workers management inside Products page */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800">Services</h3>
+            <Button
+              onClick={() => setServiceDialogOpen(true)}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus size={14} className="mr-1" />
+              Add Service
+            </Button>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-auto">
+            {services.length > 0 ? (
+              services.map((service) => {
+                const serviceId = (service as any)._id || service.id;
+                return (
+                  <div key={serviceId} className="flex items-center justify-between rounded border border-gray-200 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{service.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {service.category || "No category"} {service.defaultPrice ? `• ${service.defaultPrice.toLocaleString()} rwf` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDeleteService(service)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-gray-500">No services yet.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800">Workers / Barbers</h3>
+            <Button
+              onClick={() => setWorkerDialogOpen(true)}
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Plus size={14} className="mr-1" />
+              Add Worker
+            </Button>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-auto">
+            {workers.length > 0 ? (
+              workers.map((worker) => {
+                const workerId = (worker as any)._id || worker.id;
+                return (
+                  <div key={workerId} className="flex items-center justify-between rounded border border-gray-200 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{worker.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {worker.email || "No email"} {worker.phone ? `• ${worker.phone}` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDeleteWorker(worker)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-gray-500">No workers yet.</p>
+            )}
           </div>
         </div>
       </div>
@@ -1688,6 +1936,103 @@ const Products = () => {
                     ? `Delete ${selectedProducts.size} Product(s)`
                     : "Delete Product"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Service Dialog */}
+      <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Service</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Service Name *</Label>
+              <Input
+                value={serviceForm.name}
+                onChange={(e) => setServiceForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Hair Cut"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Category</Label>
+              <Input
+                value={serviceForm.category}
+                onChange={(e) => setServiceForm((prev) => ({ ...prev, category: e.target.value }))}
+                placeholder="e.g. Barbering"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Default Price (rwf)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={serviceForm.defaultPrice}
+                onChange={(e) => setServiceForm((prev) => ({ ...prev, defaultPrice: e.target.value }))}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setServiceDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddService} className="bg-blue-600 hover:bg-blue-700 text-white">Save Service</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Worker Dialog */}
+      <Dialog open={workerDialogOpen} onOpenChange={setWorkerDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Worker</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Name *</Label>
+              <Input
+                value={workerForm.name}
+                onChange={(e) => setWorkerForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Worker name"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={workerForm.email}
+                onChange={(e) => setWorkerForm((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="worker@example.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Phone</Label>
+              <Input
+                value={workerForm.phone}
+                onChange={(e) => setWorkerForm((prev) => ({ ...prev, phone: e.target.value }))}
+                placeholder="+250..."
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Business Type *</Label>
+              <Input
+                value={workerForm.businessType}
+                onChange={(e) => setWorkerForm((prev) => ({ ...prev, businessType: e.target.value }))}
+                placeholder="e.g. Barber"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Notes</Label>
+              <Input
+                value={workerForm.notes}
+                onChange={(e) => setWorkerForm((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWorkerDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddWorker} className="bg-green-600 hover:bg-green-700 text-white">Save Worker</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

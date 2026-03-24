@@ -196,7 +196,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           isMobile 
             ? cn(
                 "ml-0 pt-20",
-                showBottomNav ? "pb-16" : "pb-6" // less padding when bottom nav is hidden
+                showBottomNav ? "pb-24" : "pb-6" // extra room for taller floating bottom nav
               )
             : "lg:ml-0 transition-all duration-300",
           !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed 

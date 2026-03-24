@@ -73,12 +73,12 @@ export function AdminBottomNav({ activeSection, onSectionChange }: AdminBottomNa
   return (
     <>
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 border-t border-blue-500/40 bg-blue-600 lg:hidden"
+        className="fixed bottom-4 left-3 right-3 z-50 rounded-2xl border border-blue-500/40 bg-blue-600 shadow-md shadow-blue-900/20 lg:hidden"
         style={{ 
-          paddingBottom: 'max(0.65rem, calc(env(safe-area-inset-bottom) + 0.35rem))',
+          paddingBottom: 'max(0.5rem, calc(env(safe-area-inset-bottom) + 0.25rem))',
         }}
       >
-        <div className="flex h-12 items-center justify-around px-1">
+        <div className="flex h-14 items-center justify-around px-1.5">
           {adminMenuItems.map((item) => {
             const isActive = activeSection === item.section;
             return (
@@ -86,21 +86,21 @@ export function AdminBottomNav({ activeSection, onSectionChange }: AdminBottomNa
                 key={item.section}
                 onClick={() => onSectionChange(item.section)}
                 className={cn(
-                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 transition-colors",
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-1 transition-colors",
                   isActive 
                     ? "text-white" 
                     : "text-blue-200 hover:text-white"
                 )}
               >
                 <item.icon 
-                  size={18} 
+                  size={20} 
                   className={cn(
                     "transition-colors",
                     isActive ? "text-white" : "text-blue-200"
                   )} 
                 />
                 <span className={cn(
-                  "text-[10px] font-medium leading-tight transition-colors",
+                  "text-[11px] font-medium leading-tight transition-colors",
                   isActive ? "text-white" : "text-blue-200"
                 )}>
                   {item.label}
@@ -114,8 +114,8 @@ export function AdminBottomNav({ activeSection, onSectionChange }: AdminBottomNa
             onClick={handleLogoutClick}
             className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 transition-colors text-red-200 hover:text-red-100"
           >
-            <LogOut size={18} className="transition-colors" />
-            <span className="text-[10px] font-medium leading-tight transition-colors">
+            <LogOut size={20} className="transition-colors" />
+            <span className="text-[11px] font-medium leading-tight transition-colors">
               Logout
             </span>
           </button>
