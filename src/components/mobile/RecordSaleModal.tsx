@@ -262,7 +262,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   });
 
   const [selectedProduct, setSelectedProduct] = useState("");
-  const [saleType, setSaleType] = useState<"product" | "service">("service");
+  const saleType: "service" = "service";
   const [serviceName, setServiceName] = useState("");
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [serviceAmount, setServiceAmount] = useState("");
@@ -277,7 +277,6 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   // Reset form when modal opens/closes
   useEffect(() => {
     if (!open) {
-      setSaleType("service");
       setServiceName("");
       setSelectedWorkerId("");
       setServiceAmount("");
@@ -784,24 +783,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
 
           {/* Compact Form */}
           <div className="space-y-3">
-            {/* Sale Type */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-gray-600">
-                {t("language") === "rw" ? "Ubwoko bw'ibyandikwa" : "Record Type"}
-              </Label>
-              <Select value={saleType} onValueChange={(value: "product" | "service") => setSaleType(value)}>
-                <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="service">Service Sale</SelectItem>
-                  <SelectItem value="product">Product Sale</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {saleType === "service" ? (
-              <>
+            <>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-gray-600">Service Name</Label>
                   <Select
@@ -910,248 +892,14 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                     />
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-            {/* Product Selection */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-gray-600">{t("selectProduct")}</Label>
-              <ProductCombobox
-                value={selectedProduct}
-                onValueChange={handleProductChange}
-                products={products}
-                placeholder="Search product..."
-                className="h-10 text-base"
-                onError={(message) => {
-                  playErrorBeep();
-                  toast({
-                    title: "Product Out of Stock",
-                    description: message,
-                    variant: "destructive",
-                  });
-                }}
-              />
-              {selectedProduct && (() => {
-                const product = products.find(p => {
-                  const id = (p as any)._id || p.id;
-                  return id.toString() === selectedProduct;
-                });
-                return (
-                  <p className="text-xs text-gray-500">
-                    Stock: {product?.stock || 0}
-                    {product?.isPackage && product.packageQuantity && (
-                      <span className="ml-2">• Box of {product.packageQuantity}</span>
-                    )}
-                  </p>
-                );
-              })()}
-            </div>
-
-            {/* Package Sale Mode Selector - Only for package products */}
-            {selectedProduct && (() => {
-              const product = products.find(p => {
-                const id = (p as any)._id || p.id;
-                return id.toString() === selectedProduct;
-              });
-              if (product?.isPackage && product.packageQuantity) {
-                return (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">
-                      {t("language") === "rw" ? "Uburyo bwo kugurisha" : "Sale Mode"}
-                    </Label>
-                    <Select
-                      value={packageSaleMode}
-                      onValueChange={(value: "quantity" | "wholePackage") => setPackageSaleMode(value)}
-                    >
-                      <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="quantity">
-                          {t("language") === "rw" ? "Kugurisha ku mubare" : "Sell by Quantity"}
-                        </SelectItem>
-                        <SelectItem value="wholePackage">
-                          {t("language") === "rw" ? "Kugurisha igipaki cyose" : "Sell Whole Package"}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-
-            {/* Quantity and Price in Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">
-                  {selectedProduct && (() => {
-                    const product = products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    });
-                    if (product?.isPackage && packageSaleMode === "wholePackage") {
-                      return t("language") === "rw" ? "Igipaki" : "Package";
-                    }
-                    return t("quantity");
-                  })()}
-                </Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max={selectedProduct ? products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  })?.stock || 0 : undefined}
-                  value={selectedProduct && (() => {
-                    const product = products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    });
-                    if (product?.isPackage && packageSaleMode === "wholePackage") {
-                      return product.packageQuantity?.toString() || "1";
-                    }
-                    return quantity;
-                  })()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === "") {
-                      setQuantity("");
-                      return;
-                    }
-                    const numValue = parseInt(value);
-                    if (selectedProduct) {
-                      const product = products.find(p => {
-                        const id = (p as any)._id || p.id;
-                        return id.toString() === selectedProduct;
-                      });
-                      if (product && numValue > product.stock) {
-                        setQuantity(product.stock.toString());
-                        playErrorBeep();
-                        toast({
-                          title: "Maximum Quantity",
-                          description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available.`,
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                    }
-                    setQuantity(value);
-                  }}
-                  disabled={selectedProduct && (() => {
-                    const product = products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    });
-                    return product?.isPackage && packageSaleMode === "wholePackage";
-                  })()}
-                  className="h-10 text-base bg-gray-50 border-gray-200"
-                  placeholder="Qty"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">Price (rwf)</Label>
-                <Input
-                  type="number"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                  className="h-10 text-base bg-gray-50 border-gray-200"
-                  placeholder="Price"
-                />
-                {selectedProduct && (() => {
-                  const product = products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  });
-                  if (product?.isPackage && product.packageQuantity) {
-                    return (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {packageSaleMode === "wholePackage"
-                          ? (product.priceType === "perPackage"
-                              ? `Price for whole package (${product.packageQuantity} items)`
-                              : `Price per item × ${product.packageQuantity} = ${(parseFloat(sellingPrice) || 0) * product.packageQuantity} rwf`)
-                          : (product.priceType === "perPackage"
-                              ? `Price per item (${product.sellingPrice} ÷ ${product.packageQuantity})`
-                              : `Price per individual item`)}
-                      </p>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-            </div>
-
-            {/* Payment and Date in Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">Payment</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">{t("cash")}</SelectItem>
-                    <SelectItem value="momo">{t("momoPay")}</SelectItem>
-                    <SelectItem value="card">{t("card")}</SelectItem>
-                    <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
-                    <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">Date</Label>
-                <Input
-                  type="date"
-                  value={saleDate}
-                  onChange={(e) => setSaleDate(e.target.value)}
-                  className="h-10 text-base bg-gray-50 border-gray-200"
-                />
-              </div>
-            </div>
-
-            {/* Profit Preview - Compact */}
-            {selectedProduct && quantity && sellingPrice && parseInt(quantity) > 0 && parseFloat(sellingPrice) > 0 && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
-                {(() => {
-                  const product = products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  });
-                  if (!product) return null;
-                  const qty = parseInt(quantity) || 0;
-                  const price = parseFloat(sellingPrice) || 0;
-                  const revenue = qty * price;
-                  const cost = qty * product.costPrice;
-                  const profit = revenue - cost;
-                  
-                  return (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-600">Revenue</p>
-                        <p className="text-sm font-semibold text-gray-900">rwf {revenue.toLocaleString()}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-gray-600">Profit</p>
-                        <p className={`text-sm font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {profit >= 0 ? '+' : ''}rwf {profit.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-              </>
-            )}
+            </>
 
             {/* Submit Button */}
             <Button 
               onClick={handleRecordSale} 
               disabled={
                 isRecordingSale ||
-                (saleType === "product"
-                  ? (!selectedProduct || !quantity || !sellingPrice)
-                  : (!serviceName.trim() || !selectedWorkerId || !serviceAmount))
+                (!serviceName.trim() || !selectedWorkerId || !serviceAmount)
               }
               className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-md hover:shadow-lg transition-all rounded-lg gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >

@@ -113,10 +113,6 @@ export default function Barbers() {
   return (
     <AppLayout title="Barbers">
       <div className="space-y-4">
-        <div className="rounded-lg border bg-blue-50 border-blue-200 p-3 text-sm text-blue-800">
-          This page manages <strong>only barbers/workers</strong>. Add, edit, or delete here and the list updates immediately.
-        </div>
-
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
