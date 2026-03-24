@@ -1863,7 +1863,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
               <h3 className="text-base font-semibold text-gray-900">
-                {t("language") === "rw" ? "Ibyemezo byihuse" : "Quick Actions"}
+                {t("language") === "rw" ? "Ibyibanze" : "Quick Actions"}
               </h3>
             </div>
             <p className="text-xs text-gray-600 mb-4">
@@ -1901,18 +1901,7 @@ const Dashboard = () => {
               >
                 <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Abakozi" : "Barbers"}
-                </span>
-              </Button>
-
-              {/* View Services */}
-              <Button
-                onClick={() => navigate("/products")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Package size={18} />
-                <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Serivisi" : "Services"}
+                  {t("language") === "rw" ? "Umwogoshi" : "Barbers"}
                 </span>
               </Button>
 
@@ -1948,7 +1937,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
               <h3 className="text-base font-semibold text-gray-900">
-                {t("language") === "rw" ? "Ibyemezo byihuse" : "Quick Actions"}
+                {t("language") === "rw" ? "Ibyibanze" : "Quick Actions"}
               </h3>
             </div>
             <p className="text-xs text-gray-600 mb-4">
@@ -1986,18 +1975,7 @@ const Dashboard = () => {
               >
                 <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Abakozi" : "Barbers"}
-                </span>
-              </Button>
-
-              {/* View Services */}
-              <Button
-                onClick={() => navigate("/products")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Package size={18} />
-                <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Serivisi" : "Services"}
+                  {t("language") === "rw" ? "Umwogoshi" : "Barbers"}
                 </span>
               </Button>
 

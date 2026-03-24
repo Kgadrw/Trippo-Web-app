@@ -702,6 +702,7 @@ const Reports = () => {
         : t("language") === "rw"
           ? "Buri kwezi"
           : "Monthly";
+  const topBarber = salesByBarber[0];
 
   return (
     <AppLayout title={t("reports")}>
@@ -936,34 +937,96 @@ const Reports = () => {
           )}
         </div>
 
-        <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
-          <h3 className="mb-3 text-sm font-medium text-foreground">Barber Performance</h3>
-          {salesByBarber.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead className="bg-gray-100 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Barber</th>
-                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Services</th>
-                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Revenue</th>
-                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Profit</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white">
-                  {salesByBarber.map((row) => (
-                    <tr key={row.barber} className="border-b border-gray-200">
-                      <td className="py-3 px-3 text-sm text-gray-900">{row.barber}</td>
-                      <td className="py-3 px-3 text-sm text-gray-700">{row.services}</td>
-                      <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
-                      <td className="py-3 px-3 text-sm text-gray-700">{row.profit.toLocaleString()} rwf</td>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
+            <h3 className="mb-1 text-sm font-medium text-foreground">
+              {t("language") === "rw" ? "Raporo ya serivisi" : "Service performance"}
+            </h3>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t("language") === "rw"
+                ? "Serivisi zagurishijwe cyane ukurikije amafaranga yinjiye"
+                : "Top services ranked by revenue"}
+            </p>
+            {salesByProduct.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead className="bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {t("language") === "rw" ? "Serivisi" : "Service"}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No barber service records found for the selected period.</p>
-          )}
+                  </thead>
+                  <tbody className="bg-white">
+                    {salesByProduct.slice(0, 10).map((row) => (
+                      <tr key={row.product} className="border-b border-gray-200">
+                        <td className="py-3 px-3 text-sm text-gray-900">{row.product}</td>
+                        <td className="py-3 px-3 text-sm text-gray-700">{row.quantity}</td>
+                        <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
+                        <td className="py-3 px-3 text-sm text-gray-700">{row.profit.toLocaleString()} rwf</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t("language") === "rw" ? "Nta makuru ya serivisi aboneka." : "No service records found."}
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
+            <h3 className="mb-1 text-sm font-medium text-foreground">
+              {t("language") === "rw" ? "Imikorere y'Umwogoshi" : "Barber performance"}
+            </h3>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {topBarber
+                ? (t("language") === "rw"
+                  ? `Uyoboye ni ${topBarber.barber} na rwf ${topBarber.revenue.toLocaleString()}`
+                  : `Top performer: ${topBarber.barber} with rwf ${topBarber.revenue.toLocaleString()}`)
+                : (t("language") === "rw"
+                  ? "Nta makuru y'abogoshi muri iki gihe."
+                  : "No barber records for this period.")}
+            </p>
+            {salesByBarber.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead className="bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {t("language") === "rw" ? "Umwogoshi" : "Barber"}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {t("language") === "rw" ? "Serivisi" : "Services"}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {salesByBarber.map((row) => (
+                      <tr key={row.barber} className="border-b border-gray-200">
+                        <td className="py-3 px-3 text-sm text-gray-900">{row.barber}</td>
+                        <td className="py-3 px-3 text-sm text-gray-700">{row.services}</td>
+                        <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
+                        <td className="py-3 px-3 text-sm text-gray-700">{row.profit.toLocaleString()} rwf</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t("language") === "rw"
+                  ? "Nta makuru y'Umwogoshi aboneka muri iki gihe."
+                  : "No barber service records found for the selected period."}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </AppLayout>
