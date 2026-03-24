@@ -29,7 +29,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Mail, Settings, UserRound } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Settings, UserRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
@@ -317,6 +317,7 @@ const Dashboard = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isRw = t("language") === "rw";
   const {
     items: products,
     isLoading: productsLoading,
@@ -636,8 +637,10 @@ const Dashboard = () => {
         setSellingPrice("");
         playWarningBeep();
         toast({
-          title: "Product Out of Stock",
-          description: `${product.name} is now out of stock and has been removed from selection.`,
+          title: isRw ? "Icuruzwa rirangiye muri stoki" : "Product Out of Stock",
+          description: isRw
+            ? `${product.name} ntikiboneka muri stoki kandi cyakuweho mu mahitamo.`
+            : `${product.name} is now out of stock and has been removed from selection.`,
           variant: "destructive",
         });
       }
@@ -682,8 +685,10 @@ const Dashboard = () => {
     if (product && product.stock <= 0) {
       playErrorBeep();
       toast({
-        title: "Product Out of Stock",
-        description: `${product.name} is currently out of stock and cannot be sold.`,
+        title: isRw ? "Icuruzwa rirangiye muri stoki" : "Product Out of Stock",
+        description: isRw
+          ? `${product.name} ntikiboneka muri stoki kandi ntigishobora kugurishwa.`
+          : `${product.name} is currently out of stock and cannot be sold.`,
         variant: "destructive",
       });
       setSelectedProduct("");
@@ -824,8 +829,10 @@ const Dashboard = () => {
         if (invalidSales.length > 0) {
           playErrorBeep();
           toast({
-            title: "Insufficient Stock",
-            description: `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
+            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            description: isRw
+              ? `Ntibishoboka kwandika ubu bucuruzi: ${invalidSales.join(', ')}. Ntushobora kugurisha birenze ibiri muri stoki.`
+              : `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
             variant: "destructive",
           });
           setIsRecordingSale(false);
@@ -897,8 +904,10 @@ const Dashboard = () => {
           playSaleBeep();
 
           // Extra desktop popup using Sonner
-          sonnerToast.success("Sales Recorded", {
-            description: `Successfully recorded ${salesToCreate.length} sale(s).`,
+          sonnerToast.success(isRw ? "Ubucuruzi bwanditswe" : "Sales Recorded", {
+            description: isRw
+              ? `Handitswe neza ubucuruzi ${salesToCreate.length}.`
+              : `Successfully recorded ${salesToCreate.length} sale(s).`,
           });
 
           // Reset bulk form
@@ -907,8 +916,10 @@ const Dashboard = () => {
       } else {
         playWarningBeep();
         toast({
-          title: "No Sales Recorded",
-          description: "Please fill in at least one complete sale entry.",
+          title: isRw ? "Nta bucuruzi bwanditswe" : "No Sales Recorded",
+          description: isRw
+            ? "Andika nibura ubucuruzi bumwe bwuzuye."
+            : "Please fill in at least one complete sale entry.",
           variant: "destructive",
         });
       }
@@ -918,8 +929,10 @@ const Dashboard = () => {
         // Play error beep immediately (we're in user interaction context)
         playErrorBeep();
         toast({
-          title: "Missing Information",
-          description: "Please fill in all required fields.",
+          title: isRw ? "Amakuru abura" : "Missing Information",
+          description: isRw
+            ? "Uzuza ibisabwa byose."
+            : "Please fill in all required fields.",
           variant: "destructive",
         });
         setIsRecordingSale(false);
@@ -972,8 +985,10 @@ const Dashboard = () => {
           if (isNaN(qty) || qty <= 0) {
             playErrorBeep();
             toast({
-              title: "Invalid Quantity",
-              description: "Please enter a valid quantity greater than 0.",
+              title: isRw ? "Umubare utari wo" : "Invalid Quantity",
+              description: isRw
+                ? "Andika umubare nyawo urenze 0."
+                : "Please enter a valid quantity greater than 0.",
               variant: "destructive",
             });
             setIsRecordingSale(false);
@@ -984,8 +999,10 @@ const Dashboard = () => {
           if (qty > product.stock || product.stock <= 0) {
             playErrorBeep();
             toast({
-              title: "Insufficient Stock",
-              description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+              title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+              description: isRw
+                ? `Hari gusa ${product.stock} ${product.stock === 1 ? 'ikintu' : 'ibintu'} muri stoki.`
+                : `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
               variant: "destructive",
             });
             setIsRecordingSale(false);
@@ -1022,8 +1039,10 @@ const Dashboard = () => {
         if (isNaN(qty) || qty <= 0) {
           playErrorBeep();
           toast({
-            title: "Invalid Quantity",
-            description: "Please enter a valid quantity greater than 0.",
+            title: isRw ? "Umubare utari wo" : "Invalid Quantity",
+            description: isRw
+              ? "Andika umubare nyawo urenze 0."
+              : "Please enter a valid quantity greater than 0.",
             variant: "destructive",
           });
           setIsRecordingSale(false);
@@ -1034,8 +1053,10 @@ const Dashboard = () => {
         if (qty > product.stock || product.stock <= 0) {
           playErrorBeep();
           toast({
-            title: "Insufficient Stock",
-            description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            description: isRw
+              ? `Hari gusa ${product.stock} ${product.stock === 1 ? 'ikintu' : 'ibintu'} muri stoki.`
+              : `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
             variant: "destructive",
           });
           setIsRecordingSale(false);
@@ -1078,8 +1099,10 @@ const Dashboard = () => {
         
         // Show success immediately (addSale already updates UI)
         playSaleBeep();
-        sonnerToast.success("Sale Recorded", {
-          description: `Successfully recorded sale of ${qty}x ${product.name}`,
+        sonnerToast.success(isRw ? "Ubucuruzi bwanditswe" : "Sale Recorded", {
+          description: isRw
+            ? `Handitswe neza: ${qty}x ${product.name}`
+            : `Successfully recorded sale of ${qty}x ${product.name}`,
         });
 
         // Reset form immediately for better UX
@@ -1135,12 +1158,24 @@ const Dashboard = () => {
         if (error?.response?.silent || error?.response?.connectionError || !navigator.onLine) {
           // Offline mode - treat as success
           playSaleBeep();
-          sonnerToast.success("Sale Recorded (Offline Mode)", {
-            description: errorProduct ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.` : "Sale recorded offline. Changes will sync when you're back online.",
+          sonnerToast.success(isRw ? "Ubucuruzi bwanditswe (nta interineti)" : "Sale Recorded (Offline Mode)", {
+            description: isRw
+              ? (errorProduct
+                ? `Handitswe neza: ${errorQty}x ${errorProduct.name}. Bizahuzwa interineti igarutse.`
+                : "Ubucuruzi bwanditswe nta interineti. Bizahuzwa interineti igarutse.")
+              : (errorProduct
+                ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.`
+                : "Sale recorded offline. Changes will sync when you're back online."),
           });
           toast({
-            title: "Sale Recorded (Offline Mode)",
-            description: errorProduct ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.` : "Sale recorded offline. Changes will sync when you're back online.",
+            title: isRw ? "Ubucuruzi bwanditswe (nta interineti)" : "Sale Recorded (Offline Mode)",
+            description: isRw
+              ? (errorProduct
+                ? `Handitswe neza: ${errorQty}x ${errorProduct.name}. Bizahuzwa interineti igarutse.`
+                : "Ubucuruzi bwanditswe nta interineti. Bizahuzwa interineti igarutse.")
+              : (errorProduct
+                ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.`
+                : "Sale recorded offline. Changes will sync when you're back online."),
           });
           
           // Reset form
@@ -1154,8 +1189,10 @@ const Dashboard = () => {
           playErrorBeep();
           console.error("Error recording sale:", error);
           toast({
-            title: "Record Failed",
-            description: error?.message || error?.response?.error || "Failed to record sale. Please check your connection and try again.",
+            title: isRw ? "Kwandika byanze" : "Record Failed",
+            description: error?.message || error?.response?.error || (isRw
+              ? "Kwandika ubucuruzi byanze. Reba interneti wongere ugerageze."
+              : "Failed to record sale. Please check your connection and try again."),
             variant: "destructive",
           });
         }
@@ -1224,7 +1261,7 @@ const Dashboard = () => {
   );
 
   return (
-    <AppLayout title="Dashboard">
+    <AppLayout title={t("dashboard")}>
       {/* Mobile: Period revenue (left) and profit (right) */}
       <div className="lg:hidden mb-6">
         {isLoading ? (
@@ -1346,7 +1383,9 @@ const Dashboard = () => {
           /* Bulk Add Form */
           <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-white/90">Add multiple sales at once</p>
+              <p className="text-sm text-white/90">
+                {isRw ? "Andika ubucuruzi bwinshi icyarimwe" : "Add multiple sales at once"}
+              </p>
               <Button
                 onClick={addBulkRow}
                 className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
@@ -1360,7 +1399,7 @@ const Dashboard = () => {
               <table className="w-full">
                 <thead className="bg-blue-600 border-b border-blue-700">
                   <tr>
-                    <th className="text-left p-2 text-xs font-medium text-white">Product</th>
+                    <th className="text-left p-2 text-xs font-medium text-white">{t("product")}</th>
                     <th className="text-left p-2 text-xs font-medium text-white">{t("quantity")}</th>
                     <th className="text-left p-2 text-xs font-medium text-white">{t("sellingPrice")} (rwf)</th>
                     <th className="text-left p-2 text-xs font-medium text-white">{t("paymentMethod")}</th>
@@ -1444,7 +1483,7 @@ const Dashboard = () => {
                           value={sale.sellingPrice}
                           onChange={(e) => updateBulkSale(index, "sellingPrice", e.target.value)}
                           className="input-field h-9"
-                          placeholder="Enter price"
+                          placeholder={isRw ? "Injiza igiciro" : "Enter price"}
                         />
                       </td>
                       <td className="p-2">
@@ -1899,14 +1938,6 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* Automate (email automations / schedules) */}
-              <Button
-                onClick={() => navigate("/schedules")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Mail size={18} />
-                <span className="text-xs font-medium">Automate</span>
-              </Button>
             </div>
           </div>
         </div>
@@ -1992,14 +2023,6 @@ const Dashboard = () => {
                 </span>
               </Button>
 
-              {/* Automate (email automations / schedules) */}
-              <Button
-                onClick={() => navigate("/schedules")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Mail size={18} />
-                <span className="text-xs font-medium">Automate</span>
-              </Button>
             </div>
           </div>
         </div>

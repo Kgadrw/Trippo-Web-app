@@ -4,7 +4,6 @@ import {
   Package,
   ShoppingCart,
   FileText,
-  Mail,
   UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,19 +11,11 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useSubdomain } from "@/hooks/useSubdomain";
 
 const getMenuItems = (t: (key: string) => string) => {
-  // Calculate if NEW banner should show (for one month from today)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const oneMonthLater = new Date(today);
-  oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
-  const showNewBanner = new Date() <= oneMonthLater;
-  
   return [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
     { icon: Package, label: "Services", path: "/products" },
     { icon: UserRound, label: "Barbers", path: "/barbers" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
-    { icon: Mail, label: "Automate", path: "/schedules", showNew: showNewBanner },
     { icon: FileText, label: t("reports"), path: "/reports" },
   ];
 };
@@ -76,11 +67,6 @@ export function BottomNav() {
                         : "scale-100 text-blue-200"
                     )} 
                   />
-                  {item.showNew && item.path === "/schedules" && (
-                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold px-1 rounded">
-                      NEW
-                    </span>
-                  )}
                 </div>
                 <span className={cn(
                   "text-[11px] leading-tight transition-all duration-300 ease-in-out",

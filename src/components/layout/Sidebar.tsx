@@ -9,7 +9,6 @@ import {
   LogOut,
   Pin,
   PinOff,
-  Mail,
   ChevronLeft,
   UserRound,
 } from "lucide-react";
@@ -30,19 +29,11 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useSubdomain } from "@/hooks/useSubdomain";
 
 const getMenuItems = (t: (key: string) => string) => {
-  // Calculate if NEW banner should show (for one month from today)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const oneMonthLater = new Date(today);
-  oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
-  const showNewBanner = new Date() <= oneMonthLater;
-  
   return [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
     { icon: Package, label: "Services", path: "/products" },
     { icon: UserRound, label: "Barbers", path: "/barbers" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
-    { icon: Mail, label: "Automate", path: "/schedules", showNew: showNewBanner },
     { icon: FileText, label: t("reports"), path: "/reports" },
     { icon: Settings, label: t("settings"), path: "/settings" },
   ];
@@ -69,9 +60,6 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   const [isHovered, setIsHovered] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
-  const [shouldAnimateBanner, setShouldAnimateBanner] = useState(false);
-  const [prevLocation, setPrevLocation] = useState(location.pathname);
-  const [animationKey, setAnimationKey] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   
   // Detect mobile on mount and resize
@@ -155,47 +143,9 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
     navigate("/", { replace: true });
   };
 
-  // Trigger banner animation when sidebar expands or when schedule page becomes active
   useEffect(() => {
-    const isScheduleActive = location.pathname === "/schedules";
-    const wasScheduleActive = prevLocation === "/schedules";
-    
-    // Animate when schedule page becomes active (navigating to schedules) and sidebar is expanded
-    if (isScheduleActive && !wasScheduleActive && isExpanded) {
-      setShouldAnimateBanner(true);
-      setAnimationKey(prev => prev + 1);
-      const timer = setTimeout(() => {
-        setShouldAnimateBanner(false);
-      }, 500);
-      setPrevLocation(location.pathname);
-      return () => clearTimeout(timer);
-    }
-    
-    // Animate when sidebar expands while schedule is active
-    if (isScheduleActive && isExpanded && !prevIsExpanded) {
-      setShouldAnimateBanner(true);
-      setAnimationKey(prev => prev + 1);
-      const timer = setTimeout(() => {
-        setShouldAnimateBanner(false);
-      }, 500);
-      setPrevIsExpanded(isExpanded);
-      return () => clearTimeout(timer);
-    }
-    
-    // Animate when sidebar expands (general case)
-    if (isExpanded && !prevIsExpanded) {
-      setShouldAnimateBanner(true);
-      const timer = setTimeout(() => {
-        setShouldAnimateBanner(false);
-      }, 500);
-      setPrevIsExpanded(isExpanded);
-      return () => clearTimeout(timer);
-    }
-    
-    // Update previous states
     setPrevIsExpanded(isExpanded);
-    setPrevLocation(location.pathname);
-  }, [isExpanded, prevIsExpanded, location.pathname, prevLocation]);
+  }, [isExpanded]);
 
   // Handle touch start for swipe detection
   const onTouchStart = (e: React.TouchEvent) => {
@@ -331,8 +281,6 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
           const isDashboardItem = item.path === "/dashboard";
           const isDashboardSubdomainRoot = subdomain === 'dashboard' && location.pathname === "/";
           const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
-          const isScheduleItem = item.path === "/schedules";
-          const isScheduleActive = isScheduleItem && isActive;
           
           // For dashboard item on dashboard subdomain, navigate to "/" (homepage)
           // Otherwise, use the normal path
@@ -359,26 +307,6 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
                     // Mobile: smaller text with medium font weight (like bottom nav bars)
                     isMobile ? "text-xs font-medium" : "text-sm"
                   )}>{item.label}</span>
-                  {item.showNew && (
-                    <span 
-                      className={cn(
-                        "ml-auto px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap inline-block",
-                        isScheduleActive 
-                          ? "bg-red-600 text-white" 
-                          : "bg-white text-blue-600"
-                      )}
-                    >
-                      <span 
-                        key={`banner-${animationKey}`}
-                        className={cn(
-                          "inline-block",
-                          shouldAnimateBanner && isScheduleActive && "animate-banner-text"
-                        )}
-                      >
-                      NEW
-                      </span>
-                    </span>
-                  )}
                 </>
               )}
             </Link>

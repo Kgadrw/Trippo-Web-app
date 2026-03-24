@@ -55,7 +55,6 @@ import Products from "./pages/Products";
 import AddProduct from "./pages/AddProduct";
 import Sales from "./pages/Sales";
 import Barbers from "./pages/Barbers";
-import Schedules from "./pages/Schedules";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -118,14 +117,6 @@ const SubdomainRouter = () => {
           element={
             <ProtectedRoute requireAdmin={true}>
               <Barbers />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/schedules" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Schedules />
             </ProtectedRoute>
           } 
         />
@@ -204,14 +195,6 @@ const SubdomainRouter = () => {
           } 
         />
         <Route 
-          path="/schedules" 
-          element={
-            <ProtectedRoute>
-              <Schedules />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
           path="/reports" 
           element={
             <ProtectedRoute>
@@ -285,14 +268,6 @@ const SubdomainRouter = () => {
         element={
           <ProtectedRoute>
             <Barbers />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/schedules" 
-        element={
-          <ProtectedRoute>
-            <Schedules />
           </ProtectedRoute>
         } 
       />

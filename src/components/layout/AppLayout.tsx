@@ -16,10 +16,10 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const location = useLocation();
   const subdomain = useSubdomain();
 
-  /** Dashboard (IMS): bottom bar only on home `/`. Other subdomains keep the bar on all pages. */
+  /** Hide bottom bar on user dashboard subdomain; keep other areas unchanged. */
   const showBottomNav = useMemo(() => {
     if (subdomain === "dashboard") {
-      return location.pathname === "/";
+      return false;
     }
     return true;
   }, [subdomain, location.pathname]);
