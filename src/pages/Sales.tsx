@@ -82,6 +82,16 @@ interface Sale {
   workerName?: string;
 }
 
+interface Expense {
+  id?: number;
+  _id?: string;
+  title: string;
+  amount: number;
+  category?: string;
+  note?: string;
+  date: string;
+}
+
 interface BulkSaleFormData {
   product: string;
   quantity: string;
@@ -323,6 +333,21 @@ const Sales = () => {
       console.error("Error with sales:", error);
     },
   });
+  const {
+    items: expenses,
+    isLoading: expensesLoading,
+    refresh: refreshExpenses,
+  } = useApi<Expense>({
+    endpoint: "expenses",
+    defaultValue: [],
+    onError: (error: any) => {
+      if (error?.response?.silent || error?.response?.connectionError) {
+        console.log("Offline mode: using local data");
+        return;
+      }
+      console.error("Error loading expenses:", error);
+    },
+  });
 
   // Refresh products and sales every time this page is opened (only once on mount)
   useEffect(() => {
@@ -330,6 +355,7 @@ const Sales = () => {
     // Force refresh products and sales to get real data from API (bypass cache)
     refreshProducts(true);
     refreshSales(true);
+    refreshExpenses(true);
     window.dispatchEvent(new CustomEvent('page-opened'));
     // Note: useApi hook will handle the actual refresh via the event listener
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -988,6 +1014,73 @@ const Sales = () => {
     return filtered;
   }, [sales, searchQuery, startDate, endDate, sortBy]);
 
+  const filteredExpenses = useMemo(() => {
+    let filtered = [...expenses];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((expense) =>
+        (expense.title || "").toLowerCase().includes(query) ||
+        (expense.category || "").toLowerCase().includes(query) ||
+        (expense.note || "").toLowerCase().includes(query)
+      );
+    }
+
+    if (startDate || endDate) {
+      filtered = filtered.filter((expense) => {
+        const expenseDate = new Date(expense.date);
+        expenseDate.setHours(0, 0, 0, 0);
+        const start = startDate ? new Date(startDate) : null;
+        if (start) start.setHours(0, 0, 0, 0);
+        const end = endDate ? new Date(endDate) : null;
+        if (end) end.setHours(23, 59, 59, 999);
+        if (start && end) return expenseDate >= start && expenseDate <= end;
+        if (start) return expenseDate >= start;
+        if (end) return expenseDate <= end;
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [expenses, searchQuery, startDate, endDate]);
+
+  const mobileActivity = useMemo(() => {
+    const saleRows = filteredSales.map((sale) => ({
+      id: `sale-${(sale as any)._id || sale.id || Math.random()}`,
+      type: "sale" as const,
+      title: sale.serviceName || sale.product,
+      subtitle: sale.workerName || "",
+      amount: sale.revenue || 0,
+      date: sale.timestamp || sale.date,
+      meta:
+        sale.paymentMethod === "cash"
+          ? t("cash")
+          : sale.paymentMethod === "card"
+            ? t("card")
+            : sale.paymentMethod === "momo"
+              ? t("momoPay")
+              : sale.paymentMethod === "airtel"
+                ? t("airtelPay")
+                : sale.paymentMethod === "transfer"
+                  ? t("bankTransfer")
+                  : t("cash"),
+    }));
+
+    const expenseRows = filteredExpenses.map((expense) => ({
+      id: `expense-${(expense as any)._id || expense.id || Math.random()}`,
+      type: "expense" as const,
+      title: expense.title,
+      subtitle: expense.category || "",
+      amount: expense.amount || 0,
+      date: expense.date,
+      meta: expense.note || "",
+    }));
+
+    return [...saleRows, ...expenseRows].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [filteredSales, filteredExpenses, t]);
+
   const handleClearFilters = () => {
     setSearchQuery("");
     setStartDate("");
@@ -1403,7 +1496,7 @@ const Sales = () => {
       </AppLayout>
     );
 
-  if (productsLoading || salesLoading) {
+  if (productsLoading || salesLoading || expensesLoading) {
     return <SalesSkeleton />;
   }
 
@@ -1842,83 +1935,46 @@ const Sales = () => {
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
-                      {isSelectionMode && (
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3 w-10">
-                          <Checkbox
-                            checked={allSelected}
-                            onCheckedChange={handleSelectAll}
-                            className="h-4 w-4"
-                          />
-                        </th>
-                      )}
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Service</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Barber</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("language") === "rw" ? "Ubwoko" : "Type"}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("language") === "rw" ? "Ibisobanuro" : "Details"}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("language") === "rw" ? "Amafaranga" : "Amount"}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {filteredSales.length > 0 ? (
-                      filteredSales.map((sale, index) => {
-                        const saleId = (sale as any)._id || sale.id;
-                        const idString = saleId?.toString() || '';
-                        const isSelected = selectedSales.has(idString);
+                    {mobileActivity.length > 0 ? (
+                      mobileActivity.map((row, index) => {
                         return (
-                          <tr key={saleId || sale.id} className={cn(
+                          <tr key={row.id} className={cn(
                             "border-b border-gray-200",
-                            index % 2 === 0 ? "bg-white" : "bg-gray-50",
-                            isSelected && "bg-blue-50"
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
                           )}>
-                            {isSelectionMode && (
-                              <td className="py-3 px-3 w-10">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => handleSelectSale(idString)}
-                                  className="h-4 w-4"
-                                />
-                              </td>
-                            )}
+                            <td className="py-3 px-3">
+                              <div className={cn("text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
+                                {row.type === "sale" ? (t("language") === "rw" ? "Ubucuruzi" : "Sale") : (t("language") === "rw" ? "Ikiguzi" : "Expense")}
+                              </div>
+                            </td>
                             <td className="py-3 px-3">
                               <div className="flex flex-col gap-1">
-                              <div className="text-xs font-medium text-gray-900">{sale.serviceName || sale.product}</div>
-                                <div className="text-[10px] text-gray-500">
-                                  {formatDateWithTime(sale.timestamp || sale.date)}
-                                </div>
-                                <div className="text-[10px] text-gray-500">
-                                  {sale.paymentMethod === 'cash' && t("cash")}
-                                  {sale.paymentMethod === 'card' && t("card")}
-                                  {sale.paymentMethod === 'momo' && t("momoPay")}
-                                  {sale.paymentMethod === 'airtel' && t("airtelPay")}
-                                  {sale.paymentMethod === 'transfer' && t("bankTransfer")}
-                                  {!sale.paymentMethod && t("cash")}
-                                </div>
+                                <div className="text-xs font-medium text-gray-900">{row.title}</div>
+                                {row.subtitle ? <div className="text-[10px] text-gray-600">{row.subtitle}</div> : null}
+                                <div className="text-[10px] text-gray-500">{formatDateWithTime(row.date)}</div>
+                                {row.meta ? <div className="text-[10px] text-gray-500">{row.meta}</div> : null}
                               </div>
                             </td>
-                            <td className="py-3 px-3"><div className="text-xs text-gray-700">{sale.workerName || "-"}</div></td>
-                            <td className="py-3 px-3">
-                              <div className="text-xs text-gray-700">{sale.quantity}</div>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="text-xs text-gray-700">{sale.revenue.toLocaleString()} rwf</div>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className={cn(
-                                "text-xs font-medium",
-                                sale.profit >= 0 ? "text-green-700" : "text-red-700"
-                              )}>
-                                {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
-                              </div>
+                            <td className={cn("py-3 px-3 text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
+                              {row.type === "sale" ? "+" : "-"}{Number(row.amount).toLocaleString()} rwf
                             </td>
                           </tr>
                         );
                       })
                     ) : (
                       <tr>
-                        <td colSpan={isSelectionMode ? 6 : 5} className="py-12 text-center">
+                        <td colSpan={3} className="py-12 text-center">
                           <div className="flex flex-col items-center justify-center text-gray-400">
                             <ShoppingCart size={48} className="mb-4 opacity-50" />
-                            <p className="text-sm font-medium">No sales found matching your filters</p>
+                            <p className="text-sm font-medium">
+                              {t("language") === "rw" ? "Nta makuru abonetse" : "No activity found matching your filters"}
+                            </p>
                             <p className="text-xs mt-1">Try adjusting your search or date range</p>
                           </div>
                         </td>

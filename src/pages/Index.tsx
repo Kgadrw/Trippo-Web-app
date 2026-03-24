@@ -1981,11 +1981,11 @@ const Dashboard = () => {
             </h3>
           </div>
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-            <Button onClick={() => navigate("/products/add")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
+            <Button onClick={() => navigate("/products")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
               <Package size={20} />
               <span>{isRw ? "Serivisi" : "Services"}</span>
             </Button>
-            <Button onClick={() => navigate("/sales")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
+            <Button onClick={() => setSaleModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
               <Plus size={20} />
               <span>{isRw ? "Andika serivisi" : "Record Service"}</span>
             </Button>
