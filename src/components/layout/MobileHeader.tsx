@@ -34,6 +34,8 @@ interface Product {
 export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   const { user } = useCurrentUser();
   const navigate = useNavigate();
+  const location = useLocation();
+  const subdomain = useSubdomain();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -182,6 +184,15 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     
     return date.toLocaleDateString();
   };
+
+  // Show mobile "back to dashboard" only on inner app pages
+  const showDashboardBack = useMemo(() => {
+    const path = location.pathname;
+    const isRootPath = path === "/" || path === "";
+    const isDashboardRoot = subdomain === "dashboard" && isRootPath;
+    const isAdminRoot = subdomain === "admin" && isRootPath;
+    return !isDashboardRoot && !isAdminRoot;
+  }, [location.pathname, subdomain]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
