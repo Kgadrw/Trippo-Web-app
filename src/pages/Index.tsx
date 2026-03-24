@@ -9,6 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,7 +30,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Settings, UserRound } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Settings, UserRound, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
@@ -76,6 +84,8 @@ interface Expense {
   title: string;
   amount: number;
   date: string;
+  category?: string;
+  note?: string;
 }
 
 interface BulkSaleFormData {
@@ -355,10 +365,17 @@ const Dashboard = () => {
       console.error("Error with sales:", error);
     },
   });
-  const { items: expenses, refresh: refreshExpenses } = useApi<Expense>({
+  const { items: expenses, add: addExpense, refresh: refreshExpenses } = useApi<Expense>({
     endpoint: "expenses",
     defaultValue: [],
   });
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [expenseTitle, setExpenseTitle] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("general");
+  const [expenseDate, setExpenseDate] = useState("");
+  const [expenseNote, setExpenseNote] = useState("");
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
 
   // Refresh products and sales every time dashboard is opened (only once on mount)
   useEffect(() => {
@@ -381,6 +398,12 @@ const Dashboard = () => {
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  useEffect(() => {
+    if (!expenseDate) {
+      setExpenseDate(getTodayDate());
+    }
+  }, [expenseDate]);
   
   // Calculate KPI values from real data - always uses fresh sales data
   const todayStats = useMemo(() => {
@@ -1230,6 +1253,56 @@ const Dashboard = () => {
     }
   };
 
+  const handleRecordExpense = async () => {
+    if (isSavingExpense) return;
+
+    const amount = parseFloat(expenseAmount);
+    if (!expenseTitle.trim() || isNaN(amount) || amount <= 0) {
+      toast({
+        title: isRw ? "Amakuru abura" : "Missing Information",
+        description: isRw
+          ? "Andika izina ry'ikiguzi n'amafaranga nyayo."
+          : "Please provide expense name and valid amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSavingExpense(true);
+      await addExpense({
+        title: expenseTitle.trim(),
+        amount,
+        category: expenseCategory.trim() || "general",
+        date: new Date((expenseDate || getTodayDate()) + "T12:00:00").toISOString(),
+        note: expenseNote.trim() || undefined,
+      } as any);
+
+      await refreshExpenses(true);
+      window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+      playSaleBeep();
+      sonnerToast.success(isRw ? "Ikiguzi cyanditswe" : "Expense Recorded", {
+        description: isRw ? "Ikiguzi cyabitswe neza." : "Expense saved successfully.",
+      });
+
+      setExpenseModalOpen(false);
+      setExpenseTitle("");
+      setExpenseAmount("");
+      setExpenseCategory("general");
+      setExpenseDate(getTodayDate());
+      setExpenseNote("");
+    } catch (error: any) {
+      playErrorBeep();
+      toast({
+        title: isRw ? "Kwandika byanze" : "Save Failed",
+        description: error?.message || (isRw ? "Kwandika ikiguzi byanze." : "Failed to save expense."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingExpense(false);
+    }
+  };
+
   const isLoading = productsLoading || salesLoading;
 
   // KPI Card Skeleton Component
@@ -1955,6 +2028,16 @@ const Dashboard = () => {
                 </span>
               </Button>
 
+              <Button
+                onClick={() => setExpenseModalOpen(true)}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Wallet size={18} />
+                <span className="text-xs font-medium">
+                  {isRw ? "Andika ikiguzi" : "Record Expense"}
+                </span>
+              </Button>
+
             </div>
           </div>
         </div>
@@ -2026,6 +2109,16 @@ const Dashboard = () => {
                 <FileText size={18} />
                 <span className="text-xs font-medium">
                   {t("reports")}
+                </span>
+              </Button>
+
+              <Button
+                onClick={() => setExpenseModalOpen(true)}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Wallet size={18} />
+                <span className="text-xs font-medium">
+                  {isRw ? "Andika ikiguzi" : "Record Expense"}
                 </span>
               </Button>
 
@@ -2212,6 +2305,73 @@ const Dashboard = () => {
       </div>
 
       <AddToHomeScreen />
+
+      <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isRw ? "Andika ikiguzi" : "Record Expense"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>{isRw ? "Izina ry'ikiguzi" : "Expense Name"}</Label>
+              <Input
+                value={expenseTitle}
+                onChange={(e) => setExpenseTitle(e.target.value)}
+                placeholder={isRw ? "nka: Umuriro, Ubukode..." : "e.g. Utilities, Rent..."}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{isRw ? "Amafaranga (rwf)" : "Amount (rwf)"}</Label>
+              <Input
+                type="number"
+                min="0"
+                value={expenseAmount}
+                onChange={(e) => setExpenseAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{isRw ? "Icyiciro" : "Category"}</Label>
+                <Input
+                  value={expenseCategory}
+                  onChange={(e) => setExpenseCategory(e.target.value)}
+                  placeholder={isRw ? "nka: Ibikoresho" : "e.g. Supplies"}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{isRw ? "Itariki" : "Date"}</Label>
+                <Input
+                  type="date"
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>{isRw ? "Ibisobanuro (si ngombwa)" : "Note (optional)"}</Label>
+              <Textarea
+                value={expenseNote}
+                onChange={(e) => setExpenseNote(e.target.value)}
+                placeholder={isRw ? "Andika ibisobanuro..." : "Add extra details..."}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExpenseModalOpen(false)}>
+              {isRw ? "Funga" : "Cancel"}
+            </Button>
+            <Button
+              onClick={handleRecordExpense}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isSavingExpense}
+            >
+              {isSavingExpense ? (isRw ? "Birabikwa..." : "Saving...") : (isRw ? "Bika ikiguzi" : "Save Expense")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Record Sale Modal - Mobile Only */}
       <RecordSaleModal 
