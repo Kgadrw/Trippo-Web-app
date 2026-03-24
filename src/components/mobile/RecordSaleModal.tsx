@@ -61,6 +61,17 @@ interface Sale {
   date: string;
   timestamp?: string; // ISO timestamp of when the sale was recorded
   paymentMethod: string;
+  saleType?: "product" | "service";
+  serviceName?: string;
+  workerId?: string;
+  workerName?: string;
+}
+
+interface Client {
+  id?: number;
+  _id?: string;
+  name: string;
+  clientType?: "debtor" | "worker" | "other";
 }
 
 interface RecordSaleModalProps {
@@ -245,8 +256,17 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
     endpoint: "sales",
     defaultValue: [],
   });
+  const { items: clients } = useApi<Client>({
+    endpoint: "clients",
+    defaultValue: [],
+  });
 
   const [selectedProduct, setSelectedProduct] = useState("");
+  const [saleType, setSaleType] = useState<"product" | "service">("product");
+  const [serviceName, setServiceName] = useState("");
+  const [selectedWorkerId, setSelectedWorkerId] = useState("");
+  const [serviceAmount, setServiceAmount] = useState("");
+  const [serviceCost, setServiceCost] = useState("0");
   const [quantity, setQuantity] = useState("1");
   const [sellingPrice, setSellingPrice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -257,6 +277,11 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   // Reset form when modal opens/closes
   useEffect(() => {
     if (!open) {
+      setSaleType("product");
+      setServiceName("");
+      setSelectedWorkerId("");
+      setServiceAmount("");
+      setServiceCost("0");
       setSelectedProduct("");
       setQuantity("1");
       setSellingPrice("");
@@ -264,6 +289,11 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       setSaleDate(new Date().toISOString().split("T")[0]);
     }
   }, [open]);
+
+  const workers = useMemo(
+    () => clients.filter((c) => c.clientType === "worker"),
+    [clients]
+  );
 
   // Calculate selling price based on product priceType and sale mode
   const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
@@ -328,6 +358,102 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
   }, [packageSaleMode, selectedProduct, products]);
 
   const handleRecordSale = async () => {
+    if (saleType === "service") {
+      if (!serviceName.trim() || !selectedWorkerId || !serviceAmount) {
+        playErrorBeep();
+        toast({
+          title: "Missing Information",
+          description: "Please fill service name, worker, and amount.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const amount = parseFloat(serviceAmount);
+      const costValue = parseFloat(serviceCost || "0");
+      if (isNaN(amount) || amount <= 0 || isNaN(costValue) || costValue < 0) {
+        playErrorBeep();
+        toast({
+          title: "Invalid Amount",
+          description: "Service amount must be greater than 0 and cost cannot be negative.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const worker = workers.find((w) => ((w as any)._id || w.id)?.toString() === selectedWorkerId);
+      if (!worker) {
+        playErrorBeep();
+        toast({
+          title: "Worker Not Found",
+          description: "Please select a valid barber/worker.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsRecordingSale(true);
+      try {
+        const now = new Date();
+        let saleDateTime: Date;
+        if (saleDate) {
+          const selectedDate = new Date(saleDate + "T00:00:00");
+          saleDateTime = new Date(selectedDate);
+          saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+        } else {
+          saleDateTime = now;
+        }
+
+        const newSale: Sale = {
+          product: serviceName.trim(),
+          quantity: 1,
+          revenue: amount,
+          cost: costValue,
+          profit: amount - costValue,
+          date: saleDateTime.toISOString(),
+          timestamp: new Date().toISOString(),
+          paymentMethod,
+          saleType: "service",
+          serviceName: serviceName.trim(),
+          workerId: selectedWorkerId,
+          workerName: worker.name,
+        };
+
+        await addSale(newSale);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        playSaleBeep();
+        toast({
+          title: "Service Recorded!",
+          description: `${serviceName.trim()} by ${worker.name} for RWF ${amount.toLocaleString()}`,
+        });
+
+        setServiceName("");
+        setSelectedWorkerId("");
+        setServiceAmount("");
+        setServiceCost("0");
+        setPaymentMethod("cash");
+        setSaleDate(new Date().toISOString().split("T")[0]);
+
+        window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: newSale } }));
+        window.dispatchEvent(new CustomEvent("sales-should-refresh"));
+        onSaleRecorded?.();
+
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 500);
+      } catch (error: any) {
+        playErrorBeep();
+        toast({
+          title: "Error Recording Service",
+          description: error?.message || error?.response?.error || "Failed to record service sale.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsRecordingSale(false);
+      }
+      return;
+    }
+
     if (!selectedProduct) {
       playErrorBeep();
       toast({
@@ -652,6 +778,109 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
 
           {/* Compact Form */}
           <div className="space-y-3">
+            {/* Sale Type */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-600">Sale Type</Label>
+              <Select value={saleType} onValueChange={(value: "product" | "service") => setSaleType(value)}>
+                <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="product">Product Sale</SelectItem>
+                  <SelectItem value="service">Service Sale</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {saleType === "service" ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-600">Service Name</Label>
+                  <Input
+                    value={serviceName}
+                    onChange={(e) => setServiceName(e.target.value)}
+                    className="h-10 text-base bg-gray-50 border-gray-200"
+                    placeholder="e.g. Hair cut"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-600">Barber / Worker</Label>
+                  <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
+                    <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
+                      <SelectValue placeholder="Select worker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workers.length > 0 ? (
+                        workers.map((worker) => {
+                          const workerId = ((worker as any)._id || worker.id)?.toString();
+                          if (!workerId) return null;
+                          return (
+                            <SelectItem key={workerId} value={workerId}>
+                              {worker.name}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="__no_worker__" disabled>
+                          No workers found. Add in Clients as Worker.
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-600">Amount (rwf)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={serviceAmount}
+                      onChange={(e) => setServiceAmount(e.target.value)}
+                      className="h-10 text-base bg-gray-50 border-gray-200"
+                      placeholder="Amount"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-600">Cost (rwf)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={serviceCost}
+                      onChange={(e) => setServiceCost(e.target.value)}
+                      className="h-10 text-base bg-gray-50 border-gray-200"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-600">Payment</Label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">{t("cash")}</SelectItem>
+                        <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                        <SelectItem value="card">{t("card")}</SelectItem>
+                        <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                        <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-600">Date</Label>
+                    <Input
+                      type="date"
+                      value={saleDate}
+                      onChange={(e) => setSaleDate(e.target.value)}
+                      className="h-10 text-base bg-gray-50 border-gray-200"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
             {/* Product Selection */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-600">{t("selectProduct")}</Label>
@@ -880,11 +1109,18 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                 })()}
               </div>
             )}
+              </>
+            )}
 
             {/* Submit Button */}
             <Button 
               onClick={handleRecordSale} 
-              disabled={isRecordingSale || !selectedProduct || !quantity || !sellingPrice}
+              disabled={
+                isRecordingSale ||
+                (saleType === "product"
+                  ? (!selectedProduct || !quantity || !sellingPrice)
+                  : (!serviceName.trim() || !selectedWorkerId || !serviceAmount))
+              }
               className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-md hover:shadow-lg transition-all rounded-lg gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingCart size={18} />

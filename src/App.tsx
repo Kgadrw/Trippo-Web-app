@@ -222,6 +222,11 @@ const SubdomainRouter = () => {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      {/* Redirect old dashboard path to dashboard subdomain (only if authenticated) */}
+      <Route
+        path="/dashboard"
+        element={<SubdomainRedirect subdomain="dashboard" />}
+      />
       {/* Redirect old admin path to admin subdomain (only if authenticated) */}
       <Route 
         path="/admin-dashboard" 

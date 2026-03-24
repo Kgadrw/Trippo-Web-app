@@ -76,6 +76,10 @@ interface Sale {
   date: string;
   timestamp?: string; // ISO timestamp of when the sale was recorded
   paymentMethod?: string;
+  saleType?: "product" | "service";
+  serviceName?: string;
+  workerId?: string;
+  workerName?: string;
 }
 
 interface BulkSaleFormData {
@@ -915,11 +919,13 @@ const Sales = () => {
   const filteredSales = useMemo(() => {
     let filtered = [...sales];
     
-    // Filter by search query (product name)
+    // Filter by search query (product/service/worker name)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(sale => 
-        sale.product.toLowerCase().includes(query)
+        sale.product.toLowerCase().includes(query) ||
+        (sale.serviceName || "").toLowerCase().includes(query) ||
+        (sale.workerName || "").toLowerCase().includes(query)
       );
     }
     
