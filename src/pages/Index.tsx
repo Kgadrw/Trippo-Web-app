@@ -1382,8 +1382,8 @@ const Dashboard = () => {
 
   const mobilePeriodToggleClass = cn(
     "text-[11px] px-1.5 h-9 font-medium",
-    "border-blue-200/80 text-muted-foreground",
-    "hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400",
+    "border-blue-200/50 bg-white/10 text-blue-100",
+    "hover:bg-white/20 hover:text-white hover:border-blue-200/70",
     "data-[state=on]:bg-blue-600 data-[state=on]:text-white data-[state=on]:border-blue-600",
     "data-[state=on]:hover:bg-blue-700 data-[state=on]:hover:text-white data-[state=on]:hover:border-blue-700"
   );
@@ -1395,7 +1395,12 @@ const Dashboard = () => {
         {isLoading ? (
           <KPICardSkeleton />
         ) : (
-          <div className="rounded-lg border border-blue-200/90 bg-white p-4 shadow-sm">
+          <div
+            className="relative overflow-hidden rounded-lg border border-blue-400/40 bg-cover bg-center bg-no-repeat p-4 shadow-sm"
+            style={{ backgroundImage: "url('/balance.webp')" }}
+          >
+            <div className="absolute inset-0 bg-blue-700/70" />
+            <div className="relative z-10">
             <ToggleGroup
               type="single"
               value={mobileRevenuePeriod}
@@ -1419,17 +1424,18 @@ const Dashboard = () => {
             </ToggleGroup>
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-sm text-gray-600">{mobileRevenueProfitLabels.revenue}</p>
-                <p className="text-base font-normal text-blue-600 truncate tabular-nums">
+                <p className="text-sm text-blue-100">{mobileRevenueProfitLabels.revenue}</p>
+                <p className="text-base font-normal text-white truncate tabular-nums">
                   {mobilePeriodStats.totalRevenue.toLocaleString()} rwf
                 </p>
               </div>
               <div className="text-right min-w-0 shrink-0">
-                <p className="text-sm text-gray-600">{mobileRevenueProfitLabels.profit}</p>
-                <p className="text-lg font-normal text-green-600 tabular-nums">
+                <p className="text-sm text-blue-100">{mobileRevenueProfitLabels.profit}</p>
+                <p className="text-lg font-normal text-white tabular-nums">
                   {mobilePeriodStats.totalProfit.toLocaleString()} rwf
                 </p>
               </div>
+            </div>
             </div>
           </div>
         )}

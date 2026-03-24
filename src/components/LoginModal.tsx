@@ -122,9 +122,12 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     setErrors((prev) => ({ ...prev, loginPin: undefined, email: undefined }));
 
     try {
+      const normalizedEmail = loginEmail.trim().toLowerCase();
+      const adminAliases = new Set(["admin", "admin@trippo.rw", "admin@trippo.com"]);
+      const loginIdentifier = adminAliases.has(normalizedEmail) ? "admin" : normalizedEmail;
       const response = await authApi.login({ 
         pin: loginPin,
-        email: loginEmail.trim().toLowerCase()
+        email: loginIdentifier
       });
 
       if (response.user) {
