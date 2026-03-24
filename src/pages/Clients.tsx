@@ -20,8 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Pencil, Trash2, X, User, Mail, Phone, Building, Calendar, CheckCircle2, AlertCircle, Clock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Search, Pencil, Trash2, X, User, Mail, Phone, Building, Calendar, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -76,6 +76,7 @@ const Clients = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     items: clients,
     isLoading,
@@ -176,7 +177,7 @@ const Clients = () => {
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [clients, searchQuery]);
 
-  const openAddModal = () => {
+  const openAddModal = (preferredType: 'debtor' | 'worker' | 'other' = "other") => {
     setEditingClient(null);
     setNewlyCreatedClientId(null);
     setFormData({
@@ -184,11 +185,22 @@ const Clients = () => {
       email: "",
       phone: "",
       businessType: "",
-      clientType: "other",
+      clientType: preferredType,
       notes: "",
     });
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const create = params.get("create");
+    if (create === "client") {
+      openAddModal("other");
+    } else if (create === "worker") {
+      openAddModal("worker");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const openEditModal = (client: Client) => {
     setEditingClient(client);
@@ -368,16 +380,6 @@ const Clients = () => {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-gray-800">Manage Clients</h3>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                  <Button
-                    onClick={() => {
-                      openAddModal();
-                      setNewlyCreatedClientId(null);
-                    }}
-                    className="bg-gray-900 text-white hover:bg-gray-800 font-medium px-4 py-2 gap-2 flex items-center"
-                  >
-                    <Plus size={18} />
-                    Add Client
-                  </Button>
                   <Button
                     onClick={() => navigate("/schedules")}
                     variant="outline"

@@ -1864,6 +1864,28 @@ const Dashboard = () => {
                 </span>
               </Button>
 
+              {/* Add Client */}
+              <Button
+                onClick={() => navigate("/clients?create=client")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Plus size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Ongeraho umukiriya" : "Add Client"}
+                </span>
+              </Button>
+
+              {/* Add Worker */}
+              <Button
+                onClick={() => navigate("/clients?create=worker")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Plus size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Ongeraho umukozi" : "Add Worker"}
+                </span>
+              </Button>
+
               {/* View Products */}
               <Button
                 onClick={() => navigate("/products")}
@@ -1942,6 +1964,28 @@ const Dashboard = () => {
                 <Plus size={18} />
                 <span className="text-xs font-medium">
                   {t("language") === "rw" ? "Ongeraho icuruzwa" : "Add Product"}
+                </span>
+              </Button>
+
+              {/* Add Client */}
+              <Button
+                onClick={() => navigate("/clients?create=client")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Plus size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Ongeraho umukiriya" : "Add Client"}
+                </span>
+              </Button>
+
+              {/* Add Worker */}
+              <Button
+                onClick={() => navigate("/clients?create=worker")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Plus size={18} />
+                <span className="text-xs font-medium">
+                  {t("language") === "rw" ? "Ongeraho umukozi" : "Add Worker"}
                 </span>
               </Button>
 
