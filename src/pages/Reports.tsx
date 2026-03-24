@@ -57,6 +57,7 @@ interface Sale {
 
 const Reports = () => {
   const { t } = useTranslation();
+  const isRw = t("language") === "rw";
   const { toast } = useToast();
   const {
     isLoading: productsLoading,
@@ -333,8 +334,10 @@ const Reports = () => {
     }
     
     toast({
-      title: "Export Started",
-      description: `Exporting report as ${format.toUpperCase()}...`,
+      title: isRw ? "Kohereza byatangiye" : "Export Started",
+      description: isRw
+        ? `Raporo iri koherezwa nka ${format.toUpperCase()}...`
+        : `Exporting report as ${format.toUpperCase()}...`,
     });
   };
 

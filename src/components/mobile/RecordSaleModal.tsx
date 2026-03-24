@@ -239,6 +239,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 
 export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSaleModalProps) {
   const { t } = useTranslation();
+  const isRw = t("language") === "rw";
   const { toast } = useToast();
   const { isOnline } = useOffline();
   const {
@@ -367,8 +368,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       if (!serviceName.trim() || !selectedWorkerId || !serviceAmount) {
         playErrorBeep();
         toast({
-          title: "Missing Information",
-          description: "Please fill service name, worker, and amount.",
+          title: isRw ? "Amakuru abura" : "Missing Information",
+          description: isRw ? "Uzuza serivisi, umwogoshi n'amafaranga." : "Please fill service name, worker, and amount.",
           variant: "destructive",
         });
         return;
@@ -379,8 +380,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       if (isNaN(amount) || amount <= 0 || isNaN(costValue) || costValue < 0) {
         playErrorBeep();
         toast({
-          title: "Invalid Amount",
-          description: "Service amount must be greater than 0 and cost cannot be negative.",
+          title: isRw ? "Amafaranga atari yo" : "Invalid Amount",
+          description: isRw ? "Amafaranga ya serivisi agomba kurenza 0 kandi ikiguzi ntikigomba kuba munsi ya 0." : "Service amount must be greater than 0 and cost cannot be negative.",
           variant: "destructive",
         });
         return;
@@ -390,8 +391,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       if (!worker) {
         playErrorBeep();
         toast({
-          title: "Worker Not Found",
-          description: "Please select a valid barber/worker.",
+          title: isRw ? "Umwogoshi ntaboneka" : "Worker Not Found",
+          description: isRw ? "Hitamo umwogoshi/umukozi nyawo." : "Please select a valid barber/worker.",
           variant: "destructive",
         });
         return;
@@ -428,8 +429,10 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
         await new Promise((resolve) => setTimeout(resolve, 50));
         playSaleBeep();
         toast({
-          title: "Service Recorded!",
-          description: `${serviceName.trim()} by ${worker.name} for RWF ${amount.toLocaleString()}`,
+          title: isRw ? "Serivisi yanditswe!" : "Service Recorded!",
+          description: isRw
+            ? `${serviceName.trim()} yakozwe na ${worker.name} ku RWF ${amount.toLocaleString()}`
+            : `${serviceName.trim()} by ${worker.name} for RWF ${amount.toLocaleString()}`,
         });
 
         setServiceName("");
@@ -449,8 +452,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       } catch (error: any) {
         playErrorBeep();
         toast({
-          title: "Error Recording Service",
-          description: error?.message || error?.response?.error || "Failed to record service sale.",
+          title: isRw ? "Kwandika serivisi byanze" : "Error Recording Service",
+          description: error?.message || error?.response?.error || (isRw ? "Kwandika serivisi byanze." : "Failed to record service sale."),
           variant: "destructive",
         });
       } finally {
@@ -749,8 +752,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
     if (product && product.stock <= 0) {
       playErrorBeep();
       toast({
-        title: "Product Out of Stock",
-        description: `${product.name} is currently out of stock and cannot be sold.`,
+        title: isRw ? "Serivisi ntiboneka muri stoki" : "Product Out of Stock",
+        description: isRw ? `${product.name} ntiboneka muri stoki kandi ntishobora kugurishwa.` : `${product.name} is currently out of stock and cannot be sold.`,
         variant: "destructive",
       });
       setSelectedProduct("");
@@ -785,7 +788,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
           <div className="space-y-3">
             <>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">Service Name</Label>
+                  <Label className="text-xs font-medium text-gray-600">{isRw ? "Izina rya serivisi" : "Service Name"}</Label>
                   <Select
                     value={serviceName}
                     onValueChange={(value) => {
@@ -797,7 +800,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                     }}
                   >
                     <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                      <SelectValue placeholder="Select service" />
+                      <SelectValue placeholder={isRw ? "Hitamo serivisi" : "Select service"} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableServices.length > 0 ? (
@@ -811,17 +814,17 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                         })
                       ) : (
                         <SelectItem value="__no_service__" disabled>
-                          No services found. Add Service first.
+                          {isRw ? "Nta serivisi ziboneka. Banza wongereho Serivisi." : "No services found. Add Service first."}
                         </SelectItem>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">Barber / Worker</Label>
+                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Umwogoshi / Umukozi" : "Barber / Worker"}</Label>
                   <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
                     <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                      <SelectValue placeholder="Select worker" />
+                      <SelectValue placeholder={isRw ? "Hitamo umwogoshi" : "Select worker"} />
                     </SelectTrigger>
                     <SelectContent>
                       {workers.length > 0 ? (
@@ -836,7 +839,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                         })
                       ) : (
                         <SelectItem value="__no_worker__" disabled>
-                          No workers found. Add Worker first from Quick Actions.
+                          {isRw ? "Nta bakozi babonetse. Banza wongereho Umwogoshi muri Ibyibanze." : "No workers found. Add Worker first from Quick Actions."}
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -844,18 +847,18 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">Amount (rwf)</Label>
+                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Amafaranga (rwf)" : "Amount (rwf)"}</Label>
                     <Input
                       type="number"
                       min="0"
                       value={serviceAmount}
                       onChange={(e) => setServiceAmount(e.target.value)}
                       className="h-10 text-base bg-gray-50 border-gray-200"
-                      placeholder="Amount"
+                      placeholder={isRw ? "Amafaranga" : "Amount"}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">Cost (rwf)</Label>
+                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Ikiguzi (rwf)" : "Cost (rwf)"}</Label>
                     <Input
                       type="number"
                       min="0"
@@ -868,7 +871,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">Payment</Label>
+                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Kwishyura" : "Payment"}</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                       <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
                         <SelectValue />
@@ -883,7 +886,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">Date</Label>
+                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Itariki" : "Date"}</Label>
                     <Input
                       type="date"
                       value={saleDate}
