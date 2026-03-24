@@ -78,6 +78,7 @@ interface RecordSaleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaleRecorded?: () => void;
+  initialServiceName?: string;
 }
 
 const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search products by name, category, or type...", className, onError }: {
@@ -237,7 +238,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
   );
 };
 
-export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSaleModalProps) {
+export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialServiceName }: RecordSaleModalProps) {
   const { t, language } = useTranslation();
   const isRw = language === "rw";
   const { toast } = useToast();
@@ -285,8 +286,10 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       setSellingPrice("");
       setPaymentMethod("cash");
       setSaleDate(new Date().toISOString().split("T")[0]);
+    } else if (initialServiceName?.trim()) {
+      setServiceName(initialServiceName.trim());
     }
-  }, [open]);
+  }, [open, initialServiceName]);
 
   const workers = useMemo(
     () => clients.filter((c) => c.clientType === "worker"),
@@ -298,6 +301,14 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
       .filter((p) => p.name && p.name.trim().length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
+
+  useEffect(() => {
+    if (!open || !initialServiceName?.trim()) return;
+    const selected = availableServices.find((s) => s.name === initialServiceName.trim());
+    if (selected && selected.sellingPrice > 0) {
+      setServiceAmount(String(selected.sellingPrice));
+    }
+  }, [open, initialServiceName, availableServices]);
 
   // Calculate selling price based on product priceType and sale mode
   const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {

@@ -2012,7 +2012,7 @@ const Dashboard = () => {
       {/* Charts and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Sales Trend Chart - Desktop Only */}
-        <div className="hidden lg:block lg:col-span-2">
+        <div className="hidden lg:block lg:col-span-3">
           {isLoading ? (
             <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
               <Skeleton className="h-6 w-48 mb-4" />
@@ -2021,90 +2021,6 @@ const Dashboard = () => {
           ) : (
             <SalesTrendChart sales={sales} />
           )}
-        </div>
-        
-        {/* Quick Actions - Desktop Only */}
-        <div className="hidden lg:block">
-          <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-gray-600" />
-              <h3 className="text-base font-semibold text-gray-900">
-                {isRw ? "Ibyibanze" : "Quick Actions"}
-              </h3>
-            </div>
-            <p className="text-xs text-gray-600 mb-4">
-              {isRw ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
-            </p>
-            
-            
-            <div className="grid grid-cols-2 gap-3">
-              {/* Services */}
-              <Button
-                onClick={() => navigate("/products")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Package size={18} />
-                <span className="text-xs font-medium">
-                  {isRw ? "Serivisi" : "Services"}
-                </span>
-              </Button>
-
-              {/* Record Service */}
-              <Button
-                onClick={() => navigate("/sales")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Plus size={18} />
-                <span className="text-xs font-medium">
-                  {isRw ? "Andika serivisi" : "Record Service"}
-                </span>
-              </Button>
-
-              {/* Add Barber */}
-              <Button
-                onClick={() => navigate("/barbers")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <UserRound size={18} />
-                <span className="text-xs font-medium">
-                  {isRw ? "Umwogoshi" : "Barbers"}
-                </span>
-              </Button>
-
-              {/* View Sales */}
-              <Button
-                onClick={() => navigate("/sales")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <ShoppingCart size={18} />
-                <span className="text-xs font-medium">
-                  {t("sales")}
-                </span>
-              </Button>
-
-              {/* View Reports */}
-              <Button
-                onClick={() => navigate("/reports")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <FileText size={18} />
-                <span className="text-xs font-medium">
-                  {t("reports")}
-                </span>
-              </Button>
-
-              <Button
-                onClick={() => setExpenseModalOpen(true)}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Wallet size={18} />
-                <span className="text-xs font-medium">
-                  {isRw ? "Andika ikiguzi" : "Record Expense"}
-                </span>
-              </Button>
-
-            </div>
-          </div>
         </div>
         
         {/* Quick Actions - Mobile Only */}

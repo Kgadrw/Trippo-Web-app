@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Search, Pencil, Trash2, Scissors } from "lucide-react";
+import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ const Products = () => {
   const [editing, setEditing] = useState<ServiceItem | null>(null);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  const [prefillServiceName, setPrefillServiceName] = useState("");
 
   const services = useMemo(() => {
     if (!query.trim()) return items;
@@ -54,6 +57,11 @@ const Products = () => {
     setName(item.name);
     setPrice(String(item.sellingPrice || 0));
     setOpen(true);
+  };
+
+  const openRecordService = (item: ServiceItem) => {
+    setPrefillServiceName(item.name || "");
+    setRecordModalOpen(true);
   };
 
   const handleSave = async () => {
@@ -113,17 +121,45 @@ const Products = () => {
           {services.map((service) => {
             const id = (service as any)._id || service.id;
             return (
-              <div key={id} className="rounded-lg border bg-white p-4">
+              <div
+                key={id}
+                className="rounded-lg border bg-white p-4 cursor-pointer transition-colors hover:bg-gray-50"
+                onClick={() => openRecordService(service)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openRecordService(service);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Record new service for ${service.name}`}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-medium text-gray-900">
                     <Scissors size={16} />
                     {service.name}
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(service)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEdit(service);
+                      }}
+                    >
                       <Pencil size={14} />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(service)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(service);
+                      }}
+                    >
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -156,6 +192,11 @@ const Products = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <RecordSaleModal
+        open={recordModalOpen}
+        onOpenChange={setRecordModalOpen}
+        initialServiceName={prefillServiceName}
+      />
     </AppLayout>
   );
 };
