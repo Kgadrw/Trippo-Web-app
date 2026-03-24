@@ -1830,11 +1830,7 @@ const Dashboard = () => {
             <p className="text-xs text-gray-600 mb-4">
               {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
             </p>
-            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-              {t("language") === "rw"
-                ? "Kugurisha serivisi: 1) Ongeraho umukozi, 2) Jya kuri Record Sale, 3) Hitamo Service Sale n'umukozi."
-                : "For service sales: 1) Add Worker, 2) Open Record Sale, 3) choose Service Sale and select that worker."}
-            </div>
+            
             
             <div className="grid grid-cols-2 gap-3">
               {/* Services */}
@@ -1927,11 +1923,7 @@ const Dashboard = () => {
             <p className="text-xs text-gray-600 mb-4">
               {t("language") === "rw" ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
             </p>
-            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-              {t("language") === "rw"
-                ? "Kugurisha serivisi: 1) Ongeraho umukozi, 2) Jya kuri Record Sale, 3) Hitamo Service Sale n'umukozi."
-                : "For service sales: 1) Add Worker, 2) Open Record Sale, 3) choose Service Sale and select that worker."}
-            </div>
+            
             
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {/* Services */}

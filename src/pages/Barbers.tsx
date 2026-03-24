@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useApi } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, UserRound } from "lucide-react";
+import { Plus, Search, Trash2, UserRound, Pencil } from "lucide-react";
 
 interface Barber {
   id?: number;
@@ -24,13 +24,14 @@ interface Barber {
 
 export default function Barbers() {
   const { toast } = useToast();
-  const { items, add, remove, refresh } = useApi<Barber>({
+  const { items, add, update, remove, refresh } = useApi<Barber>({
     endpoint: "clients",
     defaultValue: [],
   });
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [editingBarber, setEditingBarber] = useState<Barber | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
 
@@ -43,28 +44,69 @@ export default function Barbers() {
     );
   }, [items, query]);
 
-  const handleAdd = async () => {
+  const openCreate = () => {
+    setEditingBarber(null);
+    setName("");
+    setCategory("");
+    setOpen(true);
+  };
+
+  const openEdit = (barber: Barber) => {
+    setEditingBarber(barber);
+    setName(barber.name || "");
+    setCategory(barber.businessType || "");
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!name.trim() || !category.trim()) {
       toast({ title: "Missing Information", description: "Name and category are required.", variant: "destructive" });
       return;
     }
-    await add({
-      name: name.trim(),
-      businessType: category.trim(),
-      clientType: "worker",
-    } as any);
-    await refresh(true);
-    setName("");
-    setCategory("");
-    setOpen(false);
-    toast({ title: "Barber Added", description: "Barber created successfully." });
+    try {
+      if (editingBarber) {
+        await update({
+          ...editingBarber,
+          name: name.trim(),
+          businessType: category.trim(),
+          clientType: "worker",
+        } as any);
+        toast({ title: "Barber Updated", description: "Barber updated successfully." });
+      } else {
+        await add({
+          name: name.trim(),
+          businessType: category.trim(),
+          clientType: "worker",
+        } as any);
+        toast({ title: "Barber Added", description: "Barber created successfully." });
+      }
+      await refresh(true);
+      setName("");
+      setCategory("");
+      setEditingBarber(null);
+      setOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Save Failed",
+        description: error?.message || "Failed to save barber. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async (barber: Barber) => {
     if (!window.confirm(`Delete ${barber.name}?`)) return;
-    await remove(barber as any);
-    await refresh(true);
-    toast({ title: "Deleted", description: "Barber removed." });
+    try {
+      await remove(barber as any);
+      await refresh(true);
+      toast({ title: "Deleted", description: "Barber removed." });
+    } catch (error: any) {
+      toast({
+        title: "Delete Failed",
+        description: error?.message || "Failed to delete barber. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -80,7 +122,7 @@ export default function Barbers() {
               className="pl-9"
             />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={() => setOpen(true)}>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={openCreate}>
             <Plus size={16} />
             Add Barber
           </Button>
@@ -98,9 +140,14 @@ export default function Barbers() {
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{b.businessType || "Barber"}</p>
                 </div>
-                <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(b)}>
-                  <Trash2 size={14} />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="hover:bg-gray-100" onClick={() => openEdit(b)}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(b)}>
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -110,7 +157,7 @@ export default function Barbers() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Barber</DialogTitle>
+            <DialogTitle>{editingBarber ? "Edit Barber" : "Add Barber"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
@@ -123,8 +170,20 @@ export default function Barbers() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleAdd}>Save</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpen(false);
+                setEditingBarber(null);
+                setName("");
+                setCategory("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
+              {editingBarber ? "Update" : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -295,6 +295,12 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
     [clients]
   );
 
+  const availableServices = useMemo(() => {
+    return [...products]
+      .filter((p) => p.name && p.name.trim().length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
   // Calculate selling price based on product priceType and sale mode
   const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
     if (!product.isPackage || !product.packageQuantity) {
@@ -798,12 +804,36 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded }: RecordSa
               <>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-gray-600">Service Name</Label>
-                  <Input
+                  <Select
                     value={serviceName}
-                    onChange={(e) => setServiceName(e.target.value)}
-                    className="h-10 text-base bg-gray-50 border-gray-200"
-                    placeholder="e.g. Hair cut"
-                  />
+                    onValueChange={(value) => {
+                      setServiceName(value);
+                      const selectedService = availableServices.find((s) => s.name === value);
+                      if (selectedService && selectedService.sellingPrice > 0) {
+                        setServiceAmount(String(selectedService.sellingPrice));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
+                      <SelectValue placeholder="Select service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableServices.length > 0 ? (
+                        availableServices.map((service) => {
+                          const sid = ((service as any)._id || service.id || service.name).toString();
+                          return (
+                            <SelectItem key={sid} value={service.name}>
+                              {service.name}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="__no_service__" disabled>
+                          No services found. Add Service first.
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-gray-600">Barber / Worker</Label>
