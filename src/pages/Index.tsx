@@ -1294,11 +1294,14 @@ const Dashboard = () => {
 
     try {
       setIsSavingExpense(true);
+      const now = new Date();
+      const savedDate = new Date((expenseDate || getTodayDate()) + "T00:00:00");
+      savedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
       await addExpense({
         title: expenseTitle.trim(),
         amount,
         category: expenseCategory.trim() || "general",
-        date: new Date((expenseDate || getTodayDate()) + "T12:00:00").toISOString(),
+        date: savedDate.toISOString(),
         note: expenseNote.trim() || undefined,
       } as any);
 
@@ -1473,7 +1476,7 @@ const Dashboard = () => {
       </div>
 
       {/* Record New Sale Form - Hidden on mobile */}
-      <div className="form-card mb-6 border-transparent bg-blue-500 border-blue-600 hidden lg:block">
+      <div className="form-card mb-6 border-transparent bg-blue-500 border-blue-600 hidden">
         <div className="flex items-center justify-between mb-4">
           <h3 className="section-title flex items-center gap-2 text-white">
             <Plus size={20} className="text-white" />
@@ -1966,6 +1969,44 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Desktop Large Quick Actions */}
+      <div className="hidden lg:block mb-6">
+        <div className="rounded-lg border border-blue-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-gray-900">
+              {isRw ? "Ibyibanze" : "Quick Actions"}
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+            <Button onClick={() => navigate("/products/add")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
+              <Package size={20} />
+              <span>{isRw ? "Serivisi" : "Services"}</span>
+            </Button>
+            <Button onClick={() => navigate("/sales")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
+              <Plus size={20} />
+              <span>{isRw ? "Andika serivisi" : "Record Service"}</span>
+            </Button>
+            <Button onClick={() => setExpenseModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white">
+              <Wallet size={20} />
+              <span>{isRw ? "Andika ikiguzi" : "Record Expense"}</span>
+            </Button>
+            <Button onClick={() => navigate("/barbers")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white">
+              <UserRound size={20} />
+              <span>{isRw ? "Umwogoshi" : "Barbers"}</span>
+            </Button>
+            <Button onClick={() => navigate("/sales")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white">
+              <ShoppingCart size={20} />
+              <span>{t("sales")}</span>
+            </Button>
+            <Button onClick={() => navigate("/reports")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white">
+              <FileText size={20} />
+              <span>{t("reports")}</span>
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Charts and Quick Actions */}

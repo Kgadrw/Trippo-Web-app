@@ -54,11 +54,14 @@ export default function Expenses() {
     }
 
     try {
+      const now = new Date();
+      const savedDate = new Date((date || new Date().toISOString().split("T")[0]) + "T00:00:00");
+      savedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
       await add({
         title: title.trim(),
         amount: parsedAmount,
         category,
-        date: new Date(date + "T12:00:00").toISOString(),
+        date: savedDate.toISOString(),
         note: note.trim() || undefined,
       } as any);
       await refresh(true);
