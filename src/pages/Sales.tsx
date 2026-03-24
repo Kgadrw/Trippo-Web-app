@@ -1751,7 +1751,8 @@ const Sales = () => {
                     />
                   </th>
                 )}
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("product")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Service</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Barber</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("quantity")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("language") === "rw" ? "Agaciro" : "Cost"}</th>
@@ -1782,9 +1783,8 @@ const Sales = () => {
                           />
                         </td>
                       )}
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-900">{sale.product}</div>
-                      </td>
+                      <td className="py-4 px-6"><div className="text-sm text-gray-900">{sale.serviceName || sale.product}</div></td>
+                      <td className="py-4 px-6"><div className="text-sm text-gray-700">{sale.workerName || "-"}</div></td>
                       <td className="py-4 px-6">
                         <div className="text-sm text-gray-700">{sale.quantity}</div>
                       </td>
@@ -1820,7 +1820,7 @@ const Sales = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSelectionMode ? 8 : 7} className="py-12 text-center px-6">
+                  <td colSpan={isSelectionMode ? 9 : 8} className="py-12 text-center px-6">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <ShoppingCart size={48} className="mb-4 opacity-50" />
                       <p className="text-base font-medium">No sales found matching your filters</p>
@@ -1851,7 +1851,8 @@ const Sales = () => {
                           />
                         </th>
                       )}
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("product")}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Service</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Barber</th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
@@ -1880,7 +1881,7 @@ const Sales = () => {
                             )}
                             <td className="py-3 px-3">
                               <div className="flex flex-col gap-1">
-                                <div className="text-xs font-medium text-gray-900">{sale.product}</div>
+                              <div className="text-xs font-medium text-gray-900">{sale.serviceName || sale.product}</div>
                                 <div className="text-[10px] text-gray-500">
                                   {formatDateWithTime(sale.timestamp || sale.date)}
                                 </div>
@@ -1894,6 +1895,7 @@ const Sales = () => {
                                 </div>
                               </div>
                             </td>
+                            <td className="py-3 px-3"><div className="text-xs text-gray-700">{sale.workerName || "-"}</div></td>
                             <td className="py-3 px-3">
                               <div className="text-xs text-gray-700">{sale.quantity}</div>
                             </td>
@@ -1913,7 +1915,7 @@ const Sales = () => {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={isSelectionMode ? 5 : 4} className="py-12 text-center">
+                        <td colSpan={isSelectionMode ? 6 : 5} className="py-12 text-center">
                           <div className="flex flex-col items-center justify-center text-gray-400">
                             <ShoppingCart size={48} className="mb-4 opacity-50" />
                             <p className="text-sm font-medium">No sales found matching your filters</p>

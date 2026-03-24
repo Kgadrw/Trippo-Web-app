@@ -54,7 +54,7 @@ import Index from "./pages/Index";
 import Products from "./pages/Products";
 import AddProduct from "./pages/AddProduct";
 import Sales from "./pages/Sales";
-import Clients from "./pages/Clients";
+import Barbers from "./pages/Barbers";
 import Schedules from "./pages/Schedules";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -106,10 +106,18 @@ const SubdomainRouter = () => {
           } 
         />
         <Route 
+          path="/barbers" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Barbers />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/clients" 
           element={
             <ProtectedRoute requireAdmin={true}>
-              <Clients />
+              <Barbers />
             </ProtectedRoute>
           } 
         />
@@ -180,10 +188,18 @@ const SubdomainRouter = () => {
           } 
         />
         <Route 
+          path="/barbers" 
+          element={
+            <ProtectedRoute>
+              <Barbers />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/clients" 
           element={
             <ProtectedRoute>
-              <Clients />
+              <Barbers />
             </ProtectedRoute>
           } 
         />
@@ -257,10 +273,18 @@ const SubdomainRouter = () => {
         } 
       />
       <Route 
+        path="/barbers" 
+        element={
+          <ProtectedRoute>
+            <Barbers />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
         path="/clients" 
         element={
           <ProtectedRoute>
-            <Clients />
+            <Barbers />
           </ProtectedRoute>
         } 
       />

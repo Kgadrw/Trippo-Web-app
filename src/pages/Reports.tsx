@@ -50,6 +50,9 @@ interface Sale {
   cost: number;
   profit: number;
   date: string;
+  saleType?: "product" | "service";
+  workerName?: string;
+  serviceName?: string;
 }
 
 const Reports = () => {
@@ -303,6 +306,22 @@ const Reports = () => {
   const bestSelling = salesByProduct.length > 0 
     ? salesByProduct.reduce((best, item) => item.quantity > best.quantity ? item : best)
     : { product: "N/A", quantity: 0 };
+
+  const salesByBarber = useMemo(() => {
+    const map: Record<string, { barber: string; services: number; revenue: number; profit: number }> = {};
+    filteredSales
+      .filter((s) => s.saleType === "service" || !!s.workerName)
+      .forEach((sale) => {
+        const barber = sale.workerName || "Unassigned";
+        if (!map[barber]) {
+          map[barber] = { barber, services: 0, revenue: 0, profit: 0 };
+        }
+        map[barber].services += sale.quantity || 1;
+        map[barber].revenue += sale.revenue || 0;
+        map[barber].profit += sale.profit || 0;
+      });
+    return Object.values(map).sort((a, b) => b.revenue - a.revenue);
+  }, [filteredSales]);
 
   const handleExport = (format: string) => {
     playInfoBeep();
@@ -914,6 +933,36 @@ const Reports = () => {
             <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
               {t("language") === "rw" ? "Nta makuru y'ubucuruzi aboneka" : "No sales data available"}
             </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
+          <h3 className="mb-3 text-sm font-medium text-foreground">Barber Performance</h3>
+          {salesByBarber.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Barber</th>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Services</th>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Revenue</th>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">Profit</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {salesByBarber.map((row) => (
+                    <tr key={row.barber} className="border-b border-gray-200">
+                      <td className="py-3 px-3 text-sm text-gray-900">{row.barber}</td>
+                      <td className="py-3 px-3 text-sm text-gray-700">{row.services}</td>
+                      <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
+                      <td className="py-3 px-3 text-sm text-gray-700">{row.profit.toLocaleString()} rwf</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No barber service records found for the selected period.</p>
           )}
         </div>
       </div>

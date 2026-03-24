@@ -29,7 +29,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Mail, Settings } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Mail, Settings, UserRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
@@ -84,9 +84,6 @@ function getSaleTimeMs(sale: Sale): number | null {
   if (sale.timestamp) {
     const t = new Date(sale.timestamp).getTime();
     if (!isNaN(t)) return t;
-  }
-  if (sale.date && typeof sale.date === "object" && sale.date !== null && "getFullYear" in sale.date) {
-    return (sale.date as Date).getTime();
   }
   if (typeof sale.date === "string") {
     const raw = sale.date.includes("T") ? sale.date : `${sale.date}T12:00:00`;
@@ -1840,47 +1837,36 @@ const Dashboard = () => {
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              {/* Record Sale */}
+              {/* Services */}
               <Button
-                onClick={() => navigate("/sales")}
+                onClick={() => navigate("/products")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm hover:shadow-md transition-all"
               >
-                <ShoppingCart size={18} />
+                <Package size={18} />
                 <span className="text-xs font-medium">
-                  {t("recordSale")}
+                  {t("language") === "rw" ? "Serivisi" : "Services"}
                 </span>
               </Button>
 
-              {/* Add Service */}
+              {/* Record Service */}
               <Button
-                onClick={() => navigate("/products/add")}
+                onClick={() => navigate("/sales")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho serivisi" : "Add Service"}
+                  {t("language") === "rw" ? "Andika serivisi" : "Record Service"}
                 </span>
               </Button>
 
-              {/* Add Client */}
+              {/* Add Barber */}
               <Button
-                onClick={() => navigate("/clients?create=client")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Plus size={18} />
-                <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho umukiriya" : "Add Client"}
-                </span>
-              </Button>
-
-              {/* Add Worker */}
-              <Button
-                onClick={() => navigate("/clients?create=worker")}
+                onClick={() => navigate("/barbers")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all"
               >
-                <Plus size={18} />
+                <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho umukozi" : "Add Worker"}
+                  {t("language") === "rw" ? "Abakozi" : "Barbers"}
                 </span>
               </Button>
 
@@ -1948,47 +1934,36 @@ const Dashboard = () => {
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {/* Record Sale */}
+              {/* Services */}
               <Button
-                onClick={() => setSaleModalOpen(true)}
+                onClick={() => navigate("/products")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm hover:shadow-md transition-all"
               >
-                <ShoppingCart size={18} />
+                <Package size={18} />
                 <span className="text-xs font-medium">
-                  {t("recordSale")}
+                  {t("language") === "rw" ? "Serivisi" : "Services"}
                 </span>
               </Button>
 
-              {/* Add Service */}
+              {/* Record Service */}
               <Button
-                onClick={() => navigate("/products/add")}
+                onClick={() => setSaleModalOpen(true)}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho serivisi" : "Add Service"}
+                  {t("language") === "rw" ? "Andika serivisi" : "Record Service"}
                 </span>
               </Button>
 
-              {/* Add Client */}
+              {/* Barbers */}
               <Button
-                onClick={() => navigate("/clients?create=client")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Plus size={18} />
-                <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho umukiriya" : "Add Client"}
-                </span>
-              </Button>
-
-              {/* Add Worker */}
-              <Button
-                onClick={() => navigate("/clients?create=worker")}
+                onClick={() => navigate("/barbers")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all"
               >
-                <Plus size={18} />
+                <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {t("language") === "rw" ? "Ongeraho umukozi" : "Add Worker"}
+                  {t("language") === "rw" ? "Abakozi" : "Barbers"}
                 </span>
               </Button>
 
