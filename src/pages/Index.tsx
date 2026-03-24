@@ -2139,19 +2139,13 @@ const Dashboard = () => {
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("product")}
+                        {isRw ? "Ubwoko" : "Type"}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("quantity")}
+                        {isRw ? "Ibisobanuro" : "Details"}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("revenue")} (Rwf)
-                      </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("profit")} (Rwf)
-                      </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("paymentMethod")}
+                        {isRw ? "Amafaranga (Rwf)" : "Amount (Rwf)"}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                         {t("date")}
@@ -2159,50 +2153,39 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {recentSales.map((sale, index) => (
+                    {recentMobileActivity.map((entry, index) => (
                       <tr 
-                        key={(sale as any)._id || sale.id || index}
+                        key={entry.id || index}
                         className={cn(
                           "border-b border-gray-200",
                           index % 2 === 0 ? "bg-white" : "bg-gray-50"
                         )}
                       >
                         <td className="py-4 px-6">
-                          <div className="text-sm text-gray-900">
-                            {sale.product}
+                          <div className={cn(
+                            "text-sm font-semibold",
+                            entry.type === "sale" ? "text-green-700" : "text-red-700"
+                          )}>
+                            {entry.type === "sale" ? (isRw ? "Serivisi" : "Sale") : (isRw ? "Ikiguzi" : "Expense")}
                           </div>
                         </td>
                         <td className="py-4 px-6">
-                          <div className="text-sm text-gray-700">
-                            {sale.quantity}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="text-sm text-gray-700">
-                            {sale.revenue.toLocaleString()}
-                          </div>
+                          <div className="text-sm text-gray-900">{entry.title}</div>
+                          {entry.meta && (
+                            <div className="text-xs text-gray-500 mt-1">{entry.meta}</div>
+                          )}
                         </td>
                         <td className="py-4 px-6">
                           <div className={cn(
-                            "text-sm",
-                            sale.profit >= 0 ? "text-green-700" : "text-red-700"
+                            "text-sm font-semibold",
+                            entry.type === "sale" ? "text-green-700" : "text-red-700"
                           )}>
-                            {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()}
+                            {entry.type === "sale" ? "+" : "-"}{Number(entry.amount).toLocaleString()}
                           </div>
                         </td>
                         <td className="py-4 px-6">
                           <div className="text-sm text-gray-700">
-                            {sale.paymentMethod === 'cash' && t("cash")}
-                            {sale.paymentMethod === 'card' && t("card")}
-                            {sale.paymentMethod === 'momo' && t("momoPay")}
-                            {sale.paymentMethod === 'airtel' && t("airtelPay")}
-                            {sale.paymentMethod === 'transfer' && t("bankTransfer")}
-                            {!sale.paymentMethod && t("cash")}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="text-sm text-gray-700">
-                            {formatDateWithTime(sale.timestamp || sale.date)}
+                            {formatDateWithTime(entry.date)}
                           </div>
                         </td>
                       </tr>

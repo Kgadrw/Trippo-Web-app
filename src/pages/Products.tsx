@@ -27,7 +27,7 @@ interface ServiceItem {
 
 const Products = () => {
   const { toast } = useToast();
-  const { items, isLoading, add, update, remove, refresh } = useApi<ServiceItem>({
+  const { items, isLoading, add, update, remove } = useApi<ServiceItem>({
     endpoint: "products",
     defaultValue: [],
   });
@@ -84,14 +84,12 @@ const Products = () => {
       await add(payload as any);
       toast({ title: "Service Added", description: "Service created successfully." });
     }
-    await refresh(true);
     setOpen(false);
   };
 
   const handleDelete = async (item: ServiceItem) => {
     if (!window.confirm(`Delete service "${item.name}"?`)) return;
     await remove(item as any);
-    await refresh(true);
     toast({ title: "Service Deleted", description: "Service removed successfully." });
   };
 

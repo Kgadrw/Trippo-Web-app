@@ -24,7 +24,7 @@ interface Barber {
 
 export default function Barbers() {
   const { toast } = useToast();
-  const { items, isLoading, add, update, remove, refresh } = useApi<Barber>({
+  const { items, isLoading, add, update, remove } = useApi<Barber>({
     endpoint: "clients",
     defaultValue: [],
   });
@@ -81,7 +81,6 @@ export default function Barbers() {
         } as any);
         toast({ title: "Barber Added", description: "Barber created successfully." });
       }
-      await refresh(true);
       setName("");
       setCategory("");
       setEditingBarber(null);
@@ -99,7 +98,6 @@ export default function Barbers() {
     if (!window.confirm(`Delete ${barber.name}?`)) return;
     try {
       await remove(barber as any);
-      await refresh(true);
       toast({ title: "Deleted", description: "Barber removed." });
     } catch (error: any) {
       toast({
