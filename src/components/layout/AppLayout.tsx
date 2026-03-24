@@ -7,6 +7,9 @@ import { MobileFixedBackground } from "./MobileFixedBackground";
 import { cn } from "@/lib/utils";
 import { useSubdomain } from "@/hooks/useSubdomain";
 import { LayoutDashboard, Package, UserRound, ShoppingCart, Wallet, FileText, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { usePinAuth } from "@/hooks/usePinAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -26,6 +29,9 @@ const desktopMenuItems = [
 export function AppLayout({ children, title }: AppLayoutProps) {
   const location = useLocation();
   const subdomain = useSubdomain();
+  const navigate = useNavigate();
+  const { clearAuth } = usePinAuth();
+  const { toast } = useToast();
 
   /** Hide bottom bar on user dashboard subdomain; keep other areas unchanged. */
   const showBottomNav = useMemo(() => {
@@ -206,6 +212,34 @@ export function AppLayout({ children, title }: AppLayoutProps) {
                 </Link>
               );
             })}
+            <button
+              type="button"
+              onClick={async () => {
+                clearAuth();
+                localStorage.removeItem("profit-pilot-user-id");
+                localStorage.removeItem("profit-pilot-user-name");
+                localStorage.removeItem("profit-pilot-user-email");
+                localStorage.removeItem("profit-pilot-business-name");
+                localStorage.removeItem("profit-pilot-is-admin");
+                localStorage.removeItem("profit-pilot-authenticated");
+                sessionStorage.clear();
+                try {
+                  const { clearAllStores } = await import("@/lib/indexedDB");
+                  await clearAllStores();
+                } catch (error) {
+                  console.error("Error clearing IndexedDB on logout:", error);
+                }
+                window.dispatchEvent(new Event("pin-auth-changed"));
+                toast({
+                  title: "Logged Out",
+                  description: "You have been successfully logged out.",
+                });
+                navigate("/", { replace: true });
+              }}
+              className="h-9 px-3 rounded-md inline-flex items-center gap-2 text-sm whitespace-nowrap transition-colors text-blue-100 hover:bg-red-600 hover:text-white"
+            >
+              <span>Logout</span>
+            </button>
           </nav>
         </div>
       </div>
