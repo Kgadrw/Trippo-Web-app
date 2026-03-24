@@ -37,7 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Settings, UserRound, Wallet } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Settings, UserRound, Wallet, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
@@ -519,6 +519,30 @@ const Dashboard = () => {
       })
       .slice(0, 10);
   }, [sales]);
+
+  const recentMobileActivity = useMemo(() => {
+    const saleEntries = sales.map((sale) => ({
+      id: `sale-${(sale as any)._id || sale.id || Math.random()}`,
+      type: "sale" as const,
+      title: sale.product,
+      amount: sale.revenue || 0,
+      date: sale.timestamp || sale.date,
+      meta: sale.paymentMethod || "",
+    }));
+
+    const expenseEntries = expenses.map((expense) => ({
+      id: `expense-${(expense as any)._id || expense.id || Math.random()}`,
+      type: "expense" as const,
+      title: expense.title,
+      amount: expense.amount || 0,
+      date: expense.date,
+      meta: expense.category || "",
+    }));
+
+    return [...saleEntries, ...expenseEntries]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 20);
+  }, [sales, expenses]);
 
   // Track if sale recording is in progress (for button disabling)
   const [isRecordingSale, setIsRecordingSale] = useState(false);
@@ -2136,11 +2160,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-gray-600" />
               <h3 className="text-lg font-semibold text-gray-900">
-                {isRw ? "Serivisi zatanzwe" : "Recent Sales"}
+                {isRw ? "Serivisi n'ibyakoreshejwe" : "Recent Sales & Expenses"}
               </h3>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {isRw ? "Iminsi uyu munsi" : "Last 10 sales"}
+              {isRw ? "Ibikorwa biheruka" : "Latest activity"}
             </p>
           </div>
           
@@ -2150,7 +2174,7 @@ const Dashboard = () => {
               <Skeleton className="h-12 w-full mb-2" />
               <Skeleton className="h-12 w-full mb-2" />
             </div>
-          ) : recentSales.length > 0 ? (
+          ) : recentSales.length > 0 || recentMobileActivity.length > 0 ? (
             <>
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
@@ -2230,55 +2254,51 @@ const Dashboard = () => {
                 </table>
               </div>
 
-              {/* Mobile Table View - Matches Sales page mobile table */}
+              {/* Mobile activity list: sales + expenses */}
               <div className="lg:hidden overflow-auto">
                 <div className="min-w-full">
                   <table className="w-full border-collapse">
                     <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                       <tr>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("product")}</th>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("profit")}</th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{isRw ? "Ubwoko" : "Type"}</th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{isRw ? "Ibisobanuro" : "Details"}</th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{isRw ? "Amafaranga" : "Amount"}</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
-                      {recentSales.map((sale, index) => (
+                      {recentMobileActivity.map((entry, index) => (
                         <tr 
-                          key={(sale as any)._id || sale.id || index}
+                          key={entry.id || index}
                           className={cn(
                             "border-b border-gray-200",
                             index % 2 === 0 ? "bg-white" : "bg-gray-50"
                           )}
                         >
                           <td className="py-3 px-3">
-                            <div className="flex flex-col gap-1">
-                              <div className="text-xs font-medium text-gray-900">{sale.product}</div>
-                              <div className="text-[10px] text-gray-500">
-                                {formatDateWithTime(sale.timestamp || sale.date)}
-                              </div>
-                              <div className="text-[10px] text-gray-500">
-                                {sale.paymentMethod === 'cash' && t("cash")}
-                                {sale.paymentMethod === 'card' && t("card")}
-                                {sale.paymentMethod === 'momo' && t("momoPay")}
-                                {sale.paymentMethod === 'airtel' && t("airtelPay")}
-                                {sale.paymentMethod === 'transfer' && t("bankTransfer")}
-                                {!sale.paymentMethod && t("cash")}
-                              </div>
+                            <div className={cn("inline-flex items-center gap-1 text-xs font-semibold", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
+                              {entry.type === "sale" ? (
+                                <ArrowUpRight size={13} className="rotate-[18deg]" />
+                              ) : (
+                                <ArrowDownLeft size={13} className="-rotate-[18deg]" />
+                              )}
+                              <span>{entry.type === "sale" ? (isRw ? "Serivisi" : "Sale") : (isRw ? "Ikiguzi" : "Expense")}</span>
                             </div>
                           </td>
                           <td className="py-3 px-3">
-                            <div className="text-xs text-gray-700">{sale.quantity}</div>
+                            <div className="flex flex-col gap-1">
+                              <div className="text-xs font-medium text-gray-900">{entry.title}</div>
+                              <div className="text-[10px] text-gray-500">{formatDateWithTime(entry.date)}</div>
+                              {entry.meta && <div className="text-[10px] text-gray-500">{entry.meta}</div>}
+                            </div>
                           </td>
-                          <td className="py-3 px-3">
-                            <div className="text-xs text-gray-700">{sale.revenue.toLocaleString()} rwf</div>
-                          </td>
-                          <td className="py-3 px-3">
-                            <div className={cn(
-                              "text-xs font-medium",
-                              sale.profit >= 0 ? "text-green-700" : "text-red-700"
-                            )}>
-                              {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
+                          <td className={cn("py-3 px-3 text-xs font-semibold", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
+                            <div className="inline-flex items-center gap-1">
+                              {entry.type === "sale" ? (
+                                <ArrowUpRight size={13} className="rotate-[18deg]" />
+                              ) : (
+                                <ArrowDownLeft size={13} className="-rotate-[18deg]" />
+                              )}
+                              <span>{entry.type === "sale" ? "+" : "-"}{Number(entry.amount).toLocaleString()} rwf</span>
                             </div>
                           </td>
                         </tr>
@@ -2293,10 +2313,10 @@ const Dashboard = () => {
               <div className="flex flex-col items-center justify-center text-gray-400">
                 <ShoppingCart size={48} className="mb-4 opacity-50" />
                 <p className="text-base font-medium">
-                  {isRw ? "Nta bucuruzi bugezweho" : "No recent sales"}
+                  {isRw ? "Nta bikorwa biheruka" : "No recent activity"}
                 </p>
                 <p className="text-sm mt-1">
-                  {isRw ? "Serivisi zatanzwe zizagaragara hano" : "Recent sales will appear here"}
+                  {isRw ? "Serivisi n'ibyakoreshejwe bizagaragara hano" : "Recent sales and expenses will appear here"}
                 </p>
               </div>
             </div>

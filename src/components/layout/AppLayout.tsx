@@ -185,7 +185,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
             <img src="/logo.png" alt="Trippo Logo" className="h-7 w-7 object-contain" />
             <span className="text-lg font-normal text-white lowercase">trippo</span>
           </Link>
-          <nav className="flex items-center gap-2 overflow-x-auto">
+          <nav className="ml-auto flex items-center gap-2 overflow-x-auto">
             {desktopMenuItems.map((item) => {
               const isDashboardItem = item.path === "/dashboard";
               const isDashboardSubdomainRoot = subdomain === "dashboard" && location.pathname === "/";
