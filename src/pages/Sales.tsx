@@ -1675,155 +1675,133 @@ const Sales = () => {
             {/* Filter Options - Collapsible */}
             {showFilters && (
               <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {/* Start Date */}
-                  <div className="relative">
-                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
-                      style={{
-                        WebkitAppearance: 'none',
-                        appearance: 'none',
-                        colorScheme: 'light'
-                      }}
-                    />
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-gray-700">
+                    {isRw ? "Shungura ku itariki" : isFr ? "Filtrer par date" : "Filter by date"}
                   </div>
-                  
-                  {/* End Date */}
-                  <div className="relative">
-                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
-                      style={{
-                        WebkitAppearance: 'none',
-                        appearance: 'none',
-                        colorScheme: 'light'
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Sort By */}
-                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                      <div className="flex items-center gap-2">
-                        <ArrowUpDown size={14} className="text-gray-400" />
-                        <SelectValue placeholder={t("sortBy")} />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Start Date */}
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-medium text-gray-600">
+                        {isRw ? "Kuva" : isFr ? "Du" : "From"}
                       </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date-desc">Date (Newest First)</SelectItem>
-                      <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
-                      <SelectItem value="product-asc">Product (A-Z)</SelectItem>
-                      <SelectItem value="product-desc">Product (Z-A)</SelectItem>
-                      <SelectItem value="revenue-desc">Revenue (High to Low)</SelectItem>
-                      <SelectItem value="revenue-asc">Revenue (Low to High)</SelectItem>
-                      <SelectItem value="profit-desc">Profit (High to Low)</SelectItem>
-                      <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {/* Ticket export (barber/day) */}
-                  <div className="col-span-2 pt-2 border-t border-gray-200 space-y-2">
-                    <div className="text-xs font-semibold text-gray-700">
-                      {isRw
-                        ? "Tike z'Umwogoshi"
-                        : isFr
-                        ? "Tickets pour coiffeur"
-                        : "Barber Tickets"}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Select value={ticketBarberKey} onValueChange={(v) => setTicketBarberKey(v)}>
-                        <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                          <SelectValue
-                            placeholder={isRw ? "Hitamo umwogoshi" : isFr ? "Choisir un coiffeur" : "Select barber"}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ticketBarberOptions.map((b) => (
-                            <SelectItem key={b.key} value={b.key}>
-                              {b.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
                       <div className="relative">
-                        <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                        <Calendar
+                          size={16}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none"
+                        />
                         <Input
                           type="date"
-                          value={ticketDay}
-                          onChange={(e) => setTicketDay(e.target.value)}
-                          className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="pl-9 h-10 text-base bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
                           style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light" }}
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={!ticketBarberKey || ticketDaySales.length === 0}
-                        onClick={handlePrintDailyTickets}
-                        className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
-                      >
-                        <Printer size={16} className="mr-2" />
-                        {isRw ? "Sohora (Print)" : isFr ? "Imprimer" : "Print"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={!ticketBarberKey || ticketDaySales.length === 0}
-                        onClick={handleDownloadDailyTickets}
-                        className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
-                      >
-                        <Download size={16} className="mr-2" />
-                        {isRw ? "Kuramo" : isFr ? "Télécharger" : "Download"}
-                      </Button>
-                    </div>
-
-                    <div className="text-[10px] text-gray-600">
-                      {ticketBarberKey && ticketDay
-                        ? `${ticketDaySales.length} ${isRw ? "tike" : isFr ? "tickets" : "tickets"}`
-                        : isRw
-                        ? "Hitamo umwogoshi n'itariki"
-                        : isFr
-                        ? "Choisir un coiffeur et une date"
-                        : "Select a barber and date"}
+                    {/* End Date */}
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-medium text-gray-600">
+                        {isRw ? "Kugeza" : isFr ? "Au" : "To"}
+                      </div>
+                      <div className="relative">
+                        <Calendar
+                          size={16}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none"
+                        />
+                        <Input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="pl-9 h-10 text-base bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
+                          style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light" }}
+                        />
+                      </div>
                     </div>
                   </div>
-              
-                  {/* Clear Filters */}
-                  <Button
-                    onClick={handleClearFilters}
-                    variant="outline"
-                    className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg w-full"
-                  >
-                    <X size={14} className="mr-2" />
-                    {t("cancel")}
-                  </Button>
-                  
-                  {/* Delete Selected Sales - Hidden */}
-                  {false && selectedSales.size > 0 && (
+
+                  {/* Quick ranges */}
+                  <div className="flex flex-wrap gap-2">
                     <Button
-                      onClick={handleDeleteSelected}
-                      className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2 font-semibold flex items-center gap-2 w-full col-span-2"
+                      type="button"
+                      variant="outline"
+                      className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                      onClick={() => {
+                        const today = getTodayDate();
+                        setStartDate(today);
+                        setEndDate(today);
+                      }}
                     >
-                      <div className="relative">
-                        <Trash2 size={16} />
-                        <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                          {selectedSales.size}
-                        </span>
-                      </div>
-                      <span>{t("delete")} Selected</span>
+                      {isRw ? "Uyu munsi" : isFr ? "Aujourd'hui" : "Today"}
                     </Button>
-                  )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                      onClick={() => {
+                        const now = new Date();
+                        const day = now.getDay(); // 0=Sun
+                        const diffToMonday = (day + 6) % 7; // Mon=0
+                        const monday = new Date(now);
+                        monday.setDate(now.getDate() - diffToMonday);
+                        const sunday = new Date(monday);
+                        sunday.setDate(monday.getDate() + 6);
+                        setStartDate(monday.toISOString().slice(0, 10));
+                        setEndDate(sunday.toISOString().slice(0, 10));
+                      }}
+                    >
+                      {isRw ? "Iki cyumweru" : isFr ? "Cette semaine" : "This week"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                      onClick={() => {
+                        const now = new Date();
+                        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+                        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                        setStartDate(first.toISOString().slice(0, 10));
+                        setEndDate(last.toISOString().slice(0, 10));
+                      }}
+                    >
+                      {isRw ? "Uku kwezi" : isFr ? "Ce mois" : "This month"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                      onClick={() => {
+                        setStartDate(getYearStartDate());
+                        setEndDate(getTodayDate());
+                      }}
+                    >
+                      {isRw ? "Uyu mwaka" : isFr ? "Cette année" : "This year"}
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg w-full"
+                      onClick={() => {
+                        setStartDate("");
+                        setEndDate("");
+                      }}
+                    >
+                      <X size={14} className="mr-2" />
+                      {isRw ? "Siba itariki" : isFr ? "Effacer dates" : "Clear dates"}
+                    </Button>
+                    <Button
+                      type="button"
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
+                      onClick={() => setShowFilters(false)}
+                    >
+                      {isRw ? "Bikore" : isFr ? "Appliquer" : "Apply"}
+                    </Button>
+                  </div>
                 </div>
                 <div className="text-xs text-gray-500">
                   {isRw ? "Byerekana" : isFr ? "Affichage" : "Showing"} {filteredSales.length}{" "}
@@ -2149,17 +2127,20 @@ const Sales = () => {
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                      <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2 w-10">
+                        {isRw ? "Siba" : isFr ? "Suppr." : "Del"}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2">
                         {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
                       </th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                      <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2">
                         {isRw ? "Ibisobanuro" : isFr ? "Détails" : "Details"}
                       </th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                      <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2">
                         {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
                       </th>
-                      <th className="text-right text-xs font-semibold text-gray-700 py-3 px-3">
-                        {isRw ? "Sohora" : isFr ? "Imprimer" : "Print"}
+                      <th className="text-right text-xs font-semibold text-gray-700 py-2 px-2 w-10">
+                        {isRw ? "Tike" : isFr ? "Ticket" : "Ticket"}
                       </th>
                     </tr>
                   </thead>
@@ -2171,7 +2152,24 @@ const Sales = () => {
                             "border-b border-gray-200",
                             index % 2 === 0 ? "bg-white" : "bg-gray-50"
                           )}>
-                            <td className="py-3 px-3">
+                            <td className="py-2 px-2 align-top">
+                              {row.type === "sale" ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-gray-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => handleDeleteSingle((row as any).sale)}
+                                  aria-label="Delete sale"
+                                  title={t("delete")}
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 align-top">
                               <div className={cn("text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
                                 {row.type === "sale"
                                   ? isRw
@@ -2186,29 +2184,29 @@ const Sales = () => {
                                   : "Expense"}
                               </div>
                             </td>
-                            <td className="py-3 px-3">
+                            <td className="py-2 px-2">
                               <div className="flex flex-col gap-1">
-                                <div className="text-xs font-medium text-gray-900">{row.title}</div>
+                                <div className="text-xs font-medium text-gray-900 break-words">{row.title}</div>
                                 {row.subtitle ? <div className="text-[10px] text-gray-600">{row.subtitle}</div> : null}
                                 <div className="text-[10px] text-gray-500">{formatDateWithTime(row.date)}</div>
                                 {row.meta ? <div className="text-[10px] text-gray-500">{row.meta}</div> : null}
                               </div>
                             </td>
-                            <td className={cn("py-3 px-3 text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
+                            <td className={cn("py-2 px-2 text-xs font-semibold whitespace-nowrap", row.type === "sale" ? "text-green-700" : "text-red-700")}>
                               {row.type === "sale" ? "+" : "-"}{Number(row.amount).toLocaleString()} rwf
                             </td>
-                            <td className="py-3 px-3 text-right">
+                            <td className="py-2 px-2 text-right align-top">
                               {row.type === "sale" ? (
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 text-gray-700 hover:text-blue-700 hover:bg-blue-50"
+                                  className="h-7 w-7 p-0 text-gray-700 hover:text-blue-700 hover:bg-blue-50"
                                   onClick={() => void handlePrintTicket((row as any).sale)}
                                   aria-label="Print receipt"
                                   title={isRw ? "Sohora tike" : isFr ? "Imprimer le ticket" : "Print ticket"}
                                 >
-                                  <Printer size={16} />
+                                  <Printer size={14} />
                                 </Button>
                               ) : (
                                 <span className="text-xs text-gray-300">—</span>
@@ -2219,7 +2217,7 @@ const Sales = () => {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={4} className="py-12 text-center">
+                        <td colSpan={5} className="py-12 text-center">
                           <div className="flex flex-col items-center justify-center text-gray-400">
                             <ShoppingCart size={48} className="mb-4 opacity-50" />
                             <p className="text-sm font-medium">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Wallet } from "lucide-react";
+import { Trash2, Wallet, Plus } from "lucide-react";
 import { formatDateWithTime } from "@/lib/utils";
 
 interface Expense {
@@ -131,7 +131,12 @@ export default function Expenses() {
             <Label>Note (Optional)</Label>
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional details..." />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2 w-fit"
+            onClick={handleSave}
+          >
+            <Plus size={16} />
             Save Expense
           </Button>
         </div>

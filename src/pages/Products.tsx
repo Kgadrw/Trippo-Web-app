@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Search, Pencil, Trash2, Scissors } from "lucide-react";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ interface ServiceItem {
 
 const Products = () => {
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const { items, isLoading, add, update, remove } = useApi<ServiceItem>({
     endpoint: "products",
     defaultValue: [],
@@ -93,35 +95,47 @@ const Products = () => {
     toast({ title: "Service Deleted", description: "Service removed successfully." });
   };
 
+  const servicesTitle =
+    language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services";
+  const serviceSingular =
+    language === "rw" ? "Serivisi" : language === "fr" ? "Service" : "Service";
+
   if (isLoading) {
     return (
-      <AppLayout title="Services">
-        <div className="p-4 text-sm text-gray-600">Loading services...</div>
+      <AppLayout title={servicesTitle}>
+        <div className="p-4 text-sm text-gray-600">
+          {t("loading")}...
+        </div>
       </AppLayout>
     );
   }
 
   return (
-    <AppLayout title="Services">
+    <AppLayout title={servicesTitle}>
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search services..." className="pl-9" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`${t("search")} ${servicesTitle.toLowerCase()}...`}
+              className="pl-9"
+            />
           </div>
           <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={openCreate}>
             <Plus size={16} />
-            Add Service
+            {t("add")} {serviceSingular}
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {services.map((service) => {
             const id = (service as any)._id || service.id;
             return (
               <div
                 key={id}
-                className="rounded-lg border bg-white p-4 cursor-pointer transition-colors hover:bg-gray-50"
+                className="rounded-lg border bg-white p-3 cursor-pointer transition-colors hover:bg-gray-50 aspect-square flex flex-col"
                 onClick={() => openRecordService(service)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -133,15 +147,16 @@ const Products = () => {
                 tabIndex={0}
                 aria-label={`Record new service for ${service.name}`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-medium text-gray-900">
-                    <Scissors size={16} />
-                    {service.name}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 font-medium text-gray-900 min-w-0 flex-1">
+                    <Scissors size={16} className="mt-0.5 shrink-0" />
+                    <span className="line-clamp-2 break-words">{service.name}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="h-8 w-8 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         openEdit(service);
@@ -152,7 +167,7 @@ const Products = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-600 hover:bg-red-50"
+                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(service);
@@ -162,7 +177,14 @@ const Products = () => {
                     </Button>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mt-2">Price: {Number(service.sellingPrice || 0).toLocaleString()} rwf</p>
+                <div className="mt-auto pt-3">
+                  <div className="text-[11px] text-gray-500">
+                    {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    {Number(service.sellingPrice || 0).toLocaleString()} rwf
+                  </div>
+                </div>
               </div>
             );
           })}
