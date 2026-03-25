@@ -224,7 +224,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
                 setOpen(true);
               }}
               placeholder={placeholder}
-              className={cn("pl-10 pr-10 cursor-text", className)}
+              className={cn("pl-10 pr-10 cursor-text rounded-full", className)}
             />
             {displayProduct && (
               <button

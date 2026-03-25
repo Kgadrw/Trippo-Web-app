@@ -134,25 +134,35 @@ export default function Barbers() {
             No barbers found. Click <strong>Add Barber</strong> to create one.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {barbers.map((b) => {
               const id = (b as any)._id || b.id;
               return (
-                <div key={id} className="rounded-lg border bg-white p-4 flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 font-medium text-gray-900">
-                      <UserRound size={16} />
-                      {b.name}
+                <div
+                  key={id}
+                  className="rounded-xl border border-gray-200 bg-white p-3 flex flex-col aspect-square transition-all hover:shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start gap-2 font-medium text-gray-900">
+                        <UserRound size={16} className="mt-0.5 shrink-0" />
+                        <span className="line-clamp-2 break-words">{b.name}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-2 break-words">
+                        {b.businessType || "Barber"}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{b.businessType || "Barber"}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                     <Button variant="ghost" size="sm" className="hover:bg-gray-100" onClick={() => openEdit(b)}>
                       <Pencil size={14} />
                     </Button>
                     <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(b)}>
                       <Trash2 size={14} />
                     </Button>
+                  </div>
+                </div>
+                  <div className="mt-auto pt-3">
+                    <div className="text-[11px] text-gray-500">Barber</div>
                   </div>
                 </div>
               );
