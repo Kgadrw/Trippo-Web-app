@@ -190,47 +190,106 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
     const contentWidth = contentRight - contentLeft;
     let y = page.ry + 12;
 
-    // RECEIPT header
+    // RECEIPT header + small logo on same line (top)
     doc.setTextColor(0);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
+    doc.setFontSize(14);
     const receiptTitle = "RECEIPT";
-    doc.text(receiptTitle, cx - doc.getTextWidth(receiptTitle) / 2, y);
-    step = 2;
-    y += 7;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    const receiptStars = "****";
-    doc.text(receiptStars, cx - doc.getTextWidth(receiptStars) / 2, y);
-    step = 3;
-    y += 6;
-
-    // Logo BELOW receipt title
     const logoDataUrl = opts.logoDataUrl || (await getTrippoLogoDataUrl());
+    const logoSize = 6; // mm (small)
+    const gap = 2; // mm
+    const titleW = doc.getTextWidth(receiptTitle);
+    const headerTotalW = (logoDataUrl ? logoSize + gap : 0) + titleW;
+    const headerStartX = cx - headerTotalW / 2;
     if (logoDataUrl) {
       try {
-        const logoSize = 11; // mm
-        doc.addImage(
-          logoDataUrl,
-          "PNG",
-          cx - logoSize / 2,
-          y,
-          logoSize,
-          logoSize
-        );
-        y += logoSize + 4;
+        doc.addImage(logoDataUrl, "PNG", headerStartX, y - logoSize + 1.5, logoSize, logoSize);
       } catch {
-        // ignore logo render errors
+        // ignore
       }
     }
+    doc.text(receiptTitle, headerStartX + (logoDataUrl ? logoSize + gap : 0), y);
+    step = 2;
+    y += 5;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const businessNameText = fitTextToWidth(doc, String(businessName), contentWidth);
+    doc.text(businessNameText, cx - doc.getTextWidth(businessNameText) / 2, y);
+    step = 3;
+    y += 5;
+
+    drawDottedLine(doc, contentLeft, contentRight, y, 210);
+    y += 5;
     step = 4;
 
-    // QR BELOW logo (centered)
+    // Details
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(`Service:`, contentLeft, y);
+    doc.setFont("helvetica", "normal");
+    const serviceValue = fitTextToWidth(
+      doc,
+      sale.serviceName || sale.product || "Service",
+      contentWidth - 26
+    );
+    doc.text(serviceValue, contentLeft + 26, y);
+    step = 5;
+    y += 4.6;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Barber:`, contentLeft, y);
+    doc.setFont("helvetica", "normal");
+    const barberValue = fitTextToWidth(doc, sale.workerName || "-", contentWidth - 26);
+    doc.text(barberValue, contentLeft + 26, y);
+    step = 6;
+    y += 4.6;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Payment:`, contentLeft, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(fitTextToWidth(doc, paymentStr, contentWidth - 26), contentLeft + 26, y);
+    step = 7;
+    y += 4.6;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Recorded:`, contentLeft, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(fitTextToWidth(doc, when, contentWidth - 30), contentLeft + 30, y);
+    doc.setFontSize(9);
+    step = 8;
+    y += 5.2;
+
+    // Ticket ID line
+    drawDottedLine(doc, contentLeft, contentRight, y, 210);
+    step = 9;
+    y += 3.8;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Ticket:`, contentLeft, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text(fitTextToWidth(doc, String(ticketId), contentWidth - 30), contentLeft + 30, y);
+    doc.setFontSize(9);
+    step = 10;
+    y += 5.5;
+
+    // Total
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Total:", contentLeft, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const amountX = contentRight - doc.getTextWidth(amountStr);
+    doc.text(amountStr, amountX, y);
+    step = 11;
+
+    // QR at bottom (below everything)
     if (qrEnabled) {
-      const qrSize = 24; // mm
+      const qrSize = 18; // mm (small, fits receipt)
       const qrX = cx - qrSize / 2;
-      const qrY = y;
+      const qrY = page.ry + page.rh - qrSize - 8;
       try {
         const qrPayload = `${verificationBaseUrl}?ticket=${encodeURIComponent(String(ticketId))}`;
         const qrDataUrl = await generateQrDataUrl(qrPayload);
@@ -240,90 +299,8 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
         doc.setLineWidth(0.3);
         doc.rect(qrX, qrY, qrSize, qrSize);
       }
-      y += qrSize + 5;
     }
-    step = 5;
-
-    // Separator before texts
-    drawDottedLine(doc, contentLeft, contentRight, y, 205);
-    y += 6;
-    step = 6;
-
-    // Details
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(`Service:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    const serviceValue = fitTextToWidth(
-      doc,
-      sale.serviceName || sale.product || "Service",
-      contentWidth - 26
-    );
-    doc.text(serviceValue, contentLeft + 26, y);
-    step = 7;
-    y += 5;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Barber:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    const barberValue = fitTextToWidth(doc, sale.workerName || "-", contentWidth - 26);
-    doc.text(barberValue, contentLeft + 26, y);
-    step = 8;
-    y += 5;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Payment:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(fitTextToWidth(doc, paymentStr, contentWidth - 26), contentLeft + 26, y);
-    step = 9;
-    y += 5;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Recorded:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.text(fitTextToWidth(doc, when, contentWidth - 30), contentLeft + 30, y);
-    doc.setFontSize(10);
-    step = 10;
-    y += 6;
-
-    // Ticket ID line
-    drawDottedLine(doc, contentLeft, contentRight, y, 210);
-    step = 11;
-    y += 4;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Ticket:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(fitTextToWidth(doc, String(ticketId), contentWidth - 30), contentLeft + 30, y);
-    doc.setFontSize(10);
     step = 12;
-    y += 8;
-
-    // Total
-    const totalY = page.ry + page.rh - 52;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Total:", page.rx + 10, totalY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    const amountX = page.rx + page.rw - 10 - doc.getTextWidth(amountStr);
-    doc.text(amountStr, amountX, totalY);
-    step = 13;
-
-    // Decorative barcode area
-    const barcodeY = page.ry + page.rh - 30;
-    const barcodeH = 16;
-    drawBarcodeLike(doc, page.rx + 10, barcodeY, page.rw - 20, barcodeH, String(ticketId));
-    step = 14;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(40);
-    doc.text(String(ticketId.slice(-10)), page.rx + 8, barcodeY + barcodeH + 4);
-    doc.setTextColor(0);
-    step = 15;
   } catch (e: any) {
     const msg = e?.message || String(e);
     throw new Error(`Ticket receipt render failed at step ${step}: ${msg}`);

@@ -1145,6 +1145,7 @@ const Sales = () => {
       subtitle: sale.workerName || "",
       amount: sale.revenue || 0,
       date: sale.timestamp || sale.date,
+      sale,
       meta:
         sale.paymentMethod === "cash"
           ? t("cash")
@@ -2157,6 +2158,9 @@ const Sales = () => {
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
                         {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
                       </th>
+                      <th className="text-right text-xs font-semibold text-gray-700 py-3 px-3">
+                        {isRw ? "Sohora" : isFr ? "Imprimer" : "Print"}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -2193,12 +2197,29 @@ const Sales = () => {
                             <td className={cn("py-3 px-3 text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
                               {row.type === "sale" ? "+" : "-"}{Number(row.amount).toLocaleString()} rwf
                             </td>
+                            <td className="py-3 px-3 text-right">
+                              {row.type === "sale" ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-gray-700 hover:text-blue-700 hover:bg-blue-50"
+                                  onClick={() => void handlePrintTicket((row as any).sale)}
+                                  aria-label="Print receipt"
+                                  title={isRw ? "Sohora tike" : isFr ? "Imprimer le ticket" : "Print ticket"}
+                                >
+                                  <Printer size={16} />
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </td>
                           </tr>
                         );
                       })
                     ) : (
                       <tr>
-                        <td colSpan={3} className="py-12 text-center">
+                        <td colSpan={4} className="py-12 text-center">
                           <div className="flex flex-col items-center justify-center text-gray-400">
                             <ShoppingCart size={48} className="mb-4 opacity-50" />
                             <p className="text-sm font-medium">
