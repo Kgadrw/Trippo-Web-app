@@ -28,6 +28,7 @@ const getApiBaseUrl = (): string => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+export const PUBLIC_API_BASE_URL = API_BASE_URL;
 
 // Log API URL in development mode for debugging (disabled for privacy/security)
 // logger.log(`🔌 API Base URL: ${API_BASE_URL}`);

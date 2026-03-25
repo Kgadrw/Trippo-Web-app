@@ -60,6 +60,7 @@ import Expenses from "./pages/Expenses";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import VerifyTicket from "./pages/VerifyTicket";
 
 const queryClient = new QueryClient();
 
@@ -238,6 +239,7 @@ const SubdomainRouter = () => {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/verify" element={<VerifyTicket />} />
       {/* Redirect old dashboard path to dashboard subdomain (only if authenticated) */}
       <Route
         path="/dashboard"
