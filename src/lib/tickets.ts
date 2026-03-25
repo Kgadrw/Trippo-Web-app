@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import QRCode from "qrcode";
 
 export type TicketSale = {
   id?: string | number;
@@ -17,6 +18,8 @@ export type TicketSale = {
 type TicketOptions = {
   businessName?: string;
   currency?: string;
+  qrEnabled?: boolean;
+  verificationBaseUrl?: string;
 };
 
 function safeId(sale: TicketSale): string {
@@ -143,12 +146,22 @@ function receiptDesignBackground(doc: jsPDF) {
   return { rx, ry, rw, rh };
 }
 
+async function generateQrDataUrl(payload: string) {
+  return QRCode.toDataURL(payload, {
+    errorCorrectionLevel: "M",
+    margin: 1,
+    width: 240,
+  });
+}
+
 async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & { qrDataUrl?: string; logoDataUrl?: string }) {
   let step = 0;
   try {
     const businessName =
       opts.businessName || localStorage.getItem("profit-pilot-business-name") || "Trippo";
     const currency = opts.currency || "RWF";
+    const qrEnabled = opts.qrEnabled !== false;
+    const verificationBaseUrl = opts.verificationBaseUrl || "https://trippo.rw/verify";
 
     const ticketId = safeId(sale);
     const serviceLabel = truncateText(sale.serviceName || sale.product || "Service", 24);
@@ -262,6 +275,24 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
     step = 13;
     y += 8;
 
+    // QR (verification) — guarded so it never breaks printing/downloading
+    if (qrEnabled) {
+      const qrSize = 22; // mm
+      const qrX = cx - qrSize / 2;
+      const qrY = page.ry + page.rh - 82;
+      try {
+        const qrPayload = `${verificationBaseUrl}?ticket=${encodeURIComponent(String(ticketId))}`;
+        const qrDataUrl = await generateQrDataUrl(qrPayload);
+        doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+      } catch {
+        // Fallback: still render a placeholder box
+        doc.setDrawColor(180);
+        doc.setLineWidth(0.3);
+        doc.rect(qrX, qrY, qrSize, qrSize);
+      }
+    }
+    step = 14;
+
     // Total
     const totalY = page.ry + page.rh - 52;
     doc.setFont("helvetica", "bold");
@@ -271,20 +302,20 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
     doc.setFontSize(11);
     const amountX = page.rx + page.rw - 10 - doc.getTextWidth(amountStr);
     doc.text(amountStr, amountX, totalY);
-    step = 14;
+    step = 15;
 
     // Decorative barcode area
     const barcodeY = page.ry + page.rh - 30;
     const barcodeH = 16;
     drawBarcodeLike(doc, page.rx + 10, barcodeY, page.rw - 20, barcodeH, String(ticketId));
-    step = 15;
+    step = 16;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(40);
     doc.text(String(ticketId.slice(-10)), page.rx + 8, barcodeY + barcodeH + 4);
     doc.setTextColor(0);
-    step = 16;
+    step = 17;
   } catch (e: any) {
     const msg = e?.message || String(e);
     throw new Error(`Ticket receipt render failed at step ${step}: ${msg}`);
@@ -332,36 +363,22 @@ export function downloadPdf(doc: jsPDF, filename: string) {
 }
 
 export function printPdf(doc: jsPDF) {
+  // Most reliable across browsers/PWA: ask jsPDF to open a new window/tab with the PDF,
+  // and enable autoprint inside it.
   try {
     (doc as any).autoPrint?.();
   } catch {
     // ignore
   }
   try {
-    // More reliable: render into hidden iframe and call `print()` after load.
-    const pdfBlob: Blob = doc.output("blob") as any;
-    const url = URL.createObjectURL(pdfBlob);
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    iframe.onload = () => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-      } catch {
-        // ignore
-      } finally {
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          document.body.removeChild(iframe);
-        }, 1500);
-      }
-    };
+    (doc as any).output?.("dataurlnewwindow");
+    return;
   } catch {
-    // Fallback to previous approach
-    const url = doc.output("bloburl");
-    window.open(url, "_blank", "noopener,noreferrer");
+    // ignore
   }
+
+  // Fallback: blob URL open
+  const url = doc.output("bloburl");
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
