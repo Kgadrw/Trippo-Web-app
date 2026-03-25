@@ -125,22 +125,18 @@ function receiptDesignBackground(doc: jsPDF) {
   doc.setFillColor(147, 197, 253); // #93c5fd
   doc.rect(0, 0, pageW, pageH, "F");
 
-  // White rounded receipt container.
+  // White receipt container.
+  // NOTE: Avoid jsPDF `roundedRect()` here. In some jsPDF builds/environments it can throw:
+  // "undefined is not an object (evaluating 'this.lines')".
   const rx = 4;
   const ry = 4;
   const rw = 72;
   const rh = 112;
   doc.setDrawColor(29, 78, 216); // #1d4ed8
-  doc.setLineWidth(0.8);
-  const roundedRect = (doc as any).roundedRect as undefined | ((x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string) => void);
   doc.setFillColor(255, 255, 255);
-  if (roundedRect) {
-    roundedRect(rx, ry, rw, rh, 3.5, 3.5, "F");
-    roundedRect(rx, ry, rw, rh, 3.5, 3.5);
-  } else {
-    doc.rect(rx, ry, rw, rh, "F");
-    doc.rect(rx, ry, rw, rh);
-  }
+  doc.setLineWidth(0.8);
+  doc.rect(rx, ry, rw, rh, "F");
+  doc.rect(rx, ry, rw, rh);
   doc.setLineWidth(0.2);
 
   return { rx, ry, rw, rh };
