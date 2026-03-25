@@ -510,9 +510,21 @@ const Dashboard = () => {
     return { totalServices: products.length };
   }, [products]);
 
-  // Get recent sales (last 10, sorted by date descending)
+  // Get today's recent sales (last 10, sorted by date descending)
   const recentSales = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    const startMs = startOfToday.getTime();
+    const endMs = endOfToday.getTime();
+
     return [...sales]
+      .filter((s) => {
+        const t = getSaleTimeMs(s);
+        if (t === null) return false;
+        return t >= startMs && t <= endMs;
+      })
       .sort((a, b) => {
         const dateA = new Date(a.timestamp || a.date).getTime();
         const dateB = new Date(b.timestamp || b.date).getTime();
@@ -522,7 +534,20 @@ const Dashboard = () => {
   }, [sales]);
 
   const recentMobileActivity = useMemo(() => {
-    const saleEntries = sales.map((sale) => ({
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    const startMs = startOfToday.getTime();
+    const endMs = endOfToday.getTime();
+
+    const saleEntries = sales
+      .filter((s) => {
+        const t = getSaleTimeMs(s);
+        if (t === null) return false;
+        return t >= startMs && t <= endMs;
+      })
+      .map((sale) => ({
       id: `sale-${(sale as any)._id || sale.id || Math.random()}`,
       type: "sale" as const,
       title: sale.product,
@@ -531,7 +556,13 @@ const Dashboard = () => {
       meta: sale.paymentMethod || "",
     }));
 
-    const expenseEntries = expenses.map((expense) => ({
+    const expenseEntries = expenses
+      .filter((e) => {
+        const t = new Date(e.date).getTime();
+        if (isNaN(t)) return false;
+        return t >= startMs && t <= endMs;
+      })
+      .map((expense) => ({
       id: `expense-${(expense as any)._id || expense.id || Math.random()}`,
       type: "expense" as const,
       title: expense.title,
@@ -2310,7 +2341,8 @@ const Dashboard = () => {
       <AddToHomeScreen />
 
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[360px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-2xl shadow-xl">
+          <div className="p-4">
           <DialogHeader>
             <DialogTitle>
               {isRw ? "Andika ikiguzi" : isFr ? "Enregistrer une dépense" : "Record Expense"}
@@ -2389,6 +2421,7 @@ const Dashboard = () => {
                 : "Save Expense"}
             </Button>
           </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
       
