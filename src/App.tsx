@@ -58,6 +58,11 @@ import Barbers from "./pages/Barbers";
 import Reports from "./pages/Reports";
 import Expenses from "./pages/Expenses";
 import Settings from "./pages/Settings";
+import SettingsBusiness from "./pages/settings/SettingsBusiness";
+import SettingsLanguage from "./pages/settings/SettingsLanguage";
+import SettingsSecurity from "./pages/settings/SettingsSecurity";
+import SettingsNotifications from "./pages/settings/SettingsNotifications";
+import SettingsDeleteAccount from "./pages/settings/SettingsDeleteAccount";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import VerifyTicket from "./pages/VerifyTicket";
@@ -146,6 +151,46 @@ const SubdomainRouter = () => {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/settings/business"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <SettingsBusiness />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/language"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <SettingsLanguage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/security"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <SettingsSecurity />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/notifications"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <SettingsNotifications />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/delete-account"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <SettingsDeleteAccount />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     );
@@ -225,6 +270,46 @@ const SubdomainRouter = () => {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/business"
+          element={
+            <ProtectedRoute>
+              <SettingsBusiness />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/language"
+          element={
+            <ProtectedRoute>
+              <SettingsLanguage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/security"
+          element={
+            <ProtectedRoute>
+              <SettingsSecurity />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/notifications"
+          element={
+            <ProtectedRoute>
+              <SettingsNotifications />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings/delete-account"
+          element={
+            <ProtectedRoute>
+              <SettingsDeleteAccount />
             </ProtectedRoute>
           } 
         />
@@ -311,6 +396,46 @@ const SubdomainRouter = () => {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings/business"
+        element={
+          <ProtectedRoute>
+            <SettingsBusiness />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings/language"
+        element={
+          <ProtectedRoute>
+            <SettingsLanguage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings/security"
+        element={
+          <ProtectedRoute>
+            <SettingsSecurity />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings/notifications"
+        element={
+          <ProtectedRoute>
+            <SettingsNotifications />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings/delete-account"
+        element={
+          <ProtectedRoute>
+            <SettingsDeleteAccount />
           </ProtectedRoute>
         } 
       />
