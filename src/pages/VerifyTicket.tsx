@@ -58,17 +58,18 @@ export default function VerifyTicket() {
         headers: { "Content-Type": "application/json" },
       });
       const json = await res.json().catch(() => ({}));
-      if (res.ok && (json?.valid === true || json?.valid === false)) {
+      const payload = (json && typeof json === "object" && "data" in (json as any) ? (json as any).data : json) as any;
+      if (res.ok && (payload?.valid === true || payload?.valid === false)) {
         setResult({
-          valid: Boolean(json.valid),
+          valid: Boolean(payload.valid),
           ticketId: trimmed,
-          serviceName: json.serviceName,
-          barberName: json.barberName,
-          amount: json.amount,
-          currency: json.currency || "RWF",
-          paymentMethod: json.paymentMethod,
-          recordedAt: json.recordedAt,
-          businessName: json.businessName,
+          serviceName: payload.serviceName,
+          barberName: payload.barberName,
+          amount: payload.amount,
+          currency: payload.currency || "RWF",
+          paymentMethod: payload.paymentMethod,
+          recordedAt: payload.recordedAt,
+          businessName: payload.businessName,
         });
         setStatus("success");
         return;
