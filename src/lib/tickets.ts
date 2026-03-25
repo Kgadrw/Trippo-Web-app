@@ -176,12 +176,14 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
   doc.setTextColor(0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text("RECEIPT", cx, y, { align: "center" } as any);
+  const receiptTitle = "RECEIPT";
+  doc.text(receiptTitle, cx - doc.getTextWidth(receiptTitle) / 2, y);
   y += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
-  doc.text("****", cx, y, { align: "center" } as any);
+  const receiptStars = "****";
+  doc.text(receiptStars, cx - doc.getTextWidth(receiptStars) / 2, y);
   y += 4;
 
   // Dotted separators (UI like sample)
@@ -190,7 +192,8 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
 
   // Business name (small)
   doc.setFontSize(10);
-  doc.text(truncateText(String(businessName), 24), cx, y, { align: "center" } as any);
+  const businessNameText = truncateText(String(businessName), 24);
+  doc.text(businessNameText, cx - doc.getTextWidth(businessNameText) / 2, y);
   y += 5;
 
   drawDottedLine(doc, page.rx + 8, page.rx + page.rw - 8, y, 220);
@@ -281,7 +284,8 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
   doc.text("Total:", page.rx + 10, totalY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  doc.text(amountStr, page.rx + page.rw - 10, totalY, { align: "right" } as any);
+  const amountX = page.rx + page.rw - 10 - doc.getTextWidth(amountStr);
+  doc.text(amountStr, amountX, totalY);
 
   // Decorative barcode area
   const barcodeY = page.ry + page.rh - 30;
