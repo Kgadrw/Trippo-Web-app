@@ -12,6 +12,7 @@ export function NotificationManager() {
   const { user } = useCurrentUser();
   const [hasCheckedPermission, setHasCheckedPermission] = useState(false);
   const lastUserIdRef = useRef<string | null>(null);
+  const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
 
   // Initialize notification checks (only if permission is granted)
   useNotifications();
@@ -36,7 +37,10 @@ export function NotificationManager() {
 
   // Ask for permission using the browser's system notification prompt
   useEffect(() => {
-    if (!user || hasCheckedPermission) return;
+    // Only admins should be prompted for system notifications.
+    // Regular users only receive admin-sent notifications in-app (bell list),
+    // so we avoid asking for browser notification permission.
+    if (!user || hasCheckedPermission || !isAdmin) return;
 
     const permission = notificationService.checkPermission();
 
@@ -66,18 +70,18 @@ export function NotificationManager() {
 
   // Set up background sync when permission is already granted
   useEffect(() => {
-    if (notificationService.isAllowed() && user) {
+    if (notificationService.isAllowed() && user && isAdmin) {
       backgroundSyncManager.registerPeriodicSync();
 
       const userId = localStorage.getItem('profit-pilot-user-id');
       backgroundSyncManager.sendUserIdToServiceWorker(userId);
     }
-  }, [user]);
+  }, [user, isAdmin]);
 
   // ✅ Poll service worker to check notifications every 60 seconds while app is open
   // This ensures stale notifications get closed quickly when stock changes
   useEffect(() => {
-    if (!notificationService.isAllowed() || !user) {
+    if (!notificationService.isAllowed() || !user || !isAdmin) {
       return;
     }
 
@@ -127,7 +131,7 @@ export function NotificationManager() {
       clearInterval(interval);
       window.removeEventListener('products-should-refresh', handleProductUpdate);
     };
-  }, [user]);
+  }, [user, isAdmin]);
 
   // No custom modal UI – rely entirely on the browser's system notification prompt
   return null;

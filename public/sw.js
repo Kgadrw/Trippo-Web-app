@@ -264,6 +264,11 @@ async function checkForNotifications() {
       return; // No user logged in
     }
 
+    // Policy change: regular users should only receive notifications sent by admin.
+    // We no longer generate/poll low-stock notifications (or other automatic alerts) in the service worker.
+    // (Admin-sent notifications are handled in-app via /api/notifications.)
+    return;
+
     // Check notification permission
     // Note: self.registration.permission is not a standard API
     // We'll check by trying to show a notification (will fail if not granted)
@@ -274,8 +279,8 @@ async function checkForNotifications() {
         return;
       }
 
-      // Check for new data and send notifications
-      await checkAndNotify(userId);
+      // No-op (kept for backward compatibility)
+      // await checkAndNotify(userId);
     } catch (permError) {
       console.log("Notification permission not granted or error:", permError);
       return; // Notifications not allowed

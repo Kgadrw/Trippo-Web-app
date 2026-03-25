@@ -23,7 +23,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar, Filter, ArrowUpDown, Trash2, Lock, MoreVertical } from "lucide-react";
+import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar, Filter, ArrowUpDown, Trash2, Lock, MoreVertical, Printer, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep, playUpdateBeep, initAudio } from "@/lib/sound";
@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { saleApi } from "@/lib/api";
+import { buildDailyTicketsPdf, buildSaleTicketPdf, downloadPdf, printPdf, type TicketSale } from "@/lib/tickets";
 
 interface Product {
   id?: number;
@@ -385,6 +386,10 @@ const Sales = () => {
   const [endDate, setEndDate] = useState("");
   const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "product-asc" | "product-desc" | "revenue-desc" | "revenue-asc" | "profit-desc" | "profit-asc">("date-desc");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+
+  // Ticket export (barber/day)
+  const [ticketDay, setTicketDay] = useState(getTodayDate());
+  const [ticketBarberKey, setTicketBarberKey] = useState<string>("");
   
   // Selection and deletion states
   const [selectedSales, setSelectedSales] = useState<Set<string>>(new Set());
@@ -1014,6 +1019,57 @@ const Sales = () => {
     return filtered;
   }, [sales, searchQuery, startDate, endDate, sortBy]);
 
+  const ticketBarberOptions = useMemo(() => {
+    const map = new Map<string, { key: string; label: string }>();
+    for (const s of sales) {
+      const key = (s.workerId || s.workerName || "").toString().trim();
+      const label = (s.workerName || "Barber").toString().trim();
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, { key, label });
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [sales]);
+
+  const ticketDaySales = useMemo(() => {
+    if (!ticketDay || !ticketBarberKey) return [];
+    const dayKey = ticketDay;
+    return sales.filter((s) => {
+      const key = (s.workerId || s.workerName || "").toString().trim();
+      if (!key || key !== ticketBarberKey) return false;
+      const d = new Date((s.timestamp || s.date) as any);
+      if (Number.isNaN(d.getTime())) return false;
+      const ymd = d.toISOString().slice(0, 10);
+      return ymd === dayKey;
+    });
+  }, [sales, ticketDay, ticketBarberKey]);
+
+  const handleDownloadTicket = (sale: Sale) => {
+    const doc = buildSaleTicketPdf(sale as unknown as TicketSale);
+    const when = new Date((sale.timestamp || sale.date) as any);
+    const ymd = Number.isNaN(when.getTime()) ? "ticket" : when.toISOString().slice(0, 10);
+    const service = (sale.serviceName || sale.product || "service").replace(/[^\w\- ]+/g, "").slice(0, 40);
+    const barber = (sale.workerName || "barber").replace(/[^\w\- ]+/g, "").slice(0, 24);
+    downloadPdf(doc, `Ticket_${ymd}_${barber}_${service}.pdf`);
+  };
+
+  const handlePrintTicket = (sale: Sale) => {
+    const doc = buildSaleTicketPdf(sale as unknown as TicketSale);
+    printPdf(doc);
+  };
+
+  const handleDownloadDailyTickets = () => {
+    const doc = buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
+    const barberLabel =
+      ticketBarberOptions.find((b) => b.key === ticketBarberKey)?.label || "Barber";
+    const safeBarber = barberLabel.replace(/[^\w\- ]+/g, "").slice(0, 32);
+    downloadPdf(doc, `Tickets_${ticketDay}_${safeBarber}.pdf`);
+  };
+
+  const handlePrintDailyTickets = () => {
+    const doc = buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
+    printPdf(doc);
+  };
+
   const filteredExpenses = useMemo(() => {
     let filtered = [...expenses];
 
@@ -1633,6 +1689,69 @@ const Sales = () => {
                       <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* Ticket export (barber/day) */}
+                  <div className="col-span-2 pt-2 border-t border-gray-200 space-y-2">
+                    <div className="text-xs font-semibold text-gray-700">
+                      {t("language") === "rw" ? "Tike z'Umwogoshi" : "Barber Tickets"}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Select value={ticketBarberKey} onValueChange={(v) => setTicketBarberKey(v)}>
+                        <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
+                          <SelectValue placeholder={t("language") === "rw" ? "Hitamo umwogoshi" : "Select barber"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ticketBarberOptions.map((b) => (
+                            <SelectItem key={b.key} value={b.key}>
+                              {b.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <div className="relative">
+                        <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                        <Input
+                          type="date"
+                          value={ticketDay}
+                          onChange={(e) => setTicketDay(e.target.value)}
+                          className="pl-9 h-10 text-base lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
+                          style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!ticketBarberKey || ticketDaySales.length === 0}
+                        onClick={handlePrintDailyTickets}
+                        className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                      >
+                        <Printer size={16} className="mr-2" />
+                        {t("language") === "rw" ? "Sohora (Print)" : "Print"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!ticketBarberKey || ticketDaySales.length === 0}
+                        onClick={handleDownloadDailyTickets}
+                        className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
+                      >
+                        <Download size={16} className="mr-2" />
+                        {t("language") === "rw" ? "Kuramo" : "Download"}
+                      </Button>
+                    </div>
+
+                    <div className="text-[10px] text-gray-600">
+                      {ticketBarberKey && ticketDay
+                        ? `${ticketDaySales.length} ${t("language") === "rw" ? "tike" : "tickets"}`
+                        : t("language") === "rw"
+                        ? "Hitamo umwogoshi n'itariki"
+                        : "Select a barber and date"}
+                    </div>
+                  </div>
               
                   {/* Clear Filters */}
                   <Button
@@ -1852,6 +1971,7 @@ const Sales = () => {
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("profit")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("paymentMethod")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("date")}</th>
+                <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("language") === "rw" ? "Ibikorwa" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className="bg-white">
@@ -1908,12 +2028,42 @@ const Sales = () => {
                       <td className="py-4 px-6">
                         <div className="text-sm text-gray-700">{formatDateWithTime(sale.timestamp || sale.date)}</div>
                       </td>
+                      <td className="py-4 px-6 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical size={16} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handlePrintTicket(sale)}>
+                              <Printer size={14} className="mr-2" />
+                              {t("language") === "rw" ? "Sohora tike" : "Print ticket"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadTicket(sale)}>
+                              <Download size={14} className="mr-2" />
+                              {t("language") === "rw" ? "Kuramo tike" : "Download ticket"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setDeleteMode("single");
+                                setSingleSaleToDelete(sale);
+                                setShowPinDialog(true);
+                              }}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            >
+                              <Trash2 size={14} className="mr-2" />
+                              {t("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSelectionMode ? 9 : 8} className="py-12 text-center px-6">
+                  <td colSpan={isSelectionMode ? 10 : 9} className="py-12 text-center px-6">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <ShoppingCart size={48} className="mb-4 opacity-50" />
                       <p className="text-base font-medium">No sales found matching your filters</p>

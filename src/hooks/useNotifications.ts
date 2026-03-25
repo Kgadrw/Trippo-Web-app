@@ -552,9 +552,7 @@ export function useProductNotifications() {
  * Main hook that combines all notification checks
  */
 export function useNotifications() {
+  // Policy: users should only receive notifications sent by admin.
+  // So we only keep admin-side notifications (e.g., new user registrations).
   useAdminNotifications();
-  useLowStockNotifications();
-  useScheduleNotifications();
-  useSaleNotifications();
-  useProductNotifications();
 }
