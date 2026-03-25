@@ -35,6 +35,17 @@ function formatDateTime(input?: string): string {
   return d.toLocaleString();
 }
 
+function formatDateTimeShort(input?: string): string {
+  const d = input ? new Date(input) : new Date();
+  if (Number.isNaN(d.getTime())) return String(input || "");
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+}
+
 function formatMoney(amount: number, currency: string) {
   const n = Number(amount || 0);
   return `${n.toLocaleString()} ${currency}`;
@@ -88,6 +99,36 @@ function drawDottedLine(doc: jsPDF, x1: number, x2: number, y: number, color = 2
   const dot = 0.35; // mm
   for (let x = x1; x <= x2; x += step) {
     doc.line(x, y, Math.min(x + dot, x2), y);
+  }
+}
+
+function drawDottedRow(
+  doc: jsPDF,
+  xLeft: number,
+  xRight: number,
+  y: number,
+  label: string,
+  value: string,
+  opts?: { boldValue?: boolean; color?: number }
+) {
+  const color = opts?.color ?? 210;
+  const padding = 0.6;
+
+  doc.setFont("helvetica", "bold");
+  doc.text(label, xLeft, y);
+  const labelW = doc.getTextWidth(label);
+
+  const valueMaxW = Math.max(10, xRight - (xLeft + labelW + 6));
+  doc.setFont("helvetica", opts?.boldValue ? "bold" : "normal");
+  const fittedValue = fitTextToWidth(doc, value, valueMaxW);
+  const valueW = doc.getTextWidth(fittedValue);
+  const valueX = xRight - valueW;
+  doc.text(fittedValue, valueX, y);
+
+  const dotsStart = xLeft + labelW + padding;
+  const dotsEnd = valueX - padding;
+  if (dotsEnd > dotsStart + 2) {
+    drawDottedLine(doc, dotsStart, dotsEnd, y - 0.6, color);
   }
 }
 
@@ -177,7 +218,7 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
 
     const ticketId = safeId(sale);
 
-    const when = formatDateTime(sale.timestamp || sale.date);
+    const when = formatDateTimeShort(sale.timestamp || sale.date);
     const amountStr = formatMoney(sale.revenue, currency);
     const paymentStr = canonicalPayment(sale.paymentMethod);
 
@@ -214,76 +255,27 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    const businessNameText = fitTextToWidth(doc, String(businessName), contentWidth);
-    doc.text(businessNameText, cx - doc.getTextWidth(businessNameText) / 2, y);
+    // No business name line under "RECEIPT"
     step = 3;
-    y += 5;
 
     drawDottedLine(doc, contentLeft, contentRight, y, 210);
     y += 5;
     step = 4;
 
-    // Details
-    doc.setFont("helvetica", "bold");
+    // Clean dotted-line table
     doc.setFontSize(9);
-    doc.text(`Service:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    const serviceValue = fitTextToWidth(
-      doc,
-      sale.serviceName || sale.product || "Service",
-      contentWidth - 26
-    );
-    doc.text(serviceValue, contentLeft + 26, y);
-    step = 5;
-    y += 4.6;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Barber:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    const barberValue = fitTextToWidth(doc, sale.workerName || "-", contentWidth - 26);
-    doc.text(barberValue, contentLeft + 26, y);
-    step = 6;
-    y += 4.6;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Payment:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(fitTextToWidth(doc, paymentStr, contentWidth - 26), contentLeft + 26, y);
-    step = 7;
-    y += 4.6;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Recorded:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(fitTextToWidth(doc, when, contentWidth - 30), contentLeft + 30, y);
-    doc.setFontSize(9);
-    step = 8;
-    y += 5.2;
-
-    // Ticket ID line
-    drawDottedLine(doc, contentLeft, contentRight, y, 210);
-    step = 9;
-    y += 3.8;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Ticket:`, contentLeft, y);
-    doc.setFont("helvetica", "normal");
+    drawDottedRow(doc, contentLeft, contentRight, y, "Service", sale.serviceName || sale.product || "Service");
+    y += 5;
+    drawDottedRow(doc, contentLeft, contentRight, y, "Barber", sale.workerName || "-");
+    y += 5;
+    drawDottedRow(doc, contentLeft, contentRight, y, "Payment", paymentStr);
+    y += 6;
     doc.setFontSize(8.5);
-    doc.text(fitTextToWidth(doc, String(ticketId), contentWidth - 30), contentLeft + 30, y);
-    doc.setFontSize(9);
-    step = 10;
-    y += 5.5;
-
-    // Total
-    doc.setFont("helvetica", "bold");
+    drawDottedRow(doc, contentLeft, contentRight, y, "Recorded", when, { color: 220 });
+    y += 6;
     doc.setFontSize(10);
-    doc.text("Total:", contentLeft, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const amountX = contentRight - doc.getTextWidth(amountStr);
-    doc.text(amountStr, amountX, y);
-    step = 11;
+    drawDottedRow(doc, contentLeft, contentRight, y, "Total", amountStr, { boldValue: true });
+    step = 5;
 
     // QR at bottom (below everything)
     if (qrEnabled) {
