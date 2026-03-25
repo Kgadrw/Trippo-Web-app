@@ -1054,6 +1054,7 @@ const Sales = () => {
       const barber = (sale.workerName || "barber").replace(/[^\w\- ]+/g, "").slice(0, 24);
       downloadPdf(doc, `Ticket_${ymd}_${barber}_${service}.pdf`);
     } catch (error: any) {
+      console.error("Ticket download failed:", error);
       toast({
         title: "Ticket download failed",
         description: error?.message || "Unable to generate the receipt PDF.",
@@ -1067,6 +1068,7 @@ const Sales = () => {
       const doc = await buildSaleTicketPdf(sale as unknown as TicketSale);
       printPdf(doc);
     } catch (error: any) {
+      console.error("Ticket print failed:", error);
       toast({
         title: "Ticket printing failed",
         description: error?.message || "Unable to generate the receipt PDF.",
@@ -1082,6 +1084,7 @@ const Sales = () => {
       const safeBarber = barberLabel.replace(/[^\w\- ]+/g, "").slice(0, 32);
       downloadPdf(doc, `Tickets_${ticketDay}_${safeBarber}.pdf`);
     } catch (error: any) {
+      console.error("Daily tickets download failed:", error);
       toast({
         title: "Daily tickets download failed",
         description: error?.message || "Unable to generate the tickets PDF.",
@@ -1095,6 +1098,7 @@ const Sales = () => {
       const doc = await buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
       printPdf(doc);
     } catch (error: any) {
+      console.error("Daily tickets print failed:", error);
       toast({
         title: "Daily tickets printing failed",
         description: error?.message || "Unable to generate the tickets PDF.",
