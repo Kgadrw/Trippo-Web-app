@@ -11,13 +11,25 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubdomain } from "@/hooks/useSubdomain";
 
-const getMenuItems = (t: (key: string) => string) => {
+const getMenuItems = (t: (key: string) => string, language: string) => {
   return [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
-    { icon: Package, label: "Services", path: "/products" },
-    { icon: UserRound, label: "Barbers", path: "/barbers" },
+    { 
+      icon: Package, 
+      label: language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services",
+      path: "/products" 
+    },
+    { 
+      icon: UserRound, 
+      label: language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeurs" : "Barbers",
+      path: "/barbers" 
+    },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
-    { icon: Wallet, label: "Expenses", path: "/expenses" },
+    { 
+      icon: Wallet, 
+      label: language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses",
+      path: "/expenses" 
+    },
     { icon: FileText, label: t("reports"), path: "/reports" },
   ];
 };
@@ -26,7 +38,7 @@ export function BottomNav() {
   const location = useLocation();
   const { t, language } = useTranslation();
   const subdomain = useSubdomain();
-  const menuItems = getMenuItems(t);
+  const menuItems = getMenuItems(t, language);
 
   return (
     <>

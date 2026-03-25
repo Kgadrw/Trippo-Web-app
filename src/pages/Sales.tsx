@@ -291,8 +291,10 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 };
 
 const Sales = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { toast } = useToast();
+  const isRw = language === "rw";
+  const isFr = language === "fr";
   const {
     items: products,
     isLoading: productsLoading,
@@ -1043,8 +1045,8 @@ const Sales = () => {
     });
   }, [sales, ticketDay, ticketBarberKey]);
 
-  const handleDownloadTicket = (sale: Sale) => {
-    const doc = buildSaleTicketPdf(sale as unknown as TicketSale);
+  const handleDownloadTicket = async (sale: Sale) => {
+    const doc = await buildSaleTicketPdf(sale as unknown as TicketSale);
     const when = new Date((sale.timestamp || sale.date) as any);
     const ymd = Number.isNaN(when.getTime()) ? "ticket" : when.toISOString().slice(0, 10);
     const service = (sale.serviceName || sale.product || "service").replace(/[^\w\- ]+/g, "").slice(0, 40);
@@ -1052,21 +1054,21 @@ const Sales = () => {
     downloadPdf(doc, `Ticket_${ymd}_${barber}_${service}.pdf`);
   };
 
-  const handlePrintTicket = (sale: Sale) => {
-    const doc = buildSaleTicketPdf(sale as unknown as TicketSale);
+  const handlePrintTicket = async (sale: Sale) => {
+    const doc = await buildSaleTicketPdf(sale as unknown as TicketSale);
     printPdf(doc);
   };
 
-  const handleDownloadDailyTickets = () => {
-    const doc = buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
+  const handleDownloadDailyTickets = async () => {
+    const doc = await buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
     const barberLabel =
       ticketBarberOptions.find((b) => b.key === ticketBarberKey)?.label || "Barber";
     const safeBarber = barberLabel.replace(/[^\w\- ]+/g, "").slice(0, 32);
     downloadPdf(doc, `Tickets_${ticketDay}_${safeBarber}.pdf`);
   };
 
-  const handlePrintDailyTickets = () => {
-    const doc = buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
+  const handlePrintDailyTickets = async () => {
+    const doc = await buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
     printPdf(doc);
   };
 
@@ -1571,7 +1573,7 @@ const Sales = () => {
               <div className="relative flex-1">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
-                  placeholder={t("search") + " " + (t("language") === "rw" ? "ku bicuruzwa" : "by product...")}
+                  placeholder={t("search") + " " + (language === "rw" ? "ku bicuruzwa" : language === "fr" ? "par produit..." : "by product...")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
@@ -1693,12 +1695,18 @@ const Sales = () => {
                   {/* Ticket export (barber/day) */}
                   <div className="col-span-2 pt-2 border-t border-gray-200 space-y-2">
                     <div className="text-xs font-semibold text-gray-700">
-                      {t("language") === "rw" ? "Tike z'Umwogoshi" : "Barber Tickets"}
+                      {isRw
+                        ? "Tike z'Umwogoshi"
+                        : isFr
+                        ? "Tickets pour coiffeur"
+                        : "Barber Tickets"}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <Select value={ticketBarberKey} onValueChange={(v) => setTicketBarberKey(v)}>
                         <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full">
-                          <SelectValue placeholder={t("language") === "rw" ? "Hitamo umwogoshi" : "Select barber"} />
+                          <SelectValue
+                            placeholder={isRw ? "Hitamo umwogoshi" : isFr ? "Choisir un coiffeur" : "Select barber"}
+                          />
                         </SelectTrigger>
                         <SelectContent>
                           {ticketBarberOptions.map((b) => (
@@ -1730,7 +1738,7 @@ const Sales = () => {
                         className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
                       >
                         <Printer size={16} className="mr-2" />
-                        {t("language") === "rw" ? "Sohora (Print)" : "Print"}
+                        {isRw ? "Sohora (Print)" : isFr ? "Imprimer" : "Print"}
                       </Button>
                       <Button
                         type="button"
@@ -1740,15 +1748,17 @@ const Sales = () => {
                         className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
                       >
                         <Download size={16} className="mr-2" />
-                        {t("language") === "rw" ? "Kuramo" : "Download"}
+                        {isRw ? "Kuramo" : isFr ? "Télécharger" : "Download"}
                       </Button>
                     </div>
 
                     <div className="text-[10px] text-gray-600">
                       {ticketBarberKey && ticketDay
-                        ? `${ticketDaySales.length} ${t("language") === "rw" ? "tike" : "tickets"}`
-                        : t("language") === "rw"
+                        ? `${ticketDaySales.length} ${isRw ? "tike" : isFr ? "tickets" : "tickets"}`
+                        : isRw
                         ? "Hitamo umwogoshi n'itariki"
+                        : isFr
+                        ? "Choisir un coiffeur et une date"
                         : "Select a barber and date"}
                     </div>
                   </div>
@@ -1780,7 +1790,8 @@ const Sales = () => {
                   )}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredSales.length} {t("language") === "rw" ? "bya" : "of"} {sales.length} {t("sales").toLowerCase()}
+                  {isRw ? "Byerekana" : isFr ? "Affichage" : "Showing"} {filteredSales.length}{" "}
+                  {isRw ? "bya" : isFr ? "sur" : "of"} {sales.length} {t("sales").toLowerCase()}
                 </div>
               </div>
             )}
@@ -1793,7 +1804,7 @@ const Sales = () => {
               <div className="relative flex-1">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
-                  placeholder={t("search") + " " + (t("language") === "rw" ? "ku bicuruzwa" : "by product...")}
+                  placeholder={t("search") + " " + (language === "rw" ? "ku bicuruzwa" : language === "fr" ? "par produit..." : "by product...")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
@@ -1940,7 +1951,8 @@ const Sales = () => {
                   )}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {t("language") === "rw" ? "Byerekana" : "Showing"} {filteredSales.length} {t("language") === "rw" ? "bya" : "of"} {sales.length} {t("sales").toLowerCase()}
+                  {isRw ? "Byerekana" : isFr ? "Affichage" : "Showing"} {filteredSales.length}{" "}
+                  {isRw ? "bya" : isFr ? "sur" : "of"} {sales.length} {t("sales").toLowerCase()}
                 </div>
               </div>
             )}
@@ -1967,11 +1979,15 @@ const Sales = () => {
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Barber</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("quantity")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("language") === "rw" ? "Agaciro" : "Cost"}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                  {isRw ? "Agaciro" : isFr ? "Coût" : "Cost"}
+                </th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("profit")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("paymentMethod")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("date")}</th>
-                <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("language") === "rw" ? "Ibikorwa" : "Actions"}</th>
+                <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">
+                  {isRw ? "Ibikorwa" : isFr ? "Actions" : "Actions"}
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white">
@@ -2038,11 +2054,11 @@ const Sales = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handlePrintTicket(sale)}>
                               <Printer size={14} className="mr-2" />
-                              {t("language") === "rw" ? "Sohora tike" : "Print ticket"}
+                                  {isRw ? "Sohora tike" : isFr ? "Imprimer le ticket" : "Print ticket"}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleDownloadTicket(sale)}>
                               <Download size={14} className="mr-2" />
-                              {t("language") === "rw" ? "Kuramo tike" : "Download ticket"}
+                                  {isRw ? "Kuramo tike" : isFr ? "Télécharger le ticket" : "Download ticket"}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -2066,8 +2082,20 @@ const Sales = () => {
                   <td colSpan={isSelectionMode ? 10 : 9} className="py-12 text-center px-6">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <ShoppingCart size={48} className="mb-4 opacity-50" />
-                      <p className="text-base font-medium">No sales found matching your filters</p>
-                      <p className="text-sm mt-1">Try adjusting your search or date range</p>
+                      <p className="text-base font-medium">
+                        {isRw
+                          ? "Nta makuru abonetse"
+                          : isFr
+                          ? "Aucune vente trouvée selon vos filtres"
+                          : "No sales found matching your filters"}
+                      </p>
+                      <p className="text-sm mt-1">
+                        {isRw
+                          ? "Gerageza guhindura gushakisha cyangwa igihe"
+                          : isFr
+                          ? "Essayez d'ajuster votre recherche ou la période"
+                          : "Try adjusting your search or date range"}
+                      </p>
                     </div>
                   </td>
                 </tr>
@@ -2085,9 +2113,15 @@ const Sales = () => {
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("language") === "rw" ? "Ubwoko" : "Type"}</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("language") === "rw" ? "Ibisobanuro" : "Details"}</th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("language") === "rw" ? "Amafaranga" : "Amount"}</th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {isRw ? "Ibisobanuro" : isFr ? "Détails" : "Details"}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -2100,7 +2134,17 @@ const Sales = () => {
                           )}>
                             <td className="py-3 px-3">
                               <div className={cn("text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
-                                {row.type === "sale" ? (t("language") === "rw" ? "Ubucuruzi" : "Sale") : (t("language") === "rw" ? "Ikiguzi" : "Expense")}
+                                {row.type === "sale"
+                                  ? isRw
+                                    ? "Ubucuruzi"
+                                    : isFr
+                                    ? "Vente"
+                                    : "Sale"
+                                  : isRw
+                                  ? "Ikiguzi"
+                                  : isFr
+                                  ? "Dépense"
+                                  : "Expense"}
                               </div>
                             </td>
                             <td className="py-3 px-3">
@@ -2123,7 +2167,11 @@ const Sales = () => {
                           <div className="flex flex-col items-center justify-center text-gray-400">
                             <ShoppingCart size={48} className="mb-4 opacity-50" />
                             <p className="text-sm font-medium">
-                              {t("language") === "rw" ? "Nta makuru abonetse" : "No activity found matching your filters"}
+                              {isRw
+                                ? "Nta makuru abonetse"
+                                : isFr
+                                ? "Aucune activité trouvée selon vos filtres"
+                                : "No activity found matching your filters"}
                             </p>
                             <p className="text-xs mt-1">Try adjusting your search or date range</p>
                           </div>

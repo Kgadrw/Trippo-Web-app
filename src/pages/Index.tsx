@@ -336,6 +336,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const isRw = language === "rw";
+  const isFr = language === "fr";
   const {
     items: products,
     isLoading: productsLoading,
@@ -1452,9 +1453,9 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-4 gap-4">
             <KPICard
-              title={isRw ? "Serivisi z'uyu munsi" : "Services Today"}
+              title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
               value={`${todayStats.totalItems}`}
-              subtitle={isRw ? "serivisi zakozwe" : "services recorded"}
+              subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
               icon={ShoppingCart}
               valueColor="text-blue-600"
             />
@@ -1471,9 +1472,9 @@ const Dashboard = () => {
               valueColor="text-green-600"
             />
             <KPICard
-              title={isRw ? "Serivisi ziboneka" : "Active Services"}
+              title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
               value={`${serviceStats.totalServices}`}
-              subtitle={isRw ? "serivisi muri sisitemu" : "services in system"}
+              subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
               icon={Package}
               valueColor="text-orange-600"
             />
@@ -1983,25 +1984,25 @@ const Dashboard = () => {
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-semibold text-gray-900">
-              {isRw ? "Ibyibanze" : "Quick Actions"}
+              {isRw ? "Ibyibanze" : isFr ? "Actions de base" : "Quick Actions"}
             </h3>
           </div>
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
             <Button onClick={() => navigate("/products")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
               <Package size={20} />
-              <span>{isRw ? "Serivisi" : "Services"}</span>
+              <span>{isRw ? "Serivisi" : isFr ? "Services" : "Services"}</span>
             </Button>
             <Button onClick={() => setSaleModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
               <Plus size={20} />
-              <span>{isRw ? "Andika serivisi" : "Record Service"}</span>
+              <span>{isRw ? "Andika serivisi" : isFr ? "Enregistrer un service" : "Record Service"}</span>
             </Button>
             <Button onClick={() => setExpenseModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white">
               <Wallet size={20} />
-              <span>{isRw ? "Andika ikiguzi" : "Record Expense"}</span>
+              <span>{isRw ? "Andika ikiguzi" : isFr ? "Enregistrer une dépense" : "Record Expense"}</span>
             </Button>
             <Button onClick={() => navigate("/barbers")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white">
               <UserRound size={20} />
-              <span>{isRw ? "Umwogoshi" : "Barbers"}</span>
+              <span>{isRw ? "Umwogoshi" : isFr ? "Coiffeurs" : "Barbers"}</span>
             </Button>
             <Button onClick={() => navigate("/sales")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white">
               <ShoppingCart size={20} />
@@ -2035,11 +2036,15 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
               <h3 className="text-base font-semibold text-gray-900">
-                {isRw ? "Ibyibanze" : "Quick Actions"}
+              {isRw ? "Ibyibanze" : isFr ? "Actions de base" : "Quick Actions"}
               </h3>
             </div>
             <p className="text-xs text-gray-600 mb-4">
-              {isRw ? "Kanda kugirango ukore ibikorwa byihuse" : "Click to perform quick actions"}
+              {isRw
+                ? "Kanda kugirango ukore ibikorwa byihuse"
+                : isFr
+                ? "Cliquez pour effectuer des actions rapides"
+                : "Click to perform quick actions"}
             </p>
             
             
@@ -2051,7 +2056,7 @@ const Dashboard = () => {
               >
                 <Package size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Serivisi" : "Services"}
+                  {isRw ? "Serivisi" : isFr ? "Services" : "Services"}
                 </span>
               </Button>
 
@@ -2062,7 +2067,7 @@ const Dashboard = () => {
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Andika serivisi" : "Record Service"}
+                  {isRw ? "Andika serivisi" : isFr ? "Enregistrer un service" : "Record Service"}
                 </span>
               </Button>
 
@@ -2073,7 +2078,7 @@ const Dashboard = () => {
               >
                 <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Umwogoshi" : "Barbers"}
+                  {isRw ? "Umwogoshi" : isFr ? "Coiffeurs" : "Barbers"}
                 </span>
               </Button>
 
@@ -2105,7 +2110,7 @@ const Dashboard = () => {
               >
                 <Wallet size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Andika ikiguzi" : "Record Expense"}
+                  {isRw ? "Andika ikiguzi" : isFr ? "Enregistrer une dépense" : "Record Expense"}
                 </span>
               </Button>
 
@@ -2123,11 +2128,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-gray-600" />
               <h3 className="text-lg font-semibold text-gray-900">
-                {isRw ? "Serivisi n'ibyakoreshejwe" : "Recent Sales & Expenses"}
+                {isRw ? "Serivisi n'ibyakoreshejwe" : isFr ? "Ventes récentes et dépenses" : "Recent Sales & Expenses"}
               </h3>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {isRw ? "Ibikorwa biheruka" : "Latest activity"}
+              {isRw ? "Ibikorwa biheruka" : isFr ? "Activité récente" : "Latest activity"}
             </p>
           </div>
           
@@ -2145,13 +2150,13 @@ const Dashboard = () => {
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Ubwoko" : "Type"}
+                        {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Ibisobanuro" : "Details"}
+                        {isRw ? "Ibisobanuro" : isFr ? "Détails" : "Details"}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Amafaranga (Rwf)" : "Amount (Rwf)"}
+                        {isRw ? "Amafaranga (Rwf)" : isFr ? "Montant (RWF)" : "Amount (Rwf)"}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                         {t("date")}
@@ -2172,7 +2177,17 @@ const Dashboard = () => {
                             "text-sm font-semibold",
                             entry.type === "sale" ? "text-green-700" : "text-red-700"
                           )}>
-                            {entry.type === "sale" ? (isRw ? "Serivisi" : "Sale") : (isRw ? "Ikiguzi" : "Expense")}
+                            {entry.type === "sale"
+                              ? isRw
+                                ? "Serivisi"
+                                : isFr
+                                ? "Service"
+                                : "Sale"
+                              : isRw
+                              ? "Ikiguzi"
+                              : isFr
+                              ? "Dépense"
+                              : "Expense"}
                           </div>
                         </td>
                         <td className="py-4 px-6">
@@ -2206,9 +2221,15 @@ const Dashboard = () => {
                   <table className="w-full border-collapse">
                     <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                       <tr>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{isRw ? "Ubwoko" : "Type"}</th>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{isRw ? "Ibisobanuro" : "Details"}</th>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{isRw ? "Amafaranga" : "Amount"}</th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                          {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
+                        </th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                          {isRw ? "Ibisobanuro" : isFr ? "Détails" : "Details"}
+                        </th>
+                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                          {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -2227,7 +2248,19 @@ const Dashboard = () => {
                               ) : (
                                 <ArrowDownLeft size={13} className="-rotate-[18deg]" />
                               )}
-                              <span>{entry.type === "sale" ? (isRw ? "Serivisi" : "Sale") : (isRw ? "Ikiguzi" : "Expense")}</span>
+                              <span>
+                                {entry.type === "sale"
+                                  ? isRw
+                                    ? "Serivisi"
+                                    : isFr
+                                    ? "Service"
+                                    : "Sale"
+                                  : isRw
+                                  ? "Ikiguzi"
+                                  : isFr
+                                  ? "Dépense"
+                                  : "Expense"}
+                              </span>
                             </div>
                           </td>
                           <td className="py-3 px-3">
@@ -2259,10 +2292,14 @@ const Dashboard = () => {
               <div className="flex flex-col items-center justify-center text-gray-400">
                 <ShoppingCart size={48} className="mb-4 opacity-50" />
                 <p className="text-base font-medium">
-                  {isRw ? "Nta bikorwa biheruka" : "No recent activity"}
+                  {isRw ? "Nta bikorwa biheruka" : isFr ? "Aucune activité récente" : "No recent activity"}
                 </p>
                 <p className="text-sm mt-1">
-                  {isRw ? "Serivisi n'ibyakoreshejwe bizagaragara hano" : "Recent sales and expenses will appear here"}
+                  {isRw
+                    ? "Serivisi n'ibyakoreshejwe bizagaragara hano"
+                    : isFr
+                    ? "Les ventes et dépenses récentes apparaîtront ici"
+                    : "Recent sales and expenses will appear here"}
                 </p>
               </div>
             </div>
@@ -2275,19 +2312,25 @@ const Dashboard = () => {
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{isRw ? "Andika ikiguzi" : "Record Expense"}</DialogTitle>
+            <DialogTitle>
+              {isRw ? "Andika ikiguzi" : isFr ? "Enregistrer une dépense" : "Record Expense"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>{isRw ? "Izina ry'ikiguzi" : "Expense Name"}</Label>
+              <Label>
+                {isRw ? "Izina ry'ikiguzi" : isFr ? "Nom de la dépense" : "Expense Name"}
+              </Label>
               <Input
                 value={expenseTitle}
                 onChange={(e) => setExpenseTitle(e.target.value)}
-                placeholder={isRw ? "nka: Umuriro, Ubukode..." : "e.g. Utilities, Rent..."}
+                placeholder={isRw ? "nka: Umuriro, Ubukode..." : isFr ? "ex: Services, Loyer..." : "e.g. Utilities, Rent..."}
               />
             </div>
             <div className="space-y-1">
-              <Label>{isRw ? "Amafaranga (rwf)" : "Amount (rwf)"}</Label>
+              <Label>
+                {isRw ? "Amafaranga (rwf)" : isFr ? "Montant (RWF)" : "Amount (rwf)"}
+              </Label>
               <Input
                 type="number"
                 min="0"
@@ -2298,15 +2341,15 @@ const Dashboard = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>{isRw ? "Icyiciro" : "Category"}</Label>
+                <Label>{isRw ? "Icyiciro" : isFr ? "Catégorie" : "Category"}</Label>
                 <Input
                   value={expenseCategory}
                   onChange={(e) => setExpenseCategory(e.target.value)}
-                  placeholder={isRw ? "nka: Ibikoresho" : "e.g. Supplies"}
+                  placeholder={isRw ? "nka: Ibikoresho" : isFr ? "ex: Fournitures" : "e.g. Supplies"}
                 />
               </div>
               <div className="space-y-1">
-                <Label>{isRw ? "Itariki" : "Date"}</Label>
+                <Label>{isRw ? "Itariki" : isFr ? "Date" : "Date"}</Label>
                 <Input
                   type="date"
                   value={expenseDate}
@@ -2315,25 +2358,35 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>{isRw ? "Ibisobanuro (si ngombwa)" : "Note (optional)"}</Label>
+              <Label>{isRw ? "Ibisobanuro (si ngombwa)" : isFr ? "Note (facultatif)" : "Note (optional)"}</Label>
               <Textarea
                 value={expenseNote}
                 onChange={(e) => setExpenseNote(e.target.value)}
-                placeholder={isRw ? "Andika ibisobanuro..." : "Add extra details..."}
+                placeholder={isRw ? "Andika ibisobanuro..." : isFr ? "Ajouter des détails..." : "Add extra details..."}
                 rows={3}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setExpenseModalOpen(false)}>
-              {isRw ? "Funga" : "Cancel"}
+              {isRw ? "Funga" : isFr ? "Annuler" : "Cancel"}
             </Button>
             <Button
               onClick={handleRecordExpense}
               className="bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isSavingExpense}
             >
-              {isSavingExpense ? (isRw ? "Birabikwa..." : "Saving...") : (isRw ? "Bika ikiguzi" : "Save Expense")}
+              {isSavingExpense
+                ? isRw
+                  ? "Birabikwa..."
+                  : isFr
+                  ? "Enregistrement..."
+                  : "Saving..."
+                : isRw
+                ? "Bika ikiguzi"
+                : isFr
+                ? "Enregistrer la dépense"
+                : "Save Expense"}
             </Button>
           </DialogFooter>
         </DialogContent>

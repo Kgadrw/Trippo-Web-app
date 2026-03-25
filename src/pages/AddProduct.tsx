@@ -51,6 +51,8 @@ interface Product {
   packageQuantity?: number;
   productType?: string;
   minStock?: number;
+  priceType?: "perQuantity" | "perPackage";
+  costPriceType?: "perQuantity" | "perPackage";
 }
 
 interface ProductFormData {
@@ -70,7 +72,8 @@ interface ProductFormData {
 }
 
 const AddProduct = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const isRw = language === "rw";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
@@ -169,7 +172,24 @@ const AddProduct = () => {
 
 
   const addBulkRow = () => {
-    setBulkProducts([...bulkProducts, { name: "", category: categoryFromUrl || "", manufacturedDate: "", expiryDate: "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", productType: "", minStock: "" }]);
+    setBulkProducts([
+      ...bulkProducts,
+      {
+        name: "",
+        category: categoryFromUrl || "",
+        manufacturedDate: "",
+        expiryDate: "",
+        costPrice: "",
+        sellingPrice: "",
+        stock: "",
+        isPackage: false,
+        packageQuantity: "",
+        priceType: "perQuantity",
+        costPriceType: "perQuantity",
+        productType: "",
+        minStock: "",
+      },
+    ]);
   };
 
   const removeBulkRow = (index: number) => {
@@ -458,18 +478,23 @@ const AddProduct = () => {
         
         // Handle out-of-stock duplicates - update them instead
         if (outOfStockDuplicates.length > 0) {
+          let productsToAdd: any[] = [];
           try {
             let updatedCount = 0;
             for (const { product, existing } of outOfStockDuplicates) {
               const productId = existing._id || existing.id;
-              const newStock = parseInt(product.stock) || 0;
+              const newStock = parseInt(String(product.stock)) || 0;
               const currentStock = existing.stock || 0;
               
               const updatedProduct = {
                 ...existing,
                 stock: currentStock + newStock,
-                costPrice: product.costPrice !== undefined ? parseFloat(product.costPrice) : existing.costPrice,
-                sellingPrice: product.sellingPrice !== undefined ? parseFloat(product.sellingPrice) : existing.sellingPrice,
+                costPrice:
+                  product.costPrice !== undefined ? parseFloat(String(product.costPrice)) : existing.costPrice,
+                sellingPrice:
+                  product.sellingPrice !== undefined
+                    ? parseFloat(String(product.sellingPrice))
+                    : existing.sellingPrice,
               };
               
               await updateProduct(updatedProduct as any);
@@ -478,7 +503,7 @@ const AddProduct = () => {
             
             // Remove out-of-stock duplicates from newProducts
             const outOfStockNames = new Set(outOfStockDuplicates.map(d => d.product.name.toLowerCase()));
-            const productsToAdd = newProducts.filter(p => !outOfStockNames.has(p.name.toLowerCase()));
+            productsToAdd = newProducts.filter(p => !outOfStockNames.has(p.name.toLowerCase()));
             
             // Add remaining new products
             let addedCount = 0;
@@ -491,12 +516,16 @@ const AddProduct = () => {
                   // Handle backend-detected out-of-stock duplicates
                   const existing = error.response.existingProduct;
                   const productId = existing._id;
-                  const newStock = parseInt(product.stock) || 0;
+                  const newStock = parseInt(String(product.stock)) || 0;
                   const updatedProduct = {
                     ...existing,
                     stock: (existing.stock || 0) + newStock,
-                    costPrice: product.costPrice !== undefined ? parseFloat(product.costPrice) : existing.costPrice,
-                    sellingPrice: product.sellingPrice !== undefined ? parseFloat(product.sellingPrice) : existing.sellingPrice,
+                    costPrice:
+                      product.costPrice !== undefined ? parseFloat(String(product.costPrice)) : existing.costPrice,
+                    sellingPrice:
+                      product.sellingPrice !== undefined
+                        ? parseFloat(String(product.sellingPrice))
+                        : existing.sellingPrice,
                   };
                   await updateProduct(updatedProduct as any);
                   updatedCount++;
@@ -573,10 +602,10 @@ const AddProduct = () => {
           return;
         }
 
+        let addedCount = 0;
+        let skippedCount = 0;
         try {
           // Add products one by one (API doesn't have bulk add for products yet)
-          let addedCount = 0;
-          let skippedCount = 0;
           for (const product of newProducts) {
             try {
               await addProduct(product as any);
@@ -833,7 +862,7 @@ const AddProduct = () => {
                   onClick={() => setMode("single")}
                   className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
                 >
-                  {t("language") === "rw" ? "Icuruzwa kimwe" : "Single Product"}
+                  {language === "rw" ? "Icuruzwa kimwe" : "Single Product"}
                 </Button>
                 <Button
                   variant={mode === "bulk" ? "default" : "outline"}
@@ -916,7 +945,7 @@ const AddProduct = () => {
                             value={product.packageQuantity}
                             onChange={(e) => updateBulkProduct(index, "packageQuantity", e.target.value)}
                             className="h-12 text-base"
-                            placeholder={t("language") === "rw" ? "Bibasha" : "Optional"}
+                            placeholder={language === "rw" ? "Bibasha" : "Optional"}
                           />
                         </div>
                       </div>
@@ -940,10 +969,10 @@ const AddProduct = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="perQuantity">
-                                  {t("language") === "rw" ? "Igiciro cy'umubare" : "Cost per Quantity"}
+                                  {language === "rw" ? "Igiciro cy'umubare" : "Cost per Quantity"}
                                 </SelectItem>
                                 <SelectItem value="perPackage">
-                                  {t("language") === "rw" ? "Igiciro cy'igipaki" : "Cost per Package"}
+                                  {language === "rw" ? "Igiciro cy'igipaki" : "Cost per Package"}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -968,10 +997,10 @@ const AddProduct = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="perQuantity">
-                                  {t("language") === "rw" ? "Igiciro cy'umubare" : "Price per Quantity"}
+                                  {language === "rw" ? "Igiciro cy'umubare" : "Price per Quantity"}
                                 </SelectItem>
                                 <SelectItem value="perPackage">
-                                  {t("language") === "rw" ? "Igiciro cy'igipaki" : "Price per Package"}
+                                  {language === "rw" ? "Igiciro cy'igipaki" : "Price per Package"}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -995,10 +1024,10 @@ const AddProduct = () => {
                           />
                           <p className="text-xs text-muted-foreground mt-1">
                             {product.packageQuantity && product.packageQuantity.trim() !== "" 
-                              ? (t("language") === "rw" 
+                              ? (language === "rw" 
                                   ? `Umubare w'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki` 
                                   : `Number of packages - ${product.packageQuantity} items per package`)
-                              : (t("language") === "rw" 
+                              : (language === "rw" 
                                   ? "Umubare w'ibicuruzwa bisigaye" 
                                   : "Number of individual products")}
                           </p>
@@ -1019,10 +1048,10 @@ const AddProduct = () => {
                           />
                           <p className="text-xs text-muted-foreground mt-1">
                             {product.packageQuantity && product.packageQuantity.trim() !== "" 
-                              ? (t("language") === "rw" 
+                              ? (language === "rw" 
                                   ? `Icyitonderwa cy'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki` 
                                   : `Alert threshold for packages - ${product.packageQuantity} items per package`)
-                              : (t("language") === "rw" 
+                              : (language === "rw" 
                                   ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" 
                                   : "Alert when stock reaches this level")}
                           </p>
@@ -1295,19 +1324,23 @@ const AddProduct = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="perQuantity">
-                            {t("language") === "rw" ? "Igiciro cy'umubare w'ibicuruzwa" : "Cost per Quantity (per item)"}
+                            {language === "rw"
+                              ? "Igiciro cy'umubare w'ibicuruzwa"
+                              : "Cost per Quantity (per item)"}
                           </SelectItem>
                           <SelectItem value="perPackage">
-                            {t("language") === "rw" ? "Igiciro cy'igipaki cyose" : "Cost per Package (whole box)"}
+                            {language === "rw"
+                              ? "Igiciro cy'igipaki cyose"
+                              : "Cost per Package (whole box)"}
                           </SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
                         {formData.costPriceType === "perQuantity"
-                          ? (t("language") === "rw" 
+                          ? (language === "rw"
                               ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 80 rwf kuri buri gicuruzwa)"
                               : "Cost per individual item (e.g., 80 rwf per item)")
-                          : (t("language") === "rw"
+                          : (language === "rw"
                               ? "Igiciro cy'igipaki cyose (urugero: 1500 rwf kuri gipaki cyose)"
                               : "Cost for whole package (e.g., 1500 rwf for whole box)")}
                       </p>
@@ -1334,19 +1367,23 @@ const AddProduct = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="perQuantity">
-                            {t("language") === "rw" ? "Igiciro cy'umubare w'ibicuruzwa" : "Price per Quantity (per item)"}
+                            {language === "rw"
+                              ? "Igiciro cy'umubare w'ibicuruzwa"
+                              : "Price per Quantity (per item)"}
                           </SelectItem>
                           <SelectItem value="perPackage">
-                            {t("language") === "rw" ? "Igiciro cy'igipaki cyose" : "Price per Package (whole box)"}
+                            {language === "rw"
+                              ? "Igiciro cy'igipaki cyose"
+                              : "Price per Package (whole box)"}
                           </SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
                         {formData.priceType === "perQuantity"
-                          ? (t("language") === "rw" 
+                          ? (language === "rw"
                               ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 100 rwf kuri buri gicuruzwa)"
                               : "Price per individual item (e.g., 100 rwf per item)")
-                          : (t("language") === "rw"
+                          : (language === "rw"
                               ? "Igiciro cy'igipaki cyose (urugero: 1200 rwf kuri gipaki cyose)"
                               : "Price for whole package (e.g., 1200 rwf for whole box)")}
                       </p>
@@ -1369,10 +1406,10 @@ const AddProduct = () => {
                   />
                   <p className="text-xs text-muted-foreground">
                     {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
-                      ? (t("language") === "rw" 
+                      ? (language === "rw"
                           ? `Umubare w'amapaki - ${formData.packageQuantity} ibicuruzwa kuri gipaki. Bikurwaho igihe ubucuruzi bukorerwa.` 
                           : `Number of packages - ${formData.packageQuantity} items per package. Automatically reduced when sales are made.`)
-                      : (t("language") === "rw" 
+                      : (language === "rw"
                           ? "Umubare w'ibicuruzwa bisigaye mu stoki (bikurwaho igihe ubucuruzi bukorerwa)" 
                           : "Number of individual products in stock (automatically reduced when sales are made)")}
                   </p>
@@ -1393,10 +1430,10 @@ const AddProduct = () => {
                   />
                   <p className="text-xs text-muted-foreground">
                     {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
-                      ? (t("language") === "rw" 
+                      ? (language === "rw"
                           ? `Icyitonderwa cy'amapaki - ${formData.packageQuantity} ibicuruzwa kuri gipaki` 
                           : `Alert threshold for packages - ${formData.packageQuantity} items per package`)
-                      : (t("language") === "rw" 
+                      : (language === "rw"
                           ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" 
                           : "Alert when stock reaches this level")}
                   </p>

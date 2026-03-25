@@ -598,7 +598,13 @@ const Settings = () => {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-blue-700">{t("language")}</h2>
-                      <p className="text-xs text-muted-foreground mt-0.5">{language === "rw" ? "Hitamo ururimi wifuza gukoresha" : "Choose your preferred language"}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {language === "rw"
+                          ? "Hitamo ururimi wifuza gukoresha"
+                          : language === "fr"
+                          ? "Choisissez votre langue préférée"
+                          : "Choose your preferred language"}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -609,20 +615,27 @@ const Settings = () => {
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                       <Globe size={12} className="text-blue-600" />
-                      {language === "rw" ? "Hitamo ururimi" : "Select Language"}
+                      {language === "rw"
+                        ? "Hitamo ururimi"
+                        : language === "fr"
+                        ? "Choisir la langue"
+                        : "Select Language"}
                     </Label>
-                    <Select value={language} onValueChange={(value: "en" | "rw") => setLanguage(value)}>
+                    <Select value={language} onValueChange={(value: "en" | "rw" | "fr") => setLanguage(value)}>
                       <SelectTrigger className="input-field h-10 bg-background text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
                         <SelectItem value="rw">Kinyarwanda</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
                       {language === "rw" 
                         ? "Ururimi rwose ruzahinduka mu buryo bwikora" 
+                        : language === "fr"
+                        ? "Toute l'interface se mettra à jour automatiquement dans la langue choisie"
                         : "The entire interface will update to your selected language"}
                     </p>
                   </div>

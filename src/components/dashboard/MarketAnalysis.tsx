@@ -55,7 +55,7 @@ interface MarketAnalysisProps {
 const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
 export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const analysisData = useMemo(() => {
     if (!sales.length || !products.length) return null;
@@ -189,13 +189,13 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
     // Bar chart data (comparison)
     const barChartData = [
       {
-        name: t("language") === "rw" ? "Icyumweru cyashize" : "Last Week",
+        name: language === "rw" ? "Icyumweru cyashize" : "Last Week",
         revenue: previousTotal.revenue,
         profit: previousTotal.profit,
         quantity: previousTotal.quantity,
       },
       {
-        name: t("language") === "rw" ? "Icyumweru gikurikira" : "This Week",
+        name: language === "rw" ? "Icyumweru gikurikira" : "This Week",
         revenue: recentTotal.revenue,
         profit: recentTotal.profit,
         quantity: recentTotal.quantity,
@@ -242,7 +242,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
       }), { revenue: 0, profit: 0, quantity: 0 });
 
       weeklyTrendData.push({
-        week: t("language") === "rw" ? `Icyumweru ${4 - i}` : `Week ${4 - i}`,
+        week: language === "rw" ? `Icyumweru ${4 - i}` : `Week ${4 - i}`,
         revenue: weekTotal.revenue,
         profit: weekTotal.profit,
         quantity: weekTotal.quantity,
@@ -289,7 +289,9 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
         <div className="text-center py-12 text-gray-500">
           <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-sm">
-            {t("language") === "rw" ? "Nta makuru y'ubucuruzi aboneka" : "No sales data available for analysis"}
+            {language === "rw"
+              ? "Nta makuru y'ubucuruzi aboneka"
+              : "No sales data available for analysis"}
           </p>
         </div>
       </div>
@@ -303,18 +305,20 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
         <div className="flex items-center gap-2">
           <Brain className="w-5 h-5 text-purple-600" />
           <h3 className="text-lg font-semibold text-gray-900">
-            {t("language") === "rw" ? "Gusuzuma isoko n'ubucuruzi" : "AI Market Analysis"}
+            {language === "rw" ? "Gusuzuma isoko n'ubucuruzi" : "AI Market Analysis"}
           </h3>
         </div>
         <p className="text-sm text-gray-600 mt-1">
-          {t("language") === "rw" ? "Inyigisho z'ubucuruzi n'ibitekerezo by'ubucuruzi" : "AI-powered insights and business predictions"}
+          {language === "rw"
+            ? "Inyigisho z'ubucuruzi n'ibitekerezo by'ubucuruzi"
+            : "AI-powered insights and business predictions"}
         </p>
       </div>
 
       {/* Week Comparison Chart */}
       <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
         <h4 className="text-sm font-semibold text-gray-900 mb-4">
-          {t("language") === "rw" ? "Icyumweru cyashize n'icyumweru gikurikira" : "Week Comparison"}
+          {language === "rw" ? "Icyumweru cyashize n'icyumweru gikurikira" : "Week Comparison"}
         </h4>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={analysisData.barChartData}>
@@ -336,15 +340,30 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'quantity') return [value, t("language") === "rw" ? "Umubare" : "Quantity"];
-                return [`rwf ${value.toLocaleString()}`, name === 'revenue' ? (t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue") : (t("language") === "rw" ? "Inyungu" : "Profit")];
+                if (name === 'quantity') return [value, language === "rw" ? "Umubare" : "Quantity"];
+                return [
+                  `rwf ${value.toLocaleString()}`,
+                  name === "revenue"
+                    ? language === "rw"
+                      ? "Ingengo y'amafaranga"
+                      : "Revenue"
+                    : language === "rw"
+                    ? "Inyungu"
+                    : "Profit",
+                ];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
             />
             <Legend />
-            <Bar yAxisId="left" dataKey="revenue" fill="#3b82f6" name={t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"} radius={[4, 4, 0, 0]} />
-            <Bar yAxisId="left" dataKey="profit" fill="#10b981" name={t("language") === "rw" ? "Inyungu" : "Profit"} radius={[4, 4, 0, 0]} />
-            <Line yAxisId="right" type="monotone" dataKey="quantity" stroke="#f59e0b" strokeWidth={2} name={t("language") === "rw" ? "Umubare" : "Quantity"} />
+            <Bar
+              yAxisId="left"
+              dataKey="revenue"
+              fill="#3b82f6"
+              name={language === "rw" ? "Ingengo y'amafaranga" : "Revenue"}
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar yAxisId="left" dataKey="profit" fill="#10b981" name={language === "rw" ? "Inyungu" : "Profit"} radius={[4, 4, 0, 0]} />
+            <Line yAxisId="right" type="monotone" dataKey="quantity" stroke="#f59e0b" strokeWidth={2} name={language === "rw" ? "Umubare" : "Quantity"} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -352,7 +371,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
       {/* Top Products Bar Chart */}
       <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
         <h4 className="text-sm font-semibold text-gray-900 mb-4">
-          {t("language") === "rw" ? "Ibyicuruzwa byagurishwe cyane" : "Top Products by Revenue"}
+          {language === "rw" ? "Ibyicuruzwa byagurishwe cyane" : "Top Products by Revenue"}
         </h4>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={analysisData.topProductsBarData} layout="vertical">
@@ -370,15 +389,15 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"];
-                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("language") === "rw" ? "Inyungu" : "Profit"];
-                return [value, t("language") === "rw" ? "Umubare" : "Quantity"];
+                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, language === "rw" ? "Ingengo y'amafaranga" : "Revenue"];
+                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, language === "rw" ? "Inyungu" : "Profit"];
+                return [value, language === "rw" ? "Umubare" : "Quantity"];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
             />
             <Legend />
-            <Bar dataKey="revenue" fill="#3b82f6" name={t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"} radius={[0, 4, 4, 0]} />
-            <Bar dataKey="profit" fill="#10b981" name={t("language") === "rw" ? "Inyungu" : "Profit"} radius={[0, 4, 4, 0]} />
+            <Bar dataKey="revenue" fill="#3b82f6" name={language === "rw" ? "Ingengo y'amafaranga" : "Revenue"} radius={[0, 4, 4, 0]} />
+            <Bar dataKey="profit" fill="#10b981" name={language === "rw" ? "Inyungu" : "Profit"} radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -388,7 +407,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
         {/* Pie Chart - Revenue Distribution */}
         <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
           <h4 className="text-sm font-semibold text-gray-900 mb-4">
-            {t("language") === "rw" ? "Gutandukanya ingengo y'amafaranga" : "Revenue Distribution"}
+            {language === "rw" ? "Gutandukanya ingengo y'amafaranga" : "Revenue Distribution"}
           </h4>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -417,7 +436,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
         {/* Profit Margin Chart */}
         <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
           <h4 className="text-sm font-semibold text-gray-900 mb-4">
-            {t("language") === "rw" ? "Inyungu y'ibicuruzwa" : "Profit Margin by Product"}
+            {language === "rw" ? "Inyungu y'ibicuruzwa" : "Profit Margin by Product"}
           </h4>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analysisData.profitMarginData}>
@@ -434,10 +453,10 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
                 tickFormatter={(value) => `${value.toFixed(0)}%`}
               />
               <Tooltip 
-                formatter={(value: number) => [`${value.toFixed(1)}%`, t("language") === "rw" ? "Inyungu" : "Profit Margin"]}
+                formatter={(value: number) => [`${value.toFixed(1)}%`, language === "rw" ? "Inyungu" : "Profit Margin"]}
                 contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
               />
-              <Bar dataKey="margin" fill="#8b5cf6" name={t("language") === "rw" ? "Inyungu (%)" : "Profit Margin (%)"} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="margin" fill="#8b5cf6" name={language === "rw" ? "Inyungu (%)" : "Profit Margin (%)"} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -446,7 +465,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
       {/* Weekly Trend Area Chart */}
       <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
         <h4 className="text-sm font-semibold text-gray-900 mb-4">
-          {t("language") === "rw" ? "Imiterere y'icyumweru (Icyumweru 4)" : "Weekly Trends (Last 4 Weeks)"}
+          {language === "rw" ? "Imiterere y'icyumweru (Icyumweru 4)" : "Weekly Trends (Last 4 Weeks)"}
         </h4>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={analysisData.weeklyTrendData}>
@@ -472,15 +491,15 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"];
-                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("language") === "rw" ? "Inyungu" : "Profit"];
-                return [value, t("language") === "rw" ? "Umubare" : "Quantity"];
+                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, language === "rw" ? "Ingengo y'amafaranga" : "Revenue"];
+                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, language === "rw" ? "Inyungu" : "Profit"];
+                return [value, language === "rw" ? "Umubare" : "Quantity"];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
             />
             <Legend />
-            <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" name={t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"} />
-            <Area type="monotone" dataKey="profit" stroke="#10b981" fillOpacity={1} fill="url(#colorProfit)" name={t("language") === "rw" ? "Inyungu" : "Profit"} />
+            <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" name={language === "rw" ? "Ingengo y'amafaranga" : "Revenue"} />
+            <Area type="monotone" dataKey="profit" stroke="#10b981" fillOpacity={1} fill="url(#colorProfit)" name={language === "rw" ? "Inyungu" : "Profit"} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -488,7 +507,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
       {/* Daily Trends Chart */}
       <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
         <h4 className="text-sm font-semibold text-gray-900 mb-4">
-          {t("language") === "rw" ? "Imiterere y'umunsi (Iminsi 30)" : "Daily Trends (Last 30 Days)"}
+          {language === "rw" ? "Imiterere y'umunsi (Iminsi 30)" : "Daily Trends (Last 30 Days)"}
         </h4>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={analysisData.dailyData}>
@@ -508,18 +527,27 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                return [`rwf ${value.toLocaleString()}`, name === 'revenue' ? (t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue") : (t("language") === "rw" ? "Inyungu" : "Profit")];
+                return [
+                  `rwf ${value.toLocaleString()}`,
+                  name === "revenue"
+                    ? language === "rw"
+                      ? "Ingengo y'amafaranga"
+                      : "Revenue"
+                    : language === "rw"
+                    ? "Inyungu"
+                    : "Profit",
+                ];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
             />
             <Legend />
-            <Bar dataKey="revenue" fill="#3b82f6" name={t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"} radius={[2, 2, 0, 0]} />
+            <Bar dataKey="revenue" fill="#3b82f6" name={language === "rw" ? "Ingengo y'amafaranga" : "Revenue"} radius={[2, 2, 0, 0]} />
             <Line 
               type="monotone" 
               dataKey="profit" 
               stroke="#10b981" 
               strokeWidth={2}
-              name={t("language") === "rw" ? "Inyungu" : "Profit"}
+              name={language === "rw" ? "Inyungu" : "Profit"}
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -528,7 +556,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
       {/* Monthly Trend Chart */}
       <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
         <h4 className="text-sm font-semibold text-gray-900 mb-4">
-          {t("language") === "rw" ? "Imiterere y'ukwezi (Amezi 12)" : "Monthly Trends (Last 12 Months)"}
+          {language === "rw" ? "Imiterere y'ukwezi (Amezi 12)" : "Monthly Trends (Last 12 Months)"}
         </h4>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={analysisData.monthlyData}>
@@ -554,15 +582,15 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"];
-                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("language") === "rw" ? "Inyungu" : "Profit"];
-                return [value, t("language") === "rw" ? "Umubare" : "Quantity"];
+                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, language === "rw" ? "Ingengo y'amafaranga" : "Revenue"];
+                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, language === "rw" ? "Inyungu" : "Profit"];
+                return [value, language === "rw" ? "Umubare" : "Quantity"];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
             />
             <Legend />
-            <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorMonthlyRevenue)" name={t("language") === "rw" ? "Ingengo y'amafaranga" : "Revenue"} />
-            <Area type="monotone" dataKey="profit" stroke="#10b981" fillOpacity={1} fill="url(#colorMonthlyProfit)" name={t("language") === "rw" ? "Inyungu" : "Profit"} />
+            <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorMonthlyRevenue)" name={language === "rw" ? "Ingengo y'amafaranga" : "Revenue"} />
+            <Area type="monotone" dataKey="profit" stroke="#10b981" fillOpacity={1} fill="url(#colorMonthlyProfit)" name={language === "rw" ? "Inyungu" : "Profit"} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

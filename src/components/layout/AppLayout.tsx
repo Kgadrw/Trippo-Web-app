@@ -10,6 +10,7 @@ import { LayoutDashboard, Package, UserRound, ShoppingCart, Wallet, FileText, Se
 import { useNavigate } from "react-router-dom";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -32,6 +33,21 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
+  const { t, language } = useTranslation();
+
+  const getDesktopNavLabel = (item: { label: string; path: string }) => {
+    if (item.path === "/products")
+      return language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services";
+    if (item.path === "/barbers")
+      return language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeurs" : "Barbers";
+    if (item.path === "/expenses")
+      return language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses";
+    if (item.path === "/dashboard") return t("dashboard");
+    if (item.path === "/sales") return t("sales");
+    if (item.path === "/reports") return t("reports");
+    if (item.path === "/settings") return t("settings");
+    return item.label;
+  };
 
   /** Hide bottom bar on user dashboard subdomain; keep other areas unchanged. */
   const showBottomNav = useMemo(() => {
@@ -208,7 +224,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
                   )}
                 >
                   <Icon size={16} />
-                  <span>{item.label}</span>
+                  <span>{getDesktopNavLabel(item)}</span>
                 </Link>
               );
             })}
@@ -231,14 +247,24 @@ export function AppLayout({ children, title }: AppLayoutProps) {
                 }
                 window.dispatchEvent(new Event("pin-auth-changed"));
                 toast({
-                  title: "Logged Out",
-                  description: "You have been successfully logged out.",
+                  title:
+                    language === "rw"
+                      ? "Yasohotse"
+                      : language === "fr"
+                      ? "Déconnecté"
+                      : "Logged Out",
+                  description:
+                    language === "rw"
+                      ? "Wagiye mu buryo bwiza."
+                      : language === "fr"
+                      ? "Vous avez été déconnecté avec succès."
+                      : "You have been successfully logged out.",
                 });
                 navigate("/", { replace: true });
               }}
               className="h-9 px-3 rounded-md inline-flex items-center gap-2 text-sm whitespace-nowrap transition-colors text-blue-100 hover:bg-red-600 hover:text-white"
             >
-              <span>Logout</span>
+              <span>{t("logout")}</span>
             </button>
           </nav>
         </div>

@@ -67,6 +67,7 @@ interface Expense {
 const Reports = () => {
   const { t, language } = useTranslation();
   const isRw = language === "rw";
+  const isFr = language === "fr";
   const { toast } = useToast();
   const {
     isLoading: productsLoading,
@@ -725,16 +726,22 @@ const Reports = () => {
 
   const reportTypeLabel =
     reportType === "daily"
-      ? t("language") === "rw"
+      ? isRw
         ? "Buri munsi"
+        : isFr
+        ? "Quotidien"
         : "Daily"
       : reportType === "weekly"
-        ? t("language") === "rw"
-          ? "Buri cyumweru"
-          : "Weekly"
-        : t("language") === "rw"
-          ? "Buri kwezi"
-          : "Monthly";
+      ? isRw
+        ? "Buri cyumweru"
+        : isFr
+        ? "Hebdomadaire"
+        : "Weekly"
+      : isRw
+      ? "Buri kwezi"
+      : isFr
+      ? "Mensuel"
+      : "Monthly";
   const topBarber = salesByBarber[0];
 
   return (
@@ -757,7 +764,9 @@ const Reports = () => {
                 <Package className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{t("language") === "rw" ? "Agaciro" : "Total Cost"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isRw ? "Agaciro" : isFr ? "Coût total" : "Total Cost"}
+                </p>
                 <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalCost.toLocaleString()}</p>
               </div>
             </div>
@@ -808,16 +817,18 @@ const Reports = () => {
               </div>
               <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                 <Label className="text-xs font-normal text-muted-foreground">
-                  {t("language") === "rw" ? "Ubwoko bw'raporo" : "Report type"}
+                  {isRw ? "Ubwoko bw'raporo" : isFr ? "Type de rapport" : "Report type"}
                 </Label>
                 <Select value={reportType} onValueChange={setReportType}>
                   <SelectTrigger className="h-9 border-border bg-background">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="daily">{t("language") === "rw" ? "Buri munsi" : "Daily"}</SelectItem>
-                    <SelectItem value="weekly">{t("language") === "rw" ? "Buri cyumweru" : "Weekly"}</SelectItem>
-                    <SelectItem value="monthly">{t("language") === "rw" ? "Buri kwezi" : "Monthly"}</SelectItem>
+                    <SelectItem value="daily">{isRw ? "Buri munsi" : isFr ? "Quotidien" : "Daily"}</SelectItem>
+                    <SelectItem value="weekly">
+                      {isRw ? "Buri cyumweru" : isFr ? "Hebdomadaire" : "Weekly"}
+                    </SelectItem>
+                    <SelectItem value="monthly">{isRw ? "Buri kwezi" : isFr ? "Mensuel" : "Monthly"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -838,7 +849,7 @@ const Reports = () => {
         {/* Single overview chart: revenue, profit (Rwf) + quantity (units) */}
         <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
           <h3 className="mb-1 text-sm font-medium text-foreground">
-            {t("language") === "rw" ? "Incamake y'ubucuruzi" : "Sales overview"}
+            {isRw ? "Incamake y'ubucuruzi" : isFr ? "Aperçu des ventes" : "Sales overview"}
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
             {t("revenue")}, {t("profit")}, {t("quantity")} · {reportTypeLabel}
@@ -960,7 +971,7 @@ const Reports = () => {
             </div>
           ) : (
             <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              {t("language") === "rw" ? "Nta makuru y'ubucuruzi aboneka" : "No sales data available"}
+              {isRw ? "Nta makuru y'ubucuruzi aboneka" : isFr ? "Aucune donnée de ventes disponible" : "No sales data available"}
             </div>
           )}
         </div>
@@ -968,11 +979,13 @@ const Reports = () => {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
             <h3 className="mb-1 text-sm font-medium text-foreground">
-              {t("language") === "rw" ? "Raporo ya serivisi" : "Service performance"}
+              {isRw ? "Raporo ya serivisi" : isFr ? "Performance des services" : "Service performance"}
             </h3>
             <p className="mb-3 text-xs text-muted-foreground">
-              {t("language") === "rw"
+              {isRw
                 ? "Serivisi zagurishijwe cyane ukurikije amafaranga yinjiye"
+                : isFr
+                ? "Services les plus populaires selon le chiffre d'affaires"
                 : "Top services ranked by revenue"}
             </p>
             {salesByProduct.length > 0 ? (
@@ -981,7 +994,7 @@ const Reports = () => {
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {t("language") === "rw" ? "Serivisi" : "Service"}
+                        {isRw ? "Serivisi" : isFr ? "Service" : "Service"}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("quantity")}</th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
@@ -1000,23 +1013,35 @@ const Reports = () => {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {t("language") === "rw" ? "Nta makuru ya serivisi aboneka." : "No service records found."}
+                {isRw
+                  ? "Nta makuru ya serivisi aboneka."
+                  : isFr
+                  ? "Aucun enregistrement de service trouvé."
+                  : "No service records found."}
               </p>
             )}
           </div>
 
           <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
             <h3 className="mb-1 text-sm font-medium text-foreground">
-              {t("language") === "rw" ? "Imikorere y'Umwogoshi" : "Barber performance"}
+              {isRw
+                ? "Imikorere y'Umwogoshi"
+                : isFr
+                ? "Performance des coiffeurs"
+                : "Barber performance"}
             </h3>
             <p className="mb-3 text-xs text-muted-foreground">
               {topBarber
-                ? (t("language") === "rw"
+                ? isRw
                   ? `Uyoboye ni ${topBarber.barber} na rwf ${topBarber.revenue.toLocaleString()}`
-                  : `Top performer: ${topBarber.barber} with rwf ${topBarber.revenue.toLocaleString()}`)
-                : (t("language") === "rw"
-                  ? "Nta makuru y'abogoshi muri iki gihe."
-                  : "No barber records for this period.")}
+                  : isFr
+                  ? `Meilleur coiffeur : ${topBarber.barber} avec ${topBarber.revenue.toLocaleString()} rwf`
+                  : `Top performer: ${topBarber.barber} with rwf ${topBarber.revenue.toLocaleString()}`
+                : isRw
+                ? "Nta makuru y'abogoshi muri iki gihe."
+                : isFr
+                ? "Aucun enregistrement de coiffeur pour cette période."
+                : "No barber records for this period."}
             </p>
             {salesByBarber.length > 0 ? (
               <div className="overflow-x-auto">
@@ -1024,10 +1049,10 @@ const Reports = () => {
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {t("language") === "rw" ? "Umwogoshi" : "Barber"}
+                        {isRw ? "Umwogoshi" : isFr ? "Coiffeur" : "Barber"}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {t("language") === "rw" ? "Serivisi" : "Services"}
+                        {isRw ? "Serivisi" : isFr ? "Services" : "Services"}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
                     </tr>
@@ -1045,8 +1070,10 @@ const Reports = () => {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {t("language") === "rw"
+                {isRw
                   ? "Nta makuru y'Umwogoshi aboneka muri iki gihe."
+                  : isFr
+                  ? "Aucun enregistrement de services de coiffeur pour la période sélectionnée."
                   : "No barber service records found for the selected period."}
               </p>
             )}

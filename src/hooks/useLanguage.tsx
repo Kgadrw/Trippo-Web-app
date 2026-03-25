@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext, ReactNode } from "react";
 
-export type Language = "en" | "rw";
+export type Language = "en" | "rw" | "fr";
 
 const LANGUAGE_STORAGE_KEY = "profit-pilot-language";
 
@@ -15,7 +15,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [language, setLanguageState] = useState<Language>(() => {
     // Always default to English if no preference is saved
     const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    return (stored === "rw" || stored === "en") ? stored : "en";
+    return (stored === "rw" || stored === "en" || stored === "fr") ? (stored as Language) : "en";
   });
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === LANGUAGE_STORAGE_KEY && e.newValue) {
         const newLang = e.newValue as Language;
-        if (newLang === "rw" || newLang === "en") {
+        if (newLang === "rw" || newLang === "en" || newLang === "fr") {
           setLanguageState(newLang);
         }
       }

@@ -13,8 +13,8 @@ export function useTranslation() {
   useEffect(() => {
     const handleLanguageChange = () => {
       const stored = localStorage.getItem("profit-pilot-language");
-      if (stored === "rw" || stored === "en") {
-        setCurrentLanguage(stored);
+      if (stored === "rw" || stored === "en" || stored === "fr") {
+        setCurrentLanguage(stored as typeof currentLanguage);
       }
     };
 

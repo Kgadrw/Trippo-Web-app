@@ -1,4 +1,4 @@
-export type Language = "en" | "rw";
+export type Language = "en" | "rw" | "fr";
 
 export interface Translations {
   // Navigation
@@ -249,7 +249,7 @@ export interface Translations {
   pleaseTryAgain: string;
 }
 
-export const translations: Record<Language, Translations> = {
+export const translations: Partial<Record<Language, Partial<Translations>>> = {
   en: {
     // Navigation
     dashboard: "Dashboard",
@@ -746,8 +746,85 @@ export const translations: Record<Language, Translations> = {
     failed: "Byanze",
     pleaseTryAgain: "Nyamuneka gerageza nanone",
   },
+  fr: {
+    // Navigation
+    dashboard: "Tableau de bord",
+    products: "Services",
+    sales: "Ventes",
+    reports: "Rapports",
+    settings: "Paramètres",
+    logout: "Déconnexion",
+    
+    // Common
+    save: "Enregistrer",
+    cancel: "Annuler",
+    delete: "Supprimer",
+    edit: "Modifier",
+    add: "Ajouter",
+    search: "Rechercher",
+    filter: "Filtrer",
+    loading: "Chargement...",
+    signIn: "Connexion",
+    getStarted: "Commencer",
+    
+    // Settings
+    businessInfo: "Informations sur l'entreprise",
+    security: "Sécurité",
+    language: "Langue",
+    businessName: "Nom de l'entreprise",
+    ownerName: "Nom du responsable",
+    emailAddress: "Adresse e-mail",
+    saveChanges: "Enregistrer les modifications",
+    changePin: "Changer le PIN",
+    setPin: "Définir le PIN",
+    currentPin: "PIN actuel",
+    newPin: "Nouveau PIN",
+    confirmPin: "Confirmer le PIN",
+    
+    // Sales (labels)
+    recordSale: "Enregistrer une vente",
+    recordSales: "Enregistrer des ventes",
+    quantity: "Quantité",
+    enterQuantity: "Saisir la quantité",
+    paymentMethod: "Mode de paiement",
+    saleDate: "Date de vente",
+    cash: "Espèces",
+    momoPay: "Momo",
+    card: "Carte",
+    airtelPay: "Airtel Money",
+    bankTransfer: "Virement bancaire",
+    
+    // Dashboard KPIs (time periods)
+    todaysRevenue: "Revenu d'aujourd'hui",
+    todaysProfit: "Bénéfice (net) d'aujourd'hui",
+    weekRevenue: "Revenu de la semaine",
+    weekProfit: "Bénéfice (net) de la semaine",
+    monthRevenue: "Revenu du mois",
+    monthProfit: "Bénéfice (net) du mois",
+    yearRevenue: "Revenu de l'année",
+    yearProfit: "Bénéfice (net) de l'année",
+    periodToday: "Aujourd'hui",
+    periodWeek: "Semaine",
+    periodMonth: "Mois",
+    periodYear: "Année",
+    todaysItems: "Services d'aujourd'hui",
+    
+    // Common messages
+    confirmDelete: "Confirmer la suppression",
+    areYouSure: "Êtes-vous sûr ?",
+    thisActionCannotBeUndone: "Cette action ne peut pas être annulée.",
+    yesDelete: "Oui, supprimer",
+    noCancel: "Non, annuler",
+    success: "Succès",
+    error: "Erreur",
+    saved: "Enregistré",
+    updated: "Mis à jour",
+    deleted: "Supprimé",
+    failed: "Échec",
+    pleaseTryAgain: "Veuillez réessayer",
+  },
 };
 
 export const getTranslation = (key: keyof Translations, language: Language = "en"): string => {
-  return translations[language][key] || translations.en[key] || key;
+  return translations[language]?.[key] || translations.en?.[key] || key;
 };
