@@ -48,7 +48,7 @@ function canonicalPayment(method?: string): string {
   return "Cash";
 }
 
-let trippoLogoDataUrlPromise: Promise<string> | null = null;
+let trippoLogoDataUrlPromise: Promise<string | null> | null = null;
 
 function truncateText(text: string, maxLen: number) {
   const t = (text || "").toString();
@@ -104,9 +104,14 @@ async function blobToDataUrl(blob: Blob) {
 async function getTrippoLogoDataUrl() {
   if (!trippoLogoDataUrlPromise) {
     trippoLogoDataUrlPromise = (async () => {
-      const res = await fetch("/logo.png", { cache: "force-cache" });
-      const blob = await res.blob();
-      return blobToDataUrl(blob);
+      try {
+        const res = await fetch("/logo.png", { cache: "force-cache" });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        return blobToDataUrl(blob);
+      } catch {
+        return null;
+      }
     })();
   }
   return trippoLogoDataUrlPromise;
@@ -238,20 +243,36 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
 
   const qrDataUrl =
     opts.qrDataUrl ||
-    (await generateQrDataUrl(`${verificationBaseUrl}?ticket=${encodeURIComponent(String(ticketId))}`));
+    (async () => {
+      try {
+        return await generateQrDataUrl(`${verificationBaseUrl}?ticket=${encodeURIComponent(String(ticketId))}`);
+      } catch {
+        return null;
+      }
+    })();
   const logoDataUrl = opts.logoDataUrl || (await getTrippoLogoDataUrl());
 
-  doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
-  // Trippo logo overlay inside QR only
-  const logoSize = 7.5;
-  doc.addImage(
-    logoDataUrl,
-    "PNG",
-    cx - logoSize / 2,
-    qrY + qrSize / 2 - logoSize / 2,
-    logoSize,
-    logoSize
-  );
+  const resolvedQrDataUrl = await qrDataUrl;
+  if (resolvedQrDataUrl) {
+    doc.addImage(resolvedQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+  } else {
+    // Fallback: draw empty QR-like box so the receipt still prints/downloads.
+    doc.setDrawColor(180);
+    doc.setLineWidth(0.3);
+    doc.rect(qrX, qrY, qrSize, qrSize);
+  }
+  // Trippo logo overlay inside QR only (optional fallback: don't break printing/downloading)
+  if (logoDataUrl) {
+    const logoSize = 7.5;
+    doc.addImage(
+      logoDataUrl,
+      "PNG",
+      cx - logoSize / 2,
+      qrY + qrSize / 2 - logoSize / 2,
+      logoSize,
+      logoSize
+    );
+  }
 
   // Total
   const totalY = page.ry + page.rh - 52;
@@ -320,7 +341,31 @@ export function printPdf(doc: jsPDF) {
   } catch {
     // ignore
   }
-  const url = doc.output("bloburl");
-  window.open(url, "_blank", "noopener,noreferrer");
+  try {
+    // More reliable: render into hidden iframe and call `print()` after load.
+    const pdfBlob: Blob = doc.output("blob") as any;
+    const url = URL.createObjectURL(pdfBlob);
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch {
+        // ignore
+      } finally {
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          document.body.removeChild(iframe);
+        }, 1500);
+      }
+    };
+  } catch {
+    // Fallback to previous approach
+    const url = doc.output("bloburl");
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 }
 

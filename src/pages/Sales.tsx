@@ -1046,30 +1046,61 @@ const Sales = () => {
   }, [sales, ticketDay, ticketBarberKey]);
 
   const handleDownloadTicket = async (sale: Sale) => {
-    const doc = await buildSaleTicketPdf(sale as unknown as TicketSale);
-    const when = new Date((sale.timestamp || sale.date) as any);
-    const ymd = Number.isNaN(when.getTime()) ? "ticket" : when.toISOString().slice(0, 10);
-    const service = (sale.serviceName || sale.product || "service").replace(/[^\w\- ]+/g, "").slice(0, 40);
-    const barber = (sale.workerName || "barber").replace(/[^\w\- ]+/g, "").slice(0, 24);
-    downloadPdf(doc, `Ticket_${ymd}_${barber}_${service}.pdf`);
+    try {
+      const doc = await buildSaleTicketPdf(sale as unknown as TicketSale);
+      const when = new Date((sale.timestamp || sale.date) as any);
+      const ymd = Number.isNaN(when.getTime()) ? "ticket" : when.toISOString().slice(0, 10);
+      const service = (sale.serviceName || sale.product || "service").replace(/[^\w\- ]+/g, "").slice(0, 40);
+      const barber = (sale.workerName || "barber").replace(/[^\w\- ]+/g, "").slice(0, 24);
+      downloadPdf(doc, `Ticket_${ymd}_${barber}_${service}.pdf`);
+    } catch (error: any) {
+      toast({
+        title: "Ticket download failed",
+        description: error?.message || "Unable to generate the receipt PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePrintTicket = async (sale: Sale) => {
-    const doc = await buildSaleTicketPdf(sale as unknown as TicketSale);
-    printPdf(doc);
+    try {
+      const doc = await buildSaleTicketPdf(sale as unknown as TicketSale);
+      printPdf(doc);
+    } catch (error: any) {
+      toast({
+        title: "Ticket printing failed",
+        description: error?.message || "Unable to generate the receipt PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownloadDailyTickets = async () => {
-    const doc = await buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
-    const barberLabel =
-      ticketBarberOptions.find((b) => b.key === ticketBarberKey)?.label || "Barber";
-    const safeBarber = barberLabel.replace(/[^\w\- ]+/g, "").slice(0, 32);
-    downloadPdf(doc, `Tickets_${ticketDay}_${safeBarber}.pdf`);
+    try {
+      const doc = await buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
+      const barberLabel = ticketBarberOptions.find((b) => b.key === ticketBarberKey)?.label || "Barber";
+      const safeBarber = barberLabel.replace(/[^\w\- ]+/g, "").slice(0, 32);
+      downloadPdf(doc, `Tickets_${ticketDay}_${safeBarber}.pdf`);
+    } catch (error: any) {
+      toast({
+        title: "Daily tickets download failed",
+        description: error?.message || "Unable to generate the tickets PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePrintDailyTickets = async () => {
-    const doc = await buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
-    printPdf(doc);
+    try {
+      const doc = await buildDailyTicketsPdf(ticketDaySales as unknown as TicketSale[]);
+      printPdf(doc);
+    } catch (error: any) {
+      toast({
+        title: "Daily tickets printing failed",
+        description: error?.message || "Unable to generate the tickets PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredExpenses = useMemo(() => {
