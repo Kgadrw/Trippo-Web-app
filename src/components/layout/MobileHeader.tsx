@@ -197,39 +197,39 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   }, [location.pathname, subdomain]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between bg-blue-600 px-4 lg:hidden rounded-b-3xl shadow-md shadow-blue-900/20">
+    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
       {/* Left side - Back (IMS inner pages) + Account Info */}
       <div className="flex items-center gap-2 flex-1 min-w-0 sm:gap-3">
         {showDashboardBack && (
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60"
             aria-label="Back to dashboard"
           >
-            <ArrowLeft className="h-6 w-6 text-white" strokeWidth={2.25} />
+            <ArrowLeft className="h-6 w-6" strokeWidth={2.25} />
           </button>
         )}
-        <Avatar className="h-10 w-10 rounded-full border-2 border-white/70 flex-shrink-0 bg-white">
-          <AvatarFallback className="bg-white text-blue-700 font-bold border-0">
+        <Avatar className="h-10 w-10 rounded-full border-2 border-blue-600 flex-shrink-0 bg-white">
+          <AvatarFallback className="bg-white text-blue-600 font-bold border-0">
             {userInitials}
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <span className="text-sm text-white/80">
+            <span className="text-sm text-muted-foreground">
               {language === "rw" ? "Muraho" : language === "fr" ? "Bonjour," : "Hi,"}
             </span>
-            <span className="text-sm font-semibold text-white truncate">
+            <span className="text-sm font-semibold text-foreground truncate">
               {firstName}
             </span>
             <ChevronDown 
-              className="h-4 w-4 text-white/90 flex-shrink-0 cursor-pointer hover:text-white" 
+              className="h-4 w-4 text-foreground flex-shrink-0 cursor-pointer hover:text-muted-foreground" 
               onClick={() => navigate("/settings")}
             />
           </div>
           {user?.businessName && (
-            <span className="text-xs text-white/75 truncate">
+            <span className="text-xs text-muted-foreground truncate">
               {user.businessName}
             </span>
           )}
@@ -243,8 +243,8 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
           className={cn(
             "relative p-2 rounded-full transition-colors",
             notificationService.isAllowed()
-              ? "text-white hover:bg-white/15"
-              : "text-white/70"
+              ? "text-foreground hover:bg-muted"
+              : "text-muted-foreground"
           )}
         >
           <Bell size={22} />
