@@ -74,10 +74,41 @@ export default function VerifyTicket() {
         setStatus("success");
         return;
       }
-      // If backend doesn't support this endpoint, fall through.
-      throw new Error(json?.error || json?.message || "Verification endpoint not available.");
+      // If backend doesn't support this endpoint (404), fall back to reading the sale by id.
+      if (res.status === 404) {
+        throw new Error("VERIFY_ROUTE_NOT_FOUND");
+      }
+      throw new Error(payload?.error || payload?.message || json?.error || json?.message || "Verification endpoint not available.");
     } catch (e: any) {
-      // Fallback: if user is logged in, try pulling by id from sales endpoint.
+      // Fallback 1: try pulling by id from sales endpoint (public, no headers)
+      try {
+        const url = `${PUBLIC_API_BASE_URL}/sales/${encodeURIComponent(trimmed)}`;
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        const json = await res.json().catch(() => ({}));
+        const sale = json?.data || json?.sale || json;
+        if (res.ok && sale) {
+          setResult({
+            valid: true,
+            ticketId: trimmed,
+            serviceName: sale.serviceName || sale.product,
+            barberName: sale.workerName,
+            amount: sale.revenue,
+            currency: "RWF",
+            paymentMethod: sale.paymentMethod,
+            recordedAt: sale.timestamp || sale.date,
+            businessName: sale.businessName || undefined,
+          });
+          setStatus("success");
+          return;
+        }
+      } catch {
+        // ignore
+      }
+
+      // Fallback 2: if logged in, retry sales endpoint with X-User-Id
       if (isLoggedIn) {
         try {
           const userId = localStorage.getItem("profit-pilot-user-id") || "";
@@ -115,7 +146,11 @@ export default function VerifyTicket() {
       }
 
       setStatus("error");
-      setErrorMsg(e?.message || "Unable to verify this ticket.");
+      setErrorMsg(
+        e?.message === "VERIFY_ROUTE_NOT_FOUND"
+          ? "Public verification API is not enabled on the backend yet."
+          : e?.message || "Unable to verify this ticket."
+      );
     }
   };
 
