@@ -135,7 +135,7 @@ const Products = () => {
             return (
               <div
                 key={id}
-                className="rounded-xl border border-gray-200 bg-white p-3 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square flex flex-col"
+                className="rounded-xl border border-gray-200 bg-white p-3 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square flex flex-col relative overflow-hidden"
                 onClick={() => openRecordService(service)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -147,6 +147,12 @@ const Products = () => {
                 tabIndex={0}
                 aria-label={`Record new service for ${service.name}`}
               >
+                <img
+                  src="/logo.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
+                />
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2 font-medium text-gray-900 min-w-0 flex-1">
                     <Scissors size={16} className="mt-0.5 shrink-0" />

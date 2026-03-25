@@ -13,6 +13,7 @@ import {
 import { useApi } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, UserRound, Pencil } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Barber {
   id?: number;
@@ -24,6 +25,7 @@ interface Barber {
 
 export default function Barbers() {
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const { items, isLoading, add, update, remove } = useApi<Barber>({
     endpoint: "clients",
     defaultValue: [],
@@ -108,8 +110,13 @@ export default function Barbers() {
     }
   };
 
+  const barbersTitle =
+    language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeurs" : "Barbers";
+  const barberSingular =
+    language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeur" : "Barber";
+
   return (
-    <AppLayout title="Barbers">
+    <AppLayout title={barbersTitle}>
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
@@ -117,13 +124,13 @@ export default function Barbers() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search barbers..."
-              className="pl-9"
+              placeholder={`${t("search")} ${barbersTitle.toLowerCase()}...`}
+              className="pl-9 rounded-full"
             />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={openCreate}>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-full" onClick={openCreate}>
             <Plus size={16} />
-            Add Barber
+            {t("add")} {barberSingular}
           </Button>
         </div>
 
@@ -140,8 +147,14 @@ export default function Barbers() {
               return (
                 <div
                   key={id}
-                  className="rounded-xl border border-gray-200 bg-white p-3 flex flex-col aspect-square transition-all hover:shadow-sm"
+                  className="rounded-xl border border-gray-200 bg-white p-3 flex flex-col aspect-square transition-all hover:shadow-sm relative overflow-hidden"
                 >
+                  <img
+                    src="/logo.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
+                  />
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-2 font-medium text-gray-900">
@@ -153,10 +166,10 @@ export default function Barbers() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="sm" className="hover:bg-gray-100" onClick={() => openEdit(b)}>
+                    <Button variant="ghost" size="sm" className="hover:bg-gray-100 rounded-full" onClick={() => openEdit(b)}>
                       <Pencil size={14} />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(b)}>
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50 rounded-full" onClick={() => handleDelete(b)}>
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -195,10 +208,11 @@ export default function Barbers() {
                 setName("");
                 setCategory("");
               }}
+              className="rounded-full"
             >
               Cancel
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full" onClick={handleSave}>
               {editingBarber ? "Update" : "Save"}
             </Button>
           </DialogFooter>
