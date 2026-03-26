@@ -2467,7 +2467,7 @@ const Dashboard = () => {
       <AddToHomeScreen />
 
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
-        <DialogContent className="max-w-[360px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-2xl shadow-xl">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full max-w-[560px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-2xl shadow-xl">
           <div className="p-4">
           <DialogHeader>
             <DialogTitle>
