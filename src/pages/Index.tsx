@@ -370,6 +370,15 @@ const Dashboard = () => {
     endpoint: "expenses",
     defaultValue: [],
   });
+  const [expensePresets, setExpensePresets] = useState<Array<{ title: string; amount?: number }>>(() => {
+    try {
+      const raw = localStorage.getItem("trippo-expense-presets");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -377,6 +386,116 @@ const Dashboard = () => {
   const [expenseDate, setExpenseDate] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
   const [isSavingExpense, setIsSavingExpense] = useState(false);
+
+  const expenseSuggestions = useMemo(() => {
+    const normalize = (s: string) => s.trim().toLowerCase();
+
+    const freq = new Map<string, { title: string; count: number; lastMs: number; lastAmount: number }>();
+    for (const e of expenses) {
+      const title = (e.title || "").toString().trim();
+      if (!title) continue;
+      const key = normalize(title);
+      const ms = new Date(e.date as any).getTime();
+      const lastMs = Number.isNaN(ms) ? 0 : ms;
+      const amount = Number(e.amount) || 0;
+      const cur = freq.get(key) || { title, count: 0, lastMs: 0, lastAmount: amount };
+      cur.count += 1;
+      if (lastMs >= cur.lastMs) {
+        cur.lastMs = lastMs;
+        cur.title = title;
+        cur.lastAmount = amount;
+      }
+      freq.set(key, cur);
+    }
+
+    const mostUsed = Array.from(freq.values())
+      .sort((a, b) => b.count - a.count || b.lastMs - a.lastMs)
+      .slice(0, 6);
+
+    const recent = [...expenses]
+      .slice()
+      .sort((a, b) => new Date(b.date as any).getTime() - new Date(a.date as any).getTime())
+      .map((e) => (e.title || "").toString().trim())
+      .filter(Boolean)
+      .filter((t, idx, arr) => arr.findIndex((x) => normalize(x) === normalize(t)) === idx)
+      .slice(0, 6);
+
+    const presetTitles = expensePresets
+      .map((p) => (p.title || "").toString().trim())
+      .filter(Boolean)
+      .filter((t, idx, arr) => arr.findIndex((x) => normalize(x) === normalize(t)) === idx)
+      .slice(0, 6);
+
+    const titleToSuggestedAmount = new Map<string, number>();
+    for (const v of freq.values()) {
+      if (v.lastAmount > 0) titleToSuggestedAmount.set(normalize(v.title), v.lastAmount);
+    }
+    for (const p of expensePresets) {
+      const t = (p.title || "").toString().trim();
+      if (!t) continue;
+      if (typeof p.amount === "number" && !Number.isNaN(p.amount) && p.amount > 0) {
+        titleToSuggestedAmount.set(normalize(t), p.amount);
+      }
+    }
+
+    const allTitles = Array.from(
+      new Set([
+        ...presetTitles.map(normalize),
+        ...mostUsed.map((x) => normalize(x.title)),
+        ...recent.map(normalize),
+      ])
+    )
+      .map((key) => {
+        const fromPreset = expensePresets.find((p) => normalize(p.title || "") === key);
+        const fromMost = mostUsed.find((m) => normalize(m.title) === key);
+        const fromRecent = recent.find((r) => normalize(r) === key);
+        return (fromPreset?.title || fromMost?.title || fromRecent || "").trim();
+      })
+      .filter(Boolean);
+
+    return {
+      presetTitles,
+      mostUsed,
+      recent,
+      allTitles,
+      normalize,
+      getSuggestedAmount: (title: string) => titleToSuggestedAmount.get(normalize(title)),
+    };
+  }, [expenses, expensePresets]);
+
+  const applyExpenseSuggestion = (title: string) => {
+    const clean = title.trim();
+    setExpenseTitle(clean);
+    const suggested = expenseSuggestions.getSuggestedAmount(clean);
+    if (typeof suggested === "number" && suggested > 0) {
+      setExpenseAmount(String(suggested));
+    }
+  };
+
+  const saveExpensePreset = () => {
+    const title = expenseTitle.trim();
+    if (!title) return;
+    const amount = Number(expenseAmount);
+    const preset = { title, amount: !Number.isNaN(amount) && amount > 0 ? amount : undefined };
+
+    const next = [
+      preset,
+      ...expensePresets.filter(
+        (p) => expenseSuggestions.normalize(p.title || "") !== expenseSuggestions.normalize(title)
+      ),
+    ].slice(0, 12);
+
+    setExpensePresets(next);
+    try {
+      localStorage.setItem("trippo-expense-presets", JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+    toast({
+      title: isRw ? "Byabitswe" : "Saved",
+      description: isRw ? "Ikiguzi cyabitswe nk'icyihuse." : "Expense saved as a quick preset.",
+    });
+  };
 
   // Refresh products and sales every time dashboard is opened (only once on mount)
   useEffect(() => {
@@ -2355,9 +2474,107 @@ const Dashboard = () => {
               </Label>
               <Input
                 value={expenseTitle}
-                onChange={(e) => setExpenseTitle(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setExpenseTitle(v);
+                  const suggested = expenseSuggestions.getSuggestedAmount(v);
+                  if (typeof suggested === "number" && suggested > 0) {
+                    setExpenseAmount(String(suggested));
+                  }
+                }}
                 placeholder={isRw ? "nka: Umuriro, Ubukode..." : isFr ? "ex: Services, Loyer..." : "e.g. Utilities, Rent..."}
+                list="expense-title-suggestions"
               />
+              <datalist id="expense-title-suggestions">
+                {expenseSuggestions.allTitles.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+
+              {(expenseSuggestions.presetTitles.length > 0 ||
+                expenseSuggestions.mostUsed.length > 0 ||
+                expenseSuggestions.recent.length > 0) && (
+                <div className="pt-2 space-y-2">
+                  {expenseSuggestions.presetTitles.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-semibold text-gray-600">
+                        {isRw ? "Ibyihuse" : isFr ? "Favoris" : "Presets"}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {expenseSuggestions.presetTitles.map((t) => (
+                          <Button
+                            key={t}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 rounded-full"
+                            onClick={() => applyExpenseSuggestion(t)}
+                          >
+                            {t}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {expenseSuggestions.mostUsed.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-semibold text-gray-600">
+                        {isRw ? "Byinshi ukoresha" : isFr ? "Les plus utilisés" : "Most used"}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {expenseSuggestions.mostUsed.map((x) => (
+                          <Button
+                            key={x.title}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 rounded-full"
+                            onClick={() => applyExpenseSuggestion(x.title)}
+                          >
+                            {x.title}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {expenseSuggestions.recent.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-semibold text-gray-600">
+                        {isRw ? "Biheruka" : isFr ? "Récentes" : "Recent"}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {expenseSuggestions.recent.map((t) => (
+                          <Button
+                            key={t}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 rounded-full"
+                            onClick={() => applyExpenseSuggestion(t)}
+                          >
+                            {t}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-blue-700"
+                      onClick={saveExpensePreset}
+                      disabled={!expenseTitle.trim()}
+                    >
+                      {isRw ? "Bika nk'icyihuse" : isFr ? "Enregistrer favori" : "Save preset"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <Label>
