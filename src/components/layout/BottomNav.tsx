@@ -43,7 +43,7 @@ export function BottomNav() {
   return (
     <>
       <nav 
-        className="fixed bottom-4 left-3 right-3 z-40 rounded-2xl border border-blue-500/40 bg-blue-600 shadow-md shadow-blue-900/20 lg:hidden"
+        className="fixed bottom-4 left-3 right-3 z-40 rounded-2xl border border-blue-500/40 bg-transparent backdrop-blur-md lg:hidden"
         style={{ 
           paddingBottom: 'max(0.5rem, calc(env(safe-area-inset-bottom) + 0.25rem))',
         }}
