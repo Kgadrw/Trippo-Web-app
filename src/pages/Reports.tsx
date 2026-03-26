@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Banknote, Download, Package, TrendingUp, Trophy } from "lucide-react";
+import { Banknote, Download, Package, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { playInfoBeep, initAudio } from "@/lib/sound";
 import { useApi } from "@/hooks/useApi";
@@ -1101,24 +1101,35 @@ const Reports = () => {
                     {barberServiceBreakdown.map((row) => (
                       <tr key={row.barber} className="border-b border-gray-200">
                         <td className="py-3 px-3 text-sm text-gray-900">{row.barber}</td>
-                        <td className="py-3 px-3 text-sm font-semibold text-gray-800 tabular-nums">{row.services}</td>
+                        <td className="py-3 px-3 text-sm font-semibold text-gray-800 tabular-nums">
+                          <span className="inline-flex items-center gap-1">
+                            {row.services > 0 ? (
+                              <ArrowUpRight size={14} className="text-emerald-600" />
+                            ) : (
+                              <ArrowDownLeft size={14} className="text-red-600" />
+                            )}
+                            {row.services}
+                          </span>
+                        </td>
                         <td className="py-3 px-3 text-sm text-gray-700">
                           {row.topServices.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {row.topServices.map((s) => (
-                                <span
-                                  key={s}
-                                  className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700"
-                                >
-                                  {s}
-                                </span>
-                              ))}
+                            <div className="text-[12px] font-medium text-blue-700">
+                              {row.topServices.join(", ")}
                             </div>
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-sm font-semibold text-blue-700 tabular-nums">{row.revenue.toLocaleString()} rwf</td>
+                        <td className="py-3 px-3 text-sm font-semibold text-blue-700 tabular-nums">
+                          <span className="inline-flex items-center gap-1">
+                            {row.revenue > 0 ? (
+                              <ArrowUpRight size={14} className="text-emerald-600" />
+                            ) : (
+                              <ArrowDownLeft size={14} className="text-red-600" />
+                            )}
+                            {row.revenue.toLocaleString()} rwf
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
