@@ -76,7 +76,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
 
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 h-16 bg-blue-900 border-b border-blue-800 shadow-sm flex items-center justify-between px-6 z-50 transition-all duration-300",
+      "fixed top-0 left-0 right-0 h-16 bg-transparent border-b border-transparent shadow-none flex items-center justify-between px-6 z-50 transition-all duration-300",
       "lg:left-56",
       sidebarCollapsed && "lg:left-16"
     )}>
@@ -84,14 +84,14 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
         {showMenuButton && (
           <button
             onClick={onMenuClick}
-            className="p-2 hover:bg-blue-800 text-white transition-colors lg:hidden"
+            className="p-2 hover:bg-muted text-foreground transition-colors lg:hidden rounded-lg"
           >
             <Menu size={20} />
           </button>
         )}
         <div>
-          <h1 className="text-xl font-bold text-white">{title}</h1>
-          <p className="text-sm text-blue-200">{today} • {time}</p>
+          <h1 className="text-xl font-bold text-foreground">{title}</h1>
+          <p className="text-sm text-muted-foreground">{today} • {time}</p>
         </div>
       </div>
 
@@ -99,13 +99,13 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setProfileModalOpen(true)}
-            className="flex items-center gap-3 hover:bg-blue-800 rounded-lg px-2 py-1 transition-colors"
+            className="flex items-center gap-3 hover:bg-muted rounded-lg px-2 py-1 transition-colors"
           >
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-white">
+              <p className="text-sm font-bold text-foreground">
                 {firstName}
               </p>
-              <p className="text-xs text-blue-200">
+              <p className="text-xs text-muted-foreground">
                 {subtitle}
               </p>
             </div>
@@ -117,10 +117,10 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
           </button>
           <button
             onClick={() => navigate("/settings")}
-            className="p-1.5 hover:bg-blue-800 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-muted rounded-lg transition-colors"
             title="Settings"
           >
-            <ChevronDown className="h-4 w-4 text-white" />
+            <ChevronDown className="h-4 w-4 text-foreground" />
           </button>
         </div>
       </div>

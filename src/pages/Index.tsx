@@ -1495,14 +1495,12 @@ const Dashboard = () => {
               value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
               icon={DollarSign}
               valueColor="text-blue-600"
-              bgColor="bg-transparent lg:bg-transparent backdrop-blur-none lg:backdrop-blur-none shadow-none border-b-2 border-blue-600 rounded-lg sm:rounded-xl"
             />
             <KPICard
               title={t("todaysProfit")}
               value={`${todayStats.totalProfit.toLocaleString()} rwf`}
               icon={TrendingUp}
               valueColor="text-green-600"
-              bgColor="bg-transparent lg:bg-transparent backdrop-blur-none lg:backdrop-blur-none shadow-none border-b-2 border-blue-600 rounded-lg sm:rounded-xl"
             />
             <KPICard
               title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
