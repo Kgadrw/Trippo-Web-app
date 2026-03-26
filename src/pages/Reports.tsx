@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 import {
   ComposedChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -115,16 +114,6 @@ const Reports = () => {
     defaultValue: [],
   });
 
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
-  const getYearStartDate = () => {
-    const date = new Date();
-    date.setMonth(0);
-    date.setDate(1);
-    return date.toISOString().split("T")[0];
-  };
-
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [reportType, setReportType] = useState("weekly");
 
   const getSaleTimeMs = (sale: Sale) => {
@@ -174,54 +163,9 @@ const Reports = () => {
     return null;
   };
 
-
-  // Filter sales by date range
-  const filteredSales = useMemo(() => {
-    if (!startDate && !endDate) {
-      // If no date filters, show all sales
-      return sales;
-    }
-    
-    return sales.filter(sale => {
-      const saleDate = new Date(sale.date);
-      saleDate.setHours(0, 0, 0, 0); // Normalize to start of day
-      
-      const start = startDate ? new Date(startDate) : null;
-      if (start) {
-        start.setHours(0, 0, 0, 0);
-      }
-      
-      const end = endDate ? new Date(endDate) : null;
-      if (end) {
-        end.setHours(23, 59, 59, 999); // Set to end of day
-      }
-      
-      if (start && end) {
-      return saleDate >= start && saleDate <= end;
-      } else if (start) {
-        return saleDate >= start;
-      } else if (end) {
-        return saleDate <= end;
-      }
-      return true;
-    });
-  }, [sales, startDate, endDate]);
-
-  const filteredExpenses = useMemo(() => {
-    if (!startDate && !endDate) return expenses;
-    return expenses.filter((expense) => {
-      const expenseDate = new Date(expense.date);
-      expenseDate.setHours(0, 0, 0, 0);
-      const start = startDate ? new Date(startDate) : null;
-      if (start) start.setHours(0, 0, 0, 0);
-      const end = endDate ? new Date(endDate) : null;
-      if (end) end.setHours(23, 59, 59, 999);
-      if (start && end) return expenseDate >= start && expenseDate <= end;
-      if (start) return expenseDate >= start;
-      if (end) return expenseDate <= end;
-      return true;
-    });
-  }, [expenses, startDate, endDate]);
+  // No date filtering in Reports: always use all data
+  const filteredSales = sales;
+  const filteredExpenses = expenses;
 
   // Aggregate sales data by product
   const salesByProduct = useMemo(() => {
@@ -251,31 +195,6 @@ const Reports = () => {
     const timeMap: Record<string, { date: string; revenue: number; profit: number; quantity: number; label: string; monthDay: string }> = {};
     
     if (reportType === "daily") {
-      // Daily: Show all days in the selected date range
-      if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const currentDate = new Date(start);
-      
-      // Initialize all days in the range with zero values
-      while (currentDate <= end) {
-        const dateKey = currentDate.toISOString().split("T")[0];
-        const date = new Date(currentDate);
-        const month = date.toLocaleDateString('en-US', { month: 'short' });
-        const day = date.getDate();
-        
-        timeMap[dateKey] = {
-          date: dateKey,
-          revenue: 0,
-          profit: 0,
-          quantity: 0,
-          label: `${month} ${day}`,
-          monthDay: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-        };
-        currentDate.setDate(currentDate.getDate() + 1);
-        }
-      }
-      
       // Add sales data to the corresponding days
       filteredSales.forEach(sale => {
         const saleDate = sale.date;
@@ -283,8 +202,8 @@ const Reports = () => {
           timeMap[saleDate].revenue += sale.revenue;
           timeMap[saleDate].profit += sale.profit;
           timeMap[saleDate].quantity += sale.quantity;
-        } else if (!startDate && !endDate) {
-          // If no date filter, create entries for all sales dates
+        } else {
+          // Create entries for all sales dates
           const date = new Date(saleDate);
           const month = date.toLocaleDateString('en-US', { month: 'short' });
           const day = date.getDate();
@@ -349,35 +268,12 @@ const Reports = () => {
         timeMap[monthKey].profit += sale.profit;
         timeMap[monthKey].quantity += sale.quantity;
       });
-      
-      // For monthly, also generate empty months in the range for completeness
-      if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const currentDate = new Date(start.getFullYear(), start.getMonth(), 1);
-      
-      while (currentDate <= end) {
-        const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-        if (!timeMap[monthKey]) {
-          const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-          timeMap[monthKey] = {
-            date: monthKey,
-            revenue: 0,
-            profit: 0,
-            quantity: 0,
-            label: monthName,
-            monthDay: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          };
-        }
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        }
-      }
     }
 
     // Convert to array and sort
     return Object.values(timeMap)
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredSales, reportType, startDate, endDate]);
+  }, [filteredSales, reportType]);
 
   const totalRevenue = salesByProduct.reduce((sum, item) => sum + item.revenue, 0);
   const totalCost = salesByProduct.reduce((sum, item) => sum + item.cost, 0);
@@ -462,6 +358,15 @@ const Reports = () => {
     return Array.from(map.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }, [filteredSales, filteredExpenses, reportType]);
 
+  const profitExpensesChartData = useMemo(() => {
+    return salesExpensesByPeriod.map((row) => ({
+      period: row.label,
+      sortKey: row.sortKey,
+      profit: row.salesProfit || 0,
+      expenses: row.expenses || 0,
+    }));
+  }, [salesExpensesByPeriod]);
+
   const barberServiceBreakdown = useMemo(() => {
     const barberMap = new Map<
       string,
@@ -539,7 +444,7 @@ const Reports = () => {
     const pageHeight = doc.internal.pageSize.getHeight();
     
     // Add header with logo and report info on same line
-    addHeader(doc, pageWidth, margin, reportType, startDate, endDate);
+    addHeader(doc, pageWidth, margin, reportType, "All time");
     
     // Start content after header
     let yPosition = 30;
@@ -592,7 +497,7 @@ const Reports = () => {
       },
       didDrawPage: (data: any) => {
         // Add header and footer on each page
-        addHeader(doc, pageWidth, margin, reportType, startDate, endDate);
+        addHeader(doc, pageWidth, margin, reportType, "All time");
         addFooter(doc, pageWidth, pageHeight, margin);
       },
     });
@@ -640,7 +545,7 @@ const Reports = () => {
       // Check if we need a new page
       if (yPosition > 250) {
         doc.addPage();
-        addHeader(doc, pageWidth, margin, reportType, startDate, endDate);
+        addHeader(doc, pageWidth, margin, reportType, "All time");
         yPosition = 30; // Start after header
       }
 
@@ -678,7 +583,7 @@ const Reports = () => {
           margin: { left: margin, right: margin },
           didDrawPage: (data: any) => {
             // Add header and footer on each page
-            addHeader(doc, pageWidth, margin, reportType, startDate, endDate);
+            addHeader(doc, pageWidth, margin, reportType, "All time");
             addFooter(doc, pageWidth, pageHeight, margin);
           },
         });
@@ -693,12 +598,12 @@ const Reports = () => {
     }
 
     // Save the PDF
-    const fileName = `Sales_Report_${reportType}_${startDate}_to_${endDate}.pdf`;
+    const fileName = `Sales_Report_${reportType}_all-time.pdf`;
     doc.save(fileName);
   };
 
   // Helper function to add header to each page (logo and report info on same line)
-  const addHeader = (doc: jsPDF, pageWidth: number, margin: number, reportType?: string, startDate?: string, endDate?: string) => {
+  const addHeader = (doc: jsPDF, pageWidth: number, margin: number, reportType?: string, dateRangeLabel?: string) => {
     // Try to add logo image
     let logoX = margin;
     let logoHeight = 6;
@@ -734,9 +639,9 @@ const Reports = () => {
     doc.text("trippo", logoX, textY);
     
     // Add report info on the same line (right side)
-    if (reportType && startDate && endDate) {
+    if (reportType && dateRangeLabel) {
       const reportTypeText = `Report Type: ${reportType.charAt(0).toUpperCase() + reportType.slice(1)}`;
-      const dateRangeText = `Date Range: ${startDate} to ${endDate}`;
+      const dateRangeText = `Date Range: ${dateRangeLabel}`;
       const generatedText = `Generated: ${new Date().toLocaleString()}`;
       const separator = "  •  ";
       const fullInfoText = `${reportTypeText}${separator}${dateRangeText}${separator}${generatedText}`;
@@ -790,8 +695,7 @@ const Reports = () => {
       ['Report Summary'],
       [''],
       ['Report Type', reportType.charAt(0).toUpperCase() + reportType.slice(1)],
-      ['Start Date', startDate],
-      ['End Date', endDate],
+      ['Date Range', 'All time'],
       ['Generated', new Date().toLocaleString()],
       [''],
       ['Total Revenue', `rwf ${totalRevenue.toLocaleString()}`],
@@ -844,7 +748,7 @@ const Reports = () => {
     }
 
     // Save the Excel file
-    const fileName = `Sales_Report_${reportType}_${startDate}_to_${endDate}.xlsx`;
+    const fileName = `Sales_Report_${reportType}_all-time.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
@@ -907,74 +811,10 @@ const Reports = () => {
   return (
     <AppLayout title={t("reports")}>
       <div className="mx-auto max-w-5xl space-y-8 pb-8">
-        {/* Summary */}
-        <div className="rounded-lg border border-border bg-white px-4 py-5 sm:px-6">
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-            <div className="flex min-w-0 gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
-                <Banknote className="h-5 w-5" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{t("totalRevenue")}</p>
-                <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalRevenue.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="flex min-w-0 gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                <Package className="h-5 w-5" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">
-                  {isRw ? "Agaciro" : isFr ? "Coût total" : "Total Cost"}
-                </p>
-                <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalCost.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="flex min-w-0 gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-                <TrendingUp className="h-5 w-5" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{isRw ? "Inyungu isigaye" : "Net Profit"}</p>
-                <p className="mt-1 text-lg font-medium tabular-nums text-foreground">{totalProfit.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="flex min-w-0 gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
-                <Trophy className="h-5 w-5" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{isRw ? "Amafaranga yakoreshejwe" : "Total Expenses"}</p>
-                <p className="mt-1 truncate text-lg font-medium text-foreground">
-                  {totalExpenses.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Filters */}
         <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-normal text-muted-foreground">{t("startDate")}</Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="h-9 border-border bg-background"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-normal text-muted-foreground">{t("endDate")}</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-9 border-border bg-background"
-                />
-              </div>
+            <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                 <Label className="text-xs font-normal text-muted-foreground">
                   {isRw ? "Igihe" : isFr ? "Période" : "Period"}
@@ -1052,10 +892,10 @@ const Reports = () => {
                         <td className="py-3 px-3 text-sm text-gray-900 whitespace-nowrap">
                           {row.label}
                         </td>
-                        <td className="py-3 px-3 text-sm text-gray-700 whitespace-nowrap">
+                        <td className="py-3 px-3 text-sm font-semibold text-blue-700 whitespace-nowrap">
                           {row.salesRevenue.toLocaleString()} rwf
                         </td>
-                        <td className="py-3 px-3 text-sm text-gray-700 whitespace-nowrap">
+                        <td className="py-3 px-3 text-sm font-semibold text-red-700 whitespace-nowrap">
                           {row.expenses.toLocaleString()} rwf
                         </td>
                         <td
@@ -1084,43 +924,33 @@ const Reports = () => {
           )}
         </div>
 
-        {/* Single overview chart: revenue, profit (Rwf) + quantity (units) */}
+        {/* Overview chart: profit vs expenses */}
         <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
           <h3 className="mb-1 text-sm font-medium text-foreground">
-            {isRw ? "Incamake y'ubucuruzi" : isFr ? "Aperçu des ventes" : "Sales overview"}
+            {isRw ? "Incamake y'inyungu n'ibikiguzi" : isFr ? "Profit & dépenses" : "Profit & expenses"}
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
-            {t("revenue")}, {t("profit")}, {t("quantity")} · {reportTypeLabel}
+            {t("profit")} · {isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"} · {reportTypeLabel}
           </p>
-          {salesOverTimeData.length > 0 ? (
+          {profitExpensesChartData.length > 0 ? (
             <div className="w-full overflow-x-auto">
               <ResponsiveContainer width="100%" minWidth={300} height={380}>
                 <ComposedChart
-                  data={salesOverTimeData}
+                  data={profitExpensesChartData}
                   margin={{ top: 8, right: 12, left: 4, bottom: reportType === "daily" ? 72 : 56 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
-                    dataKey="monthDay"
+                    dataKey="period"
                     tick={{ fontSize: reportType === "daily" ? 9 : 11, fill: "#6b7280" }}
                     angle={-45}
                     textAnchor="end"
                     height={reportType === "daily" ? 100 : 80}
                     interval={
                       reportType === "daily"
-                        ? Math.max(0, Math.floor(salesOverTimeData.length / 12) - 1)
+                        ? Math.max(0, Math.floor(profitExpensesChartData.length / 12) - 1)
                         : 0
                     }
-                    tickFormatter={(value) => {
-                      if (reportType === "daily") {
-                        const item = salesOverTimeData.find((d) => d.monthDay === value);
-                        if (item) {
-                          const date = new Date(item.date);
-                          return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                        }
-                      }
-                      return value;
-                    }}
                   />
                   <YAxis
                     yAxisId="left"
@@ -1137,17 +967,6 @@ const Reports = () => {
                       style: { fill: "#9ca3af", fontSize: 11 },
                     }}
                   />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{ fontSize: 11, fill: "#6b7280" }}
-                    label={{
-                      value: t("quantity"),
-                      angle: 90,
-                      position: "insideRight",
-                      style: { fill: "#9ca3af", fontSize: 11 },
-                    }}
-                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#ffffff",
@@ -1157,36 +976,17 @@ const Reports = () => {
                       boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
                     }}
                     labelStyle={{ color: "#374151", fontWeight: 600, marginBottom: "4px" }}
-                    labelFormatter={(value) => {
-                      const item = salesOverTimeData.find((d) => d.monthDay === value);
-                      if (!item) return value;
-                      if (reportType === "daily") {
-                        const date = new Date(item.date);
-                        return date.toLocaleDateString("en-US", {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        });
-                      }
-                      return item.label;
-                    }}
                     formatter={(value: number, name: string) => {
-                      if (name === "revenue") return [`rwf ${value.toLocaleString()}`, t("revenue")];
                       if (name === "profit") return [`rwf ${value.toLocaleString()}`, t("profit")];
-                      if (name === "quantity") return [value.toLocaleString(), t("quantity")];
+                      if (name === "expenses")
+                        return [
+                          `rwf ${value.toLocaleString()}`,
+                          isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses",
+                        ];
                       return [value, name];
                     }}
                   />
                   <Legend wrapperStyle={{ paddingTop: "16px" }} />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="revenue"
-                    fill="#3b82f6"
-                    name={t("revenue")}
-                    radius={[2, 2, 0, 0]}
-                    maxBarSize={48}
-                  />
                   <Bar
                     yAxisId="left"
                     dataKey="profit"
@@ -1195,14 +995,13 @@ const Reports = () => {
                     radius={[2, 2, 0, 0]}
                     maxBarSize={48}
                   />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="quantity"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "#f59e0b" }}
-                    name={t("quantity")}
+                  <Bar
+                    yAxisId="left"
+                    dataKey="expenses"
+                    fill="#ef4444"
+                    name={isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"}
+                    radius={[2, 2, 0, 0]}
+                    maxBarSize={48}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -1242,8 +1041,8 @@ const Reports = () => {
                     {salesByProduct.slice(0, 10).map((row) => (
                       <tr key={row.product} className="border-b border-gray-200">
                         <td className="py-3 px-3 text-sm text-gray-900">{row.product}</td>
-                        <td className="py-3 px-3 text-sm text-gray-700">{row.quantity}</td>
-                        <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
+                        <td className="py-3 px-3 text-sm font-semibold text-gray-800 tabular-nums">{row.quantity}</td>
+                        <td className="py-3 px-3 text-sm font-semibold text-blue-700 tabular-nums">{row.revenue.toLocaleString()} rwf</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1302,7 +1101,7 @@ const Reports = () => {
                     {barberServiceBreakdown.map((row) => (
                       <tr key={row.barber} className="border-b border-gray-200">
                         <td className="py-3 px-3 text-sm text-gray-900">{row.barber}</td>
-                        <td className="py-3 px-3 text-sm text-gray-700">{row.services}</td>
+                        <td className="py-3 px-3 text-sm font-semibold text-gray-800 tabular-nums">{row.services}</td>
                         <td className="py-3 px-3 text-sm text-gray-700">
                           {row.topServices.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
@@ -1319,7 +1118,7 @@ const Reports = () => {
                             <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
+                        <td className="py-3 px-3 text-sm font-semibold text-blue-700 tabular-nums">{row.revenue.toLocaleString()} rwf</td>
                       </tr>
                     ))}
                   </tbody>
