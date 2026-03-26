@@ -48,6 +48,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useOffline } from "@/hooks/useOffline";
 import { formatDateWithTime } from "@/lib/utils";
 import { formatStockDisplay } from "@/lib/stockFormatter";
+import { MobileNumberPad } from "@/components/mobile/MobileNumberPad";
 
 interface Product {
   id?: number;
@@ -386,6 +387,7 @@ const Dashboard = () => {
   const [expenseDate, setExpenseDate] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
   const [isSavingExpense, setIsSavingExpense] = useState(false);
+  const [showExpenseAmountPad, setShowExpenseAmountPad] = useState(false);
 
   const expenseSuggestions = useMemo(() => {
     const normalize = (s: string) => s.trim().toLowerCase();
@@ -496,6 +498,11 @@ const Dashboard = () => {
       description: isRw ? "Ikiguzi cyabitswe nk'icyihuse." : "Expense saved as a quick preset.",
     });
   };
+
+  const isMobile = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 1024;
+  }, []);
 
   // Refresh products and sales every time dashboard is opened (only once on mount)
   useEffect(() => {
@@ -2584,10 +2591,24 @@ const Dashboard = () => {
                 type="number"
                 min="0"
                 value={expenseAmount}
+                readOnly={isMobile}
                 onChange={(e) => setExpenseAmount(e.target.value)}
+                onFocus={() => {
+                  if (isMobile) setShowExpenseAmountPad(true);
+                }}
+                onClick={() => {
+                  if (isMobile) setShowExpenseAmountPad(true);
+                }}
                 placeholder="0"
               />
             </div>
+            {isMobile && showExpenseAmountPad && (
+              <MobileNumberPad
+                value={expenseAmount}
+                onChange={(next) => setExpenseAmount(next.replace(/[^\d]/g, ""))}
+                onDone={() => setShowExpenseAmountPad(false)}
+              />
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{isRw ? "Icyiciro" : isFr ? "Catégorie" : "Category"}</Label>
