@@ -147,7 +147,7 @@ export default function Barbers() {
               return (
                 <div
                   key={id}
-                  className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square transition-all hover:shadow-sm relative overflow-hidden"
+                  className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] transition-all hover:shadow-sm relative overflow-hidden"
                 >
                   <img
                     src="/logo.png"

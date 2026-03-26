@@ -135,7 +135,7 @@ const Products = () => {
             return (
               <div
                 key={id}
-                className="rounded-lg border border-gray-200 bg-white p-3 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square flex flex-col relative overflow-hidden"
+                className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden"
                 onClick={() => openRecordService(service)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
