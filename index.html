@@ -163,14 +163,13 @@
         </span>
       </div>
 
-      <!-- Loading Bars -->
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <div style="width: 8px; height: 32px; background: #2563eb; border-radius: 9999px; animation: loading-bar 1.2s ease-in-out infinite; animation-delay: 0s;"></div>
-        <div style="width: 8px; height: 32px; background: #2563eb; border-radius: 9999px; animation: loading-bar 1.2s ease-in-out infinite; animation-delay: 0.15s;"></div>
-        <div style="width: 8px; height: 32px; background: #2563eb; border-radius: 9999px; animation: loading-bar 1.2s ease-in-out infinite; animation-delay: 0.3s;"></div>
-        <div style="width: 8px; height: 32px; background: #2563eb; border-radius: 9999px; animation: loading-bar 1.2s ease-in-out infinite; animation-delay: 0.45s;"></div>
-        <div style="width: 8px; height: 32px; background: #2563eb; border-radius: 9999px; animation: loading-bar 1.2s ease-in-out infinite; animation-delay: 0.6s;"></div>
-      </div>
+      <!-- Loading GIF -->
+      <img
+        src="/loading.gif"
+        alt="Loading"
+        style="height: 72px; width: 72px; object-fit: contain;"
+        onerror="this.style.display='none';"
+      />
     </div>
 
     <style>
@@ -180,16 +179,6 @@
         }
         50% {
           opacity: 0.5;
-        }
-      }
-      @keyframes loading-bar {
-        0%, 40%, 100% {
-          transform: scaleY(0.4);
-          opacity: 0.5;
-        }
-        20% {
-          transform: scaleY(1);
-          opacity: 1;
         }
       }
     </style>
