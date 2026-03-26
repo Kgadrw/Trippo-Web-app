@@ -19,6 +19,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   ComposedChart,
   Bar,
@@ -124,6 +125,53 @@ const Reports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reportType, setReportType] = useState("weekly");
+
+  const getSaleTimeMs = (sale: Sale) => {
+    const d = new Date((sale as any).timestamp || sale.date);
+    const ms = d.getTime();
+    return Number.isNaN(ms) ? null : ms;
+  };
+
+  type PeriodKey =
+    | { type: "daily"; key: string; label: string; sortKey: string }
+    | { type: "weekly"; key: string; label: string; sortKey: string }
+    | { type: "monthly"; key: string; label: string; sortKey: string };
+
+  const getPeriodKey = (when: Date, type: string): PeriodKey | null => {
+    const d = new Date(when);
+    const ms = d.getTime();
+    if (Number.isNaN(ms)) return null;
+
+    if (type === "daily") {
+      const key = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return { type: "daily", key, label, sortKey: key };
+    }
+
+    if (type === "weekly") {
+      // Week starts on Sunday to match existing chart logic
+      const weekStart = new Date(d);
+      weekStart.setHours(0, 0, 0, 0);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const key = weekStart.toISOString().slice(0, 10);
+      const label = `${weekStart.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })} - ${weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+      return { type: "weekly", key, label, sortKey: key };
+    }
+
+    if (type === "monthly") {
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const monthLabel = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      return { type: "monthly", key: monthKey, label: monthLabel, sortKey: monthKey };
+    }
+
+    return null;
+  };
 
 
   // Filter sales by date range
@@ -353,6 +401,117 @@ const Reports = () => {
         map[barber].revenue += sale.revenue || 0;
       });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
+  }, [filteredSales]);
+
+  const salesExpensesByPeriod = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        key: string;
+        label: string;
+        sortKey: string;
+        salesRevenue: number;
+        salesCost: number;
+        salesProfit: number;
+        expenses: number;
+      }
+    >();
+
+    const type = reportType;
+
+    for (const s of filteredSales) {
+      const ms = getSaleTimeMs(s);
+      if (ms === null) continue;
+      const pk = getPeriodKey(new Date(ms), type);
+      if (!pk) continue;
+      const row = map.get(pk.key) || {
+        key: pk.key,
+        label: pk.label,
+        sortKey: pk.sortKey,
+        salesRevenue: 0,
+        salesCost: 0,
+        salesProfit: 0,
+        expenses: 0,
+      };
+      row.salesRevenue += s.revenue || 0;
+      row.salesCost += s.cost || 0;
+      row.salesProfit += s.profit || 0;
+      map.set(pk.key, row);
+    }
+
+    for (const e of filteredExpenses) {
+      const d = new Date(e.date);
+      const ms = d.getTime();
+      if (Number.isNaN(ms)) continue;
+      const pk = getPeriodKey(d, type);
+      if (!pk) continue;
+      const row = map.get(pk.key) || {
+        key: pk.key,
+        label: pk.label,
+        sortKey: pk.sortKey,
+        salesRevenue: 0,
+        salesCost: 0,
+        salesProfit: 0,
+        expenses: 0,
+      };
+      row.expenses += e.amount || 0;
+      map.set(pk.key, row);
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  }, [filteredSales, filteredExpenses, reportType]);
+
+  const barberServiceBreakdown = useMemo(() => {
+    const barberMap = new Map<
+      string,
+      {
+        barber: string;
+        servicesCount: number;
+        revenue: number;
+        serviceCounts: Map<string, number>;
+      }
+    >();
+
+    for (const s of filteredSales) {
+      if (!(s.saleType === "service" || s.workerName)) continue;
+      const barber = (s.workerName || "Unassigned").toString();
+      const service =
+        (s.serviceName || s.product || "Service").toString().trim() || "Service";
+      const qty = s.quantity || 1;
+
+      const row =
+        barberMap.get(barber) ||
+        {
+          barber,
+          servicesCount: 0,
+          revenue: 0,
+          serviceCounts: new Map<string, number>(),
+        };
+
+      row.servicesCount += qty;
+      row.revenue += s.revenue || 0;
+      row.serviceCounts.set(service, (row.serviceCounts.get(service) || 0) + qty);
+      barberMap.set(barber, row);
+    }
+
+    const rows = Array.from(barberMap.values()).map((r) => {
+      let topCount = 0;
+      for (const c of r.serviceCounts.values()) topCount = Math.max(topCount, c);
+      const topServices = Array.from(r.serviceCounts.entries())
+        .filter(([, c]) => c === topCount)
+        .map(([name]) => name)
+        .slice(0, 3);
+      return {
+        barber: r.barber,
+        services: r.servicesCount,
+        revenue: r.revenue,
+        topServices,
+        topCount,
+      };
+    });
+
+    rows.sort((a, b) => b.revenue - a.revenue);
+    return rows;
   }, [filteredSales]);
 
   const handleExport = (format: string) => {
@@ -817,20 +976,26 @@ const Reports = () => {
               </div>
               <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                 <Label className="text-xs font-normal text-muted-foreground">
-                  {isRw ? "Ubwoko bw'raporo" : isFr ? "Type de rapport" : "Report type"}
+                  {isRw ? "Igihe" : isFr ? "Période" : "Period"}
                 </Label>
-                <Select value={reportType} onValueChange={setReportType}>
-                  <SelectTrigger className="h-9 border-border bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">{isRw ? "Buri munsi" : isFr ? "Quotidien" : "Daily"}</SelectItem>
-                    <SelectItem value="weekly">
-                      {isRw ? "Buri cyumweru" : isFr ? "Hebdomadaire" : "Weekly"}
-                    </SelectItem>
-                    <SelectItem value="monthly">{isRw ? "Buri kwezi" : isFr ? "Mensuel" : "Monthly"}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <ToggleGroup
+                  type="single"
+                  value={reportType}
+                  onValueChange={(v) => v && setReportType(v)}
+                  className="grid grid-cols-3 gap-1.5 w-full"
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="daily" className="h-9 text-xs">
+                    {isRw ? "Umunsi" : isFr ? "Jour" : "Day"}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="weekly" className="h-9 text-xs">
+                    {isRw ? "Icyumweru" : isFr ? "Semaine" : "Week"}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="monthly" className="h-9 text-xs">
+                    {isRw ? "Ukwezi" : isFr ? "Mois" : "Month"}
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
@@ -844,6 +1009,78 @@ const Reports = () => {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Sales & Expenses table (by day/week/month) */}
+        <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
+          <h3 className="mb-1 text-sm font-medium text-foreground">
+            {isRw ? "Incamake y'amafaranga" : isFr ? "Ventes & dépenses" : "Sales & Expenses"}
+          </h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            {isRw
+              ? "Ibyinjijwe, ibyakoreshejwe, n'inyungu ku gihe wahisemo"
+              : isFr
+              ? "Revenus, dépenses et bénéfice net par période"
+              : "Revenue, expenses, and net profit by period"}
+          </p>
+
+          {salesExpensesByPeriod.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                      {isRw ? "Igihe" : isFr ? "Période" : "Period"}
+                    </th>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                      {t("revenue")}
+                    </th>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                      {isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"}
+                    </th>
+                    <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                      {isRw ? "Inyungu" : isFr ? "Bénéfice net" : "Net"}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {salesExpensesByPeriod.map((row) => {
+                    const net = (row.salesProfit || 0) - (row.expenses || 0);
+                    return (
+                      <tr key={row.key} className="border-b border-gray-200">
+                        <td className="py-3 px-3 text-sm text-gray-900 whitespace-nowrap">
+                          {row.label}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-gray-700 whitespace-nowrap">
+                          {row.salesRevenue.toLocaleString()} rwf
+                        </td>
+                        <td className="py-3 px-3 text-sm text-gray-700 whitespace-nowrap">
+                          {row.expenses.toLocaleString()} rwf
+                        </td>
+                        <td
+                          className={cn(
+                            "py-3 px-3 text-sm font-semibold whitespace-nowrap",
+                            net >= 0 ? "text-emerald-700" : "text-red-700"
+                          )}
+                        >
+                          {net >= 0 ? "+" : ""}
+                          {net.toLocaleString()} rwf
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {isRw
+                ? "Nta makuru aboneka muri iki gihe."
+                : isFr
+                ? "Aucune donnée pour cette période."
+                : "No data for the selected period."}
+            </p>
+          )}
         </div>
 
         {/* Single overview chart: revenue, profit (Rwf) + quantity (units) */}
@@ -1043,7 +1280,7 @@ const Reports = () => {
                 ? "Aucun enregistrement de coiffeur pour cette période."
                 : "No barber records for this period."}
             </p>
-            {salesByBarber.length > 0 ? (
+            {barberServiceBreakdown.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead className="bg-gray-100 border-b border-gray-200">
@@ -1054,14 +1291,33 @@ const Reports = () => {
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
                         {isRw ? "Serivisi" : isFr ? "Services" : "Services"}
                       </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {isRw ? "Serivisi zakunzwe" : isFr ? "Services les plus servis" : "Top services"}
+                      </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">{t("revenue")}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {salesByBarber.map((row) => (
+                    {barberServiceBreakdown.map((row) => (
                       <tr key={row.barber} className="border-b border-gray-200">
                         <td className="py-3 px-3 text-sm text-gray-900">{row.barber}</td>
                         <td className="py-3 px-3 text-sm text-gray-700">{row.services}</td>
+                        <td className="py-3 px-3 text-sm text-gray-700">
+                          {row.topServices.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {row.topServices.map((s) => (
+                                <span
+                                  key={s}
+                                  className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
                         <td className="py-3 px-3 text-sm text-gray-700">{row.revenue.toLocaleString()} rwf</td>
                       </tr>
                     ))}
