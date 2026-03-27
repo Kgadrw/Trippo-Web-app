@@ -49,6 +49,7 @@ import { useOffline } from "@/hooks/useOffline";
 import { formatDateWithTime } from "@/lib/utils";
 import { formatStockDisplay } from "@/lib/stockFormatter";
 import { MobileNumberPad } from "@/components/mobile/MobileNumberPad";
+import { MobileTextPad } from "@/components/mobile/MobileTextPad";
 
 interface Product {
   id?: number;
@@ -388,6 +389,7 @@ const Dashboard = () => {
   const [expenseNote, setExpenseNote] = useState("");
   const [isSavingExpense, setIsSavingExpense] = useState(false);
   const [showExpenseAmountPad, setShowExpenseAmountPad] = useState(false);
+  const [textPadTarget, setTextPadTarget] = useState<"expenseTitle" | "expenseNote" | null>(null);
 
   const expenseSuggestions = useMemo(() => {
     const normalize = (s: string) => s.trim().toLowerCase();
@@ -2487,6 +2489,13 @@ const Dashboard = () => {
                     setExpenseAmount(String(suggested));
                   }
                 }}
+                readOnly={isMobile}
+                onFocus={() => {
+                  if (isMobile) setTextPadTarget("expenseTitle");
+                }}
+                onClick={() => {
+                  if (isMobile) setTextPadTarget("expenseTitle");
+                }}
                 placeholder={isRw ? "nka: Umuriro, Ubukode..." : isFr ? "ex: Services, Loyer..." : "e.g. Utilities, Rent..."}
                 list="expense-title-suggestions"
               />
@@ -2630,11 +2639,28 @@ const Dashboard = () => {
               <Textarea
                 value={expenseNote}
                 onChange={(e) => setExpenseNote(e.target.value)}
+                readOnly={isMobile}
+                onFocus={() => {
+                  if (isMobile) setTextPadTarget("expenseNote");
+                }}
+                onClick={() => {
+                  if (isMobile) setTextPadTarget("expenseNote");
+                }}
                 placeholder={isRw ? "Andika ibisobanuro..." : isFr ? "Ajouter des détails..." : "Add extra details..."}
                 rows={3}
               />
             </div>
           </div>
+          {isMobile && textPadTarget && (
+            <MobileTextPad
+              value={textPadTarget === "expenseTitle" ? expenseTitle : expenseNote}
+              onChange={(next) => {
+                if (textPadTarget === "expenseTitle") setExpenseTitle(next);
+                else setExpenseNote(next);
+              }}
+              onDone={() => setTextPadTarget(null)}
+            />
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setExpenseModalOpen(false)}>
               {isRw ? "Funga" : isFr ? "Annuler" : "Cancel"}
