@@ -11,93 +11,45 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // Default to system so UI follows device theme.
-    // If an older install stored "light", migrate to "system" (auto like other apps).
-    const stored = (localStorage.getItem('profit-pilot-theme') as Theme) || 'system';
-    return stored === 'dark' ? 'dark' : 'system';
-  });
-
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
-    const savedTheme = ((localStorage.getItem('profit-pilot-theme') as Theme) || 'system') === 'dark'
-      ? 'dark'
-      : 'system';
-    if (savedTheme === 'system') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return savedTheme;
-  });
+  // Dark mode disabled: always run the app in light theme.
+  const [theme, setThemeState] = useState<Theme>('light');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   // Initialize theme on mount
   useEffect(() => {
-    const raw = (localStorage.getItem('profit-pilot-theme') as Theme) || 'system';
-    const savedTheme: Theme = raw === 'dark' ? 'dark' : 'system';
-    let initialTheme: 'light' | 'dark';
-    
-    if (savedTheme === 'system') {
-      initialTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    } else {
-      initialTheme = savedTheme;
-    }
+    // Force persisted preference to light so it can't flip back.
+    localStorage.setItem('profit-pilot-theme', 'light');
+    setThemeState('light');
+    setResolvedTheme('light');
 
-    // Persist migration so subsequent loads are consistent
-    if (raw !== savedTheme) {
-      localStorage.setItem('profit-pilot-theme', savedTheme);
-      setThemeState(savedTheme);
-    }
-    
     const root = document.documentElement;
-    if (initialTheme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    root.classList.remove('dark');
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('profit-pilot-theme', theme);
-    
-    // Determine the actual theme to apply
-    let actualTheme: 'light' | 'dark';
-    if (theme === 'system') {
-      actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // Regardless of caller, enforce light mode.
+    if (theme !== 'light') {
+      localStorage.setItem('profit-pilot-theme', 'light');
+      setThemeState('light');
     } else {
-      actualTheme = theme;
+      localStorage.setItem('profit-pilot-theme', 'light');
     }
-    
-    setResolvedTheme(actualTheme);
 
-    // Apply theme class to document root
+    setResolvedTheme('light');
+
     const root = document.documentElement;
-    if (actualTheme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    root.classList.remove('dark');
   }, [theme]);
 
   // Listen for system theme changes when in system mode
   useEffect(() => {
-    if (theme !== 'system') return;
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      const root = document.documentElement;
-      if (e.matches) {
-        root.classList.add('dark');
-        setResolvedTheme('dark');
-      } else {
-        root.classList.remove('dark');
-        setResolvedTheme('light');
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    // Dark mode disabled: ignore system changes.
+    return;
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
+    // Dark mode disabled: callers can't change theme away from light.
+    setThemeState('light');
   };
 
   return (
