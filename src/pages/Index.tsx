@@ -1540,60 +1540,76 @@ const Dashboard = () => {
 
   const mobilePeriodToggleClass = cn(
     "text-[11px] px-1.5 h-9 font-medium",
-    "border-blue-200/50 bg-white/10 text-blue-100",
-    "hover:bg-white/20 hover:text-white hover:border-blue-200/70",
-    "data-[state=on]:bg-blue-600 data-[state=on]:text-white data-[state=on]:border-blue-600",
-    "data-[state=on]:hover:bg-blue-700 data-[state=on]:hover:text-white data-[state=on]:hover:border-blue-700"
+    "border-border bg-card text-foreground",
+    "hover:bg-muted/50",
+    "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary",
   );
 
   return (
     <AppLayout title={t("dashboard")}>
-      {/* Mobile: Period revenue (left) and profit (right) */}
-      <div className="lg:hidden mb-6">
+      {/* Mobile: KPI grid + period toggle */}
+      <div className="lg:hidden mb-6 space-y-3">
         {isLoading ? (
-          <KPICardSkeleton />
-        ) : (
-          <div
-            className="relative overflow-hidden rounded-lg border border-blue-400/40 bg-blue-700 p-4 shadow-sm"
-          >
-            <div className="relative z-10">
-            <ToggleGroup
-              type="single"
-              value={mobileRevenuePeriod}
-              onValueChange={(v) => v && setMobileRevenuePeriod(v as RevenuePeriod)}
-              className="grid grid-cols-4 gap-1.5 w-full mb-4"
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="today" className={mobilePeriodToggleClass}>
-                {t("periodToday")}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="week" className={mobilePeriodToggleClass}>
-                {t("periodWeek")}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="month" className={mobilePeriodToggleClass}>
-                {t("periodMonth")}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="year" className={mobilePeriodToggleClass}>
-                {t("periodYear")}
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm text-blue-100">{mobileRevenueProfitLabels.revenue}</p>
-                <p className="text-base font-normal text-white truncate tabular-nums">
-                  {mobilePeriodStats.totalRevenue.toLocaleString()} rwf
-                </p>
-              </div>
-              <div className="text-right min-w-0 shrink-0">
-                <p className="text-sm text-blue-100">{mobileRevenueProfitLabels.profit}</p>
-                <p className="text-lg font-normal text-white tabular-nums">
-                  {mobilePeriodStats.totalProfit.toLocaleString()} rwf
-                </p>
-              </div>
-            </div>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <KPICardSkeleton key={i} />
+            ))}
           </div>
+        ) : (
+          <>
+            <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-md p-2">
+              <ToggleGroup
+                type="single"
+                value={mobileRevenuePeriod}
+                onValueChange={(v) => v && setMobileRevenuePeriod(v as RevenuePeriod)}
+                className="grid grid-cols-4 gap-1.5 w-full"
+                variant="outline"
+                size="sm"
+              >
+                <ToggleGroupItem value="today" className={mobilePeriodToggleClass}>
+                  {t("periodToday")}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="week" className={mobilePeriodToggleClass}>
+                  {t("periodWeek")}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="month" className={mobilePeriodToggleClass}>
+                  {t("periodMonth")}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="year" className={mobilePeriodToggleClass}>
+                  {t("periodYear")}
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <KPICard
+                title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
+                value={`${todayStats.totalItems}`}
+                subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
+                icon={ShoppingCart}
+                valueColor="text-blue-600"
+              />
+              <KPICard
+                title={mobileRevenueProfitLabels.revenue}
+                value={`${mobilePeriodStats.totalRevenue.toLocaleString()} rwf`}
+                icon={DollarSign}
+                valueColor="text-blue-600"
+              />
+              <KPICard
+                title={mobileRevenueProfitLabels.profit}
+                value={`${mobilePeriodStats.totalProfit.toLocaleString()} rwf`}
+                icon={TrendingUp}
+                valueColor={mobilePeriodStats.totalProfit >= 0 ? "text-emerald-600" : "text-red-600"}
+              />
+              <KPICard
+                title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
+                value={`${serviceStats.totalServices}`}
+                subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
+                icon={Package}
+                valueColor="text-orange-600"
+              />
+            </div>
+          </>
         )}
       </div>
 
@@ -2370,75 +2386,61 @@ const Dashboard = () => {
                 </table>
               </div>
 
-              {/* Mobile activity list: sales + expenses */}
-              <div className="lg:hidden overflow-auto">
-                <div className="min-w-full">
-                  <table className="w-full border-collapse">
-                    <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-                      <tr>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                          {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
-                        </th>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                          {isRw ? "Ibisobanuro" : isFr ? "Détails" : "Details"}
-                        </th>
-                        <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                          {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                      {recentMobileActivity.map((entry, index) => (
-                        <tr 
-                          key={entry.id || index}
+              {/* Mobile activity list: sales + expenses (row-style, like native apps) */}
+              <div className="lg:hidden">
+                <div className="divide-y divide-border/60">
+                  {recentMobileActivity.map((entry, index) => {
+                    const isSale = entry.type === "sale";
+                    const label = isSale
+                      ? isRw
+                        ? "Serivisi"
+                        : isFr
+                        ? "Service"
+                        : "Sale"
+                      : isRw
+                      ? "Ikiguzi"
+                      : isFr
+                      ? "Dépense"
+                      : "Expense";
+                    return (
+                      <button
+                        key={entry.id || index}
+                        type="button"
+                        className="w-full text-left px-4 py-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
+                      >
+                        <div
                           className={cn(
-                            "border-b border-gray-200",
-                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                            "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                            isSale ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
                           )}
                         >
-                          <td className="py-3 px-3">
-                            <div className={cn("inline-flex items-center gap-1 text-xs font-semibold", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
-                              {entry.type === "sale" ? (
-                                <ArrowUpRight size={13} className="rotate-[18deg]" />
-                              ) : (
-                                <ArrowDownLeft size={13} className="-rotate-[18deg]" />
-                              )}
-                              <span>
-                                {entry.type === "sale"
-                                  ? isRw
-                                    ? "Serivisi"
-                                    : isFr
-                                    ? "Service"
-                                    : "Sale"
-                                  : isRw
-                                  ? "Ikiguzi"
-                                  : isFr
-                                  ? "Dépense"
-                                  : "Expense"}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3">
-                            <div className="flex flex-col gap-1">
-                              <div className="text-xs font-medium text-gray-900">{entry.title}</div>
-                              <div className="text-[10px] text-gray-500">{formatDateWithTime(entry.date)}</div>
-                              {entry.meta && <div className="text-[10px] text-gray-500">{entry.meta}</div>}
-                            </div>
-                          </td>
-                          <td className={cn("py-3 px-3 text-xs font-semibold", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
-                            <div className="inline-flex items-center gap-1">
-                              {entry.type === "sale" ? (
-                                <ArrowUpRight size={13} className="rotate-[18deg]" />
-                              ) : (
-                                <ArrowDownLeft size={13} className="-rotate-[18deg]" />
-                              )}
-                              <span>{entry.type === "sale" ? "+" : "-"}{Number(entry.amount).toLocaleString()} rwf</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          {isSale ? (
+                            <ArrowUpRight size={18} className="rotate-[18deg]" />
+                          ) : (
+                            <ArrowDownLeft size={18} className="-rotate-[18deg]" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground truncate">{entry.title}</span>
+                          </div>
+                          <div className="mt-0.5 text-xs text-muted-foreground truncate">
+                            {label} • {formatDateWithTime(entry.date)}
+                            {entry.meta ? ` • ${entry.meta}` : ""}
+                          </div>
+                        </div>
+                        <div
+                          className={cn(
+                            "text-sm font-semibold tabular-nums whitespace-nowrap",
+                            isSale ? "text-emerald-700" : "text-red-700"
+                          )}
+                        >
+                          {isSale ? "+" : "-"}
+                          {Number(entry.amount).toLocaleString()} rwf
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </>
