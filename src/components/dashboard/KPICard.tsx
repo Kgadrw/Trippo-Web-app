@@ -2,6 +2,7 @@ import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTheme } from "@/hooks/useTheme";
 
 interface KPICardProps {
   title: string;
@@ -43,10 +44,12 @@ export function KPICard({
   variant = "default",
 }: KPICardProps) {
   const isImageVariant = variant === "imageDark";
+  const { resolvedTheme } = useTheme();
+  const hideImages = resolvedTheme === "dark";
 
   const cardStyle = isImageVariant
     ? {
-        backgroundImage: "url('/card.avif')",
+        backgroundImage: hideImages ? "none" : "url('/card.avif')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
@@ -62,7 +65,7 @@ export function KPICard({
       style={cardStyle}
     >
       {/* White overlay for image background */}
-      {isImageVariant && (
+      {isImageVariant && !hideImages && (
         <div className="absolute inset-0 bg-white/30 rounded-lg" />
       )}
       <div className="flex items-start justify-between relative z-10">
