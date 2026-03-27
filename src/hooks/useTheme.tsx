@@ -12,12 +12,16 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Default to system so UI follows device theme
-    return (localStorage.getItem('profit-pilot-theme') as Theme) || 'system';
+    // Default to system so UI follows device theme.
+    // If an older install stored "light", migrate to "system" (auto like other apps).
+    const stored = (localStorage.getItem('profit-pilot-theme') as Theme) || 'system';
+    return stored === 'dark' ? 'dark' : 'system';
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
-    const savedTheme = (localStorage.getItem('profit-pilot-theme') as Theme) || 'system';
+    const savedTheme = ((localStorage.getItem('profit-pilot-theme') as Theme) || 'system') === 'dark'
+      ? 'dark'
+      : 'system';
     if (savedTheme === 'system') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -26,13 +30,20 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Initialize theme on mount
   useEffect(() => {
-    const savedTheme = (localStorage.getItem('profit-pilot-theme') as Theme) || 'system';
+    const raw = (localStorage.getItem('profit-pilot-theme') as Theme) || 'system';
+    const savedTheme: Theme = raw === 'dark' ? 'dark' : 'system';
     let initialTheme: 'light' | 'dark';
     
     if (savedTheme === 'system') {
       initialTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } else {
       initialTheme = savedTheme;
+    }
+
+    // Persist migration so subsequent loads are consistent
+    if (raw !== savedTheme) {
+      localStorage.setItem('profit-pilot-theme', savedTheme);
+      setThemeState(savedTheme);
     }
     
     const root = document.documentElement;

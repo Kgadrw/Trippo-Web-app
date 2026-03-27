@@ -2488,13 +2488,7 @@ const Dashboard = () => {
                   }
                 }}
                 placeholder={isRw ? "nka: Umuriro, Ubukode..." : isFr ? "ex: Services, Loyer..." : "e.g. Utilities, Rent..."}
-                list="expense-title-suggestions"
               />
-              <datalist id="expense-title-suggestions">
-                {expenseSuggestions.allTitles.map((t) => (
-                  <option key={t} value={t} />
-                ))}
-              </datalist>
 
               {(expenseSuggestions.presetTitles.length > 0 ||
                 expenseSuggestions.mostUsed.length > 0 ||
@@ -2505,7 +2499,8 @@ const Dashboard = () => {
                       <div className="text-[11px] font-semibold text-gray-600">
                         {isRw ? "Ibyihuse" : isFr ? "Favoris" : "Presets"}
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-1">
+                      <div className="mt-1 -mx-1 px-1 overflow-x-auto">
+                        <div className="flex gap-2 w-max">
                         {expenseSuggestions.presetTitles.map((t) => (
                           <Button
                             key={t}
@@ -2518,6 +2513,7 @@ const Dashboard = () => {
                             {t}
                           </Button>
                         ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2527,7 +2523,8 @@ const Dashboard = () => {
                       <div className="text-[11px] font-semibold text-gray-600">
                         {isRw ? "Byinshi ukoresha" : isFr ? "Les plus utilisés" : "Most used"}
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-1">
+                      <div className="mt-1 -mx-1 px-1 overflow-x-auto">
+                        <div className="flex gap-2 w-max">
                         {expenseSuggestions.mostUsed.map((x) => (
                           <Button
                             key={x.title}
@@ -2540,6 +2537,7 @@ const Dashboard = () => {
                             {x.title}
                           </Button>
                         ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2549,7 +2547,8 @@ const Dashboard = () => {
                       <div className="text-[11px] font-semibold text-gray-600">
                         {isRw ? "Biheruka" : isFr ? "Récentes" : "Recent"}
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-1">
+                      <div className="mt-1 -mx-1 px-1 overflow-x-auto">
+                        <div className="flex gap-2 w-max">
                         {expenseSuggestions.recent.map((t) => (
                           <Button
                             key={t}
@@ -2562,6 +2561,7 @@ const Dashboard = () => {
                             {t}
                           </Button>
                         ))}
+                        </div>
                       </div>
                     </div>
                   )}
