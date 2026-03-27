@@ -1554,10 +1554,8 @@ const Dashboard = () => {
           <KPICardSkeleton />
         ) : (
           <div
-            className="relative overflow-hidden rounded-lg border border-blue-400/40 bg-cover bg-center bg-no-repeat p-4 shadow-sm"
-            style={{ backgroundImage: "url('/balance.webp')" }}
+            className="relative overflow-hidden rounded-lg border border-blue-400/40 bg-blue-700 p-4 shadow-sm"
           >
-            <div className="absolute inset-0 bg-blue-700/70" />
             <div className="relative z-10">
             <ToggleGroup
               type="single"
