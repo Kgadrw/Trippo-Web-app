@@ -197,8 +197,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   }, [location.pathname, subdomain]);
 
   return (
-    <header className="relative z-40 px-3 pt-2 lg:hidden">
-      <div className="flex h-16 items-center justify-between rounded-2xl border border-white/40 bg-white/55 px-4 shadow-md shadow-blue-900/10 backdrop-blur-md supports-[backdrop-filter]:bg-white/45">
+    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
       {/* Left side - Back (IMS inner pages) + Account Info */}
       <div className="flex items-center gap-2 flex-1 min-w-0 sm:gap-3">
         {showDashboardBack && (
@@ -464,7 +463,6 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
             )}
           </SheetContent>
         </Sheet>
-      </div>
       </div>
     </header>
   );

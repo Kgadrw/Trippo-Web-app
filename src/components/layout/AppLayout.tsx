@@ -285,7 +285,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           // On desktop, adjust based on sidebar state
           // Use transition only for sidebar changes, not initial load
           isMobile
-            ? cn("ml-0 pt-4", showBottomNav ? "pb-24" : "pb-6")
+            ? cn("ml-0 pt-20", showBottomNav ? "pb-24" : "pb-6")
             : "lg:ml-0 lg:pt-20 transition-all duration-300"
         )}
         onTouchStart={onTouchStart}
@@ -293,7 +293,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         onTouchEnd={onTouchEnd}
         style={{ touchAction: 'pan-y' }}
       >
-        <main className={cn("p-6", isMobile ? "pt-3" : "pt-6")}>{children}</main>
+        <main className="p-6 pt-6">{children}</main>
       </div>
     </div>
   );

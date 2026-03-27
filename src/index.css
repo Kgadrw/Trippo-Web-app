@@ -235,7 +235,7 @@
 
 @layer components {
   .kpi-card {
-    @apply bg-white/80 backdrop-blur-md lg:bg-white lg:backdrop-blur-none p-3 sm:p-6 border-0 shadow-none lg:border lg:border-transparent lg:shadow-sm rounded-lg sm:rounded-xl;
+    @apply bg-card/80 backdrop-blur-md lg:bg-card lg:backdrop-blur-none p-3 sm:p-6 border-0 shadow-none lg:border lg:border-border lg:shadow-sm rounded-lg sm:rounded-xl text-foreground;
   }
 
   .data-table {
@@ -243,15 +243,15 @@
   }
 
   .data-table th {
-    @apply text-left text-sm font-semibold text-gray-800 py-3 px-4 border-b-0 lg:border-b lg:border-transparent bg-white sticky top-16 z-10 shadow-none lg:shadow-sm;
+    @apply text-left text-sm font-semibold text-foreground py-3 px-4 border-b-0 lg:border-b lg:border-border bg-card sticky top-16 z-10 shadow-none lg:shadow-sm;
   }
 
   .data-table td {
-    @apply py-4 px-4 text-sm border-b-0 lg:border-b lg:border-transparent;
+    @apply py-4 px-4 text-sm border-b-0 lg:border-b lg:border-border text-foreground;
   }
 
   .data-table tr:hover td {
-    @apply bg-blue-50;
+    @apply bg-muted/50;
   }
 
   .data-table tr:last-child td {
@@ -259,7 +259,7 @@
   }
 
   .form-card {
-    @apply bg-white/80 backdrop-blur-md lg:bg-white p-6 border-0 shadow-none lg:border lg:border-transparent lg:shadow-sm rounded-xl;
+    @apply bg-card/80 backdrop-blur-md lg:bg-card p-6 border-0 shadow-none lg:border lg:border-border lg:shadow-sm rounded-xl text-foreground;
   }
 
   .section-title {
@@ -275,7 +275,7 @@
   }
 
   .input-field {
-    @apply bg-white border border-gray-300 px-4 py-2.5 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 transition-all rounded-lg;
+    @apply bg-card border border-border px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500 transition-all rounded-lg;
   }
 
   .sidebar-item {
