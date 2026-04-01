@@ -79,14 +79,22 @@ const Products = () => {
       category: "service",
       stock: 999999,
     } as ServiceItem;
-    if (editing) {
-      await update({ ...editing, ...payload } as any);
-      toast({ title: "Service Updated", description: "Service updated successfully." });
-    } else {
-      await add(payload as any);
-      toast({ title: "Service Added", description: "Service created successfully." });
+    try {
+      if (editing) {
+        await update({ ...editing, ...payload } as any);
+        toast({ title: "Service Updated", description: "Service updated successfully." });
+      } else {
+        await add(payload as any);
+        toast({ title: "Service Added", description: "Service created successfully." });
+      }
+      setOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Failed",
+        description: error?.message || error?.response?.error || "Could not save service. Please check your connection and try again.",
+        variant: "destructive",
+      });
     }
-    setOpen(false);
   };
 
   const handleDelete = async (item: ServiceItem) => {

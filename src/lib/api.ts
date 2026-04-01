@@ -11,11 +11,10 @@ const getApiBaseUrl = (): string => {
     return import.meta.env.VITE_API_URL;
   }
   
-  // Check if we should use localhost (for local testing)
-  // In dev mode, defaults to localhost unless VITE_USE_LOCALHOST=false
-  // In production, defaults to deployed URL unless VITE_USE_LOCALHOST=true
-  const useLocalhost = import.meta.env.VITE_USE_LOCALHOST === 'true' || 
-                       (import.meta.env.DEV && import.meta.env.VITE_USE_LOCALHOST !== 'false');
+  // Use localhost only when explicitly requested.
+  // This avoids a common dev issue where the frontend points to localhost
+  // while the backend is actually deployed (result: empty lists / cannot create).
+  const useLocalhost = import.meta.env.VITE_USE_LOCALHOST === 'true';
   
   if (useLocalhost) {
     // Default localhost port (change if your backend runs on different port)
