@@ -528,6 +528,27 @@ export function useApi<T extends { _id?: string; id?: number }>({
             // logger.error("Sales: API error - showing empty state:", apiError);
             setItems(defaultValue);
           }
+        } else if (endpoint === "products") {
+          // Products/Services: if API is unreachable, fall back to IndexedDB.
+          // We intentionally "always fetch fresh" for products, but that should not
+          // make the UI blank when offline or the backend is down.
+          if (apiError?.response?.silent || apiError?.response?.connectionError) {
+            const localItems = await getAllItems<T>(storeName);
+            if (localItems.length > 0) {
+              const userId = localStorage.getItem("profit-pilot-user-id");
+              const filteredLocal = userId
+                ? localItems.filter((item: any) => item.userId === undefined || item.userId === userId)
+                : localItems;
+              const mappedItems = filteredLocal.map(mapItem);
+              setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
+            } else {
+              setItems(defaultValue);
+            }
+          } else if (apiError?.status === 401) {
+            setItems(defaultValue);
+          } else {
+            setItems(defaultValue);
+          }
         } else {
           // For other endpoints, silently fail if offline - data is already loaded from IndexedDB
           if (apiError?.response?.silent || apiError?.response?.connectionError) {
