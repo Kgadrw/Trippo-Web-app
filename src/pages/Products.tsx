@@ -20,17 +20,15 @@ interface ServiceItem {
   id?: number;
   _id?: string;
   name: string;
-  sellingPrice: number;
-  costPrice?: number;
+  defaultPrice?: number;
   category?: string;
-  stock?: number;
 }
 
 const Products = () => {
   const { toast } = useToast();
   const { t, language } = useTranslation();
   const { items, isLoading, add, update, remove } = useApi<ServiceItem>({
-    endpoint: "products",
+    endpoint: "services",
     defaultValue: [],
   });
   const [query, setQuery] = useState("");
@@ -57,7 +55,7 @@ const Products = () => {
   const openEdit = (item: ServiceItem) => {
     setEditing(item);
     setName(item.name);
-    setPrice(String(item.sellingPrice || 0));
+    setPrice(String(item.defaultPrice || 0));
     setOpen(true);
   };
 
@@ -74,10 +72,8 @@ const Products = () => {
     }
     const payload = {
       name: name.trim(),
-      sellingPrice: parsedPrice,
-      costPrice: 0,
+      defaultPrice: parsedPrice,
       category: "service",
-      stock: 999999,
     } as ServiceItem;
     try {
       if (editing) {
@@ -205,7 +201,7 @@ const Products = () => {
                       {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
                     </div>
                     <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                      {Number(service.sellingPrice || 0).toLocaleString()} rwf
+                    {Number(service.defaultPrice || 0).toLocaleString()} rwf
                     </div>
                   </div>
                 </div>

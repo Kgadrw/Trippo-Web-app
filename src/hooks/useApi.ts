@@ -1,6 +1,6 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, saleApi, clientApi, scheduleApi, expenseApi } from "@/lib/api";
+import { productApi, serviceApi, saleApi, clientApi, scheduleApi, expenseApi } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
 import { initDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 import { websocketManager } from "@/lib/websocketManager";
 
 interface UseApiOptions<T> {
-  endpoint: 'products' | 'sales' | 'clients' | 'schedules' | 'expenses';
+  endpoint: 'products' | 'services' | 'sales' | 'clients' | 'schedules' | 'expenses';
   defaultValue: T[];
   onError?: (error: Error) => void;
 }
@@ -266,6 +266,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
         let response;
         if (endpoint === 'products') {
           response = await productApi.getAll();
+        } else if (endpoint === 'services') {
+          response = await serviceApi.getAll();
         } else if (endpoint === 'sales') {
           response = await saleApi.getAll();
         } else if (endpoint === 'clients') {
@@ -603,7 +605,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES = 10000; // 10 seconds for products/sales to prevent loops
   
   // Products and sales should always refresh on mount/page open
-  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales';
+  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'services' || endpoint === 'sales';
   const minReloadInterval = shouldAlwaysRefresh ? MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES : MIN_RELOAD_INTERVAL;
 
   // Update items length ref when items change

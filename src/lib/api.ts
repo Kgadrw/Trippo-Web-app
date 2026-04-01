@@ -434,6 +434,39 @@ export const productApi = {
   },
 };
 
+// Service API functions
+export const serviceApi = {
+  async getAll(params?: { includeInactive?: boolean }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.includeInactive) queryParams.append("includeInactive", "true");
+    const qs = queryParams.toString();
+    const url = qs ? `/services?${qs}` : "/services";
+    return request(url, { method: "GET" });
+  },
+
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/services/${id}`, { method: "GET" });
+  },
+
+  async create(data: any): Promise<ApiResponse> {
+    return request("/services", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: any): Promise<ApiResponse> {
+    return request(`/services/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/services/${id}`, { method: "DELETE" });
+  },
+};
+
 // Sale API functions
 export const saleApi = {
   // Get all sales - fetch ALL sales for the user from database
