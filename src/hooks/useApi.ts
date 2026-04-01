@@ -1,6 +1,6 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, serviceApi, saleApi, clientApi, scheduleApi, expenseApi } from "@/lib/api";
+import { productApi, saleApi, clientApi, scheduleApi, expenseApi } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
 import { initDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 import { websocketManager } from "@/lib/websocketManager";
 
 interface UseApiOptions<T> {
-  endpoint: 'products' | 'services' | 'sales' | 'clients' | 'schedules' | 'expenses';
+  endpoint: 'products' | 'sales' | 'clients' | 'schedules' | 'expenses';
   defaultValue: T[];
   onError?: (error: Error) => void;
 }
@@ -266,8 +266,6 @@ export function useApi<T extends { _id?: string; id?: number }>({
         let response;
         if (endpoint === 'products') {
           response = await productApi.getAll();
-        } else if (endpoint === 'services') {
-          response = await serviceApi.getAll();
         } else if (endpoint === 'sales') {
           response = await saleApi.getAll();
         } else if (endpoint === 'clients') {
@@ -530,27 +528,6 @@ export function useApi<T extends { _id?: string; id?: number }>({
             // logger.error("Sales: API error - showing empty state:", apiError);
             setItems(defaultValue);
           }
-        } else if (endpoint === "products") {
-          // Products/Services: if API is unreachable, fall back to IndexedDB.
-          // We intentionally "always fetch fresh" for products, but that should not
-          // make the UI blank when offline or the backend is down.
-          if (apiError?.response?.silent || apiError?.response?.connectionError) {
-            const localItems = await getAllItems<T>(storeName);
-            if (localItems.length > 0) {
-              const userId = localStorage.getItem("profit-pilot-user-id");
-              const filteredLocal = userId
-                ? localItems.filter((item: any) => item.userId === undefined || item.userId === userId)
-                : localItems;
-              const mappedItems = filteredLocal.map(mapItem);
-              setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
-            } else {
-              setItems(defaultValue);
-            }
-          } else if (apiError?.status === 401) {
-            setItems(defaultValue);
-          } else {
-            setItems(defaultValue);
-          }
         } else {
           // For other endpoints, silently fail if offline - data is already loaded from IndexedDB
           if (apiError?.response?.silent || apiError?.response?.connectionError) {
@@ -605,7 +582,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES = 10000; // 10 seconds for products/sales to prevent loops
   
   // Products and sales should always refresh on mount/page open
-  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'services' || endpoint === 'sales';
+  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales';
   const minReloadInterval = shouldAlwaysRefresh ? MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES : MIN_RELOAD_INTERVAL;
 
   // Update items length ref when items change
@@ -1417,7 +1394,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       try {
         // logger.log(`[useApi] Attempting to send bulk sales via DIRECT API call:`, itemsData);
         // logger.log(`[useApi] Online status: ${navigator.onLine}`);
-        // logger.log(`[useApi] API Base URL: ${import.meta.env.VITE_API_URL || 'https://profit-backend-e4w1.onrender.com/api'}`);
+        // logger.log(`[useApi] API Base URL: ${import.meta.env.VITE_API_URL || 'https://profit-backend-3exl.onrender.com/api'}`);
         
         // Direct API call - no offline storage, no syncing
         const response = await saleApi.createBulk(itemsData);

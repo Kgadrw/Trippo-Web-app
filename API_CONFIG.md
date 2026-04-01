@@ -17,7 +17,7 @@ Create a `.env.local` file in the root directory (this file is gitignored):
 VITE_API_URL=http://localhost:3000/api
 
 # Or use deployed URL
-VITE_API_URL=https://profit-backend-e4w1.onrender.com/api
+VITE_API_URL=https://profit-backend-3exl.onrender.com/api
 ```
 
 ### Option 3: Use Environment Variable Flag
@@ -39,7 +39,7 @@ The API URL is determined in this order:
 1. **`VITE_API_URL`** - If set, this takes highest priority (overrides everything)
 2. **Dev Mode + `VITE_USE_LOCALHOST`** - In dev mode, defaults to localhost unless `VITE_USE_LOCALHOST=false`
 3. **`VITE_USE_LOCALHOST=true`** - Forces localhost even in production
-4. **Deployed URL** - Default fallback: `https://profit-backend-e4w1.onrender.com/api`
+4. **Deployed URL** - Default fallback: `https://profit-backend-3exl.onrender.com/api`
 
 ## Examples
 
@@ -65,7 +65,7 @@ VITE_USE_LOCALHOST=false
 
 Or explicitly set the deployed URL:
 ```bash
-VITE_API_URL=https://profit-backend-e4w1.onrender.com/api
+VITE_API_URL=https://profit-backend-3exl.onrender.com/api
 ```
 
 ### Different Backend Port

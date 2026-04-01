@@ -2,7 +2,7 @@
 
 const CACHE_VERSION = "v1"; // Change this only when you deploy a new version
 const CACHE_NAME = `trippo-${CACHE_VERSION}`;
-const API_BASE_URL = 'https://profit-backend-e4w1.onrender.com/api';
+const API_BASE_URL = 'https://profit-backend-3exl.onrender.com/api';
 const NOTIFICATION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 // Badge API support - track active notifications for app icon badge
@@ -95,7 +95,7 @@ self.addEventListener("fetch", (event) => {
 
   // ✅ 1) NEVER cache backend API calls - always fetch fresh
   // Don't override headers - let the request pass through as-is
-  if (url.origin === "https://profit-backend-e4w1.onrender.com" || url.pathname.startsWith("/api")) {
+  if (url.origin === "https://profit-backend-3exl.onrender.com" || url.pathname.startsWith("/api")) {
     // Create a new request with no-store cache, preserving original headers
     const req = new Request(event.request, { cache: "no-store" });
     event.respondWith(fetch(req));

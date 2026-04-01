@@ -11,10 +11,11 @@ const getApiBaseUrl = (): string => {
     return import.meta.env.VITE_API_URL;
   }
   
-  // Use localhost only when explicitly requested.
-  // This avoids a common dev issue where the frontend points to localhost
-  // while the backend is actually deployed (result: empty lists / cannot create).
-  const useLocalhost = import.meta.env.VITE_USE_LOCALHOST === 'true';
+  // Check if we should use localhost (for local testing)
+  // In dev mode, defaults to localhost unless VITE_USE_LOCALHOST=false
+  // In production, defaults to deployed URL unless VITE_USE_LOCALHOST=true
+  const useLocalhost = import.meta.env.VITE_USE_LOCALHOST === 'true' || 
+                       (import.meta.env.DEV && import.meta.env.VITE_USE_LOCALHOST !== 'false');
   
   if (useLocalhost) {
     // Default localhost port (change if your backend runs on different port)
@@ -23,7 +24,7 @@ const getApiBaseUrl = (): string => {
   }
   
   // Default to deployed URL
-  return 'https://profit-backend-e4w1.onrender.com/api';
+  return 'https://profit-backend-3exl.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -431,39 +432,6 @@ export const productApi = {
     return request(`/products/${id}`, {
       method: 'DELETE',
     });
-  },
-};
-
-// Service API functions
-export const serviceApi = {
-  async getAll(params?: { includeInactive?: boolean }): Promise<ApiResponse> {
-    const queryParams = new URLSearchParams();
-    if (params?.includeInactive) queryParams.append("includeInactive", "true");
-    const qs = queryParams.toString();
-    const url = qs ? `/services?${qs}` : "/services";
-    return request(url, { method: "GET" });
-  },
-
-  async getById(id: string): Promise<ApiResponse> {
-    return request(`/services/${id}`, { method: "GET" });
-  },
-
-  async create(data: any): Promise<ApiResponse> {
-    return request("/services", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  },
-
-  async update(id: string, data: any): Promise<ApiResponse> {
-    return request(`/services/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  },
-
-  async delete(id: string): Promise<ApiResponse> {
-    return request(`/services/${id}`, { method: "DELETE" });
   },
 };
 

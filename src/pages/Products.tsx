@@ -20,15 +20,17 @@ interface ServiceItem {
   id?: number;
   _id?: string;
   name: string;
-  defaultPrice?: number;
+  sellingPrice: number;
+  costPrice?: number;
   category?: string;
+  stock?: number;
 }
 
 const Products = () => {
   const { toast } = useToast();
   const { t, language } = useTranslation();
   const { items, isLoading, add, update, remove } = useApi<ServiceItem>({
-    endpoint: "services",
+    endpoint: "products",
     defaultValue: [],
   });
   const [query, setQuery] = useState("");
@@ -55,7 +57,7 @@ const Products = () => {
   const openEdit = (item: ServiceItem) => {
     setEditing(item);
     setName(item.name);
-    setPrice(String(item.defaultPrice || 0));
+    setPrice(String(item.sellingPrice || 0));
     setOpen(true);
   };
 
@@ -72,25 +74,19 @@ const Products = () => {
     }
     const payload = {
       name: name.trim(),
-      defaultPrice: parsedPrice,
+      sellingPrice: parsedPrice,
+      costPrice: 0,
       category: "service",
+      stock: 999999,
     } as ServiceItem;
-    try {
-      if (editing) {
-        await update({ ...editing, ...payload } as any);
-        toast({ title: "Service Updated", description: "Service updated successfully." });
-      } else {
-        await add(payload as any);
-        toast({ title: "Service Added", description: "Service created successfully." });
-      }
-      setOpen(false);
-    } catch (error: any) {
-      toast({
-        title: "Failed",
-        description: error?.message || error?.response?.error || "Could not save service. Please check your connection and try again.",
-        variant: "destructive",
-      });
+    if (editing) {
+      await update({ ...editing, ...payload } as any);
+      toast({ title: "Service Updated", description: "Service updated successfully." });
+    } else {
+      await add(payload as any);
+      toast({ title: "Service Added", description: "Service created successfully." });
     }
+    setOpen(false);
   };
 
   const handleDelete = async (item: ServiceItem) => {
@@ -133,82 +129,72 @@ const Products = () => {
           </Button>
         </div>
 
-        {services.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-600">
-            {language === "rw"
-              ? "Nta serivisi zabonetse. Kanda kuri “Ongeraho Serivisi”."
-              : language === "fr"
-              ? "Aucun service trouvé. Cliquez sur « Ajouter un service »."
-              : "No services found. Click “Add Service” to create one."}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {services.map((service) => {
-              const id = (service as any)._id || service.id;
-              return (
-                <div
-                  key={id}
-                  className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden"
-                  onClick={() => openRecordService(service)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      openRecordService(service);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Record new service for ${service.name}`}
-                >
-                  <img
-                    src="/logo.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
-                  />
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 font-medium text-gray-900 min-w-0 flex-1">
-                      <Scissors size={16} className="mt-0.5 shrink-0" />
-                      <span className="line-clamp-2 break-words">{service.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEdit(service);
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(service);
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {services.map((service) => {
+            const id = (service as any)._id || service.id;
+            return (
+              <div
+                key={id}
+                className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden"
+                onClick={() => openRecordService(service)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openRecordService(service);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Record new service for ${service.name}`}
+              >
+                <img
+                  src="/logo.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
+                />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 font-medium text-gray-900 min-w-0 flex-1">
+                    <Scissors size={16} className="mt-0.5 shrink-0" />
+                    <span className="line-clamp-2 break-words">{service.name}</span>
                   </div>
-                  <div className="mt-auto pt-3">
-                    <div className="text-[11px] text-gray-500">
-                      {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
-                    </div>
-                    <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                    {Number(service.defaultPrice || 0).toLocaleString()} rwf
-                    </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEdit(service);
+                      }}
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(service);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="mt-auto pt-3">
+                  <div className="text-[11px] text-gray-500">
+                    {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    {Number(service.sellingPrice || 0).toLocaleString()} rwf
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

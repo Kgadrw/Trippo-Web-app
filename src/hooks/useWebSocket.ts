@@ -34,7 +34,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   const connect = useCallback(() => {
     // Get API base URL and userId
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://profit-backend-3exl.onrender.com';
     const userId = localStorage.getItem('profit-pilot-user-id');
     
     if (!userId) {
