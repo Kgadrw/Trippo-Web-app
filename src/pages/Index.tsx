@@ -1539,17 +1539,19 @@ const Dashboard = () => {
   }, [globalSearchQuery, globalSearchScope, products, sales, expenses]);
 
   // KPI Card Skeleton Component
-  const KPICardSkeleton = () => (
+  const KPICardSkeleton = ({ hideIcon }: { hideIcon?: boolean } = {}) => (
     <div className="kpi-card">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2 flex-1">
+      <div className={cn("flex items-start", !hideIcon && "justify-between")}>
+        <div className={cn("space-y-2 flex-1 min-w-0", hideIcon && "w-full")}>
           <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-8 w-full max-w-[10rem]" />
           <Skeleton className="h-3 w-16" />
         </div>
-        <div className="ml-4 shrink-0">
-          <Skeleton className="w-12 h-12 rounded" />
-        </div>
+        {!hideIcon && (
+          <div className="ml-4 shrink-0">
+            <Skeleton className="w-12 h-12 rounded" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1824,7 +1826,7 @@ const Dashboard = () => {
               <>
                 <div className="grid grid-cols-4 gap-4">
                   {[1, 2, 3, 4].map((i) => (
-                    <KPICardSkeleton key={i} />
+                    <KPICardSkeleton key={i} hideIcon />
                   ))}
                 </div>
                 <div className="pt-2">
@@ -1840,6 +1842,7 @@ const Dashboard = () => {
                     value={`${todayStats.totalItems}`}
                     subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
                     icon={ShoppingCart}
+                    hideIcon
                     tone="inverted"
                     bgColor="bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm rounded-lg"
                   />
@@ -1847,6 +1850,7 @@ const Dashboard = () => {
                     title={t("todaysRevenue")}
                     value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
                     icon={DollarSign}
+                    hideIcon
                     tone="inverted"
                     bgColor="bg-gradient-to-br from-indigo-600 to-violet-700 border border-indigo-600/30 shadow-sm rounded-lg"
                   />
@@ -1854,6 +1858,7 @@ const Dashboard = () => {
                     title={t("todaysProfit")}
                     value={`${todayStats.totalProfit.toLocaleString()} rwf`}
                     icon={TrendingUp}
+                    hideIcon
                     tone="inverted"
                     bgColor={
                       todayStats.totalProfit >= 0
@@ -1866,6 +1871,7 @@ const Dashboard = () => {
                     value={`${serviceStats.totalServices}`}
                     subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
                     icon={Package}
+                    hideIcon
                     tone="inverted"
                     bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm rounded-lg"
                   />

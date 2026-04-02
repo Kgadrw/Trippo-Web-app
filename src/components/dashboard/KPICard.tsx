@@ -32,6 +32,8 @@ interface KPICardProps {
    * - "imageDark": uses background image and light (white) text, intended for mobile
    */
   variant?: "default" | "imageDark";
+  /** Hide the right-side icon (e.g. desktop KPI grid so amounts fit). */
+  hideIcon?: boolean;
 }
 
 export function KPICard({
@@ -49,6 +51,7 @@ export function KPICard({
   linkTo,
   linkText,
   variant = "default",
+  hideIcon = false,
 }: KPICardProps) {
   const isImageVariant = variant === "imageDark";
   const { resolvedTheme } = useTheme();
@@ -76,8 +79,13 @@ export function KPICard({
       {isImageVariant && !hideImages && (
         <div className="absolute inset-0 bg-white/30 rounded-lg" />
       )}
-      <div className="flex items-start justify-between relative z-10">
-        <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
+      <div
+        className={cn(
+          "relative z-10",
+          hideIcon ? "w-full" : "flex items-start justify-between"
+        )}
+      >
+        <div className={cn("space-y-1 sm:space-y-2 flex-1 min-w-0", hideIcon && "w-full")}>
           <p
             className={cn(
               "text-xs sm:text-sm font-medium truncate",
@@ -86,10 +94,13 @@ export function KPICard({
           >
             {title}
           </p>
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <p
               className={cn(
-                "text-lg sm:text-2xl font-semibold sm:font-normal leading-tight truncate",
+                "text-lg sm:text-2xl font-semibold sm:font-normal leading-tight min-w-0",
+                hideIcon
+                  ? "break-words whitespace-normal [overflow-wrap:anywhere]"
+                  : "truncate",
                 valueColor || (isImageVariant || isInverted ? "text-white" : "text-foreground")
               )}
             >
@@ -149,18 +160,20 @@ export function KPICard({
             </Link>
           )}
         </div>
-        <div className="ml-2 sm:ml-4 shrink-0">
-          <div className="w-8 h-8 sm:w-12 sm:h-12 !border-0 outline-none flex items-center justify-center" style={{ border: "none", background: "transparent" }}>
-            <Icon
-              size={18}
-              className={cn(
-                "sm:w-6 sm:h-6",
-                isImageVariant || isInverted ? "text-white" : "text-foreground"
-              )}
-              style={{ border: "none", outline: "none" }}
-            />
+        {!hideIcon && (
+          <div className="ml-2 sm:ml-4 shrink-0">
+            <div className="w-8 h-8 sm:w-12 sm:h-12 !border-0 outline-none flex items-center justify-center" style={{ border: "none", background: "transparent" }}>
+              <Icon
+                size={18}
+                className={cn(
+                  "sm:w-6 sm:h-6",
+                  isImageVariant || isInverted ? "text-white" : "text-foreground"
+                )}
+                style={{ border: "none", outline: "none" }}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
