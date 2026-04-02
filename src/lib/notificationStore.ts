@@ -23,7 +23,7 @@ class NotificationStore {
   private cacheKey = 'profit-pilot-notifications-cache';
   private isSyncing = false;
   private lastSyncTime = 0;
-  private syncCooldown = 10000; // 10 seconds between backend syncs
+  private syncCooldown = 2000; // 2 seconds between backend syncs (keeps bell near-real-time)
 
   private constructor() {
     this.loadCache();

@@ -133,6 +133,38 @@ export function NotificationManager() {
     };
   }, [user, isAdmin]);
 
+  // ✅ Regular users: keep in-app notification bell in sync (fast)
+  // This makes admin-sent notifications appear quickly without requiring the user to open the bell panel.
+  useEffect(() => {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!user || !userId || isAdmin) return;
+
+    // Initial sync
+    notificationStore.syncFromBackend();
+
+    const sync = () => {
+      notificationStore.syncFromBackend();
+    };
+
+    // Sync on focus / returning to app
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    const onFocus = () => sync();
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // Poll while app is open (store has a cooldown to prevent spam)
+    const interval = window.setInterval(sync, 3000);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [user, isAdmin]);
+
   // No custom modal UI – rely entirely on the browser's system notification prompt
   return null;
 }

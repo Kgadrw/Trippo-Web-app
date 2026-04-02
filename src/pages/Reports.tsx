@@ -115,7 +115,7 @@ const Reports = () => {
   });
 
   const [reportType, setReportType] = useState("weekly");
-  const [barberPeriod, setBarberPeriod] = useState<"today" | "week" | "month">("today");
+  const [barberPeriod, setBarberPeriod] = useState<"today" | "week" | "month" | "year">("today");
 
   const getSaleTimeMs = (sale: Sale) => {
     const d = new Date((sale as any).timestamp || sale.date);
@@ -178,6 +178,8 @@ const Reports = () => {
       start.setDate(start.getDate() - start.getDay());
     } else if (barberPeriod === "month") {
       start.setDate(1);
+    } else if (barberPeriod === "year") {
+      start.setMonth(0, 1);
     }
 
     const startMs = start.getTime();
@@ -1092,7 +1094,7 @@ const Reports = () => {
                 type="single"
                 value={barberPeriod}
                 onValueChange={(v) => v && setBarberPeriod(v as any)}
-                className="grid grid-cols-3 gap-1.5"
+                className="grid grid-cols-4 gap-1.5"
                 variant="outline"
                 size="sm"
               >
@@ -1104,6 +1106,9 @@ const Reports = () => {
                 </ToggleGroupItem>
                 <ToggleGroupItem value="month" className="h-8 px-2 text-[11px]">
                   {isRw ? "Ukwezi" : isFr ? "Mois" : "Month"}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="year" className="h-8 px-2 text-[11px]">
+                  {isRw ? "Umwaka" : isFr ? "Année" : "Year"}
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
