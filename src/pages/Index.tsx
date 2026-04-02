@@ -1540,9 +1540,9 @@ const Dashboard = () => {
 
   const mobilePeriodToggleClass = cn(
     "text-[11px] px-1.5 h-9 font-medium",
-    "border-border bg-card text-foreground",
-    "hover:bg-muted/50",
-    "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary",
+    "border-transparent bg-white/10 text-white/90",
+    "hover:bg-white/15 hover:text-white",
+    "data-[state=on]:bg-white data-[state=on]:text-blue-700 data-[state=on]:border-white",
   );
 
   return (
@@ -1557,7 +1557,7 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-            <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-md p-2">
+            <div className="rounded-2xl border border-blue-600/20 bg-gradient-to-r from-blue-700 to-indigo-700 p-2 shadow-sm">
               <ToggleGroup
                 type="single"
                 value={mobileRevenuePeriod}
