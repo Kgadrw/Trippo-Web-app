@@ -2411,7 +2411,7 @@ const Dashboard = () => {
                         <div
                           className={cn(
                             "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
-                            isSale ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
+                            isSale ? "bg-green-500/10 text-green-700" : "bg-red-500/10 text-red-700"
                           )}
                         >
                           {isSale ? (
@@ -2431,8 +2431,10 @@ const Dashboard = () => {
                         </div>
                         <div
                           className={cn(
-                            "text-sm font-semibold tabular-nums whitespace-nowrap",
-                            isSale ? "text-emerald-700" : "text-red-700"
+                            "text-sm font-semibold tabular-nums whitespace-nowrap rounded-full px-2.5 py-1 border",
+                            isSale
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-red-50 text-red-700 border-red-200"
                           )}
                         >
                           {isSale ? "+" : "-"}
