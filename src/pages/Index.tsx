@@ -49,6 +49,7 @@ import { useOffline } from "@/hooks/useOffline";
 import { formatDateWithTime } from "@/lib/utils";
 import { formatStockDisplay } from "@/lib/stockFormatter";
 import { MobileNumberPad } from "@/components/mobile/MobileNumberPad";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface Product {
   id?: number;
@@ -98,6 +99,7 @@ interface BulkSaleFormData {
 }
 
 type RevenuePeriod = "today" | "week" | "month" | "year";
+type GlobalSearchScope = "all" | "services" | "sales" | "expenses";
 
 function getSaleTimeMs(sale: Sale): number | null {
   if (sale.timestamp) {
@@ -336,8 +338,14 @@ const Dashboard = () => {
   const { t, language } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useCurrentUser();
   const isRw = language === "rw";
   const isFr = language === "fr";
+  const greetingName = useMemo(() => {
+    const n = user?.name?.trim();
+    if (!n) return null;
+    return n.split(" ")[0] || n;
+  }, [user?.name]);
   const {
     items: products,
     isLoading: productsLoading,
@@ -1490,6 +1498,46 @@ const Dashboard = () => {
 
   const isLoading = productsLoading || salesLoading;
 
+  // Global search (Dashboard)
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [globalSearchScope, setGlobalSearchScope] = useState<GlobalSearchScope>("all");
+
+  const globalSearchResults = useMemo(() => {
+    const q = globalSearchQuery.trim().toLowerCase();
+    if (!q) return { services: [] as Product[], sales: [] as Sale[], expenses: [] as Expense[] };
+
+    const services =
+      globalSearchScope === "all" || globalSearchScope === "services"
+        ? products.filter((p) => (p?.name || "").toLowerCase().includes(q)).slice(0, 6)
+        : [];
+
+    const salesRes =
+      globalSearchScope === "all" || globalSearchScope === "sales"
+        ? sales
+            .filter((s) => {
+              const product = String(s.product || "").toLowerCase();
+              const method = String(s.paymentMethod || "").toLowerCase();
+              return product.includes(q) || method.includes(q);
+            })
+            .slice(0, 6)
+        : [];
+
+    const expensesRes =
+      globalSearchScope === "all" || globalSearchScope === "expenses"
+        ? expenses
+            .filter((e) => {
+              const title = String(e.title || "").toLowerCase();
+              const cat = String(e.category || "").toLowerCase();
+              const note = String(e.note || "").toLowerCase();
+              return title.includes(q) || cat.includes(q) || note.includes(q);
+            })
+            .slice(0, 6)
+        : [];
+
+    return { services, sales: salesRes, expenses: expensesRes };
+  }, [globalSearchQuery, globalSearchScope, products, sales, expenses]);
+
   // KPI Card Skeleton Component
   const KPICardSkeleton = () => (
     <div className="kpi-card">
@@ -1547,6 +1595,152 @@ const Dashboard = () => {
 
   return (
     <AppLayout title={t("dashboard")}>
+      {/* Desktop: greeting + global search (sticky at top) */}
+      <div className="hidden lg:block sticky top-0 z-40 -mx-6 px-6 pt-0 pb-4 bg-background/80 backdrop-blur-md">
+        <div className="flex items-center gap-2 text-sm mb-2">
+          <span className="text-muted-foreground">{isRw ? "Muraho" : isFr ? "Bonjour" : "Hello"}</span>
+          <span className="font-semibold text-foreground">
+            {greetingName ? `${greetingName}` : isRw ? "Inshuti" : isFr ? "Utilisateur" : "User"}
+          </span>
+        </div>
+
+        <Popover open={globalSearchOpen} onOpenChange={setGlobalSearchOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "w-full h-11 px-3 rounded-xl border border-border bg-white flex items-center gap-2 text-left",
+                "hover:bg-card focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              )}
+              onClick={() => setGlobalSearchOpen(true)}
+            >
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <span className={cn("text-sm", globalSearchQuery ? "text-foreground" : "text-muted-foreground")}>
+                {language === "rw"
+                  ? "Shakisha..."
+                  : language === "fr"
+                  ? "Rechercher..."
+                  : "Search anything..."}
+              </span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[calc(100vw-24px)] sm:w-[520px] p-0" align="start">
+            <Command>
+              <CommandInput
+                placeholder={language === "rw" ? "Andika..." : language === "fr" ? "Tapez..." : "Type to search..."}
+                value={globalSearchQuery}
+                onValueChange={(v) => setGlobalSearchQuery(v)}
+              />
+              <div className="px-2 pb-2">
+                <ToggleGroup
+                  type="single"
+                  value={globalSearchScope}
+                  onValueChange={(v) => v && setGlobalSearchScope(v as GlobalSearchScope)}
+                  className="grid grid-cols-4 gap-1.5 w-full"
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="all" className="h-8 text-[11px]">
+                    {language === "rw" ? "Byose" : language === "fr" ? "Tout" : "All"}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="services" className="h-8 text-[11px]">
+                    {language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services"}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="sales" className="h-8 text-[11px]">
+                    {t("sales")}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="expenses" className="h-8 text-[11px]">
+                    {language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses"}
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              <CommandList>
+                <CommandEmpty>
+                  {language === "rw" ? "Nta bisubizo." : language === "fr" ? "Aucun résultat." : "No results."}
+                </CommandEmpty>
+
+                {globalSearchResults.services.length > 0 && (
+                  <CommandGroup heading={language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services"}>
+                    {globalSearchResults.services.map((p) => (
+                      <CommandItem
+                        key={(p as any)._id || p.id || p.name}
+                        value={p.name}
+                        onSelect={() => {
+                          setGlobalSearchOpen(false);
+                          navigate(`/products?q=${encodeURIComponent(p.name)}`);
+                        }}
+                      >
+                        <Package className="mr-2 h-4 w-4" />
+                        <span className="truncate">{p.name}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {globalSearchResults.sales.length > 0 && (
+                  <CommandGroup heading={t("sales")}>
+                    {globalSearchResults.sales.map((s, idx) => (
+                      <CommandItem
+                        key={(s as any)._id || s.id || `${s.product}-${idx}`}
+                        value={String(s.product)}
+                        onSelect={() => {
+                          setGlobalSearchOpen(false);
+                          navigate(`/sales?q=${encodeURIComponent(String(s.product || ""))}`);
+                        }}
+                      >
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        <span className="truncate">{String(s.product || "Sale")}</span>
+                        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                          {Number(s.revenue || 0).toLocaleString()} rwf
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {globalSearchResults.expenses.length > 0 && (
+                  <CommandGroup heading={language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses"}>
+                    {globalSearchResults.expenses.map((e, idx) => (
+                      <CommandItem
+                        key={(e as any)._id || e.id || `${e.title}-${idx}`}
+                        value={String(e.title)}
+                        onSelect={() => {
+                          setGlobalSearchOpen(false);
+                          navigate(`/expenses?q=${encodeURIComponent(String(e.title || ""))}`);
+                        }}
+                      >
+                        <Wallet className="mr-2 h-4 w-4" />
+                        <span className="truncate">{String(e.title || "Expense")}</span>
+                        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                          {Number(e.amount || 0).toLocaleString()} rwf
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                <div className="p-2 border-t">
+                  <Button
+                    variant="outline"
+                    className="w-full h-9"
+                    onClick={() => {
+                      setGlobalSearchOpen(false);
+                      navigate(`/sales?q=${encodeURIComponent(globalSearchQuery || "")}`);
+                    }}
+                  >
+                    {language === "rw"
+                      ? "Reba byinshi muri Sales"
+                      : language === "fr"
+                      ? "Voir plus dans Ventes"
+                      : "View more in Sales"}
+                  </Button>
+                </div>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
+
       {/* Mobile: KPI grid + period toggle */}
       <div className="lg:hidden mb-6 space-y-3">
         {isLoading ? (
@@ -1623,42 +1817,150 @@ const Dashboard = () => {
 
       {/* Desktop: KPI Cards */}
       <div className="hidden lg:block mb-6">
-        {isLoading ? (
-          <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <KPICardSkeleton key={i} />
-            ))}
+        <div className="grid grid-cols-12 gap-4 items-start">
+          {/* Left: KPIs + chart (shared background) */}
+          <div className="col-span-9 bg-white border border-gray-200 rounded-xl shadow-sm p-4 space-y-4">
+            {isLoading ? (
+              <>
+                <div className="grid grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <KPICardSkeleton key={i} />
+                  ))}
+                </div>
+                <div className="pt-2">
+                  <Skeleton className="h-6 w-48 mb-4" />
+                  <Skeleton className="h-64 w-full" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-4 gap-4">
+                  <KPICard
+                    title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
+                    value={`${todayStats.totalItems}`}
+                    subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
+                    icon={ShoppingCart}
+                    tone="inverted"
+                    bgColor="bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm rounded-lg"
+                  />
+                  <KPICard
+                    title={t("todaysRevenue")}
+                    value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
+                    icon={DollarSign}
+                    tone="inverted"
+                    bgColor="bg-gradient-to-br from-indigo-600 to-violet-700 border border-indigo-600/30 shadow-sm rounded-lg"
+                  />
+                  <KPICard
+                    title={t("todaysProfit")}
+                    value={`${todayStats.totalProfit.toLocaleString()} rwf`}
+                    icon={TrendingUp}
+                    tone="inverted"
+                    bgColor={
+                      todayStats.totalProfit >= 0
+                        ? "bg-gradient-to-br from-emerald-600 to-green-700 border border-emerald-600/30 shadow-sm rounded-lg"
+                        : "bg-gradient-to-br from-rose-600 to-red-700 border border-red-600/30 shadow-sm rounded-lg"
+                    }
+                  />
+                  <KPICard
+                    title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
+                    value={`${serviceStats.totalServices}`}
+                    subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
+                    icon={Package}
+                    tone="inverted"
+                    bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm rounded-lg"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <SalesTrendChart sales={sales} className="bg-transparent border-0 shadow-none p-0" />
+                </div>
+              </>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-4">
-            <KPICard
-              title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
-              value={`${todayStats.totalItems}`}
-              subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
-              icon={ShoppingCart}
-              valueColor="text-blue-600"
-            />
-            <KPICard
-              title={t("todaysRevenue")}
-              value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
-              icon={DollarSign}
-              valueColor="text-blue-600"
-            />
-            <KPICard
-              title={t("todaysProfit")}
-              value={`${todayStats.totalProfit.toLocaleString()} rwf`}
-              icon={TrendingUp}
-              valueColor="text-green-600"
-            />
-            <KPICard
-              title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
-              value={`${serviceStats.totalServices}`}
-              subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
-              icon={Package}
-              valueColor="text-orange-600"
-            />
+
+          {/* Right: recent activity table */}
+          <div className="col-span-3 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-600" />
+                <h3 className="text-sm font-semibold text-gray-900">
+                  {isRw ? "Biheruka" : isFr ? "Récent" : "Recent"}
+                </h3>
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                {isRw ? "Serivisi n'ibyakoreshejwe" : isFr ? "Ventes & dépenses" : "Sales & expenses"}
+              </p>
+            </div>
+
+            {isLoading || salesLoading || isWaitingForSale ? (
+              <div className="p-4 space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : recentMobileActivity.length > 0 ? (
+              <div className="max-h-[420px] overflow-auto">
+                <table className="w-full border-collapse">
+                  <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
+                      </th>
+                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
+                        {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {recentMobileActivity.slice(0, 7).map((entry, index) => (
+                      <tr key={entry.id || index} className="border-b border-gray-200 last:border-0">
+                        <td className="py-3 px-3">
+                          <div className={cn("text-xs font-semibold", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
+                            {entry.type === "sale"
+                              ? isRw
+                                ? "Serivisi"
+                                : isFr
+                                ? "Service"
+                                : "Sale"
+                              : isRw
+                              ? "Ikiguzi"
+                              : isFr
+                              ? "Dépense"
+                              : "Expense"}
+                          </div>
+                          <div className="text-xs text-gray-700 truncate max-w-[160px]">{entry.title}</div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className={cn("text-xs font-semibold tabular-nums whitespace-nowrap", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
+                            {entry.type === "sale" ? "+" : "-"}
+                            {Number(entry.amount).toLocaleString()} rwf
+                          </div>
+                          <div className="text-[10px] text-gray-500 whitespace-nowrap">{formatDateWithTime(entry.date)}</div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                {isRw ? "Nta bikorwa" : isFr ? "Aucune activité" : "No activity"}
+              </div>
+            )}
+
+            {recentMobileActivity.length > 7 && (
+              <div className="p-3 border-t border-gray-200">
+                <Button variant="outline" className="w-full" onClick={() => navigate("/sales")}>
+                  {language === "rw"
+                    ? "Reba byinshi muri Sales"
+                    : language === "fr"
+                    ? "Voir plus dans Ventes"
+                    : "View more in Sales"}
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Record New Sale Form - Hidden on mobile */}
@@ -2197,18 +2499,6 @@ const Dashboard = () => {
 
       {/* Charts and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Sales Trend Chart - Desktop Only */}
-        <div className="hidden lg:block lg:col-span-3">
-          {isLoading ? (
-            <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-6">
-              <Skeleton className="h-6 w-48 mb-4" />
-              <Skeleton className="h-64 w-full" />
-            </div>
-          ) : (
-            <SalesTrendChart sales={sales} />
-          )}
-        </div>
-        
         {/* Quick Actions - Mobile Only */}
         <div className="lg:hidden">
           <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-4">
@@ -2301,7 +2591,7 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Sales Table */}
-      <div className="mb-6">
+      <div className="mb-6 lg:hidden">
         <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center gap-2">
@@ -2343,7 +2633,7 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {recentMobileActivity.map((entry, index) => (
+                    {recentMobileActivity.slice(0, 7).map((entry, index) => (
                       <tr 
                         key={entry.id || index}
                         className={cn(
@@ -2397,7 +2687,7 @@ const Dashboard = () => {
               {/* Mobile activity list: sales + expenses (row-style, like native apps) */}
               <div className="lg:hidden">
                 <div className="divide-y divide-border/60">
-                  {recentMobileActivity.map((entry, index) => {
+                  {recentMobileActivity.slice(0, 7).map((entry, index) => {
                     const isSale = entry.type === "sale";
                     const label = isSale
                       ? isRw
@@ -2470,6 +2760,17 @@ const Dashboard = () => {
             </div>
           )}
         </div>
+        {recentMobileActivity.length > 7 && (
+          <div className="pt-3 lg:hidden">
+            <Button variant="outline" className="w-full" onClick={() => navigate("/sales")}>
+              {language === "rw"
+                ? "Reba byinshi muri Sales"
+                : language === "fr"
+                ? "Voir plus dans Ventes"
+                : "View more in Sales"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <AddToHomeScreen />

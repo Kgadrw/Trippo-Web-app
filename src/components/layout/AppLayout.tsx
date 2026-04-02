@@ -200,74 +200,16 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         <MobileHeader />
       </div>
 
-      {/* Desktop top navigation header (replaces left sidebar) */}
-      <div className="hidden lg:block fixed top-0 left-0 right-0 z-50 border-b border-blue-700 bg-blue-600 shadow-sm">
-        <div className="h-16 px-4 flex items-center gap-4">
-          <Link to={subdomain === "dashboard" ? "/" : "/dashboard"} className="flex items-center gap-2 shrink-0">
-            <img src="/logo.png" alt="Trippo Logo" className="h-7 w-7 object-contain" />
-            <span className="text-lg font-normal text-white lowercase">trippo</span>
-          </Link>
-          <nav className="ml-auto flex items-center gap-2 overflow-x-auto">
-            {desktopMenuItems.map((item) => {
-              const isDashboardItem = item.path === "/dashboard";
-              const isDashboardSubdomainRoot = subdomain === "dashboard" && location.pathname === "/";
-              const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
-              const path = isDashboardItem && subdomain === "dashboard" ? "/" : item.path;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.path}
-                  to={path}
-                  className={cn(
-                    "h-9 px-3 rounded-md inline-flex items-center gap-2 text-sm whitespace-nowrap transition-colors",
-                    isActive ? "bg-white text-blue-700" : "text-blue-100 hover:bg-blue-700 hover:text-white"
-                  )}
-                >
-                  <Icon size={16} />
-                  <span>{getDesktopNavLabel(item)}</span>
-                </Link>
-              );
-            })}
-            <button
-              type="button"
-              onClick={async () => {
-                clearAuth();
-                localStorage.removeItem("profit-pilot-user-id");
-                localStorage.removeItem("profit-pilot-user-name");
-                localStorage.removeItem("profit-pilot-user-email");
-                localStorage.removeItem("profit-pilot-business-name");
-                localStorage.removeItem("profit-pilot-is-admin");
-                localStorage.removeItem("profit-pilot-authenticated");
-                sessionStorage.clear();
-                try {
-                  const { clearAllStores } = await import("@/lib/indexedDB");
-                  await clearAllStores();
-                } catch (error) {
-                  console.error("Error clearing IndexedDB on logout:", error);
-                }
-                window.dispatchEvent(new Event("pin-auth-changed"));
-                toast({
-                  title:
-                    language === "rw"
-                      ? "Yasohotse"
-                      : language === "fr"
-                      ? "Déconnecté"
-                      : "Logged Out",
-                  description:
-                    language === "rw"
-                      ? "Wagiye mu buryo bwiza."
-                      : language === "fr"
-                      ? "Vous avez été déconnecté avec succès."
-                      : "You have been successfully logged out.",
-                });
-                navigate("/", { replace: true });
-              }}
-              className="h-9 px-3 rounded-md inline-flex items-center gap-2 text-sm whitespace-nowrap transition-colors text-blue-100 hover:bg-red-600 hover:text-white"
-            >
-              <span>{t("logout")}</span>
-            </button>
-          </nav>
-        </div>
+      {/* Desktop: sidebar navigation */}
+      <div className="hidden lg:block">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onMobileClose={() => setMobileMenuOpen(false)}
+          onMobileToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          onHoverChange={setSidebarHovered}
+          mobileExpanded={mobileSidebarExpanded}
+        />
       </div>
 
       {/* Bottom Navigation - dashboard subdomain: only on home `/`; admin & main domain: all pages */}
@@ -286,7 +228,10 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           // Use transition only for sidebar changes, not initial load
           isMobile
             ? cn("ml-0 pt-20", showBottomNav ? "pb-24" : "pb-6")
-            : "lg:ml-0 lg:pt-20 transition-all duration-300"
+            : cn(
+                "transition-all duration-300 lg:pt-6",
+                (sidebarHovered && sidebarCollapsed) || !sidebarCollapsed ? "lg:ml-56" : "lg:ml-16"
+              )
         )}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}

@@ -1,7 +1,8 @@
 import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,9 +17,10 @@ interface Sale {
 
 interface SalesTrendChartProps {
   sales?: Sale[];
+  className?: string;
 }
 
-export function SalesTrendChart({ sales = [] }: SalesTrendChartProps) {
+export function SalesTrendChart({ sales = [], className }: SalesTrendChartProps) {
   // Calculate last 7 days sales data
   const chartData = useMemo(() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -47,17 +49,11 @@ export function SalesTrendChart({ sales = [] }: SalesTrendChartProps) {
     });
   }, [sales]);
   return (
-    <div className="kpi-card lg:bg-white/80 lg:backdrop-blur-md bg-white/80 backdrop-blur-sm">
+    <div className={cn("kpi-card bg-white rounded-none border border-gray-200 shadow-sm", className)}>
       <h3 className="section-title text-gray-600">Sales Trend (Last 7 Days)</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-            <defs>
-              <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#5b8fc7" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#5b8fc7" stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
+          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" strokeOpacity={0.5} vertical={false} />
             <XAxis
               dataKey="day"
@@ -81,16 +77,12 @@ export function SalesTrendChart({ sales = [] }: SalesTrendChartProps) {
               itemStyle={{ color: "#5b8fc7", fontWeight: 600 }}
               formatter={(value: number) => [`rwf ${value.toLocaleString()}`, "Sales"]}
             />
-            <Area
-              type="monotone"
+            <Bar
               dataKey="sales"
-              stroke="#5b8fc7"
-              strokeWidth={2}
-              fill="url(#salesGradient)"
-              dot={{ fill: "#5b8fc7", strokeWidth: 2, r: 4, stroke: "#ffffff" }}
-              activeDot={{ r: 6, fill: "#5b8fc7", stroke: "#ffffff", strokeWidth: 2 }}
+              fill="#5b8fc7"
+              radius={[6, 6, 0, 0]}
             />
-          </AreaChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
