@@ -18,6 +18,12 @@ interface KPICardProps {
   onToggleMoney?: () => void;
   bgColor?: string;
   valueColor?: string;
+  /**
+   * Optional text treatment for colored cards.
+   * - "default": uses foreground/muted colors (theme aware)
+   * - "inverted": uses white/near-white for better contrast on strong backgrounds
+   */
+  tone?: "default" | "inverted";
   linkTo?: string;
   linkText?: string;
   /**
@@ -39,6 +45,7 @@ export function KPICard({
   onToggleMoney,
   bgColor,
   valueColor,
+  tone = "default",
   linkTo,
   linkText,
   variant = "default",
@@ -46,6 +53,7 @@ export function KPICard({
   const isImageVariant = variant === "imageDark";
   const { resolvedTheme } = useTheme();
   const hideImages = resolvedTheme === "dark";
+  const isInverted = tone === "inverted";
 
   const cardStyle = isImageVariant
     ? {
@@ -73,7 +81,7 @@ export function KPICard({
           <p
             className={cn(
               "text-xs sm:text-sm font-medium truncate",
-              isImageVariant ? "text-white/90" : "text-gray-600"
+              isImageVariant || isInverted ? "text-white/90" : "text-muted-foreground"
             )}
           >
             {title}
@@ -82,7 +90,7 @@ export function KPICard({
             <p
               className={cn(
                 "text-lg sm:text-2xl font-semibold sm:font-normal leading-tight truncate",
-                valueColor || (isImageVariant ? "text-white" : "text-gray-800")
+                valueColor || (isImageVariant || isInverted ? "text-white" : "text-foreground")
               )}
             >
               {value}
@@ -92,9 +100,9 @@ export function KPICard({
                 onClick={onToggleMoney}
                 className={cn(
                   "transition-colors p-0.5 sm:p-1 shrink-0",
-                  isImageVariant
+                  isImageVariant || isInverted
                     ? "text-white/80 hover:text-white"
-                    : "text-gray-500 hover:text-gray-700"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
                 title={showMoney ? "Hide money" : "Show money"}
               >
@@ -110,7 +118,7 @@ export function KPICard({
             <p
               className={cn(
                 "text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate",
-                isImageVariant ? "text-white/80" : "text-gray-500"
+                isImageVariant || isInverted ? "text-white/80" : "text-muted-foreground"
               )}
             >
               {subtitle}
@@ -147,7 +155,7 @@ export function KPICard({
               size={18}
               className={cn(
                 "sm:w-6 sm:h-6",
-                isImageVariant ? "text-white" : "text-gray-700"
+                isImageVariant || isInverted ? "text-white" : "text-foreground"
               )}
               style={{ border: "none", outline: "none" }}
             />

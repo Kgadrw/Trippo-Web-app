@@ -1587,26 +1587,34 @@ const Dashboard = () => {
                 value={`${todayStats.totalItems}`}
                 subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
                 icon={ShoppingCart}
-                valueColor="text-blue-600"
+                tone="inverted"
+                bgColor="bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm"
               />
               <KPICard
                 title={mobileRevenueProfitLabels.revenue}
                 value={`${mobilePeriodStats.totalRevenue.toLocaleString()} rwf`}
                 icon={DollarSign}
-                valueColor="text-blue-600"
+                tone="inverted"
+                bgColor="bg-gradient-to-br from-indigo-600 to-violet-700 border border-indigo-600/30 shadow-sm"
               />
               <KPICard
                 title={mobileRevenueProfitLabels.profit}
                 value={`${mobilePeriodStats.totalProfit.toLocaleString()} rwf`}
                 icon={TrendingUp}
-                valueColor={mobilePeriodStats.totalProfit >= 0 ? "text-emerald-600" : "text-red-600"}
+                tone="inverted"
+                bgColor={
+                  mobilePeriodStats.totalProfit >= 0
+                    ? "bg-gradient-to-br from-emerald-600 to-green-700 border border-emerald-600/30 shadow-sm"
+                    : "bg-gradient-to-br from-rose-600 to-red-700 border border-red-600/30 shadow-sm"
+                }
               />
               <KPICard
                 title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
                 value={`${serviceStats.totalServices}`}
                 subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
                 icon={Package}
-                valueColor="text-orange-600"
+                tone="inverted"
+                bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm"
               />
             </div>
           </>
