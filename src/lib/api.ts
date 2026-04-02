@@ -703,6 +703,31 @@ export const adminApi = {
     });
   },
 
+  async updateUserPaymentPlan(
+    userId: string,
+    payload: {
+      active?: boolean;
+      amount?: number;
+      currency?: string;
+      intervalMonths?: number;
+      startDate?: string | Date | null;
+      nextDueDate?: string | Date | null;
+      status?: string;
+    }
+  ): Promise<ApiResponse> {
+    return request(`/admin/users/${userId}/payment-plan`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async markUserPaid(userId: string, paidAt?: string | Date): Promise<ApiResponse> {
+    return request(`/admin/users/${userId}/mark-paid`, {
+      method: "POST",
+      body: JSON.stringify({ paidAt: paidAt || new Date().toISOString() }),
+    });
+  },
+
   // Test email configuration
   async testEmail(to: string): Promise<ApiResponse> {
     return request('/admin/test-email', {

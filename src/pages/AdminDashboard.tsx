@@ -91,6 +91,16 @@ interface User {
   saleCount: number;
   totalRevenue: number;
   totalProfit: number;
+  paymentPlan?: {
+    active?: boolean;
+    amount?: number;
+    currency?: string;
+    intervalMonths?: number;
+    startDate?: string;
+    nextDueDate?: string;
+    lastPaidAt?: string;
+    status?: string;
+  };
 }
 
 interface ActivityData {
@@ -236,6 +246,66 @@ const AdminDashboard = () => {
 
   const [notificationHistory, setNotificationHistory] = useState<any[]>([]);
   const [notificationHistoryLoading, setNotificationHistoryLoading] = useState(false);
+
+  const [billingDialogOpen, setBillingDialogOpen] = useState(false);
+  const [billingUser, setBillingUser] = useState<User | null>(null);
+  const [billingAmount, setBillingAmount] = useState("5800");
+  const [billingIntervalMonths, setBillingIntervalMonths] = useState("1");
+  const [billingNextDueDate, setBillingNextDueDate] = useState("");
+  const [billingStatus, setBillingStatus] = useState("active");
+  const [billingActive, setBillingActive] = useState(true);
+  const [isSavingBilling, setIsSavingBilling] = useState(false);
+
+  const openBilling = (u: User) => {
+    setBillingUser(u);
+    const plan = u.paymentPlan || {};
+    setBillingAmount(String(plan.amount ?? 5800));
+    setBillingIntervalMonths(String(plan.intervalMonths ?? 1));
+    setBillingNextDueDate(plan.nextDueDate ? String(plan.nextDueDate).slice(0, 10) : "");
+    setBillingStatus(String(plan.status ?? "active"));
+    setBillingActive(plan.active ?? true);
+    setBillingDialogOpen(true);
+  };
+
+  const saveBilling = async () => {
+    if (!billingUser) return;
+    setIsSavingBilling(true);
+    try {
+      await adminApi.updateUserPaymentPlan(billingUser._id, {
+        active: billingActive,
+        amount: Number(billingAmount),
+        currency: "RWF",
+        intervalMonths: Number(billingIntervalMonths),
+        nextDueDate: billingNextDueDate ? new Date(billingNextDueDate + "T00:00:00").toISOString() : null,
+        status: billingStatus,
+      });
+      toast({ title: "Saved", description: "Payment plan updated." });
+      await loadDashboardData();
+      setBillingDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Failed",
+        description: error?.message || "Failed to update payment plan.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingBilling(false);
+    }
+  };
+
+  const markPaid = async (u: User) => {
+    try {
+      await adminApi.markUserPaid(u._id);
+      toast({ title: "Marked paid", description: `${u.name} marked as paid.` });
+      await loadDashboardData();
+    } catch (error: any) {
+      toast({
+        title: "Failed",
+        description: error?.message || "Failed to mark as paid.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadNotificationHistory = async () => {
     try {
@@ -731,6 +801,7 @@ const AdminDashboard = () => {
                       <th className="text-left p-2 text-sm">Revenue</th>
                       <th className="text-left p-2 text-sm">Profit</th>
                       <th className="text-left p-2 text-sm">Joined</th>
+                      <th className="text-left p-2 text-sm">Next Pay</th>
                       <th className="text-left p-2 text-sm">Actions</th>
                     </tr>
                   </thead>
@@ -751,6 +822,14 @@ const AdminDashboard = () => {
                         </td>
                         <td className="p-2 text-sm text-muted-foreground">
                           {formatDate(user.createdAt)}
+                        </td>
+                        <td className="p-2 text-sm">
+                          <div className="text-sm font-medium">
+                            {user.paymentPlan?.nextDueDate ? formatDate(user.paymentPlan.nextDueDate) : "—"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {user.paymentPlan?.status || "active"}
+                          </div>
                         </td>
                         <td className="p-2">
                           <div className="flex items-center gap-2">
@@ -773,6 +852,24 @@ const AdminDashboard = () => {
                               title="Send in-app notification"
                             >
                               <Bell size={16} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openBilling(user)}
+                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                              title="Edit payment plan"
+                            >
+                              <DollarSign size={16} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => markPaid(user)}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              title="Mark as paid"
+                            >
+                              <CheckCircle size={16} />
                             </Button>
                             <Button
                               variant="ghost"
@@ -1896,6 +1993,74 @@ const AdminDashboard = () => {
               >
                 <Bell className="h-4 w-4" />
                 {isSendingNotification ? "Sending..." : "Send Notification"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Billing Dialog */}
+        <Dialog open={billingDialogOpen} onOpenChange={setBillingDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Monthly Payment Plan</DialogTitle>
+              <DialogDescription>
+                Set the monthly payment structure for {billingUser?.name || "user"}.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Active</Label>
+                <Select value={billingActive ? "true" : "false"} onValueChange={(v) => setBillingActive(v === "true")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Paused</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={billingStatus} onValueChange={setBillingStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="past_due">Past due</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Amount (RWF)</Label>
+                <Input value={billingAmount} onChange={(e) => setBillingAmount(e.target.value.replace(/[^\d]/g, ""))} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Interval (months)</Label>
+                <Input value={billingIntervalMonths} onChange={(e) => setBillingIntervalMonths(e.target.value.replace(/[^\d]/g, ""))} />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Next due date</Label>
+                <Input type="date" value={billingNextDueDate} onChange={(e) => setBillingNextDueDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  This controls when reminders will be sent.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBillingDialogOpen(false)} disabled={isSavingBilling}>
+                Cancel
+              </Button>
+              <Button onClick={saveBilling} disabled={isSavingBilling || !billingUser}>
+                {isSavingBilling ? "Saving..." : "Save Plan"}
               </Button>
             </DialogFooter>
           </DialogContent>
