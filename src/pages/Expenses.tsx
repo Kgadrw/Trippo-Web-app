@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Wallet, Plus } from "lucide-react";
+import { Trash2, Wallet, Plus, Loader2 } from "lucide-react";
 import { formatDateWithTime } from "@/lib/utils";
 
 interface Expense {
@@ -30,6 +30,7 @@ export default function Expenses() {
   const [category, setCategory] = useState("general");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const total = useMemo(
     () => expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
@@ -83,6 +84,9 @@ export default function Expenses() {
 
   const handleDelete = async (expense: Expense) => {
     if (!window.confirm(`Delete expense "${expense.title}"?`)) return;
+    const id = String((expense as { _id?: string; id?: number })._id ?? expense.id ?? "");
+    if (!id) return;
+    setDeletingId(id);
     try {
       await remove(expense as any);
       await refresh(true);
@@ -94,6 +98,8 @@ export default function Expenses() {
         description: error?.message || "Failed to delete expense.",
         variant: "destructive",
       });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -151,6 +157,8 @@ export default function Expenses() {
             <div className="space-y-2">
               {sorted.map((expense) => {
                 const id = (expense as any)._id || expense.id;
+                const idStr = id != null ? String(id) : "";
+                const isDeletingThis = deletingId !== null && idStr === deletingId;
                 return (
                   <div key={id} className="rounded-md border p-3 flex items-center justify-between">
                     <div>
@@ -166,9 +174,15 @@ export default function Expenses() {
                         variant="ghost"
                         size="sm"
                         className="text-red-600 hover:bg-red-50"
-                        onClick={() => handleDelete(expense)}
+                        disabled={isDeletingThis}
+                        onClick={() => void handleDelete(expense)}
+                        aria-label={isDeletingThis ? "Deleting expense" : "Delete expense"}
                       >
-                        <Trash2 size={14} />
+                        {isDeletingThis ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
                       </Button>
                     </div>
                   </div>

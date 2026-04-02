@@ -27,7 +27,7 @@ interface Barber {
 export default function Barbers() {
   const { toast } = useToast();
   const { t, language } = useTranslation();
-  const { items, isLoading, add, update, remove } = useApi<Barber>({
+  const { items, isLoading, add, update, remove, refresh } = useApi<Barber>({
     endpoint: "clients",
     defaultValue: [],
   });
@@ -38,6 +38,7 @@ export default function Barbers() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const barbers = useMemo(() => {
     // Strictly keep barber/worker records only to avoid mixing with other client types
@@ -103,8 +104,12 @@ export default function Barbers() {
 
   const handleDelete = async (barber: Barber) => {
     if (!window.confirm(`Delete ${barber.name}?`)) return;
+    const id = String((barber as { _id?: string; id?: number })._id ?? barber.id ?? "");
+    if (!id) return;
+    setDeletingId(id);
     try {
       await remove(barber as any);
+      await refresh(true);
       toast({ title: "Deleted", description: "Worker removed." });
     } catch (error: any) {
       toast({
@@ -112,6 +117,8 @@ export default function Barbers() {
         description: error?.message || "Failed to delete worker. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -170,6 +177,8 @@ export default function Barbers() {
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {barbers.map((b) => {
               const id = (b as any)._id || b.id;
+              const idStr = id != null ? String(id) : "";
+              const isDeletingThis = deletingId !== null && idStr === deletingId;
               return (
                 <div
                   key={id}
@@ -195,8 +204,15 @@ export default function Barbers() {
                     <Button variant="ghost" size="sm" className="hover:bg-gray-100 rounded-full" onClick={() => openEdit(b)}>
                       <Pencil size={14} />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50 rounded-full" onClick={() => handleDelete(b)}>
-                      <Trash2 size={14} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50 rounded-full"
+                      disabled={isDeletingThis}
+                      onClick={() => void handleDelete(b)}
+                      aria-label={isDeletingThis ? "Deleting" : "Delete worker"}
+                    >
+                      {isDeletingThis ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                     </Button>
                   </div>
                 </div>

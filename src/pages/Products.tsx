@@ -30,7 +30,7 @@ interface ServiceItem {
 const Products = () => {
   const { toast } = useToast();
   const { t, language } = useTranslation();
-  const { items, isLoading, add, update, remove } = useApi<ServiceItem>({
+  const { items, isLoading, add, update, remove, refresh } = useApi<ServiceItem>({
     endpoint: "products",
     defaultValue: [],
   });
@@ -42,6 +42,7 @@ const Products = () => {
   const [recordModalOpen, setRecordModalOpen] = useState(false);
   const [prefillServiceName, setPrefillServiceName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const services = useMemo(() => {
     if (!query.trim()) return items;
@@ -101,8 +102,20 @@ const Products = () => {
 
   const handleDelete = async (item: ServiceItem) => {
     if (!window.confirm(`Delete service "${item.name}"?`)) return;
-    await remove(item as any);
-    toast({ title: "Service Deleted", description: "Service removed successfully." });
+    const id = String((item as { _id?: string; id?: number })._id ?? item.id ?? "");
+    if (!id) return;
+    setDeletingId(id);
+    try {
+      await remove(item as any);
+      await refresh(true);
+      toast({ title: "Service Deleted", description: "Service removed successfully." });
+      window.dispatchEvent(new CustomEvent("products-should-refresh"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete service.";
+      toast({ title: "Delete Failed", description: message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const servicesTitle =
@@ -165,6 +178,8 @@ const Products = () => {
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {services.map((service) => {
             const id = (service as any)._id || service.id;
+            const idStr = id != null ? String(id) : "";
+            const isDeletingThis = deletingId !== null && idStr === deletingId;
             return (
               <div
                 key={id}
@@ -207,12 +222,18 @@ const Products = () => {
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                      disabled={isDeletingThis}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(service);
+                        void handleDelete(service);
                       }}
+                      aria-label={isDeletingThis ? "Deleting" : "Delete service"}
                     >
-                      <Trash2 size={14} />
+                      {isDeletingThis ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
                     </Button>
                   </div>
                 </div>

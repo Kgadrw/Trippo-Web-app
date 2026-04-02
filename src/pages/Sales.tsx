@@ -23,7 +23,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar, Filter, ArrowUpDown, Trash2, Lock, MoreVertical, Printer, Download } from "lucide-react";
+import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar, Filter, ArrowUpDown, Trash2, Lock, MoreVertical, Printer, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep, playUpdateBeep, initAudio } from "@/lib/sound";
@@ -1334,14 +1334,12 @@ const Sales = () => {
         // Clear selection
         setSelectedSales(new Set());
         
-        // Force refresh immediately (non-blocking)
-        refreshSales(true);
-        refreshProducts(true);
-        
-        // Dispatch event to notify other pages
+        await refreshSales(true);
+        await refreshProducts(true);
+
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
-        
+
         playUpdateBeep();
         toast({
           title: "All Sales Cleared",
@@ -1402,19 +1400,17 @@ const Sales = () => {
         // Clear selection
         setSelectedSales(new Set());
         
-        // Force refresh immediately (non-blocking)
-        refreshSales(true);
-        refreshProducts(true);
-        
-        // Dispatch event to notify other pages
+        await refreshSales(true);
+        await refreshProducts(true);
+
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
-          playUpdateBeep();
-          toast({
-            title: "Sales Deleted",
+        playUpdateBeep();
+        toast({
+          title: "Sales Deleted",
           description: `Successfully deleted ${deletedCount} sale(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}`,
-          });
+        });
       } else if (deleteMode === "single" && singleSaleToDelete) {
         // Delete single sale using remove function for proper UI updates
         // First, restore stock for this sale before deleting (optimistic update)
@@ -1446,24 +1442,18 @@ const Sales = () => {
             });
           }
           
-        // Delete sale (don't await - let it happen in background)
-        removeSale(singleSaleToDelete).catch((error: any) => {
-          console.error("Error deleting sale:", error);
+        await removeSale(singleSaleToDelete);
+        await refreshSales(true);
+        await refreshProducts(true);
+
+        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+        window.dispatchEvent(new CustomEvent('products-should-refresh'));
+
+        playDeleteBeep();
+        toast({
+          title: "Sale Deleted",
+          description: "Sale has been successfully deleted.",
         });
-        
-        // Force refresh immediately (non-blocking)
-          refreshSales(true);
-          refreshProducts(true);
-          
-          // Dispatch event to notify other pages
-          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-          window.dispatchEvent(new CustomEvent('products-should-refresh'));
-          
-          playDeleteBeep();
-          toast({
-            title: "Sale Deleted",
-            description: "Sale has been successfully deleted.",
-          });
       }
       
       setShowPinDialog(false);
@@ -1471,7 +1461,11 @@ const Sales = () => {
       setSingleSaleToDelete(null);
     } catch (error) {
       console.error("Error deleting sales:", error);
-      // Errors are silently handled - no toast notifications
+      toast({
+        title: "Delete failed",
+        description: error instanceof Error ? error.message : "Could not complete delete. Try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsClearing(false);
     }
@@ -2311,13 +2305,18 @@ const Sales = () => {
               disabled={pinInput.length !== 4 || isClearing}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              {isClearing 
-                ? "Deleting..." 
-                : deleteMode === "all" 
-                  ? "Clear All Sales" 
-                  : deleteMode === "selected"
-                    ? `Delete ${selectedSales.size} Sale(s)`
-                    : "Delete Sale"}
+              {isClearing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : deleteMode === "all" ? (
+                "Clear All Sales"
+              ) : deleteMode === "selected" ? (
+                `Delete ${selectedSales.size} Sale(s)`
+              ) : (
+                "Delete Sale"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

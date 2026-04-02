@@ -1509,8 +1509,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const REFRESH_COOLDOWN = 10000; // 10 seconds minimum between refreshes (increased to reduce API calls)
 
-  // Refresh function that resets error state with rate limiting
-  const refresh = useCallback((force = false) => {
+  // Refresh function that resets error state with rate limiting (returns a Promise so callers can await a full reload)
+  const refresh = useCallback((force = false): Promise<void> => {
     // For sales and products endpoints, always force refresh to get real data from API
     const isSalesEndpoint = endpoint === 'sales';
     const isProductsEndpoint = endpoint === 'products';
@@ -1518,7 +1518,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     
     // Don't refresh if already loading (unless forced)
     if (isLoadingDataRef.current && !shouldForce) {
-      return;
+      return Promise.resolve();
     }
     
     hasErrorShownRef.current = false;
@@ -1546,18 +1546,26 @@ export function useApi<T extends { _id?: string; id?: number }>({
       // Refresh immediately (loadData already checks isLoadingDataRef)
       // Use silent mode for forced refreshes so existing data stays visible (no skeleton flash)
       lastRefreshTimeRef.current = Date.now();
-      loadData({ silent: shouldForce });
-    } else {
-      // Schedule refresh after cooldown period
-      const remainingTime = REFRESH_COOLDOWN - timeSinceLastRefresh;
+      return Promise.resolve(loadData({ silent: shouldForce })).then(() => undefined);
+    }
+    // Schedule refresh after cooldown period
+    const remainingTime = REFRESH_COOLDOWN - timeSinceLastRefresh;
+    return new Promise<void>((resolve, reject) => {
       refreshTimeoutRef.current = setTimeout(() => {
-        // Check again if still not loading before executing
-        if (!isLoadingDataRef.current) {
-          lastRefreshTimeRef.current = Date.now();
-          loadData();
+        try {
+          if (!isLoadingDataRef.current) {
+            lastRefreshTimeRef.current = Date.now();
+            Promise.resolve(loadData())
+              .then(() => resolve())
+              .catch(reject);
+          } else {
+            resolve();
+          }
+        } catch (e) {
+          reject(e instanceof Error ? e : new Error(String(e)));
         }
       }, remainingTime);
-    }
+    });
   }, [loadData, endpoint]);
 
   // Reload from IndexedDB only (instant, no API call) - for optimistic updates
