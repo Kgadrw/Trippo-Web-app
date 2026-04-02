@@ -159,11 +159,14 @@ async function request<T>(
   try {
     // Check cache for GET requests (deduplication)
     const isGet = (options.method || 'GET').toUpperCase() === 'GET';
+    const disableGetCache =
+      endpoint.startsWith('/notifications') ||
+      endpoint.startsWith('/auth/me');
     // Get userId for cache key (use the value from defaultHeaders if set, otherwise 'anonymous')
     const userIdForCache = defaultHeaders['X-User-Id'] || userId || 'anonymous';
     const cacheKey = `${options.method || 'GET'}:${endpoint}:${userIdForCache}`;
     
-    if (isGet && retryCount === 0) {
+    if (isGet && retryCount === 0 && !disableGetCache) {
       const cached = requestCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         console.log(`[API] Using cached request: ${endpoint}`);
@@ -172,7 +175,7 @@ async function request<T>(
     }
 
     // Use request manager for deduplication (only for GET requests)
-    if (isGet && retryCount === 0) {
+    if (isGet && retryCount === 0 && !disableGetCache) {
       return requestManager.execute(cacheKey, async () => {
         return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount);
       });
