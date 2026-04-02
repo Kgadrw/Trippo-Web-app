@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-/** Shared style for every service card — fresh green / teal */
+/** Same gradient as dashboard KPI “Services Today” (Index.tsx) */
 const SERVICE_CARD_CLASS =
-  "border-emerald-300/45 bg-gradient-to-br from-emerald-100/95 via-white to-teal-50 shadow-sm hover:shadow-md";
+  "bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm hover:shadow-md";
 
 interface ServiceItem {
   id?: number;
@@ -141,20 +141,20 @@ const Products = () => {
               <div
                 key={i}
                 className={cn(
-                  "rounded-xl border p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3",
+                  "rounded-xl p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3 border",
                   SERVICE_CARD_CLASS
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <Skeleton className="h-4 w-[70%]" />
+                  <Skeleton className="h-4 w-[70%] bg-white/25" />
                   <div className="flex gap-1 shrink-0">
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-md bg-white/25" />
+                    <Skeleton className="h-8 w-8 rounded-md bg-white/25" />
                   </div>
                 </div>
                 <div className="mt-auto space-y-2 pt-2">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-3 w-16 bg-white/25" />
+                  <Skeleton className="h-5 w-24 bg-white/25" />
                 </div>
               </div>
             ))}
@@ -192,7 +192,7 @@ const Products = () => {
               <div
                 key={id}
                 className={cn(
-                  "rounded-xl border p-3 md:p-2 cursor-pointer transition-all hover:brightness-[1.02] aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden",
+                  "rounded-xl p-3 md:p-2 cursor-pointer transition-all hover:brightness-110 aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden border",
                   SERVICE_CARD_CLASS
                 )}
                 onClick={() => openRecordService(service)}
@@ -210,18 +210,18 @@ const Products = () => {
                   src="/logo.png"
                   alt=""
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
+                  className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.12] select-none object-contain"
                 />
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 font-medium text-gray-900 min-w-0 flex-1">
-                    <Scissors size={16} className="mt-0.5 shrink-0" />
+                <div className="relative z-10 flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 font-medium text-white min-w-0 flex-1">
+                    <Scissors size={16} className="mt-0.5 shrink-0 text-white/90" />
                     <span className="line-clamp-2 break-words">{service.name}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 hover:bg-white/70"
+                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
                       onClick={(e) => {
                         e.stopPropagation();
                         openEdit(service);
@@ -232,7 +232,7 @@ const Products = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-100/80"
+                      className="h-8 w-8 p-0 text-red-200 hover:bg-red-950/30"
                       disabled={isDeletingThis}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -248,11 +248,11 @@ const Products = () => {
                     </Button>
                   </div>
                 </div>
-                <div className="mt-auto pt-3">
-                  <div className="text-[11px] text-gray-500">
+                <div className="relative z-10 mt-auto pt-3">
+                  <div className="text-[11px] text-white/75">
                     {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
                   </div>
-                  <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                  <div className="text-sm font-semibold text-white whitespace-nowrap tabular-nums">
                     {Number(service.sellingPrice || 0).toLocaleString()} rwf
                   </div>
                 </div>
