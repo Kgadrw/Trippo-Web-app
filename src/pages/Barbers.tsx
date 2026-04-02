@@ -15,11 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, UserRound, Pencil, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
-import { cn } from "@/lib/utils";
-
-/** Same gradient as dashboard KPI “Active Services” (Index.tsx) */
-const WORKER_CARD_CLASS =
-  "bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm hover:shadow-md";
 
 interface Barber {
   id?: number;
@@ -156,23 +151,20 @@ export default function Barbers() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className={cn(
-                  "rounded-xl p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3 border",
-                  WORKER_CARD_CLASS
-                )}
+                className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-4 w-[80%] bg-white/25" />
-                    <Skeleton className="h-3 w-[60%] bg-white/25" />
+                    <Skeleton className="h-4 w-[80%]" />
+                    <Skeleton className="h-3 w-[60%]" />
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Skeleton className="h-8 w-8 rounded-full bg-white/25" />
-                    <Skeleton className="h-8 w-8 rounded-full bg-white/25" />
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-8 w-8 rounded-full" />
                   </div>
                 </div>
                 <div className="mt-auto pt-2">
-                  <Skeleton className="h-3 w-14 bg-white/25" />
+                  <Skeleton className="h-3 w-14" />
                 </div>
               </div>
             ))}
@@ -190,35 +182,32 @@ export default function Barbers() {
               return (
                 <div
                   key={id}
-                  className={cn(
-                    "rounded-xl p-3 md:p-2 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] transition-all hover:brightness-110 relative overflow-hidden border",
-                    WORKER_CARD_CLASS
-                  )}
+                  className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] transition-all hover:shadow-sm relative overflow-hidden"
                 >
                   <img
                     src="/logo.png"
                     alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.12] select-none object-contain"
+                    className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
                   />
-                  <div className="relative z-10 flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-start gap-2 font-medium text-white">
-                        <UserRound size={16} className="mt-0.5 shrink-0 text-white/90" />
+                      <div className="flex items-start gap-2 font-medium text-gray-900">
+                        <UserRound size={16} className="mt-0.5 shrink-0" />
                         <span className="line-clamp-2 break-words">{b.name}</span>
                       </div>
-                      <p className="text-xs text-white/80 mt-1 line-clamp-2 break-words">
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-2 break-words">
                         {b.businessType || "Worker"}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 rounded-full" onClick={() => openEdit(b)}>
+                    <Button variant="ghost" size="sm" className="hover:bg-gray-100 rounded-full" onClick={() => openEdit(b)}>
                       <Pencil size={14} />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-200 hover:bg-red-950/30 rounded-full"
+                      className="text-red-600 hover:bg-red-50 rounded-full"
                       disabled={isDeletingThis}
                       onClick={() => void handleDelete(b)}
                       aria-label={isDeletingThis ? "Deleting" : "Delete worker"}
@@ -227,8 +216,8 @@ export default function Barbers() {
                     </Button>
                   </div>
                 </div>
-                  <div className="relative z-10 mt-auto pt-3">
-                    <div className="text-[11px] text-white/75">Worker</div>
+                  <div className="mt-auto pt-3">
+                    <div className="text-[11px] text-gray-500">Worker</div>
                   </div>
                 </div>
               );

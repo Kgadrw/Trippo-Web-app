@@ -1548,9 +1548,9 @@ const Dashboard = () => {
           <Skeleton className="h-3 w-16" />
         </div>
         {!hideIcon && (
-          <div className="ml-4 shrink-0">
-            <Skeleton className="w-12 h-12 rounded" />
-          </div>
+        <div className="ml-4 shrink-0">
+          <Skeleton className="w-12 h-12 rounded" />
+        </div>
         )}
       </div>
     </div>
@@ -1754,28 +1754,28 @@ const Dashboard = () => {
         ) : (
           <>
             <div className="rounded-2xl border border-blue-600/20 bg-gradient-to-r from-blue-700 to-indigo-700 p-2 shadow-sm">
-              <ToggleGroup
-                type="single"
-                value={mobileRevenuePeriod}
-                onValueChange={(v) => v && setMobileRevenuePeriod(v as RevenuePeriod)}
+            <ToggleGroup
+              type="single"
+              value={mobileRevenuePeriod}
+              onValueChange={(v) => v && setMobileRevenuePeriod(v as RevenuePeriod)}
                 className="grid grid-cols-4 gap-1.5 w-full"
-                variant="outline"
-                size="sm"
-              >
-                <ToggleGroupItem value="today" className={mobilePeriodToggleClass}>
-                  {t("periodToday")}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="week" className={mobilePeriodToggleClass}>
-                  {t("periodWeek")}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="month" className={mobilePeriodToggleClass}>
-                  {t("periodMonth")}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="year" className={mobilePeriodToggleClass}>
-                  {t("periodYear")}
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="today" className={mobilePeriodToggleClass}>
+                {t("periodToday")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="week" className={mobilePeriodToggleClass}>
+                {t("periodWeek")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="month" className={mobilePeriodToggleClass}>
+                {t("periodMonth")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="year" className={mobilePeriodToggleClass}>
+                {t("periodYear")}
+              </ToggleGroupItem>
+            </ToggleGroup>
+              </div>
 
             <div className="grid grid-cols-2 gap-3">
               <KPICard
@@ -1812,7 +1812,7 @@ const Dashboard = () => {
                 tone="inverted"
                 bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm"
               />
-            </div>
+              </div>
           </>
         )}
       </div>
@@ -1822,42 +1822,42 @@ const Dashboard = () => {
         <div className="grid grid-cols-12 gap-4 items-start">
           {/* Left: KPIs + chart (shared background) */}
           <div className="col-span-9 bg-white border border-gray-200 rounded-xl shadow-sm p-4 space-y-4">
-            {isLoading ? (
+        {isLoading ? (
               <>
-                <div className="grid grid-cols-4 gap-4">
-                  {[1, 2, 3, 4].map((i) => (
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
                     <KPICardSkeleton key={i} hideIcon />
-                  ))}
-                </div>
+            ))}
+          </div>
                 <div className="pt-2">
                   <Skeleton className="h-6 w-48 mb-4" />
                   <Skeleton className="h-64 w-full" />
                 </div>
               </>
-            ) : (
+        ) : (
               <>
-                <div className="grid grid-cols-4 gap-4">
-                  <KPICard
-                    title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
-                    value={`${todayStats.totalItems}`}
-                    subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
-                    icon={ShoppingCart}
+          <div className="grid grid-cols-4 gap-4">
+            <KPICard
+              title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
+              value={`${todayStats.totalItems}`}
+              subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
+              icon={ShoppingCart}
                     hideIcon
                     tone="inverted"
                     bgColor="bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm rounded-lg"
-                  />
-                  <KPICard
-                    title={t("todaysRevenue")}
-                    value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
-                    icon={DollarSign}
+            />
+            <KPICard
+              title={t("todaysRevenue")}
+              value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
+              icon={DollarSign}
                     hideIcon
                     tone="inverted"
                     bgColor="bg-gradient-to-br from-indigo-600 to-violet-700 border border-indigo-600/30 shadow-sm rounded-lg"
-                  />
-                  <KPICard
-                    title={t("todaysProfit")}
-                    value={`${todayStats.totalProfit.toLocaleString()} rwf`}
-                    icon={TrendingUp}
+            />
+            <KPICard
+              title={t("todaysProfit")}
+              value={`${todayStats.totalProfit.toLocaleString()} rwf`}
+              icon={TrendingUp}
                     hideIcon
                     tone="inverted"
                     bgColor={
@@ -1865,17 +1865,17 @@ const Dashboard = () => {
                         ? "bg-gradient-to-br from-emerald-600 to-green-700 border border-emerald-600/30 shadow-sm rounded-lg"
                         : "bg-gradient-to-br from-rose-600 to-red-700 border border-red-600/30 shadow-sm rounded-lg"
                     }
-                  />
-                  <KPICard
-                    title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
-                    value={`${serviceStats.totalServices}`}
-                    subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
-                    icon={Package}
+            />
+            <KPICard
+              title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
+              value={`${serviceStats.totalServices}`}
+              subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
+              icon={Package}
                     hideIcon
                     tone="inverted"
                     bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm rounded-lg"
-                  />
-                </div>
+            />
+          </div>
 
                 <div className="pt-2">
                   <SalesTrendChart sales={sales} className="bg-transparent border-0 shadow-none p-0" />
@@ -2696,15 +2696,15 @@ const Dashboard = () => {
                   {recentMobileActivity.slice(0, 7).map((entry, index) => {
                     const isSale = entry.type === "sale";
                     const label = isSale
-                      ? isRw
-                        ? "Serivisi"
-                        : isFr
-                        ? "Service"
-                        : "Sale"
-                      : isRw
-                      ? "Ikiguzi"
-                      : isFr
-                      ? "Dépense"
+                                  ? isRw
+                                    ? "Serivisi"
+                                    : isFr
+                                    ? "Service"
+                                    : "Sale"
+                                  : isRw
+                                  ? "Ikiguzi"
+                                  : isFr
+                                  ? "Dépense"
                       : "Expense";
                     return (
                       <button
@@ -2723,11 +2723,11 @@ const Dashboard = () => {
                           ) : (
                             <ArrowDownLeft size={18} className="-rotate-[18deg]" />
                           )}
-                        </div>
+                            </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-foreground truncate">{entry.title}</span>
-                          </div>
+                            </div>
                           <div className="mt-0.5 text-xs text-muted-foreground truncate">
                             {label} • {formatDateWithTime(entry.date)}
                             {entry.meta ? ` • ${entry.meta}` : ""}
@@ -2741,7 +2741,7 @@ const Dashboard = () => {
                         >
                           {isSale ? "+" : "-"}
                           {Number(entry.amount).toLocaleString()} rwf
-                        </div>
+                            </div>
                       </button>
                     );
                   })}
@@ -2911,13 +2911,13 @@ const Dashboard = () => {
                   {expenseAmount ? Number(expenseAmount).toLocaleString() : "0"} rwf
                 </button>
               ) : (
-                <Input
-                  type="number"
-                  min="0"
-                  value={expenseAmount}
-                  onChange={(e) => setExpenseAmount(e.target.value)}
-                  placeholder="0"
-                />
+              <Input
+                type="number"
+                min="0"
+                value={expenseAmount}
+                onChange={(e) => setExpenseAmount(e.target.value)}
+                placeholder="0"
+              />
               )}
             </div>
             {isMobile && showExpenseAmountPad && (

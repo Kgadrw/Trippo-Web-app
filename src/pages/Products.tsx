@@ -16,11 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-
-/** Same gradient as dashboard KPI “Services Today” (Index.tsx) */
-const SERVICE_CARD_CLASS =
-  "bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm hover:shadow-md";
 
 interface ServiceItem {
   id?: number;
@@ -140,21 +135,18 @@ const Products = () => {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className={cn(
-                  "rounded-xl p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3 border",
-                  SERVICE_CARD_CLASS
-                )}
+                className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <Skeleton className="h-4 w-[70%] bg-white/25" />
+                  <Skeleton className="h-4 w-[70%]" />
                   <div className="flex gap-1 shrink-0">
-                    <Skeleton className="h-8 w-8 rounded-md bg-white/25" />
-                    <Skeleton className="h-8 w-8 rounded-md bg-white/25" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
                   </div>
                 </div>
                 <div className="mt-auto space-y-2 pt-2">
-                  <Skeleton className="h-3 w-16 bg-white/25" />
-                  <Skeleton className="h-5 w-24 bg-white/25" />
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-5 w-24" />
                 </div>
               </div>
             ))}
@@ -191,10 +183,7 @@ const Products = () => {
             return (
               <div
                 key={id}
-                className={cn(
-                  "rounded-xl p-3 md:p-2 cursor-pointer transition-all hover:brightness-110 aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden border",
-                  SERVICE_CARD_CLASS
-                )}
+                className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden"
                 onClick={() => openRecordService(service)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -210,18 +199,18 @@ const Products = () => {
                   src="/logo.png"
                   alt=""
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.12] select-none object-contain"
+                  className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
                 />
-                <div className="relative z-10 flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 font-medium text-white min-w-0 flex-1">
-                    <Scissors size={16} className="mt-0.5 shrink-0 text-white/90" />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 font-medium text-gray-900 min-w-0 flex-1">
+                    <Scissors size={16} className="mt-0.5 shrink-0" />
                     <span className="line-clamp-2 break-words">{service.name}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      className="h-8 w-8 p-0 hover:bg-gray-100"
                       onClick={(e) => {
                         e.stopPropagation();
                         openEdit(service);
@@ -232,7 +221,7 @@ const Products = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-red-200 hover:bg-red-950/30"
+                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
                       disabled={isDeletingThis}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -248,11 +237,11 @@ const Products = () => {
                     </Button>
                   </div>
                 </div>
-                <div className="relative z-10 mt-auto pt-3">
-                  <div className="text-[11px] text-white/75">
+                <div className="mt-auto pt-3">
+                  <div className="text-[11px] text-gray-500">
                     {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
                   </div>
-                  <div className="text-sm font-semibold text-white whitespace-nowrap tabular-nums">
+                  <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
                     {Number(service.sellingPrice || 0).toLocaleString()} rwf
                   </div>
                 </div>
