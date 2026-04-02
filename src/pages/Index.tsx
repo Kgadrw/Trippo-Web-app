@@ -1539,7 +1539,7 @@ const Dashboard = () => {
   );
 
   const mobilePeriodToggleClass = cn(
-    "text-[11px] px-1.5 h-9 font-medium",
+    "text-[11px] px-1.5 h-9 font-medium rounded-xl",
     "border-transparent bg-white/10 text-white/90",
     "hover:bg-white/15 hover:text-white",
     "data-[state=on]:bg-white data-[state=on]:text-blue-700 data-[state=on]:border-white",
