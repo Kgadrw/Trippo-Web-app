@@ -6,6 +6,7 @@ import {
   Activity,
   Server,
   Calendar,
+  Bell,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ const adminMenuItems = [
   { icon: Users, label: "Users", section: "users" },
   { icon: Activity, label: "Activity", section: "activity" },
   { icon: Calendar, label: "Schedules", section: "schedules" },
+  { icon: Bell, label: "Alerts", section: "notifications" },
   { icon: Server, label: "System Health", section: "health" },
 ];
 

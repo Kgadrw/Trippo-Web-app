@@ -693,6 +693,16 @@ export const adminApi = {
     });
   },
 
+  // Get notification history (admin)
+  async getNotificationHistory(params?: { limit?: number; skip?: number; sentBy?: string }): Promise<ApiResponse> {
+    const limit = params?.limit ?? 50;
+    const skip = params?.skip ?? 0;
+    const sentBy = params?.sentBy ?? 'admin';
+    return request(`/admin/notifications?limit=${limit}&skip=${skip}&sentBy=${encodeURIComponent(sentBy)}`, {
+      method: 'GET',
+    });
+  },
+
   // Test email configuration
   async testEmail(to: string): Promise<ApiResponse> {
     return request('/admin/test-email', {

@@ -214,7 +214,7 @@ const AdminDashboard = () => {
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [apiStats, setApiStats] = useState<ApiStats | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "activity" | "health" | "schedules">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "activity" | "health" | "schedules" | "notifications">("overview");
   const [scheduleStats, setScheduleStats] = useState<ScheduleStats | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -233,6 +233,26 @@ const AdminDashboard = () => {
   const [notificationType, setNotificationType] = useState("general");
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [isBulkNotificationMode, setIsBulkNotificationMode] = useState(false);
+
+  const [notificationHistory, setNotificationHistory] = useState<any[]>([]);
+  const [notificationHistoryLoading, setNotificationHistoryLoading] = useState(false);
+
+  const loadNotificationHistory = async () => {
+    try {
+      setNotificationHistoryLoading(true);
+      const res = await adminApi.getNotificationHistory({ limit: 100, skip: 0, sentBy: "admin" });
+      if (res.data && Array.isArray(res.data)) {
+        setNotificationHistory(res.data);
+      } else {
+        setNotificationHistory([]);
+      }
+    } catch (error) {
+      console.error("Error loading notification history:", error);
+      setNotificationHistory([]);
+    } finally {
+      setNotificationHistoryLoading(false);
+    }
+  };
 
   const loadApiStats = async () => {
     try {
@@ -256,6 +276,12 @@ const AdminDashboard = () => {
       clearInterval(apiInterval);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      loadNotificationHistory();
+    }
+  }, [activeTab]);
 
   // Track last load time to prevent excessive API calls
   const lastLoadTimeRef = useRef<number>(0);
@@ -1301,6 +1327,76 @@ const AdminDashboard = () => {
               </Card>
             </div>
           </div>
+        )}
+
+        {/* Notifications Tab */}
+        {activeTab === "notifications" && (
+          <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="font-normal">Notification History</CardTitle>
+                  <CardDescription>History of notifications sent by admin</CardDescription>
+                </div>
+                <Button variant="outline" onClick={loadNotificationHistory} disabled={notificationHistoryLoading}>
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {notificationHistoryLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : notificationHistory.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2 text-sm">When</th>
+                        <th className="text-left p-2 text-sm">To</th>
+                        <th className="text-left p-2 text-sm">Type</th>
+                        <th className="text-left p-2 text-sm">Title</th>
+                        <th className="text-left p-2 text-sm">Message</th>
+                        <th className="text-left p-2 text-sm">Read</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {notificationHistory.map((n: any) => (
+                        <tr key={n._id} className="border-b hover:bg-gray-50">
+                          <td className="p-2 text-sm text-muted-foreground whitespace-nowrap">
+                            {new Date(n.createdAt || Date.now()).toLocaleString()}
+                          </td>
+                          <td className="p-2 text-sm">
+                            <div className="font-medium">{n.userId?.name || "User"}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {n.userId?.email || n.userId?._id || n.userId || "—"}
+                            </div>
+                          </td>
+                          <td className="p-2 text-sm">{n.type || "general"}</td>
+                          <td className="p-2 text-sm font-medium">{n.title}</td>
+                          <td className="p-2 text-sm text-muted-foreground max-w-[360px]">
+                            <div className="line-clamp-2">{n.body}</div>
+                          </td>
+                          <td className="p-2 text-sm">
+                            {n.read ? (
+                              <span className="text-green-700">Yes</span>
+                            ) : (
+                              <span className="text-orange-700">No</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No admin notifications found yet.</p>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* System Health Tab */}
