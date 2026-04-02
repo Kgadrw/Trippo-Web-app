@@ -41,6 +41,7 @@ import {
   Trash2,
   Calendar,
   Mail,
+  Bell,
   CheckCircle,
   XCircle
 } from "lucide-react";
@@ -226,6 +227,13 @@ const AdminDashboard = () => {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isBulkEmailMode, setIsBulkEmailMode] = useState(false);
 
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [notificationTitle, setNotificationTitle] = useState("");
+  const [notificationBody, setNotificationBody] = useState("");
+  const [notificationType, setNotificationType] = useState("general");
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
+  const [isBulkNotificationMode, setIsBulkNotificationMode] = useState(false);
+
   const loadApiStats = async () => {
     try {
       const apiStatsRes = await adminApi.getApiStats();
@@ -347,6 +355,21 @@ const AdminDashboard = () => {
     setEmailDialogOpen(true);
   };
 
+  const handleSendNotificationClick = (user: User | null = null) => {
+    if (user) {
+      setSelectedUser(user);
+      setIsBulkNotificationMode(false);
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUser(null);
+      setIsBulkNotificationMode(true);
+    }
+    setNotificationTitle("");
+    setNotificationBody("");
+    setNotificationType("general");
+    setNotificationDialogOpen(true);
+  };
+
   const handleSendEmail = async () => {
     if (!emailSubject.trim() || !emailMessage.trim()) {
       toast({
@@ -397,6 +420,63 @@ const AdminDashboard = () => {
       });
     } finally {
       setIsSendingEmail(false);
+    }
+  };
+
+  const handleSendNotification = async () => {
+    if (!notificationTitle.trim() || !notificationBody.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in both title and message fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingNotification(true);
+    try {
+      if (isBulkNotificationMode) {
+        const userIds = Array.from(selectedUsers);
+        await adminApi.sendBulkNotification({
+          userIds: userIds.length > 0 ? userIds : undefined,
+          sendToAll: userIds.length === 0,
+          title: notificationTitle,
+          body: notificationBody,
+          type: notificationType,
+        });
+
+        toast({
+          title: "Notification Sent",
+          description: userIds.length > 0 ? `Sent to ${userIds.length} user(s).` : "Sent to all users.",
+        });
+      } else if (selectedUser) {
+        await adminApi.sendNotificationToUser(selectedUser._id, {
+          title: notificationTitle,
+          body: notificationBody,
+          type: notificationType,
+        });
+
+        toast({
+          title: "Notification Sent",
+          description: `Sent to ${selectedUser.name}.`,
+        });
+      }
+
+      setNotificationDialogOpen(false);
+      setNotificationTitle("");
+      setNotificationBody("");
+      setNotificationType("general");
+      setSelectedUser(null);
+      setSelectedUsers(new Set());
+      setIsBulkNotificationMode(false);
+    } catch (error: any) {
+      toast({
+        title: "Failed to Send Notification",
+        description: error?.message || "An error occurred while sending the notification.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingNotification(false);
     }
   };
 
@@ -594,8 +674,22 @@ const AdminDashboard = () => {
         {activeTab === "users" && (
           <Card className="bg-white">
             <CardHeader>
-              <CardTitle className="font-normal">All Users</CardTitle>
-              <CardDescription>Complete list of registered users and their activity</CardDescription>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="font-normal">All Users</CardTitle>
+                  <CardDescription>Complete list of registered users and their activity</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => handleSendNotificationClick(null)} className="gap-2">
+                    <Bell className="h-4 w-4" />
+                    Notify users
+                  </Button>
+                  <Button variant="outline" onClick={() => handleSendEmailClick(null)} className="gap-2">
+                    <Mail className="h-4 w-4" />
+                    Bulk email
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -645,6 +739,15 @@ const AdminDashboard = () => {
                                 <Mail size={16} />
                               </Button>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSendNotificationClick(user)}
+                              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                              title="Send in-app notification"
+                            >
+                              <Bell size={16} />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1593,6 +1696,110 @@ const AdminDashboard = () => {
                 disabled={isSendingEmail || (isBulkEmailMode && selectedUsers.size === 0) || !emailSubject.trim() || !emailMessage.trim()}
               >
                 {isSendingEmail ? "Sending..." : "Send Email"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Notification Dialog */}
+        <Dialog open={notificationDialogOpen} onOpenChange={setNotificationDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {isBulkNotificationMode ? "Send Notification" : `Send Notification to ${selectedUser?.name || "User"}`}
+              </DialogTitle>
+              <DialogDescription>
+                {isBulkNotificationMode
+                  ? "Select users and send an in-app notification. Leave selection empty to notify all users."
+                  : "Send an in-app notification to this user."
+                }
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {isBulkNotificationMode && (
+                <div className="space-y-2">
+                  <Label>Select Users ({selectedUsers.size} selected)</Label>
+                  <div className="mt-2 max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
+                    {users.map((user) => (
+                      <div key={user._id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`notify-user-${user._id}`}
+                          checked={selectedUsers.has(user._id)}
+                          onCheckedChange={() => toggleUserSelection(user._id)}
+                        />
+                        <label
+                          htmlFor={`notify-user-${user._id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                        >
+                          {user.name}{user.email ? ` (${user.email})` : ""}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tip: leave selection empty to notify all users.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="notification-type">Type</Label>
+                <Input
+                  id="notification-type"
+                  value={notificationType}
+                  onChange={(e) => setNotificationType(e.target.value)}
+                  placeholder="general / low_stock / schedule ..."
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="notification-title">Title *</Label>
+                <Input
+                  id="notification-title"
+                  value={notificationTitle}
+                  onChange={(e) => setNotificationTitle(e.target.value)}
+                  placeholder="Notification title"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="notification-body">Message *</Label>
+                <Textarea
+                  id="notification-body"
+                  value={notificationBody}
+                  onChange={(e) => setNotificationBody(e.target.value)}
+                  placeholder="Write the notification message..."
+                  className="mt-1 min-h-[200px]"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setNotificationDialogOpen(false);
+                  setNotificationTitle("");
+                  setNotificationBody("");
+                  setNotificationType("general");
+                  setSelectedUser(null);
+                  setSelectedUsers(new Set());
+                  setIsBulkNotificationMode(false);
+                }}
+                disabled={isSendingNotification}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendNotification}
+                disabled={isSendingNotification || !notificationTitle.trim() || !notificationBody.trim()}
+                className="gap-2"
+              >
+                <Bell className="h-4 w-4" />
+                {isSendingNotification ? "Sending..." : "Send Notification"}
               </Button>
             </DialogFooter>
           </DialogContent>

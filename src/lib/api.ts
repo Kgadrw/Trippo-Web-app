@@ -663,6 +663,33 @@ export const adminApi = {
     });
   },
 
+  // Send in-app notification to a single user
+  async sendNotificationToUser(
+    userId: string,
+    payload: { title: string; body: string; type?: string; data?: any; icon?: string }
+  ): Promise<ApiResponse> {
+    return request('/admin/send-notification', {
+      method: 'POST',
+      body: JSON.stringify({ userId, ...payload }),
+    });
+  },
+
+  // Send in-app notification to multiple users, or all users
+  async sendBulkNotification(payload: {
+    userIds?: string[];
+    sendToAll?: boolean;
+    title: string;
+    body: string;
+    type?: string;
+    data?: any;
+    icon?: string;
+  }): Promise<ApiResponse> {
+    return request('/admin/send-bulk-notification', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   // Test email configuration
   async testEmail(to: string): Promise<ApiResponse> {
     return request('/admin/test-email', {

@@ -115,6 +115,7 @@ const Reports = () => {
   });
 
   const [reportType, setReportType] = useState("weekly");
+  const [barberPeriod, setBarberPeriod] = useState<"today" | "week" | "month">("today");
 
   const getSaleTimeMs = (sale: Sale) => {
     const d = new Date((sale as any).timestamp || sale.date);
@@ -166,6 +167,26 @@ const Reports = () => {
   // No date filtering in Reports: always use all data
   const filteredSales = sales;
   const filteredExpenses = expenses;
+
+  const barberPeriodSales = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+
+    if (barberPeriod === "week") {
+      // Week starts on Sunday (matches other report logic)
+      start.setDate(start.getDate() - start.getDay());
+    } else if (barberPeriod === "month") {
+      start.setDate(1);
+    }
+
+    const startMs = start.getTime();
+    return filteredSales.filter((s) => {
+      if (!(s.saleType === "service" || s.workerName)) return false;
+      const ms = getSaleTimeMs(s);
+      return ms !== null && ms >= startMs;
+    });
+  }, [filteredSales, barberPeriod]);
 
   // Aggregate sales data by product
   const salesByProduct = useMemo(() => {
@@ -287,18 +308,16 @@ const Reports = () => {
 
   const salesByBarber = useMemo(() => {
     const map: Record<string, { barber: string; services: number; revenue: number }> = {};
-    filteredSales
-      .filter((s) => s.saleType === "service" || !!s.workerName)
-      .forEach((sale) => {
-        const barber = sale.workerName || "Unassigned";
-        if (!map[barber]) {
-          map[barber] = { barber, services: 0, revenue: 0 };
-        }
-        map[barber].services += sale.quantity || 1;
-        map[barber].revenue += sale.revenue || 0;
-      });
+    barberPeriodSales.forEach((sale) => {
+      const barber = sale.workerName || "Unassigned";
+      if (!map[barber]) {
+        map[barber] = { barber, services: 0, revenue: 0 };
+      }
+      map[barber].services += sale.quantity || 1;
+      map[barber].revenue += sale.revenue || 0;
+    });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
-  }, [filteredSales]);
+  }, [barberPeriodSales]);
 
   const salesExpensesByPeriod = useMemo(() => {
     const map = new Map<
@@ -378,8 +397,7 @@ const Reports = () => {
       }
     >();
 
-    for (const s of filteredSales) {
-      if (!(s.saleType === "service" || s.workerName)) continue;
+    for (const s of barberPeriodSales) {
       const barber = (s.workerName || "Unassigned").toString();
       const service =
         (s.serviceName || s.product || "Service").toString().trim() || "Service";
@@ -418,7 +436,7 @@ const Reports = () => {
 
     rows.sort((a, b) => b.revenue - a.revenue);
     return rows;
-  }, [filteredSales]);
+  }, [barberPeriodSales]);
 
   const handleExport = (format: string) => {
     playInfoBeep();
@@ -1060,13 +1078,35 @@ const Reports = () => {
           </div>
 
           <div className="rounded-lg border border-border bg-white p-4 sm:p-5">
-            <h3 className="mb-1 text-sm font-medium text-foreground">
-              {isRw
-                ? "Imikorere y'Umwogoshi"
-                : isFr
-                ? "Performance des coiffeurs"
-                : "Barber performance"}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="mb-1 text-sm font-medium text-foreground">
+                  {isRw
+                    ? "Imikorere y'Umwogoshi"
+                    : isFr
+                    ? "Performance des coiffeurs"
+                    : "Barber performance"}
+                </h3>
+              </div>
+              <ToggleGroup
+                type="single"
+                value={barberPeriod}
+                onValueChange={(v) => v && setBarberPeriod(v as any)}
+                className="grid grid-cols-3 gap-1.5"
+                variant="outline"
+                size="sm"
+              >
+                <ToggleGroupItem value="today" className="h-8 px-2 text-[11px]">
+                  {isRw ? "Uyu munsi" : isFr ? "Aujourd'hui" : "Today"}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="week" className="h-8 px-2 text-[11px]">
+                  {isRw ? "Icyumweru" : isFr ? "Semaine" : "Week"}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="month" className="h-8 px-2 text-[11px]">
+                  {isRw ? "Ukwezi" : isFr ? "Mois" : "Month"}
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
             <p className="mb-3 text-xs text-muted-foreground">
               {topBarber
                 ? isRw
