@@ -16,6 +16,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+/** Shared style for every service card — fresh green / teal */
+const SERVICE_CARD_CLASS =
+  "border-emerald-300/45 bg-gradient-to-br from-emerald-100/95 via-white to-teal-50 shadow-sm hover:shadow-md";
 
 interface ServiceItem {
   id?: number;
@@ -135,7 +140,10 @@ const Products = () => {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3"
+                className={cn(
+                  "rounded-xl border p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3",
+                  SERVICE_CARD_CLASS
+                )}
               >
                 <div className="flex items-start justify-between gap-2">
                   <Skeleton className="h-4 w-[70%]" />
@@ -183,7 +191,10 @@ const Products = () => {
             return (
               <div
                 key={id}
-                className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden"
+                className={cn(
+                  "rounded-xl border p-3 md:p-2 cursor-pointer transition-all hover:brightness-[1.02] aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden",
+                  SERVICE_CARD_CLASS
+                )}
                 onClick={() => openRecordService(service)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -210,7 +221,7 @@ const Products = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 hover:bg-white/70"
                       onClick={(e) => {
                         e.stopPropagation();
                         openEdit(service);
@@ -221,7 +232,7 @@ const Products = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-100/80"
                       disabled={isDeletingThis}
                       onClick={(e) => {
                         e.stopPropagation();

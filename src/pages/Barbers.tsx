@@ -15,6 +15,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, UserRound, Pencil, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
+import { cn } from "@/lib/utils";
+
+/** Shared style for every worker card — warm violet / indigo (pairs with green services) */
+const WORKER_CARD_CLASS =
+  "border-violet-300/40 bg-gradient-to-br from-violet-100/92 via-white to-indigo-50 shadow-sm hover:shadow-md";
 
 interface Barber {
   id?: number;
@@ -151,7 +156,10 @@ export default function Barbers() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3"
+                className={cn(
+                  "rounded-xl border p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3",
+                  WORKER_CARD_CLASS
+                )}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-2">
@@ -182,7 +190,10 @@ export default function Barbers() {
               return (
                 <div
                   key={id}
-                  className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] transition-all hover:shadow-sm relative overflow-hidden"
+                  className={cn(
+                    "rounded-xl border p-3 md:p-2 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] transition-all hover:brightness-[1.02] relative overflow-hidden",
+                    WORKER_CARD_CLASS
+                  )}
                 >
                   <img
                     src="/logo.png"
@@ -201,13 +212,13 @@ export default function Barbers() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="sm" className="hover:bg-gray-100 rounded-full" onClick={() => openEdit(b)}>
+                    <Button variant="ghost" size="sm" className="hover:bg-white/70 rounded-full" onClick={() => openEdit(b)}>
                       <Pencil size={14} />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-600 hover:bg-red-50 rounded-full"
+                      className="text-red-600 hover:bg-red-100/80 rounded-full"
                       disabled={isDeletingThis}
                       onClick={() => void handleDelete(b)}
                       aria-label={isDeletingThis ? "Deleting" : "Delete worker"}
