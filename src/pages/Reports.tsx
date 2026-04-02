@@ -1084,10 +1084,10 @@ const Reports = () => {
               <div className="min-w-0">
                 <h3 className="mb-1 text-sm font-medium text-foreground">
                   {isRw
-                    ? "Imikorere y'Umwogoshi"
+                    ? "Imikorere y'abakozi"
                     : isFr
-                    ? "Performance des coiffeurs"
-                    : "Barber performance"}
+                    ? "Performance des travailleurs"
+                    : "Worker performance"}
                 </h3>
               </div>
               <ToggleGroup
@@ -1117,13 +1117,13 @@ const Reports = () => {
                 ? isRw
                   ? `Uyoboye ni ${topBarber.barber} na rwf ${topBarber.revenue.toLocaleString()}`
                   : isFr
-                  ? `Meilleur coiffeur : ${topBarber.barber} avec ${topBarber.revenue.toLocaleString()} rwf`
+                  ? `Meilleur travailleur : ${topBarber.barber} avec ${topBarber.revenue.toLocaleString()} rwf`
                   : `Top performer: ${topBarber.barber} with rwf ${topBarber.revenue.toLocaleString()}`
                 : isRw
-                ? "Nta makuru y'abogoshi muri iki gihe."
+                ? "Nta makuru y'abakozi muri iki gihe."
                 : isFr
-                ? "Aucun enregistrement de coiffeur pour cette période."
-                : "No barber records for this period."}
+                ? "Aucun enregistrement de travailleur pour cette période."
+                : "No worker records for this period."}
             </p>
             {barberServiceBreakdown.length > 0 ? (
               <div className="overflow-x-auto">
@@ -1131,7 +1131,7 @@ const Reports = () => {
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {isRw ? "Umwogoshi" : isFr ? "Coiffeur" : "Barber"}
+                        {isRw ? "Umukozi" : isFr ? "Travailleur" : "Worker"}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
                         {isRw ? "Serivisi" : isFr ? "Services" : "Services"}
@@ -1183,10 +1183,10 @@ const Reports = () => {
             ) : (
               <p className="text-sm text-muted-foreground">
                 {isRw
-                  ? "Nta makuru y'Umwogoshi aboneka muri iki gihe."
+                  ? "Nta makuru y'umukozi aboneka muri iki gihe."
                   : isFr
-                  ? "Aucun enregistrement de services de coiffeur pour la période sélectionnée."
-                  : "No barber service records found for the selected period."}
+                  ? "Aucun enregistrement de services par travailleur pour la période sélectionnée."
+                  : "No worker service records found for the selected period."}
               </p>
             )}
           </div>

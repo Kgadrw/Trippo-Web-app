@@ -266,7 +266,7 @@ async function drawReceipt(doc: jsPDF, sale: TicketSale, opts: TicketOptions & {
     doc.setFontSize(9);
     drawDottedRow(doc, contentLeft, contentRight, y, "Service", sale.serviceName || sale.product || "Service");
     y += 5;
-    drawDottedRow(doc, contentLeft, contentRight, y, "Barber", sale.workerName || "-");
+    drawDottedRow(doc, contentLeft, contentRight, y, "Worker", sale.workerName || "-");
     y += 5;
     drawDottedRow(doc, contentLeft, contentRight, y, "Payment", paymentStr);
     y += 6;

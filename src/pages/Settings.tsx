@@ -111,24 +111,24 @@ const Settings = () => {
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
               {initials}
-            </div>
-            <div className="min-w-0 flex-1">
+                  </div>
+                  <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-gray-900 truncate">{ownerName}</div>
               <div className="text-xs text-gray-600 truncate">{email}</div>
-            </div>
-          </div>
-        </div>
+                  </div>
+                </div>
+              </div>
 
         <div className="rounded-lg border border-gray-200 bg-white/80 backdrop-blur-sm overflow-hidden">
           {items.map((it, idx) => {
             const Icon = it.icon;
             const isRed = it.tone === "red";
             return (
-              <button
+                <button 
                 key={it.key}
                 type="button"
                 onClick={() => navigate(it.to)}
-                className={cn(
+                  className={cn(
                   "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors",
                   idx !== 0 && "border-t border-gray-200",
                   isRed ? "hover:bg-red-50" : "hover:bg-blue-50"
@@ -151,19 +151,19 @@ const Settings = () => {
               </button>
             );
           })}
-        </div>
-
+                </div>
+                
         <Separator />
 
-        <Button
+                      <Button
           onClick={handleLogoutConfirm}
-          variant="outline"
-          className="w-full gap-2 h-12 text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 transition-all font-semibold rounded-lg"
-        >
-          <LogOut size={18} />
-          {t("logout")}
-        </Button>
-      </div>
+            variant="outline"
+            className="w-full gap-2 h-12 text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 transition-all font-semibold rounded-lg"
+          >
+            <LogOut size={18} />
+            {t("logout")}
+          </Button>
+        </div>
     </AppLayout>
   );
 };

@@ -259,7 +259,7 @@ export default function VerifyTicket() {
                       <div className="text-slate-900">{result?.serviceName || "-"}</div>
                     </div>
                     <div className="text-sm">
-                      <div className="text-xs text-slate-500">Barber</div>
+                      <div className="text-xs text-slate-500">Worker</div>
                       <div className="text-slate-900">{result?.barberName || "-"}</div>
                     </div>
                   </div>

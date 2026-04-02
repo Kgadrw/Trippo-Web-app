@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { useApi } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, UserRound, Pencil } from "lucide-react";
+import { Plus, Search, Trash2, UserRound, Pencil, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface Barber {
@@ -36,6 +37,7 @@ export default function Barbers() {
   const [editingBarber, setEditingBarber] = useState<Barber | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const barbers = useMemo(() => {
     // Strictly keep barber/worker records only to avoid mixing with other client types
@@ -66,6 +68,7 @@ export default function Barbers() {
       toast({ title: "Missing Information", description: "Name and category are required.", variant: "destructive" });
       return;
     }
+    setIsSaving(true);
     try {
       if (editingBarber) {
         await update({
@@ -74,14 +77,14 @@ export default function Barbers() {
           businessType: category.trim(),
           clientType: "worker",
         } as any);
-        toast({ title: "Barber Updated", description: "Barber updated successfully." });
+        toast({ title: "Worker Updated", description: "Worker updated successfully." });
       } else {
         await add({
           name: name.trim(),
           businessType: category.trim(),
           clientType: "worker",
         } as any);
-        toast({ title: "Barber Added", description: "Barber created successfully." });
+        toast({ title: "Worker Added", description: "Worker created successfully." });
       }
       setName("");
       setCategory("");
@@ -90,9 +93,11 @@ export default function Barbers() {
     } catch (error: any) {
       toast({
         title: "Save Failed",
-        description: error?.message || "Failed to save barber. Please try again.",
+        description: error?.message || "Failed to save worker. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -100,20 +105,20 @@ export default function Barbers() {
     if (!window.confirm(`Delete ${barber.name}?`)) return;
     try {
       await remove(barber as any);
-      toast({ title: "Deleted", description: "Barber removed." });
+      toast({ title: "Deleted", description: "Worker removed." });
     } catch (error: any) {
       toast({
         title: "Delete Failed",
-        description: error?.message || "Failed to delete barber. Please try again.",
+        description: error?.message || "Failed to delete worker. Please try again.",
         variant: "destructive",
       });
     }
   };
 
   const barbersTitle =
-    language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeurs" : "Barbers";
+    language === "rw" ? "Abakozi" : language === "fr" ? "Travailleurs" : "Workers";
   const barberSingular =
-    language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeur" : "Barber";
+    language === "rw" ? "Umukozi" : language === "fr" ? "Travailleur" : "Worker";
 
   return (
     <AppLayout title={barbersTitle}>
@@ -135,10 +140,31 @@ export default function Barbers() {
         </div>
 
         {isLoading ? (
-          <div className="rounded-lg border bg-white p-6 text-sm text-gray-600">Loading barbers...</div>
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-[80%]" />
+                    <Skeleton className="h-3 w-[60%]" />
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                  </div>
+                </div>
+                <div className="mt-auto pt-2">
+                  <Skeleton className="h-3 w-14" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : barbers.length === 0 ? (
           <div className="rounded-lg border bg-white p-6 text-sm text-gray-600">
-            No barbers found. Click <strong>Add Barber</strong> to create one.
+            No workers found. Click <strong>Add Worker</strong> to create one.
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -162,7 +188,7 @@ export default function Barbers() {
                         <span className="line-clamp-2 break-words">{b.name}</span>
                       </div>
                       <p className="text-xs text-gray-600 mt-1 line-clamp-2 break-words">
-                        {b.businessType || "Barber"}
+                        {b.businessType || "Worker"}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -175,7 +201,7 @@ export default function Barbers() {
                   </div>
                 </div>
                   <div className="mt-auto pt-3">
-                    <div className="text-[11px] text-gray-500">Barber</div>
+                    <div className="text-[11px] text-gray-500">Worker</div>
                   </div>
                 </div>
               );
@@ -184,19 +210,35 @@ export default function Barbers() {
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && isSaving) return;
+          setOpen(next);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingBarber ? "Edit Barber" : "Add Barber"}</DialogTitle>
+            <DialogTitle>{editingBarber ? "Edit Worker" : "Add Worker"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
               <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. John" />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. John"
+                disabled={isSaving}
+              />
             </div>
             <div className="space-y-1">
               <Label>Category</Label>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Barber, Nail Artist" />
+              <Input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g. Hair stylist, Nails"
+                disabled={isSaving}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -209,11 +251,25 @@ export default function Barbers() {
                 setCategory("");
               }}
               className="rounded-full"
+              disabled={isSaving}
             >
               Cancel
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full" onClick={handleSave}>
-              {editingBarber ? "Update" : "Save"}
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full min-w-[7rem]"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {editingBarber ? "Updating..." : "Saving..."}
+                </>
+              ) : editingBarber ? (
+                "Update"
+              ) : (
+                "Save"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

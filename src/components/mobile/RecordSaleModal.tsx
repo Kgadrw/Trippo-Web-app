@@ -241,6 +241,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialServiceName }: RecordSaleModalProps) {
   const { t, language } = useTranslation();
   const isRw = language === "rw";
+  const isFr = language === "fr";
   const { toast } = useToast();
   const { isOnline } = useOffline();
   const {
@@ -399,8 +400,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
       if (!worker) {
         playErrorBeep();
         toast({
-          title: isRw ? "Umwogoshi ntaboneka" : "Worker Not Found",
-          description: isRw ? "Hitamo umwogoshi/umukozi nyawo." : "Please select a valid barber/worker.",
+          title: isRw ? "Umukozi ntaboneka" : "Worker Not Found",
+          description: isRw ? "Hitamo umukozi wawe." : "Please select a valid worker.",
           variant: "destructive",
         });
         return;
@@ -828,10 +829,12 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Umwogoshi / Umukozi" : "Barber / Worker"}</Label>
+                    <Label className="text-xs font-medium text-gray-600">
+                      {isRw ? "Umukozi" : isFr ? "Travailleur" : "Worker"}
+                    </Label>
                   <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
                     <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                      <SelectValue placeholder={isRw ? "Hitamo umwogoshi" : "Select worker"} />
+                      <SelectValue placeholder={isRw ? "Hitamo umukozi" : isFr ? "Choisir un travailleur" : "Select worker"} />
                     </SelectTrigger>
                     <SelectContent>
                       {workers.length > 0 ? (
@@ -846,7 +849,11 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                         })
                       ) : (
                         <SelectItem value="__no_worker__" disabled>
-                          {isRw ? "Nta bakozi babonetse. Banza wongereho Umwogoshi muri Ibyibanze." : "No workers found. Add Worker first from Quick Actions."}
+                          {isRw
+                            ? "Nta bakozi babonetse. Banza wongereho Umukozi muri Ibyibanze."
+                            : isFr
+                            ? "Aucun travailleur. Ajoutez-en depuis Travailleurs."
+                            : "No workers found. Add Worker first from Workers."}
                         </SelectItem>
                       )}
                     </SelectContent>

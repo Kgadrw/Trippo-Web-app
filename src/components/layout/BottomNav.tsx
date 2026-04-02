@@ -21,7 +21,7 @@ const getMenuItems = (t: (key: string) => string, language: string) => {
     },
     { 
       icon: UserRound, 
-      label: language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeurs" : "Barbers",
+      label: language === "rw" ? "Abakozi" : language === "fr" ? "Travailleurs" : "Workers",
       path: "/barbers" 
     },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },

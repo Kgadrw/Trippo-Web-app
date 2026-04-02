@@ -5,7 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Pencil, Trash2, Scissors } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Scissors, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
@@ -40,6 +41,7 @@ const Products = () => {
   const [price, setPrice] = useState("");
   const [recordModalOpen, setRecordModalOpen] = useState(false);
   const [prefillServiceName, setPrefillServiceName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const services = useMemo(() => {
     if (!query.trim()) return items;
@@ -79,14 +81,22 @@ const Products = () => {
       category: "service",
       stock: 999999,
     } as ServiceItem;
-    if (editing) {
-      await update({ ...editing, ...payload } as any);
-      toast({ title: "Service Updated", description: "Service updated successfully." });
-    } else {
-      await add(payload as any);
-      toast({ title: "Service Added", description: "Service created successfully." });
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await update({ ...editing, ...payload } as any);
+        toast({ title: "Service Updated", description: "Service updated successfully." });
+      } else {
+        await add(payload as any);
+        toast({ title: "Service Added", description: "Service created successfully." });
+      }
+      setOpen(false);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to save service.";
+      toast({ title: "Save Failed", description: message, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
-    setOpen(false);
   };
 
   const handleDelete = async (item: ServiceItem) => {
@@ -103,8 +113,31 @@ const Products = () => {
   if (isLoading) {
     return (
       <AppLayout title={servicesTitle}>
-        <div className="p-4 text-sm text-gray-600">
-          {t("loading")}...
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-10 flex-1 rounded-md" />
+            <Skeleton className="h-10 w-36 shrink-0 rounded-md" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <Skeleton className="h-4 w-[70%]" />
+                  <div className="flex gap-1 shrink-0">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                  </div>
+                </div>
+                <div className="mt-auto space-y-2 pt-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </AppLayout>
     );
@@ -197,7 +230,13 @@ const Products = () => {
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && isSaving) return;
+          setOpen(next);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Service" : "Add Service"}</DialogTitle>
@@ -205,16 +244,45 @@ const Products = () => {
           <div className="space-y-3 py-2">
             <div className="space-y-1">
               <Label>Service Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Hair Cut" />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Hair Cut"
+                disabled={isSaving}
+              />
             </div>
             <div className="space-y-1">
               <Label>Price</Label>
-              <Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
+              <Input
+                type="number"
+                min="0"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0"
+                disabled={isSaving}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>Save</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[7rem]"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {editing ? "Updating..." : "Saving..."}
+                </>
+              ) : editing ? (
+                "Update"
+              ) : (
+                "Save"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

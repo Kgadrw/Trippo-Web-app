@@ -20,7 +20,7 @@ interface AppLayoutProps {
 const desktopMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Package, label: "Services", path: "/products" },
-  { icon: UserRound, label: "Barbers", path: "/barbers" },
+  { icon: UserRound, label: "Workers", path: "/barbers" },
   { icon: ShoppingCart, label: "Sales", path: "/sales" },
   { icon: Wallet, label: "Expenses", path: "/expenses" },
   { icon: FileText, label: "Reports", path: "/reports" },
@@ -39,7 +39,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
     if (item.path === "/products")
       return language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services";
     if (item.path === "/barbers")
-      return language === "rw" ? "Umwogoshi" : language === "fr" ? "Coiffeurs" : "Barbers";
+      return language === "rw" ? "Abakozi" : language === "fr" ? "Travailleurs" : "Workers";
     if (item.path === "/expenses")
       return language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses";
     if (item.path === "/dashboard") return t("dashboard");

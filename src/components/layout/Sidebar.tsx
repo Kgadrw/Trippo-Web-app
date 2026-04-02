@@ -33,7 +33,7 @@ const getMenuItems = (t: (key: string) => string) => {
   return [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
     { icon: Package, label: "Services", path: "/products" },
-    { icon: UserRound, label: "Barbers", path: "/barbers" },
+    { icon: UserRound, label: "Workers", path: "/barbers" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
     { icon: Wallet, label: "Expenses", path: "/expenses" },
     { icon: FileText, label: t("reports"), path: "/reports" },
