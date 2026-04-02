@@ -25,6 +25,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const hasErrorShownRef = useRef(false);
   const isLoadingDataRef = useRef(false);
   const syncManager = SyncManager.getInstance();
+  /** Sales deleted locally; stale in-flight GETs may still include these rows — filter until server catches up */
+  const pendingDeletedSaleIdsRef = useRef<Set<string>>(new Set());
 
   // Map MongoDB _id to id for compatibility
   const mapItem = useCallback((item: any): T => {
@@ -33,6 +35,25 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     return item;
   }, []);
+
+  /** Remove pending-deleted sales rows and prune IDs once server no longer returns them */
+  const reconcileSalesListWithPendingDeletions = useCallback((mappedItems: T[]): T[] => {
+    if (endpoint !== "sales") return mappedItems;
+    const pending = pendingDeletedSaleIdsRef.current;
+    const idsInResponse = new Set(
+      mappedItems
+        .map((mi: any) => String((mi as any)._id ?? (mi as any).id))
+        .filter(Boolean)
+    );
+    for (const id of [...pending]) {
+      if (!idsInResponse.has(id)) pending.delete(id);
+    }
+    if (pending.size === 0) return mappedItems;
+    return mappedItems.filter((item: any) => {
+      const id = (item?._id ?? item?.id)?.toString();
+      return !id || !pending.has(id);
+    });
+  }, [endpoint]);
 
   // Load data from IndexedDB first, then try to sync with API
   // silent: if true, skip setting isLoading (keeps existing data visible during background refresh)
@@ -295,7 +316,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
           
           // For sales and products, update IndexedDB with fresh server data
           if (isSalesEndpoint || shouldUseOfflineFirst) {
-            console.log(`[useApi] ${endpoint}: Updating IndexedDB with fresh server data (${mappedItems.length} items)...`);
+            // Sales: drop rows we already deleted locally (stale GET may still include them)
+            const reconciledItems = reconcileSalesListWithPendingDeletions(mappedItems);
+            console.log(`[useApi] ${endpoint}: Updating IndexedDB with fresh server data (${reconciledItems.length} items)...`);
             
             // Clear all existing items from IndexedDB first
             try {
@@ -305,7 +328,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
             }
             
             // Add all fresh server items with userId for data isolation
-            const itemsWithUserId = mappedItems.map(item => ({
+            const itemsWithUserId = reconciledItems.map(item => ({
               ...item,
               userId: userId
             })) as T[];
@@ -319,9 +342,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
             }
             
             // Sort by timestamp (newest first) for sales
-            let sortedItems = mappedItems;
+            let sortedItems = reconciledItems;
             if (isSalesEndpoint) {
-              sortedItems = [...mappedItems].sort((a, b) => {
+              sortedItems = [...reconciledItems].sort((a, b) => {
                 const aTime = (a as any).timestamp || (a as any).date;
                 const bTime = (b as any).timestamp || (b as any).date;
                 return new Date(bTime).getTime() - new Date(aTime).getTime();
@@ -509,7 +532,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
             // Load from IndexedDB as fallback only if API completely fails
             const localItems = await getAllItems<T>(storeName);
             if (localItems.length > 0) {
-              const mappedItems = localItems.map(mapItem);
+              let mappedItems = localItems.map(mapItem);
+              mappedItems = reconcileSalesListWithPendingDeletions(mappedItems);
               // Sort by timestamp (newest first)
               mappedItems.sort((a, b) => {
                 const aTime = (a as any).timestamp || (a as any).date;
@@ -572,7 +596,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     } finally {
       isLoadingDataRef.current = false;
     }
-  }, [endpoint, defaultValue, mapItem, onError, syncManager]);
+  }, [endpoint, defaultValue, mapItem, onError, syncManager, reconcileSalesListWithPendingDeletions]);
 
   // Track last load time to prevent excessive reloads
   const lastLoadTimeRef = useRef<number>(0);
@@ -1275,6 +1299,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
         console.warn(`[useApi] Failed to delete from IndexedDB:`, deleteError);
       }
       
+      if (endpoint === "sales") {
+        pendingDeletedSaleIdsRef.current.add(String(itemId));
+      }
+
       // Update UI immediately - normalize IDs for comparison
       setItems((prev) =>
         prev.filter((i) => {
@@ -1631,6 +1659,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
               const bTime = (b as any).timestamp || (b as any).date;
               return new Date(bTime).getTime() - new Date(aTime).getTime();
             });
+            return reconcileSalesListWithPendingDeletions(merged);
           }
           
           return merged;
@@ -1641,7 +1670,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     } catch (error) {
       console.warn(`[useApi] ${endpoint}: Error reloading from IndexedDB:`, error);
     }
-  }, [endpoint, mapItem, setItems]);
+  }, [endpoint, mapItem, setItems, reconcileSalesListWithPendingDeletions]);
 
   // ✅ WebSocket integration - listen for real-time updates (ONLY when socket is open)
   useEffect(() => {
@@ -1743,13 +1772,13 @@ export function useApi<T extends { _id?: string; id?: number }>({
       
       const unsubscribeDeleted = websocketManager.subscribe('sale:deleted', (data) => {
         console.log(`[useApi] WebSocket: Sale deleted - immediate update`, data);
-        // Immediately remove the sale from the list
-        if (data && data._id) {
-          setItems((prev) => 
-            prev.filter((s: any) => (s._id || s.id)?.toString() !== data._id?.toString())
+        const delId = data && (data._id ?? data.id)?.toString();
+        if (delId) {
+          pendingDeletedSaleIdsRef.current.delete(delId);
+          setItems((prev) =>
+            prev.filter((s: any) => (s._id || s.id)?.toString() !== delId)
           );
         } else {
-          // Fallback to immediate refresh if deletion data is incomplete
           refresh(true);
         }
       });

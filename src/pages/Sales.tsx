@@ -26,7 +26,7 @@ import {
 import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar, Filter, ArrowUpDown, Trash2, Lock, MoreVertical, Printer, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
-import { playSaleBeep, playErrorBeep, playWarningBeep, playUpdateBeep, initAudio } from "@/lib/sound";
+import { playSaleBeep, playErrorBeep, playWarningBeep, playUpdateBeep, playDeleteBeep, initAudio } from "@/lib/sound";
 import { toast as sonnerToast } from "@/components/ui/sonner";
 import { cn, formatDateWithTime } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -1333,6 +1333,10 @@ const Sales = () => {
 
         // Clear selection
         setSelectedSales(new Set());
+
+        setShowPinDialog(false);
+        setPinInput("");
+        setSingleSaleToDelete(null);
         
         await refreshSales(true);
         await refreshProducts(true);
@@ -1399,6 +1403,10 @@ const Sales = () => {
 
         // Clear selection
         setSelectedSales(new Set());
+
+        setShowPinDialog(false);
+        setPinInput("");
+        setSingleSaleToDelete(null);
         
         await refreshSales(true);
         await refreshProducts(true);
@@ -1443,6 +1451,11 @@ const Sales = () => {
           }
           
         await removeSale(singleSaleToDelete);
+
+        setShowPinDialog(false);
+        setPinInput("");
+        setSingleSaleToDelete(null);
+
         await refreshSales(true);
         await refreshProducts(true);
 
@@ -1455,10 +1468,6 @@ const Sales = () => {
           description: "Sale has been successfully deleted.",
         });
       }
-      
-      setShowPinDialog(false);
-      setPinInput("");
-      setSingleSaleToDelete(null);
     } catch (error) {
       console.error("Error deleting sales:", error);
       toast({
