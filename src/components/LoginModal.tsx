@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
-import { getSubdomainUrl } from "@/hooks/useSubdomain";
+import { getSubdomainUrl, useSubdomain } from "@/hooks/useSubdomain";
 import { Lock, User, Mail, Phone } from "lucide-react";
 
 interface LoginModalProps {
@@ -22,8 +22,13 @@ interface LoginModalProps {
   defaultTab?: "login" | "create";
 }
 
+function isDesktopViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+}
+
 export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginModalProps) {
   const navigate = useNavigate();
+  const subdomain = useSubdomain();
   const { setPin } = usePinAuth(); // Still use setPin for backward compatibility
   const { toast } = useToast();
   
@@ -209,8 +214,12 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           description: "You have successfully logged in.",
         });
         onOpenChange(false);
-        // Redirect to dashboard subdomain with auth token in URL
-        // Pass auth info via URL hash so subdomain can restore localStorage
+        // Desktop on main domain: stay on same origin so localStorage persists across visits
+        if (subdomain === null && isDesktopViewport()) {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+        // Mobile / already on subdomain: dashboard subdomain + hash restores storage on that host
         const authToken = btoa(JSON.stringify({
           userId: response.user._id || response.user.id,
           isAdmin: false,
@@ -338,7 +347,10 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         });
         
         onOpenChange(false);
-        // Redirect to dashboard subdomain with auth token (same as login flow)
+        if (subdomain === null && isDesktopViewport()) {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
         const authToken = btoa(JSON.stringify({
           userId: response.user._id || response.user.id,
           isAdmin: false,

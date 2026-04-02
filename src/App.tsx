@@ -319,16 +319,19 @@ const SubdomainRouter = () => {
   }
 
   // Main domain - use normal routing
-  // Only allow Home page on main domain (trippo.rw)
-  // Dashboard route removed - only accessible via dashboard.trippo.rw subdomain
+  // Home at `/`; app routes including `/dashboard` stay on this origin (desktop session uses one localStorage)
   return (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/verify" element={<VerifyTicket />} />
-      {/* Redirect old dashboard path to dashboard subdomain (only if authenticated) */}
+      {/* Desktop app home on main domain — same origin as login so session persists */}
       <Route
         path="/dashboard"
-        element={<SubdomainRedirect subdomain="dashboard" />}
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        }
       />
       {/* Redirect old admin path to admin subdomain (only if authenticated) */}
       <Route 
