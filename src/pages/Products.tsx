@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Pencil, Trash2, Scissors, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Scissors, Loader2, ArrowUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -16,6 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ServiceItem {
   id?: number;
@@ -25,6 +32,41 @@ interface ServiceItem {
   costPrice?: number;
   category?: string;
   stock?: number;
+}
+
+type ServiceSort = "default" | "name-asc" | "name-desc" | "price-asc" | "price-desc";
+
+function serviceRowId(s: ServiceItem): string {
+  return String((s as { _id?: string; id?: number })._id ?? s.id ?? s.name ?? "");
+}
+
+function compareServices(a: ServiceItem, b: ServiceItem, sort: ServiceSort): number {
+  if (sort === "default") return 0;
+  const nameA = (a.name || "").toLowerCase();
+  const nameB = (b.name || "").toLowerCase();
+  const priceA = Number(a.sellingPrice || 0);
+  const priceB = Number(b.sellingPrice || 0);
+  const idA = serviceRowId(a);
+  const idB = serviceRowId(b);
+  let primary = 0;
+  switch (sort) {
+    case "name-asc":
+      primary = nameA.localeCompare(nameB, undefined, { sensitivity: "base" });
+      break;
+    case "name-desc":
+      primary = nameB.localeCompare(nameA, undefined, { sensitivity: "base" });
+      break;
+    case "price-asc":
+      primary = priceA - priceB;
+      break;
+    case "price-desc":
+      primary = priceB - priceA;
+      break;
+    default:
+      return 0;
+  }
+  if (primary !== 0) return primary;
+  return idA.localeCompare(idB);
 }
 
 const Products = () => {
@@ -43,12 +85,51 @@ const Products = () => {
   const [prefillServiceName, setPrefillServiceName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<ServiceSort>("default");
 
   const services = useMemo(() => {
-    if (!query.trim()) return items;
-    const q = query.toLowerCase();
-    return items.filter((x) => x.name.toLowerCase().includes(q));
-  }, [items, query]);
+    const q = query.trim().toLowerCase();
+    const list = !q ? [...items] : items.filter((x) => x.name.toLowerCase().includes(q));
+    if (sortBy !== "default") {
+      list.sort((a, b) => compareServices(a, b, sortBy));
+    }
+    return list;
+  }, [items, query, sortBy]);
+
+  const sortTriggerLabel =
+    language === "rw"
+      ? "Tunganya"
+      : language === "fr"
+        ? "Trier"
+        : "Sort";
+  const sortOptionLabels: Record<ServiceSort, { rw: string; fr: string; en: string }> = {
+    default: {
+      rw: "Uko byari",
+      fr: "Ordre d'origine",
+      en: "Default order",
+    },
+    "name-asc": {
+      rw: "Izina (A → Z)",
+      fr: "Nom (A → Z)",
+      en: "Name (A–Z)",
+    },
+    "name-desc": {
+      rw: "Izina (Z → A)",
+      fr: "Nom (Z → A)",
+      en: "Name (Z–A)",
+    },
+    "price-asc": {
+      rw: "Igiciro (kirekire → kinini)",
+      fr: "Prix (croissant)",
+      en: "Price (low → high)",
+    },
+    "price-desc": {
+      rw: "Igiciro (kinini → kirekire)",
+      fr: "Prix (décroissant)",
+      en: "Price (high → low)",
+    },
+  };
+  const sortLang = language === "rw" ? "rw" : language === "fr" ? "fr" : "en";
 
   const openCreate = () => {
     setEditing(null);
@@ -127,9 +208,12 @@ const Products = () => {
     return (
       <AppLayout title={servicesTitle}>
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Skeleton className="h-10 flex-1 rounded-md" />
-            <Skeleton className="h-10 w-36 shrink-0 rounded-md" />
+            <div className="flex gap-2 shrink-0">
+              <Skeleton className="h-10 w-full sm:w-[200px] rounded-md" />
+              <Skeleton className="h-10 w-36 rounded-md" />
+            </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -159,8 +243,8 @@ const Products = () => {
   return (
     <AppLayout title={servicesTitle}>
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1 min-w-0">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <Input
               value={query}
@@ -169,10 +253,26 @@ const Products = () => {
               className="pl-9"
             />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={openCreate}>
-            <Plus size={16} />
-            {t("add")} {serviceSingular}
-          </Button>
+          <div className="flex gap-2 shrink-0">
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as ServiceSort)}>
+              <SelectTrigger className="w-full sm:w-[200px] h-10 bg-background" aria-label={sortTriggerLabel}>
+                <ArrowUpDown size={14} className="mr-1 shrink-0 text-muted-foreground" aria-hidden />
+                <SelectValue placeholder={sortTriggerLabel} />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(sortOptionLabels) as ServiceSort[]).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {sortOptionLabels[key][sortLang]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shrink-0" onClick={openCreate}>
+              <Plus size={16} />
+              <span className="hidden sm:inline">{t("add")} {serviceSingular}</span>
+              <span className="sm:hidden">{t("add")}</span>
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
