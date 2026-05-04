@@ -105,11 +105,11 @@ const Home = () => {
     <div className="min-h-screen bg-white lg:bg-white">
       <Navbar />
       
-      {/* Hero Section */}
-      <main className="relative min-h-[calc(100vh-4rem)] flex items-center px-6 lg:px-12 xl:px-20 py-16 lg:py-24">
-        <div className="w-full max-w-7xl mx-auto flex flex-col gap-12">
+      {/* Hero Section — full width on large screens (no narrow centered column) */}
+      <main className="relative min-h-[calc(100vh-4rem)] flex items-center px-4 sm:px-6 lg:px-0 py-16 lg:py-24">
+        <div className="w-full max-w-7xl mx-auto lg:max-w-none lg:mx-0 flex flex-col gap-12">
           {/* Text Content */}
-          <header className="text-left max-w-2xl">
+          <header className="text-left max-w-2xl lg:max-w-none lg:w-full lg:px-10 xl:px-16 2xl:px-20">
             <h1 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-8 leading-tight">
               {t("runBusinessSmarter")}
             </h1>
@@ -177,9 +177,9 @@ const Home = () => {
             </div>
           </div>
 
-                 {/* Feature Cards */}
-                 <section className="w-full" aria-label="Features">
-                   <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6">{t("features")}</h2>
+          {/* Feature Cards */}
+          <section className="w-full lg:px-10 xl:px-16 2xl:px-20" aria-label="Features">
+            <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6">{t("features")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Product Management Card */}
               <div className="border border-gray-200 bg-gray-100 p-4">
@@ -232,9 +232,9 @@ const Home = () => {
           </section>
 
           {/* Testimonials */}
-          <section className="w-full relative bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/testmonial.webp)' }} aria-label="Testimonials">
+          <section className="w-full relative bg-cover bg-center bg-no-repeat lg:min-h-0" style={{ backgroundImage: 'url(/testmonial.webp)' }} aria-label="Testimonials">
             <div className="absolute inset-0 bg-white/70"></div>
-            <div className="relative z-10 py-12 px-6">
+            <div className="relative z-10 py-12 px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20">
               <div className="text-center mb-6">
                        <h2 className="text-base lg:text-lg font-serif font-normal text-white inline-block px-4 py-1.5 bg-gray-600 rounded-full">
                          {t("whatOurUsersSay")}
@@ -293,7 +293,7 @@ const Home = () => {
           </section>
 
           {/* Partners Section */}
-          <section className="w-full" aria-label="Partners">
+          <section className="w-full lg:px-10 xl:px-16 2xl:px-20" aria-label="Partners">
             <div className="text-left mb-6">
               <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900">
                 Our Partners
@@ -311,8 +311,8 @@ const Home = () => {
           </section>
 
           {/* Pricing Cards */}
-          <section className="w-full" aria-label="Pricing">
-                   <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6 text-center">{t("pricing")}</h2>
+          <section className="w-full lg:px-10 xl:px-16 2xl:px-20" aria-label="Pricing">
+            <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6 text-center">{t("pricing")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Basic Plan */}
               <div className="border border-gray-200 bg-gray-100 p-4 flex flex-col">
@@ -368,7 +368,7 @@ const Home = () => {
       
       {/* Footer */}
       <footer className="bg-stone-50 border-t border-gray-200" role="contentinfo">
-        <div className="container mx-auto px-6 lg:px-12 xl:px-20 py-12">
+        <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20 py-12">
           {/* Bottom Section */}
           <div className="flex flex-col items-center gap-4">
             {/* Contact & Social */}
