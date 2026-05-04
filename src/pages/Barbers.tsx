@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,18 +39,79 @@ interface Sale {
   workerName?: string;
 }
 
-function workerKey(b: Barber): string {
-  return String((b as { _id?: string; id?: number })._id ?? b.id ?? b.name ?? "");
+/** Flatten Mongo-style ids and populated refs so sales ↔ workers match after API/JSON. */
+function normalizeEntityId(value: unknown): string {
+  if (value == null || value === "") return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") {
+    return String(value).trim();
+  }
+  if (typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    if (typeof o.$oid === "string") return o.$oid.trim();
+    if (o._id != null) return normalizeEntityId(o._id);
+    if (o.id != null) return normalizeEntityId(o.id);
+  }
+  return "";
 }
 
-/** Sales attributed to this worker (by id, or by name if legacy rows lack workerId). */
+function idsEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length === 24 && b.length === 24 && /^[a-f0-9]+$/i.test(a) && /^[a-f0-9]+$/i.test(b)) {
+    return a.toLowerCase() === b.toLowerCase();
+  }
+  return false;
+}
+
+function workerIdCandidates(worker: Barber): string[] {
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    const n = normalizeEntityId(v);
+    if (n && !out.some((x) => idsEqual(x, n))) out.push(n);
+  };
+  push((worker as { _id?: unknown })._id);
+  push((worker as { id?: unknown }).id);
+  return out;
+}
+
+/** Stable row / map key: prefer Mongo id, then numeric id string, then name. */
+function workerKey(b: Barber): string {
+  const ids = workerIdCandidates(b);
+  if (ids.length > 0) return ids[0];
+  const name = (b.name || "").trim().toLowerCase();
+  return name ? `name:${name}` : "";
+}
+
+/** Collect every id shape the backend might put on a sale for the worker/barber. */
+function saleWorkerIdStrings(sale: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    const n = normalizeEntityId(v);
+    if (n && !out.some((x) => idsEqual(x, n))) out.push(n);
+  };
+  push(sale.workerId);
+  push(sale.barberId);
+  const w = sale.worker;
+  if (w && typeof w === "object") {
+    push((w as { _id?: unknown })._id);
+    push((w as { id?: unknown }).id);
+  }
+  return out;
+}
+
+/** Sales recorded for this worker (matches RecordSaleModal / Sales worker fields). */
 function saleBelongsToWorker(sale: Sale, worker: Barber): boolean {
-  const wk = workerKey(worker);
-  const sid = sale.workerId != null ? String(sale.workerId).trim() : "";
-  if (sid) return Boolean(wk && sid === wk);
+  const wIds = workerIdCandidates(worker);
+  const sIds = saleWorkerIdStrings(sale as unknown as Record<string, unknown>);
+  for (const sid of sIds) {
+    for (const wid of wIds) {
+      if (idsEqual(sid, wid)) return true;
+    }
+  }
   const wName = (worker.name || "").trim().toLowerCase();
-  const sName = (sale.workerName || "").trim().toLowerCase();
-  return Boolean(wName && sName && wName === sName);
+  const sName = ((sale.workerName || "") as string).trim().toLowerCase();
+  if (wName && sName && wName === sName) return true;
+  return false;
 }
 
 export default function Barbers() {
@@ -60,10 +121,22 @@ export default function Barbers() {
     endpoint: "clients",
     defaultValue: [],
   });
-  const { items: sales, isLoading: salesLoading } = useApi<Sale>({
+  const { items: sales, isLoading: salesLoading, refresh: refreshSales } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
   });
+
+  useEffect(() => {
+    const reload = () => {
+      void refreshSales(true);
+    };
+    window.addEventListener("sales-should-refresh", reload);
+    window.addEventListener("sale-recorded", reload);
+    return () => {
+      window.removeEventListener("sales-should-refresh", reload);
+      window.removeEventListener("sale-recorded", reload);
+    };
+  }, [refreshSales]);
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
