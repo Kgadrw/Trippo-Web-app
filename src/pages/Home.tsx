@@ -16,8 +16,7 @@ const Home = () => {
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
   const [isMobile, setIsMobile] = useState(false);
 
-  // Only allow Home page on main domain
-  // If user is on subdomain, they should be redirected by App.tsx routing
+  // Only allow Home page on main domain; send returning users straight to the app
   useEffect(() => {
     const hostname = window.location.hostname;
     const isMainDomain = hostname === 'trippo.rw' || 
@@ -32,8 +31,19 @@ const Home = () => {
       return;
     }
 
-    // No auto-redirect - allow authenticated users to access home page normally
-  }, []);
+    if (!isMainDomain) return;
+
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+    if (!userId || !authenticated) return;
+
+    const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
+    if (isAdmin && userId === "admin") {
+      window.location.replace(getSubdomainUrl("admin"));
+      return;
+    }
+    navigate("/dashboard", { replace: true });
+  }, [navigate]);
 
   // Force English language on homepage
   useEffect(() => {
