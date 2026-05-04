@@ -18,7 +18,6 @@ const getApiBaseUrl = (): string => {
                        (import.meta.env.DEV && import.meta.env.VITE_USE_LOCALHOST !== 'false');
   
   if (useLocalhost) {
-    // Default localhost port (change if your backend runs on different port)
     const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
     return `http://localhost:${localPort}/api`;
   }
@@ -871,6 +870,35 @@ export const expenseApi = {
 
   async delete(id: string): Promise<ApiResponse> {
     return request(`/expenses/${id}`, { method: "DELETE" });
+  },
+};
+
+// Inventory API functions
+export const inventoryApi = {
+  async getAll(): Promise<ApiResponse> {
+    return request('/inventories', { method: 'GET' });
+  },
+
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/inventories/${id}`, { method: 'GET' });
+  },
+
+  async create(data: { name: string; description?: string }): Promise<ApiResponse> {
+    return request('/inventories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: { name?: string; description?: string }): Promise<ApiResponse> {
+    return request(`/inventories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/inventories/${id}`, { method: 'DELETE' });
   },
 };
 

@@ -10,6 +10,7 @@ import { useApi } from "@/hooks/useApi";
 import { playProductBeep, playErrorBeep, playWarningBeep, playDeleteBeep, initAudio } from "@/lib/sound";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslation } from "@/hooks/useTranslation";
+import { inventoryApi } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -53,6 +54,7 @@ interface Product {
   minStock?: number;
   priceType?: "perQuantity" | "perPackage";
   costPriceType?: "perQuantity" | "perPackage";
+  inventoryId?: string | null;
 }
 
 interface ProductFormData {
@@ -69,6 +71,7 @@ interface ProductFormData {
   costPriceType: "perQuantity" | "perPackage";
   productType: string;
   minStock: string;
+  inventoryId: string; // '' means unassigned
 }
 
 const AddProduct = () => {
@@ -77,6 +80,7 @@ const AddProduct = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
+  const inventoryIdFromUrl = searchParams.get("inventoryId");
   const isBulkMode = searchParams.get("mode") === "bulk";
   const editProductId = searchParams.get("edit");
   const isEditMode = !!editProductId;
@@ -122,8 +126,21 @@ const AddProduct = () => {
     costPriceType: "perQuantity",
     productType: "",
     minStock: "",
+    inventoryId: inventoryIdFromUrl || "",
   });
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const [inventories, setInventories] = useState<Array<{ _id?: string; id?: number; name: string }>>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await inventoryApi.getAll();
+        setInventories(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        // Inventory is optional; keep silent on failure/offline.
+      }
+    })();
+  }, []);
 
   // Load product data when in edit mode
   useEffect(() => {
@@ -157,12 +174,13 @@ const AddProduct = () => {
           costPriceType: product.costPriceType || "perQuantity",
           productType: product.productType || "",
           minStock: minStockValue?.toString() || "",
+          inventoryId: product.inventoryId ? String(product.inventoryId) : "",
         });
       }
     }
   }, [isEditMode, editProductId, products]);
   const [bulkProducts, setBulkProducts] = useState<ProductFormData[]>([
-    { name: "", category: categoryFromUrl || "", manufacturedDate: "", expiryDate: "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", priceType: "perQuantity", costPriceType: "perQuantity", productType: "", minStock: "" }
+    { name: "", category: categoryFromUrl || "", manufacturedDate: "", expiryDate: "", costPrice: "", sellingPrice: "", stock: "", isPackage: false, packageQuantity: "", priceType: "perQuantity", costPriceType: "perQuantity", productType: "", minStock: "", inventoryId: inventoryIdFromUrl || "" }
   ]);
   
   // State for out-of-stock duplicate dialog
@@ -188,6 +206,7 @@ const AddProduct = () => {
         costPriceType: "perQuantity",
         productType: "",
         minStock: "",
+        inventoryId: inventoryIdFromUrl || "",
       },
     ]);
   };
@@ -383,6 +402,7 @@ const AddProduct = () => {
         costPriceType: packageQty ? formData.costPriceType : undefined,
         productType: formData.productType || undefined,
         minStock: minStock,
+        inventoryId: formData.inventoryId ? formData.inventoryId : null,
       };
       
       try {
@@ -725,6 +745,7 @@ const AddProduct = () => {
         costPriceType: packageQty ? formData.costPriceType : undefined,
         productType: formData.productType || undefined,
         minStock: minStock,
+        inventoryId: formData.inventoryId ? formData.inventoryId : null,
       };
 
       // Check for duplicate
@@ -1274,6 +1295,34 @@ const AddProduct = () => {
                     placeholder="e.g., 12 (for a box of 12)"
                   />
                   <p className="text-xs text-muted-foreground">Leave empty if product is not packaged. Number of individual items in one package/box</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Inventory (optional)</Label>
+                  <Select
+                    value={formData.inventoryId}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, inventoryId: v === "__unassigned__" ? "" : v })
+                    }
+                  >
+                    <SelectTrigger className="input-field">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                      {inventories.map((inv) => {
+                        const id = String((inv as any)._id ?? (inv as any).id ?? "");
+                        if (!id) return null;
+                        return (
+                          <SelectItem key={id} value={id}>
+                            {inv.name}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">You can manage inventories in the Inventories page.</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -57,6 +57,8 @@ import Sales from "./pages/Sales";
 import Barbers from "./pages/Barbers";
 import Reports from "./pages/Reports";
 import Expenses from "./pages/Expenses";
+import Inventories from "./pages/Inventories";
+import InventoryDetail from "./pages/InventoryDetail";
 import Settings from "./pages/Settings";
 import SettingsBusiness from "./pages/settings/SettingsBusiness";
 import SettingsLanguage from "./pages/settings/SettingsLanguage";
@@ -94,6 +96,22 @@ const SubdomainRouter = () => {
               <Products />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/inventories"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Inventories />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventories/:id"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <InventoryDetail />
+            </ProtectedRoute>
+          }
         />
         <Route 
           path="/products/add" 
@@ -216,6 +234,22 @@ const SubdomainRouter = () => {
               <Products />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/inventories"
+          element={
+            <ProtectedRoute>
+              <Inventories />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventories/:id"
+          element={
+            <ProtectedRoute>
+              <InventoryDetail />
+            </ProtectedRoute>
+          }
         />
         <Route 
           path="/products/add" 
@@ -345,6 +379,22 @@ const SubdomainRouter = () => {
             <Products />
           </ProtectedRoute>
         } 
+      />
+      <Route
+        path="/inventories"
+        element={
+          <ProtectedRoute>
+            <Inventories />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventories/:id"
+        element={
+          <ProtectedRoute>
+            <InventoryDetail />
+          </ProtectedRoute>
+        }
       />
       <Route 
         path="/products/add" 

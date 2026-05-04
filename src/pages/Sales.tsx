@@ -47,7 +47,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { saleApi } from "@/lib/api";
+import { inventoryApi, saleApi } from "@/lib/api";
 import { buildDailyTicketsPdf, buildSaleTicketPdf, downloadPdf, printPdf, type TicketSale } from "@/lib/tickets";
 
 interface Product {
@@ -64,6 +64,7 @@ interface Product {
   costPriceType?: "perQuantity" | "perPackage"; // "perQuantity" = cost price per individual item, "perPackage" = cost price for whole package
   productType?: string;
   minStock?: number;
+  inventoryId?: string | null;
 }
 
 interface Sale {
@@ -81,6 +82,7 @@ interface Sale {
   serviceName?: string;
   workerId?: string;
   workerName?: string;
+  inventoryId?: string | null;
 }
 
 interface Expense {
@@ -388,6 +390,19 @@ const Sales = () => {
   const [endDate, setEndDate] = useState("");
   const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "product-asc" | "product-desc" | "revenue-desc" | "revenue-asc" | "profit-desc" | "profit-asc">("date-desc");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [inventories, setInventories] = useState<Array<{ _id?: string; id?: number; name: string }>>([]);
+  const [selectedInventoryId, setSelectedInventoryId] = useState<string>(""); // ''=all, '__unassigned__'=null
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await inventoryApi.getAll();
+        setInventories(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        // inventory is optional; ignore
+      }
+    })();
+  }, []);
 
   // Ticket export (barber/day)
   const [ticketDay, setTicketDay] = useState(getTodayDate());
@@ -502,6 +517,15 @@ const Sales = () => {
     }
   };
 
+  const filteredProductsForSale = useMemo(() => {
+    if (!selectedInventoryId) return products;
+    return products.filter((p: any) => {
+      const inv = p.inventoryId ?? null;
+      if (selectedInventoryId === "__unassigned__") return !inv;
+      return inv && String(inv) === String(selectedInventoryId);
+    });
+  }, [products, selectedInventoryId]);
+
   const addBulkRow = () => {
     setBulkSales([...bulkSales, { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
   };
@@ -555,6 +579,15 @@ const Sales = () => {
             return id.toString() === sale.product;
           });
           if (!product) return null;
+
+          // Inventory filter in bulk mode (optional UI filter)
+          if (selectedInventoryId) {
+            const productInv = (product.inventoryId ?? null) as any;
+            if (selectedInventoryId === "__unassigned__" ? !!productInv : String(productInv) !== String(selectedInventoryId)) {
+              invalidSales.push(`${product.name}: Not in selected inventory`);
+              return null;
+            }
+          }
           
           const qty = parseInt(sale.quantity) || 1;
           
@@ -590,6 +623,7 @@ const Sales = () => {
           return {
             product: product.name,
             productId: (product as any)._id || product.id,
+            inventoryId: selectedInventoryId === "__unassigned__" ? null : (selectedInventoryId ? selectedInventoryId : (product.inventoryId ?? null)),
             quantity: qty,
             revenue,
             cost,
@@ -853,6 +887,7 @@ const Sales = () => {
       const newSale = {
         product: product.name,
         productId: (product as any)._id || product.id,
+        inventoryId: selectedInventoryId === "__unassigned__" ? null : (selectedInventoryId ? selectedInventoryId : (product.inventoryId ?? null)),
         quantity: qty,
         revenue,
         cost,
@@ -951,6 +986,15 @@ const Sales = () => {
   // Filter and sort sales
   const filteredSales = useMemo(() => {
     let filtered = [...sales];
+
+    // Filter by inventory
+    if (selectedInventoryId) {
+      filtered = filtered.filter((sale: any) => {
+        const inv = sale.inventoryId ?? null;
+        if (selectedInventoryId === "__unassigned__") return !inv;
+        return inv && String(inv) === String(selectedInventoryId);
+      });
+    }
     
     // Filter by search query (product/service/worker name)
     if (searchQuery.trim()) {
@@ -1019,7 +1063,7 @@ const Sales = () => {
     });
     
     return filtered;
-  }, [sales, searchQuery, startDate, endDate, sortBy]);
+  }, [sales, selectedInventoryId, searchQuery, startDate, endDate, sortBy]);
 
   const ticketBarberOptions = useMemo(() => {
     const map = new Map<string, { key: string; label: string }>();
@@ -1180,6 +1224,7 @@ const Sales = () => {
     setStartDate("");
     setEndDate("");
     setSortBy("date-desc");
+    setSelectedInventoryId("");
   };
 
   // Clear selection when exiting selection mode
@@ -1683,6 +1728,33 @@ const Sales = () => {
                     {isRw ? "Shungura ku itariki" : isFr ? "Filtrer par date" : "Filter by date"}
                   </div>
 
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-medium text-gray-600">
+                      {isRw ? "Stoki" : isFr ? "Stock" : "Inventory"}
+                    </div>
+                    <Select
+                      value={selectedInventoryId}
+                      onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
+                    >
+                      <SelectTrigger className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                        <SelectValue placeholder={isRw ? "Byose" : isFr ? "Tous" : "All"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">{isRw ? "Byose" : isFr ? "Tous" : "All"}</SelectItem>
+                        <SelectItem value="__unassigned__">{isRw ? "Nta stoki" : isFr ? "Non assigné" : "Unassigned"}</SelectItem>
+                        {inventories.map((inv) => {
+                          const id = String((inv as any)._id ?? (inv as any).id ?? "");
+                          if (!id) return null;
+                          return (
+                            <SelectItem key={id} value={id}>
+                              {inv.name}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     {/* Start Date */}
                     <div className="space-y-1">
@@ -1889,6 +1961,29 @@ const Sales = () => {
             {showFilters && (
               <div className="space-y-3">
                 <div className="grid grid-cols-5 gap-3">
+                  {/* Inventory */}
+                  <Select
+                    value={selectedInventoryId}
+                    onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                      <SelectValue placeholder={isRw ? "Byose" : isFr ? "Tous" : "All"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">{isRw ? "Byose" : isFr ? "Tous" : "All"}</SelectItem>
+                      <SelectItem value="__unassigned__">{isRw ? "Nta stoki" : isFr ? "Non assigné" : "Unassigned"}</SelectItem>
+                      {inventories.map((inv) => {
+                        const id = String((inv as any)._id ?? (inv as any).id ?? "");
+                        if (!id) return null;
+                        return (
+                          <SelectItem key={id} value={id}>
+                            {inv.name}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+
                   {/* Start Date */}
                   <div className="relative">
                     <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />

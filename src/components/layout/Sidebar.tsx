@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
+  Boxes,
   ShoppingCart,
   FileText,
   Wallet,
@@ -33,6 +34,7 @@ const getMenuItems = (t: (key: string) => string) => {
   return [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
     { icon: Package, label: "Services", path: "/products" },
+    { icon: Boxes, label: "Inventories", path: "/inventories" },
     { icon: UserRound, label: "Workers", path: "/barbers" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
     { icon: Wallet, label: "Expenses", path: "/expenses" },
