@@ -28,29 +28,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Users, 
-  Package, 
-  ShoppingCart, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Users,
+  Package,
+  ShoppingCart,
+  DollarSign,
+  TrendingUp,
   Activity,
   Server,
   Database,
   Clock,
-  AlertCircle,
   Radio,
   BarChart3,
   Trash2,
-  Calendar,
   Mail,
   Bell,
   CheckCircle,
-  XCircle
+  MoreHorizontal,
 } from "lucide-react";
 import {
   BarChart,
@@ -64,10 +69,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  Area,
-  AreaChart,
 } from "recharts";
 import { adminApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +99,8 @@ interface User {
   saleCount: number;
   totalRevenue: number;
   totalProfit: number;
+  /** When false, account is disabled and should not be able to sign in. Omitted/true = active. */
+  isActive?: boolean;
   paymentPlan?: {
     active?: boolean;
     amount?: number;
@@ -188,39 +191,6 @@ interface ApiStats {
   }>;
 }
 
-interface ScheduleStats {
-  totalSchedules: number;
-  schedulesByStatus: Record<string, number>;
-  schedulesByFrequency: Record<string, number>;
-  emailStats: {
-    totalWithNotifications: number;
-    totalEmailsSent: number;
-    schedulesWithUserNotification: number;
-    schedulesWithClientNotification: number;
-  };
-  recentSchedules: number;
-  schedulesByUser: Array<{
-    userId: string;
-    userName: string;
-    userEmail: string;
-    count: number;
-    totalAmount: number;
-    completed: number;
-    emailsSent: number;
-  }>;
-  scheduleActivity: Array<{
-    _id: string;
-    count: number;
-  }>;
-  emailActivity: Array<{
-    _id: string;
-    count: number;
-  }>;
-  upcomingSchedules: number;
-  overdueSchedules: number;
-  totalAmount: number;
-}
-
 const AdminDashboard = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -231,8 +201,10 @@ const AdminDashboard = () => {
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [apiStats, setApiStats] = useState<ApiStats | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "activity" | "health" | "schedules" | "notifications">("overview");
-  const [scheduleStats, setScheduleStats] = useState<ScheduleStats | null>(null);
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "users" | "activity" | "accounts" | "notifications"
+  >("overview");
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -314,6 +286,28 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSetUserAccountActive = async (user: User, isActive: boolean) => {
+    setTogglingUserId(user._id);
+    try {
+      await adminApi.setUserAccountStatus(user._id, isActive);
+      setUsers((prev) => prev.map((u) => (u._id === user._id ? { ...u, isActive } : u)));
+      toast({
+        title: isActive ? "Account activated" : "Account deactivated",
+        description: isActive
+          ? `${user.name} can sign in again.`
+          : `${user.name} cannot sign in until the account is activated again.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error?.message || error?.response?.error || "Could not update account status.",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingUserId(null);
+    }
+  };
+
   const loadNotificationHistory = async () => {
     try {
       setNotificationHistoryLoading(true);
@@ -379,13 +373,12 @@ const AdminDashboard = () => {
       lastLoadTimeRef.current = now;
       
       // Load data in batches to avoid rate limiting
-      const [statsRes, usersRes, activityRes, usageRes, healthRes, scheduleStatsRes] = await Promise.all([
+      const [statsRes, usersRes, activityRes, usageRes, healthRes] = await Promise.all([
         adminApi.getSystemStats(),
         adminApi.getAllUsers(),
         adminApi.getUserActivity(7),
         adminApi.getUserUsage(30),
         adminApi.getSystemHealth(),
-        adminApi.getScheduleStats(30),
       ]);
 
       if (statsRes.data) setStats(statsRes.data);
@@ -396,7 +389,6 @@ const AdminDashboard = () => {
         setUsageSummary(usageRes.data.summary || null);
       }
       if (healthRes.data) setHealth(healthRes.data);
-      if (scheduleStatsRes.data) setScheduleStats(scheduleStatsRes.data);
       
       // Load API stats separately to avoid rate limits
       try {
@@ -743,7 +735,7 @@ const AdminDashboard = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Total Profit</span>
                     <span className="text-green-600">
-                      {stats?.totalProfit ? formatCurrency(stats.totalProfit) : "$0"}
+                      {stats?.totalProfit ? formatCurrency(stats.totalProfit) : formatCurrency(0)}
                     </span>
                   </div>
                 </CardContent>
@@ -769,6 +761,181 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            <div className="pt-6 border-t border-border/60 space-y-4">
+              <h2 className="text-base font-semibold tracking-tight px-1">System health</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-normal flex items-center gap-2">
+                      <Server className="h-4 w-4" />
+                      System status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          health?.database === "connected" ? "bg-green-500" : "bg-red-500"
+                        )}
+                      />
+                      <span className="text-sm capitalize">{health?.database || "Unknown"}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Uptime: {health ? formatUptime(health.uptime) : "N/A"}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-normal flex items-center gap-2">
+                      <Radio className="h-4 w-4" />
+                      API requests
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl">{apiStats?.recentRequests || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Last hour • {apiStats?.dailyRequests || 0} today
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-normal flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Avg response
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl">{apiStats?.avgResponseTime || 0}ms</div>
+                    <p className="text-xs text-muted-foreground">
+                      {apiStats?.totalRequests || 0} total requests
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-normal flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Memory
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl">{health?.memory.used || 0} MB</div>
+                    <p className="text-xs text-muted-foreground">
+                      {health ? Math.round((health.memory.used / health.memory.total) * 100) : 0}% used
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="font-normal flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Uptime timeline
+                  </CardTitle>
+                  <CardDescription>System availability</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {health && (
+                    <UptimeTimeline
+                      uptime={health.uptime}
+                      serverStartTime={health.serverStartTime}
+                      statusHistory={health.statusHistory}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="font-normal flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      API requests (24h)
+                    </CardTitle>
+                    <CardDescription>Hourly request distribution</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {apiStats?.hourlyRequests && apiStats.hourlyRequests.length > 0 ? (
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={apiStats.hourlyRequests}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis
+                              dataKey="label"
+                              tick={{ fontSize: 11 }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={60}
+                            />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 flex items-center justify-center text-muted-foreground">
+                        No API request data available
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="font-normal flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Endpoint distribution
+                    </CardTitle>
+                    <CardDescription>Most used API endpoints</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {apiStats?.endpointStats && apiStats.endpointStats.length > 0 ? (
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={apiStats.endpointStats.slice(0, 5)}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ endpoint, percent }) => {
+                                const parts = typeof endpoint === "string" ? endpoint.split(" ") : [];
+                                const path = parts.length > 1 ? parts[1] : endpoint || "Unknown";
+                                return `${path}: ${(percent * 100).toFixed(0)}%`;
+                              }}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="count"
+                            >
+                              {apiStats.endpointStats.slice(0, 5).map((_, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"][index % 5]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 flex items-center justify-center text-muted-foreground">
+                        No endpoint data available
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </>
         )}
@@ -809,7 +976,8 @@ const AdminDashboard = () => {
                       <th className="text-left p-2 text-sm">Profit</th>
                       <th className="text-left p-2 text-sm">Joined</th>
                       <th className="text-left p-2 text-sm">Next Pay</th>
-                      <th className="text-left p-2 text-sm">Actions</th>
+                      <th className="text-left p-2 text-sm">Account</th>
+                      <th className="text-right p-2 text-sm w-12">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -839,55 +1007,69 @@ const AdminDashboard = () => {
                           </div>
                         </td>
                         <td className="p-2">
-                          <div className="flex items-center gap-2">
-                            {user.email && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleSendEmailClick(user)}
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                title="Send email to user"
-                              >
-                                <Mail size={16} />
-                              </Button>
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                              user.isActive !== false
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSendNotificationClick(user)}
-                              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                              title="Send in-app notification"
-                            >
-                              <Bell size={16} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openBilling(user)}
-                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                              title="Edit payment plan"
-                            >
-                              <DollarSign size={16} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => markPaid(user)}
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              title="Mark as paid"
-                            >
-                              <CheckCircle size={16} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteClick(user)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Delete user and all their data"
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </div>
+                          >
+                            {user.isActive !== false ? "Active" : "Disabled"}
+                          </span>
+                        </td>
+                        <td className="p-2 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="User actions">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              {user.email ? (
+                                <DropdownMenuItem onClick={() => handleSendEmailClick(user)}>
+                                  <Mail className="mr-2 h-4 w-4" />
+                                  Send email
+                                </DropdownMenuItem>
+                              ) : null}
+                              <DropdownMenuItem onClick={() => handleSendNotificationClick(user)}>
+                                <Bell className="mr-2 h-4 w-4" />
+                                Send notification
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openBilling(user)}>
+                                <DollarSign className="mr-2 h-4 w-4" />
+                                Payment plan
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => markPaid(user)}>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Mark paid
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {user.isActive !== false ? (
+                                <DropdownMenuItem
+                                  onClick={() => handleSetUserAccountActive(user, false)}
+                                  disabled={togglingUserId === user._id}
+                                >
+                                  Deactivate account
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => handleSetUserAccountActive(user, true)}
+                                  disabled={togglingUserId === user._id}
+                                >
+                                  Activate account
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onClick={() => handleDeleteClick(user)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete user
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     ))}
@@ -1126,311 +1308,72 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Schedules Tab */}
-        {activeTab === "schedules" && (
-          <div className="space-y-4">
-            {/* Schedule Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Total Schedules
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{scheduleStats?.totalSchedules || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {scheduleStats?.recentSchedules || 0} created in last 30 days
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Emails Sent
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{scheduleStats?.emailStats?.totalEmailsSent || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {scheduleStats?.emailStats?.totalWithNotifications || 0} with notifications enabled
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4" />
-                    Upcoming
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{scheduleStats?.upcomingSchedules || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {scheduleStats?.overdueSchedules || 0} overdue
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Total Amount
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(scheduleStats?.totalAmount || 0)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Across all schedules
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Schedules by Status */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Schedules by Status
-                  </CardTitle>
-                  <CardDescription>Distribution of schedule statuses</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {scheduleStats?.schedulesByStatus ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={Object.entries(scheduleStats.schedulesByStatus).map(([status, count]) => ({
-                              name: status.charAt(0).toUpperCase() + status.slice(1),
-                              value: count,
-                            }))}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
+        {/* Accounts — activate / deactivate sign-in (replaces former Schedules admin page) */}
+        {activeTab === "accounts" && (
+          <Card className="bg-white">
+            <CardHeader>
+              <CardTitle className="font-normal">User accounts</CardTitle>
+              <CardDescription>
+                Turn sign-in on or off per user. Disabled accounts cannot log in until you activate them again.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 text-sm">Name</th>
+                      <th className="text-left p-2 text-sm">Email</th>
+                      <th className="text-left p-2 text-sm">Business</th>
+                      <th className="text-left p-2 text-sm">Access</th>
+                      <th className="text-right p-2 text-sm">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                      <tr key={user._id} className="border-b hover:bg-gray-50">
+                        <td className="p-2 text-sm font-medium">{user.name}</td>
+                        <td className="p-2 text-sm text-muted-foreground">{user.email || "—"}</td>
+                        <td className="p-2 text-sm text-muted-foreground">{user.businessName || "—"}</td>
+                        <td className="p-2">
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                              user.isActive !== false
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            )}
                           >
-                            {Object.entries(scheduleStats.schedulesByStatus).map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#ef4444'][index % 3]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      No schedule data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Schedules by Frequency */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Schedules by Frequency
-                  </CardTitle>
-                  <CardDescription>Distribution of schedule frequencies</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {scheduleStats?.schedulesByFrequency ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={Object.entries(scheduleStats.schedulesByFrequency).map(([frequency, count]) => ({
-                          name: frequency.charAt(0).toUpperCase() + frequency.slice(1),
-                          count,
-                        }))}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      No frequency data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Schedule Activity and Email Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Schedule Activity Over Time */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Schedule Activity (Last 30 Days)
-                  </CardTitle>
-                  <CardDescription>New schedules created over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {scheduleStats?.scheduleActivity && scheduleStats.scheduleActivity.length > 0 ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={scheduleStats.scheduleActivity.map(item => ({
-                          date: item._id,
-                          count: item.count,
-                        }))}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip />
-                          <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      No activity data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Email Activity Over Time */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    Email Activity (Last 30 Days)
-                  </CardTitle>
-                  <CardDescription>Emails sent over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {scheduleStats?.emailActivity && scheduleStats.emailActivity.length > 0 ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={scheduleStats.emailActivity.map(item => ({
-                          date: item._id,
-                          count: item.count,
-                        }))}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip />
-                          <Area type="monotone" dataKey="count" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      No email activity data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Email Statistics and Top Users */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Email Statistics */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    Email Notification Statistics
-                  </CardTitle>
-                  <CardDescription>Email notification breakdown</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium">Total with Notifications</p>
-                        <p className="text-xs text-muted-foreground">Schedules with notifications enabled</p>
-                      </div>
-                      <div className="text-2xl font-bold">{scheduleStats?.emailStats?.totalWithNotifications || 0}</div>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium">User Notifications</p>
-                        <p className="text-xs text-muted-foreground">Schedules with user notifications</p>
-                      </div>
-                      <div className="text-2xl font-bold text-blue-600">{scheduleStats?.emailStats?.schedulesWithUserNotification || 0}</div>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium">Client Notifications</p>
-                        <p className="text-xs text-muted-foreground">Schedules with client notifications</p>
-                      </div>
-                      <div className="text-2xl font-bold text-green-600">{scheduleStats?.emailStats?.schedulesWithClientNotification || 0}</div>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium">Total Emails Sent</p>
-                        <p className="text-xs text-muted-foreground">Emails successfully sent</p>
-                      </div>
-                      <div className="text-2xl font-bold text-purple-600">{scheduleStats?.emailStats?.totalEmailsSent || 0}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Top Users by Schedule Usage */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Top Users by Schedule Usage
-                  </CardTitle>
-                  <CardDescription>Users with most schedules</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {scheduleStats?.schedulesByUser && scheduleStats.schedulesByUser.length > 0 ? (
-                      scheduleStats.schedulesByUser.map((user, index) => (
-                        <div key={user.userId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-gray-500">#{index + 1}</span>
-                              <p className="text-sm font-medium truncate">{user.userName}</p>
-                            </div>
-                            <p className="text-xs text-muted-foreground truncate">{user.userEmail}</p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="text-xs text-muted-foreground">
-                                {user.completed} completed
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {user.emailsSent} emails sent
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right ml-4">
-                            <p className="text-sm font-bold">{user.count}</p>
-                            <p className="text-xs text-muted-foreground">schedules</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatCurrency(user.totalAmount || 0)}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No user schedule data available</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                            {user.isActive !== false ? "Active" : "Disabled"}
+                          </span>
+                        </td>
+                        <td className="p-2 text-right">
+                          {user.isActive !== false ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={togglingUserId === user._id}
+                              onClick={() => handleSetUserAccountActive(user, false)}
+                            >
+                              {togglingUserId === user._id ? "…" : "Deactivate"}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              disabled={togglingUserId === user._id}
+                              onClick={() => handleSetUserAccountActive(user, true)}
+                            >
+                              {togglingUserId === user._id ? "…" : "Activate"}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Notifications Tab */}
@@ -1501,269 +1444,6 @@ const AdminDashboard = () => {
               )}
             </CardContent>
           </Card>
-        )}
-
-        {/* System Health Tab */}
-        {activeTab === "health" && (
-          <div className="space-y-4">
-            {/* System Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <Server className="h-4 w-4" />
-                    System Status
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "h-2 w-2 rounded-full",
-                        health?.database === "connected" ? "bg-green-500" : "bg-red-500"
-                      )}
-                    />
-                    <span className="text-sm capitalize">{health?.database || "Unknown"}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Uptime: {health ? formatUptime(health.uptime) : "N/A"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <Radio className="h-4 w-4" />
-                    API Requests
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl">{apiStats?.recentRequests || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Last hour • {apiStats?.dailyRequests || 0} today
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Avg Response
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl">{apiStats?.avgResponseTime || 0}ms</div>
-                  <p className="text-xs text-muted-foreground">
-                    {apiStats?.totalRequests || 0} total requests
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-normal flex items-center gap-2">
-                    <Database className="h-4 w-4" />
-                    Memory
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl">{health?.memory.used || 0} MB</div>
-                  <p className="text-xs text-muted-foreground">
-                    {health ? Math.round((health.memory.used / health.memory.total) * 100) : 0}% used
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Uptime Wave Visualization */}
-            <Card className="bg-white">
-              <CardHeader>
-                <CardTitle className="font-normal flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  System Uptime Timeline
-                </CardTitle>
-                <CardDescription>Visual representation of system availability</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {health && (
-                  <UptimeTimeline 
-                    uptime={health.uptime} 
-                    serverStartTime={health.serverStartTime}
-                    statusHistory={health.statusHistory}
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* API Requests Over Time */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    API Requests (Last 24 Hours)
-                  </CardTitle>
-                  <CardDescription>Hourly request distribution</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {apiStats?.hourlyRequests && apiStats.hourlyRequests.length > 0 ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={apiStats.hourlyRequests}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis 
-                            dataKey="label" 
-                            tick={{ fontSize: 11 }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={60}
-                          />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      No API request data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Endpoint Distribution Pie Chart */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Endpoint Distribution
-                  </CardTitle>
-                  <CardDescription>Most used API endpoints</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {apiStats?.endpointStats && apiStats.endpointStats.length > 0 ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={apiStats.endpointStats.slice(0, 5)}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ endpoint, percent }) => {
-                              const parts = typeof endpoint === 'string' ? endpoint.split(' ') : [];
-                              const path = parts.length > 1 ? parts[1] : (endpoint || 'Unknown');
-                              return `${path}: ${(percent * 100).toFixed(0)}%`;
-                            }}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="count"
-                          >
-                            {apiStats.endpointStats.slice(0, 5).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground">
-                      No endpoint data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Live API Requests and Endpoint Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Live API Requests */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <Radio className="h-5 w-5" />
-                    Live API Requests
-                  </CardTitle>
-                  <CardDescription>Most recent API calls</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {apiStats?.liveRequests && apiStats.liveRequests.length > 0 ? (
-                      apiStats.liveRequests.slice(0, 20).map((request: any) => (
-                        <div key={request.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded text-sm">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className={cn(
-                              "px-2 py-0.5 rounded text-xs",
-                              request.method === "GET" ? "bg-gray-100 text-gray-700" :
-                              request.method === "POST" ? "bg-green-100 text-green-700" :
-                              request.method === "PUT" ? "bg-yellow-100 text-yellow-700" :
-                              request.method === "DELETE" ? "bg-red-100 text-red-700" :
-                              "bg-gray-100 text-gray-700"
-                            )}>
-                              {request.method}
-                            </span>
-                            <span className="truncate">{request.path}</span>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className={cn(
-                              request.statusCode >= 400 ? "text-red-600" : "text-green-600"
-                            )}>
-                              {request.statusCode}
-                            </span>
-                            <span>{request.responseTime}ms</span>
-                            <span>{new Date(request.timestamp).toLocaleTimeString()}</span>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No recent API requests</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Endpoint Statistics Table */}
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Endpoint Statistics
-                  </CardTitle>
-                  <CardDescription>Top API endpoints by usage</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {apiStats?.endpointStats && apiStats.endpointStats.length > 0 ? (
-                      apiStats.endpointStats.slice(0, 10).map((endpoint: any, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm truncate">{endpoint.endpoint}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Avg: {endpoint.avgResponseTime}ms
-                              {endpoint.errors > 0 && (
-                                <span className="text-red-600 ml-2">• {endpoint.errors} errors</span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm">{endpoint.count}</p>
-                            <p className="text-xs text-muted-foreground">requests</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No endpoint statistics available</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
         )}
 
         {/* Refresh Button */}

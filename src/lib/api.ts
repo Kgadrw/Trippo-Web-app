@@ -649,6 +649,14 @@ export const adminApi = {
     });
   },
 
+  /** Enable or disable sign-in for a user account (backend: PATCH /admin/users/:id/account-status). */
+  async setUserAccountStatus(userId: string, isActive: boolean): Promise<ApiResponse> {
+    return request(`/admin/users/${userId}/account-status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+  },
+
   // Send email to single user
   async sendEmailToUser(userId: string, subject: string, message: string, html?: string): Promise<ApiResponse> {
     return request('/admin/send-email', {

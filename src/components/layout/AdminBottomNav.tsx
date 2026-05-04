@@ -4,8 +4,7 @@ import {
   LayoutDashboard,
   Users,
   Activity,
-  Server,
-  Calendar,
+  UserCog,
   Bell,
   LogOut,
 } from "lucide-react";
@@ -27,9 +26,8 @@ const adminMenuItems = [
   { icon: LayoutDashboard, label: "Overview", section: "overview" },
   { icon: Users, label: "Users", section: "users" },
   { icon: Activity, label: "Activity", section: "activity" },
-  { icon: Calendar, label: "Schedules", section: "schedules" },
+  { icon: UserCog, label: "Accounts", section: "accounts" },
   { icon: Bell, label: "Alerts", section: "notifications" },
-  { icon: Server, label: "System Health", section: "health" },
 ];
 
 interface AdminBottomNavProps {
