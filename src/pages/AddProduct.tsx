@@ -74,6 +74,18 @@ interface ProductFormData {
   inventoryId: string; // '' means unassigned
 }
 
+/** Text fields instead of type="number" avoid browsers injecting 0 (min/step/spinner quirks). */
+function sanitizeDecimalField(raw: string): string {
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  if (dot === -1) return cleaned;
+  return cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, "");
+}
+
+function sanitizeIntField(raw: string): string {
+  return raw.replace(/\D/g, "");
+}
+
 const AddProduct = () => {
   const { t, language } = useTranslation();
   const isRw = language === "rw";
@@ -961,10 +973,13 @@ const AddProduct = () => {
                         <div>
                           <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("packageQuantity")}</Label>
                           <Input
-                            type="number"
-                            min="1"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             value={product.packageQuantity}
-                            onChange={(e) => updateBulkProduct(index, "packageQuantity", e.target.value)}
+                            onChange={(e) =>
+                              updateBulkProduct(index, "packageQuantity", sanitizeIntField(e.target.value))
+                            }
                             className="h-12 text-base"
                             placeholder={language === "rw" ? "Bibasha" : "Optional"}
                           />
@@ -974,9 +989,13 @@ const AddProduct = () => {
                         <div>
                           <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("costPrice")}</Label>
                           <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
                             value={product.costPrice}
-                            onChange={(e) => updateBulkProduct(index, "costPrice", e.target.value)}
+                            onChange={(e) =>
+                              updateBulkProduct(index, "costPrice", sanitizeDecimalField(e.target.value))
+                            }
                             className="h-12 text-base"
                             placeholder="0.00"
                           />
@@ -1002,9 +1021,13 @@ const AddProduct = () => {
                         <div>
                           <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("sellingPrice")}</Label>
                           <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
                             value={product.sellingPrice}
-                            onChange={(e) => updateBulkProduct(index, "sellingPrice", e.target.value)}
+                            onChange={(e) =>
+                              updateBulkProduct(index, "sellingPrice", sanitizeDecimalField(e.target.value))
+                            }
                             className="h-12 text-base"
                             placeholder="0.00"
                           />
@@ -1036,10 +1059,11 @@ const AddProduct = () => {
                               : `(per product)`}
                           </Label>
                           <Input
-                            type="number"
-                            min="0"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             value={product.stock}
-                            onChange={(e) => updateBulkProduct(index, "stock", e.target.value)}
+                            onChange={(e) => updateBulkProduct(index, "stock", sanitizeIntField(e.target.value))}
                             className="h-12 text-base"
                             placeholder="0"
                           />
@@ -1060,17 +1084,18 @@ const AddProduct = () => {
                               : `(per product)`}
                           </Label>
                           <Input
-                            type="number"
-                            min="0"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             value={product.minStock}
-                            onChange={(e) => updateBulkProduct(index, "minStock", e.target.value)}
+                            onChange={(e) => updateBulkProduct(index, "minStock", sanitizeIntField(e.target.value))}
                             className="h-12 text-base"
                             placeholder="5"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
-                            {product.packageQuantity && product.packageQuantity.trim() !== "" 
-                              ? (language === "rw" 
-                                  ? `Icyitonderwa cy'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki` 
+                            {product.packageQuantity && product.packageQuantity.trim() !== ""
+                              ? (language === "rw"
+                                  ? `Icyitonderwa cy'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki`
                                   : `Alert threshold for packages - ${product.packageQuantity} items per package`)
                               : (language === "rw" 
                                   ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" 
@@ -1156,38 +1181,50 @@ const AddProduct = () => {
                         </td>
                         <td className="p-2 min-w-[120px]">
                           <Input
-                            type="number"
-                            min="1"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             value={product.packageQuantity}
-                            onChange={(e) => updateBulkProduct(index, "packageQuantity", e.target.value)}
+                            onChange={(e) =>
+                              updateBulkProduct(index, "packageQuantity", sanitizeIntField(e.target.value))
+                            }
                             className="input-field h-9 text-sm w-full"
                             placeholder="Optional"
                           />
                         </td>
                         <td className="p-2 min-w-[140px]">
                           <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
                             value={product.costPrice}
-                            onChange={(e) => updateBulkProduct(index, "costPrice", e.target.value)}
+                            onChange={(e) =>
+                              updateBulkProduct(index, "costPrice", sanitizeDecimalField(e.target.value))
+                            }
                             className="input-field h-9 text-sm w-full"
                             placeholder="0.00"
                           />
                         </td>
                         <td className="p-2 min-w-[140px]">
                           <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
                             value={product.sellingPrice}
-                            onChange={(e) => updateBulkProduct(index, "sellingPrice", e.target.value)}
+                            onChange={(e) =>
+                              updateBulkProduct(index, "sellingPrice", sanitizeDecimalField(e.target.value))
+                            }
                             className="input-field h-9 text-sm w-full"
                             placeholder="0.00"
                           />
                         </td>
                         <td className="p-2 min-w-[120px]">
                           <Input
-                            type="number"
-                            min="0"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             value={product.stock}
-                            onChange={(e) => updateBulkProduct(index, "stock", e.target.value)}
+                            onChange={(e) => updateBulkProduct(index, "stock", sanitizeIntField(e.target.value))}
                             className="input-field h-9 text-sm w-full"
                             placeholder="0"
                             title={product.packageQuantity && product.packageQuantity.trim() !== "" 
@@ -1197,10 +1234,11 @@ const AddProduct = () => {
                         </td>
                         <td className="p-2 min-w-[120px]">
                           <Input
-                            type="number"
-                            min="0"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             value={product.minStock}
-                            onChange={(e) => updateBulkProduct(index, "minStock", e.target.value)}
+                            onChange={(e) => updateBulkProduct(index, "minStock", sanitizeIntField(e.target.value))}
                             className="input-field h-9 text-sm w-full"
                             placeholder="5"
                             title={product.packageQuantity && product.packageQuantity.trim() !== "" 
@@ -1287,10 +1325,13 @@ const AddProduct = () => {
                 <div className="space-y-2">
                   <Label>Package Quantity (Optional)</Label>
                   <Input
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     value={formData.packageQuantity}
-                    onChange={(e) => setFormData({ ...formData, packageQuantity: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, packageQuantity: sanitizeIntField(e.target.value) })
+                    }
                     className="input-field"
                     placeholder="e.g., 12 (for a box of 12)"
                   />
@@ -1356,9 +1397,13 @@ const AddProduct = () => {
                 <div className="space-y-2">
                   <Label>Cost Price (rwf)</Label>
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
                     value={formData.costPrice}
-                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, costPrice: sanitizeDecimalField(e.target.value) })
+                    }
                     className="input-field"
                     placeholder="0.00"
                   />
@@ -1399,9 +1444,13 @@ const AddProduct = () => {
                 <div className="space-y-2">
                   <Label>Selling Price (rwf)</Label>
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
                     value={formData.sellingPrice}
-                    onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, sellingPrice: sanitizeDecimalField(e.target.value) })
+                    }
                     className="input-field"
                     placeholder="0.00"
                   />
@@ -1446,10 +1495,11 @@ const AddProduct = () => {
                       : "(per product)"}
                   </Label>
                   <Input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, stock: sanitizeIntField(e.target.value) })}
                     className="input-field"
                     placeholder="0"
                   />
@@ -1470,10 +1520,11 @@ const AddProduct = () => {
                       : "(per product)"}
                   </Label>
                   <Input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     value={formData.minStock}
-                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, minStock: sanitizeIntField(e.target.value) })}
                     className="input-field"
                     placeholder="5"
                   />

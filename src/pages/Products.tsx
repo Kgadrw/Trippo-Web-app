@@ -131,22 +131,22 @@ const Products = () => {
             <Skeleton className="h-10 flex-1 rounded-md" />
             <Skeleton className="h-10 w-36 shrink-0 rounded-md" />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+            {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-lg border border-gray-200 bg-white p-3 flex flex-col aspect-square md:aspect-[4/3] lg:aspect-[5/3] gap-3"
+                className="rounded-lg border border-blue-700 bg-blue-600 p-2 flex flex-col gap-2 min-h-[88px]"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <Skeleton className="h-4 w-[70%]" />
-                  <div className="flex gap-1 shrink-0">
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                    <Skeleton className="h-8 w-8 rounded-md" />
+                <div className="flex items-start justify-between gap-1.5">
+                  <Skeleton className="h-3.5 w-[65%] bg-blue-500/50" />
+                  <div className="flex gap-0.5 shrink-0">
+                    <Skeleton className="h-7 w-7 rounded-md bg-blue-500/50" />
+                    <Skeleton className="h-7 w-7 rounded-md bg-blue-500/50" />
                   </div>
                 </div>
-                <div className="mt-auto space-y-2 pt-2">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-5 w-24" />
+                <div className="mt-auto space-y-1 pt-0.5">
+                  <Skeleton className="h-2.5 w-12 bg-blue-500/40" />
+                  <Skeleton className="h-4 w-20 bg-blue-500/50" />
                 </div>
               </div>
             ))}
@@ -175,7 +175,7 @@ const Products = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
           {services.map((service) => {
             const id = (service as any)._id || service.id;
             const idStr = id != null ? String(id) : "";
@@ -183,7 +183,7 @@ const Products = () => {
             return (
               <div
                 key={id}
-                className="rounded-lg border border-gray-200 bg-white p-3 md:p-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm aspect-square md:aspect-[4/3] lg:aspect-[5/3] flex flex-col relative overflow-hidden"
+                className="rounded-lg border border-blue-700 bg-blue-600 p-2 cursor-pointer transition-colors hover:bg-blue-700 hover:border-blue-800 shadow-sm flex flex-col relative overflow-hidden min-h-[88px]"
                 onClick={() => openRecordService(service)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -199,29 +199,29 @@ const Products = () => {
                   src="/logo.png"
                   alt=""
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 m-auto h-24 w-24 opacity-[0.06] select-none object-contain"
+                  className="pointer-events-none absolute inset-0 m-auto h-14 w-14 opacity-[0.07] select-none object-contain"
                 />
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 font-medium text-gray-900 min-w-0 flex-1">
-                    <Scissors size={16} className="mt-0.5 shrink-0" />
+                <div className="flex items-start justify-between gap-1.5">
+                  <div className="flex items-start gap-1.5 font-medium text-white text-sm min-w-0 flex-1 leading-snug">
+                    <Scissors size={14} className="mt-0.5 shrink-0 text-blue-100" />
                     <span className="line-clamp-2 break-words">{service.name}</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 hover:bg-gray-100"
+                      className="h-7 w-7 p-0 text-white hover:bg-blue-500/60 hover:text-white"
                       onClick={(e) => {
                         e.stopPropagation();
                         openEdit(service);
                       }}
                     >
-                      <Pencil size={14} />
+                      <Pencil size={13} />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                      className="h-7 w-7 p-0 text-red-200 hover:bg-red-500/30 hover:text-white"
                       disabled={isDeletingThis}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -230,18 +230,18 @@ const Products = () => {
                       aria-label={isDeletingThis ? "Deleting" : "Delete service"}
                     >
                       {isDeletingThis ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <Loader2 size={13} className="animate-spin" />
                       ) : (
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       )}
                     </Button>
                   </div>
                 </div>
-                <div className="mt-auto pt-3">
-                  <div className="text-[11px] text-gray-500">
+                <div className="mt-auto pt-1.5">
+                  <div className="text-[10px] uppercase tracking-wide text-blue-100">
                     {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
                   </div>
-                  <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                  <div className="text-sm font-semibold text-white whitespace-nowrap tabular-nums">
                     {Number(service.sellingPrice || 0).toLocaleString()} rwf
                   </div>
                 </div>
