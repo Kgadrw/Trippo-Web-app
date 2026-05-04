@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { inventoryApi, saleApi } from "@/lib/api";
 import { buildDailyTicketsPdf, buildSaleTicketPdf, downloadPdf, printPdf, type TicketSale } from "@/lib/tickets";
+import { computeProductSaleMetrics } from "@/lib/saleCalculations";
 
 interface Product {
   id?: number;
@@ -605,7 +606,7 @@ const Sales = () => {
           
           const price = parseFloat(sale.sellingPrice) || 0;
           const revenue = qty * price;
-          const cost = qty * product.costPrice;
+          const cost = qty * Number(product.costPrice ?? 0);
           const profit = revenue - cost;
 
           // Combine selected date with current time to preserve hours/minutes/seconds
@@ -757,120 +758,56 @@ const Sales = () => {
           return;
         }
 
-      // Handle package products
-      let qty: number;
-      let stockReduction: number;
-      let revenue: number;
-      let cost: number;
-      
-      if (product.isPackage && product.packageQuantity) {
-        if (packageSaleMode === "wholePackage") {
-          // Selling whole package
-          qty = product.packageQuantity; // Record the actual quantity sold
-          stockReduction = product.packageQuantity;
-          
-          // Calculate revenue based on price type
-          if (product.priceType === "perPackage") {
-            // Price is for whole package
-            revenue = parseFloat(sellingPrice);
-          } else {
-            // Price is per quantity, so multiply by package quantity
-            revenue = parseFloat(sellingPrice) * product.packageQuantity;
-          }
-          
-          // Calculate cost based on cost price type
-          if (product.costPriceType === "perPackage") {
-            // Cost is for whole package
-            cost = product.costPrice;
-          } else {
-            // Cost is per quantity, so multiply by package quantity
-            cost = product.costPrice * product.packageQuantity;
-          }
+      const metrics = computeProductSaleMetrics(product, {
+        quantityStr: quantity,
+        sellingPriceStr: sellingPrice,
+        packageSaleMode,
+      });
+      if (metrics.ok === false) {
+        playErrorBeep();
+        if (metrics.code === "invalid_quantity") {
+          toast({
+            title: isRw ? "Umubare utari wo" : "Invalid Quantity",
+            description: isRw
+              ? "Andika umubare nyawo urenze 0."
+              : "Please enter a valid quantity greater than 0.",
+            variant: "destructive",
+          });
+        } else if (metrics.code === "invalid_price") {
+          toast({
+            title: isRw ? "Igiciro kitari cyo" : isFr ? "Prix invalide" : "Invalid price",
+            description: isRw
+              ? "Injiza igiciro cyemewe."
+              : isFr
+                ? "Entrez un prix valide."
+                : "Enter a valid selling price (a number, zero or greater).",
+            variant: "destructive",
+          });
         } else {
-          // Selling by quantity
-          qty = parseInt(quantity);
-          
-          // Validate quantity is valid
-          if (isNaN(qty) || qty <= 0) {
-            playErrorBeep();
-            toast({
-              title: "Invalid Quantity",
-              description: "Please enter a valid quantity greater than 0.",
-              variant: "destructive",
-            });
-            setIsRecordingSale(false);
-            return;
-          }
-          
-          // Validate quantity doesn't exceed available stock
-          if (qty > product.stock || product.stock <= 0) {
-            playErrorBeep();
-            toast({
-              title: "Insufficient Stock",
-              description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-              variant: "destructive",
-            });
-            setIsRecordingSale(false);
-            return;
-          }
-          
-          stockReduction = qty;
-          
-          // Calculate revenue based on price type
-          if (product.priceType === "perPackage") {
-            // Price is for whole package, calculate per item
-            const pricePerItem = parseFloat(sellingPrice) / product.packageQuantity;
-            revenue = pricePerItem * qty;
-          } else {
-            // Price is per quantity
-            revenue = parseFloat(sellingPrice) * qty;
-          }
-          
-          // Calculate cost based on cost price type
-          if (product.costPriceType === "perPackage") {
-            // Cost is for whole package, calculate per item
-            const costPerItem = product.costPrice / product.packageQuantity;
-            cost = costPerItem * qty;
-          } else {
-            // Cost is per quantity
-            cost = product.costPrice * qty;
-          }
-        }
-      } else {
-        // Regular product (not a package)
-        qty = parseInt(quantity);
-        
-        // Validate quantity is valid
-        if (isNaN(qty) || qty <= 0) {
-          playErrorBeep();
+          const need =
+            product.isPackage && product.packageQuantity && packageSaleMode === "wholePackage"
+              ? product.packageQuantity
+              : null;
           toast({
-            title: "Invalid Quantity",
-            description: "Please enter a valid quantity greater than 0.",
+            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            description:
+              need != null
+                ? isRw
+                  ? `Hakeneye nibura ${need} muri stoki (hari ${product.stock}).`
+                  : isFr
+                    ? `Il faut au moins ${need} en stock (disponible : ${product.stock}).`
+                    : `You need at least ${need} in stock to sell a whole package (${product.stock} available).`
+                : isRw
+                  ? `Hari gusa ${product.stock} muri stoki.`
+                  : `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
             variant: "destructive",
           });
-          setIsRecordingSale(false);
-          return;
         }
-        
-        // Validate quantity doesn't exceed available stock
-        if (qty > product.stock || product.stock <= 0) {
-          playErrorBeep();
-          toast({
-            title: "Insufficient Stock",
-            description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-            variant: "destructive",
-          });
-          setIsRecordingSale(false);
-          return;
-        }
-        
-        stockReduction = qty;
-        const price = parseFloat(sellingPrice);
-        revenue = qty * price;
-        cost = qty * product.costPrice;
+        setIsRecordingSale(false);
+        return;
       }
-      
-      const profit = revenue - cost;
+
+      const { qty, stockReduction, revenue, cost, profit } = metrics;
 
       // Combine selected date with current time to preserve hours/minutes/seconds
       const now = new Date();

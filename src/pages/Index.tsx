@@ -50,6 +50,13 @@ import { formatDateWithTime } from "@/lib/utils";
 import { formatStockDisplay } from "@/lib/stockFormatter";
 import { MobileNumberPad } from "@/components/mobile/MobileNumberPad";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  computeProductSaleMetrics,
+  getLowStockSaleHintState,
+  readLowStockSaleWarningPref,
+  writeLowStockSaleWarningPref,
+} from "@/lib/saleCalculations";
 
 interface Product {
   id?: number;
@@ -856,6 +863,7 @@ const Dashboard = () => {
   const [saleDate, setSaleDate] = useState(getTodayDate());
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [packageSaleMode, setPackageSaleMode] = useState<"quantity" | "wholePackage">("quantity"); // For package products: sell by quantity or whole package
+  const [warnLowStockOnSale, setWarnLowStockOnSale] = useState(() => readLowStockSaleWarningPref());
   const [bulkSales, setBulkSales] = useState<BulkSaleFormData[]>([
     { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }
   ]);
@@ -994,6 +1002,31 @@ const Dashboard = () => {
     setBulkSales(updated);
   };
 
+  const salePreview = useMemo(() => {
+    if (!selectedProduct || !sellingPrice.trim()) return null;
+    const product = products.find((p) => {
+      const id = (p as any)._id || p.id;
+      return id?.toString() === selectedProduct;
+    });
+    if (!product) return null;
+    const isWholePkg = packageSaleMode === "wholePackage" && !!(product.isPackage && product.packageQuantity);
+    if (!isWholePkg) {
+      const q = parseInt(quantity, 10);
+      if (!quantity.trim() || isNaN(q) || q <= 0) return null;
+    }
+    const m = computeProductSaleMetrics(
+      product,
+      { quantityStr: quantity, sellingPriceStr: sellingPrice, packageSaleMode },
+      { skipStockCheck: true }
+    );
+    if (!m.ok) return null;
+    return { product, metrics: m };
+  }, [selectedProduct, quantity, sellingPrice, packageSaleMode, products]);
+
+  const singleSaleLowStockHint = useMemo(() => {
+    if (!warnLowStockOnSale || !salePreview) return null;
+    return getLowStockSaleHintState(salePreview.product, salePreview.metrics.stockReduction);
+  }, [warnLowStockOnSale, salePreview]);
 
   const handleRecordSale = async () => {
     // Prevent duplicate submissions
@@ -1037,7 +1070,7 @@ const Dashboard = () => {
           
           const price = parseFloat(sale.sellingPrice) || 0;
           const revenue = qty * price;
-          const cost = qty * product.costPrice;
+          const cost = qty * Number(product.costPrice ?? 0);
           const profit = revenue - cost;
 
           // Combine selected date with current time to preserve hours/minutes/seconds
@@ -1189,96 +1222,14 @@ const Dashboard = () => {
         return;
       }
 
-      // Handle package products
-      let qty: number;
-      let stockReduction: number;
-      let revenue: number;
-      let cost: number;
-      
-      if (product.isPackage && product.packageQuantity) {
-        if (packageSaleMode === "wholePackage") {
-          // Selling whole package
-          qty = product.packageQuantity; // Record the actual quantity sold
-          stockReduction = product.packageQuantity;
-          
-          // Calculate revenue based on price type
-          if (product.priceType === "perPackage") {
-            // Price is for whole package
-            revenue = parseFloat(sellingPrice);
-          } else {
-            // Price is per quantity, so multiply by package quantity
-            revenue = parseFloat(sellingPrice) * product.packageQuantity;
-          }
-          
-          // Calculate cost based on cost price type
-          if (product.costPriceType === "perPackage") {
-            // Cost is for whole package
-            cost = product.costPrice;
-          } else {
-            // Cost is per quantity, so multiply by package quantity
-            cost = product.costPrice * product.packageQuantity;
-          }
-        } else {
-          // Selling by quantity
-          qty = parseInt(quantity);
-          
-          // Validate quantity is valid
-          if (isNaN(qty) || qty <= 0) {
-            playErrorBeep();
-            toast({
-              title: isRw ? "Umubare utari wo" : "Invalid Quantity",
-              description: isRw
-                ? "Andika umubare nyawo urenze 0."
-                : "Please enter a valid quantity greater than 0.",
-              variant: "destructive",
-            });
-            setIsRecordingSale(false);
-            return;
-          }
-          
-          // Validate quantity doesn't exceed available stock
-          if (qty > product.stock || product.stock <= 0) {
-            playErrorBeep();
-            toast({
-              title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
-              description: isRw
-                ? `Hari gusa ${product.stock} ${product.stock === 1 ? 'ikintu' : 'ibintu'} muri stoki.`
-                : `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-              variant: "destructive",
-            });
-            setIsRecordingSale(false);
-            return;
-          }
-          
-          stockReduction = qty;
-          
-          // Calculate revenue based on price type
-          if (product.priceType === "perPackage") {
-            // Price is for whole package, calculate per item
-            const pricePerItem = parseFloat(sellingPrice) / product.packageQuantity;
-            revenue = pricePerItem * qty;
-          } else {
-            // Price is per quantity
-            revenue = parseFloat(sellingPrice) * qty;
-          }
-          
-          // Calculate cost based on cost price type
-          if (product.costPriceType === "perPackage") {
-            // Cost is for whole package, calculate per item
-            const costPerItem = product.costPrice / product.packageQuantity;
-            cost = costPerItem * qty;
-          } else {
-            // Cost is per quantity
-            cost = product.costPrice * qty;
-          }
-        }
-      } else {
-        // Regular product (not a package)
-        qty = parseInt(quantity);
-        
-        // Validate quantity is valid
-        if (isNaN(qty) || qty <= 0) {
-          playErrorBeep();
+      const metrics = computeProductSaleMetrics(product, {
+        quantityStr: quantity,
+        sellingPriceStr: sellingPrice,
+        packageSaleMode,
+      });
+      if (metrics.ok === false) {
+        playErrorBeep();
+        if (metrics.code === "invalid_quantity") {
           toast({
             title: isRw ? "Umubare utari wo" : "Invalid Quantity",
             description: isRw
@@ -1286,31 +1237,41 @@ const Dashboard = () => {
               : "Please enter a valid quantity greater than 0.",
             variant: "destructive",
           });
-          setIsRecordingSale(false);
-          return;
-        }
-        
-        // Validate quantity doesn't exceed available stock
-        if (qty > product.stock || product.stock <= 0) {
-          playErrorBeep();
+        } else if (metrics.code === "invalid_price") {
           toast({
-            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            title: isRw ? "Igiciro kitari cyo" : isFr ? "Prix invalide" : "Invalid price",
             description: isRw
-              ? `Hari gusa ${product.stock} ${product.stock === 1 ? 'ikintu' : 'ibintu'} muri stoki.`
-              : `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
+              ? "Injiza igiciro cyemewe (umubare wuzuye)."
+              : isFr
+                ? "Entrez un prix valide (nombre positif ou zéro)."
+                : "Enter a valid selling price (a number, zero or greater).",
             variant: "destructive",
           });
-          setIsRecordingSale(false);
-          return;
+        } else {
+          const need =
+            product.isPackage && product.packageQuantity && packageSaleMode === "wholePackage"
+              ? product.packageQuantity
+              : null;
+          toast({
+            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            description:
+              need != null
+                ? isRw
+                  ? `Hakeneye nibura ${need} muri stoki (hari ${product.stock}).`
+                  : isFr
+                    ? `Il faut au moins ${need} en stock (disponible : ${product.stock}).`
+                    : `You need at least ${need} in stock to sell a whole package (${product.stock} available).`
+                : isRw
+                  ? `Hari gusa ${product.stock} ${product.stock === 1 ? "ikintu" : "ibintu"} muri stoki.`
+                  : `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
+            variant: "destructive",
+          });
         }
-        
-        stockReduction = qty;
-        const price = parseFloat(sellingPrice);
-        revenue = qty * price;
-        cost = qty * product.costPrice;
+        setIsRecordingSale(false);
+        return;
       }
-      
-      const profit = revenue - cost;
+
+      const { qty, stockReduction, revenue, cost, profit } = metrics;
 
       // Combine selected date with current time to preserve hours/minutes/seconds
       const now = new Date();
@@ -1970,7 +1931,7 @@ const Dashboard = () => {
       </div>
 
       {/* Record New Sale Form - Hidden on mobile */}
-      <div className="form-card mb-6 border-transparent bg-blue-500 border-blue-600 hidden">
+      <div className="form-card mb-6 border-transparent bg-blue-500 border-blue-600 hidden lg:block">
         <div className="flex items-center justify-between mb-4">
           <h3 className="section-title flex items-center gap-2 text-white">
             <Plus size={20} className="text-white" />
@@ -2107,6 +2068,45 @@ const Dashboard = () => {
                           className="input-field h-9"
                           placeholder={isRw ? "Injiza igiciro" : "Enter price"}
                         />
+                        {sale.product && sale.quantity && sale.sellingPrice && (() => {
+                          const p = products.find((pr) => {
+                            const id = (pr as any)._id || pr.id;
+                            return id.toString() === sale.product;
+                          });
+                          if (!p) return null;
+                          const q = parseInt(sale.quantity, 10);
+                          const price = parseFloat(sale.sellingPrice);
+                          if (isNaN(q) || q <= 0 || isNaN(price)) return null;
+                          const revenue = q * price;
+                          const cost = q * Number(p.costPrice ?? 0);
+                          const profit = revenue - cost;
+                          const bulkHint =
+                            warnLowStockOnSale && p.minStock != null && p.minStock > 0
+                              ? getLowStockSaleHintState(p, q)
+                              : { kind: "none" as const };
+                          return (
+                            <div className="mt-1 space-y-0.5">
+                              <p className={`text-xs font-medium tabular-nums ${profit >= 0 ? "text-emerald-200" : "text-red-200"}`}>
+                                {isRw ? "Inyungu" : isFr ? "Profit" : "Profit"}: rwf {profit.toLocaleString()}
+                              </p>
+                              {bulkHint.kind !== "none" && (
+                                <p className="text-[11px] text-amber-200 leading-snug">
+                                  {bulkHint.kind === "at_or_below_min"
+                                    ? isRw
+                                      ? `Stoki (${bulkHint.stock}) iri hasi cyangwa ku mubare wibanze (${bulkHint.min}).`
+                                      : isFr
+                                        ? `Stock (${bulkHint.stock}) au niveau du minimum (${bulkHint.min}).`
+                                        : `Stock (${bulkHint.stock}) is at or below your minimum (${bulkHint.min}).`
+                                    : isRw
+                                      ? `Nyuma y'ubu buguruzi stoki izaba ${bulkHint.afterStock} (min ${bulkHint.min}).`
+                                      : isFr
+                                        ? `Après cette vente, stock ${bulkHint.afterStock} (min ${bulkHint.min}).`
+                                        : `After this sale, stock will be ${bulkHint.afterStock} (minimum ${bulkHint.min}).`}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="p-2">
                         <Select
@@ -2351,77 +2351,73 @@ const Dashboard = () => {
               }
               return null;
             })()}
-            {/* Revenue, Cost, and Profit Preview */}
-            {selectedProduct && quantity && sellingPrice && parseInt(quantity) > 0 && parseFloat(sellingPrice) > 0 && (
+            {singleSaleLowStockHint && singleSaleLowStockHint.kind !== "none" && (
+              <div className="col-span-full rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-sm text-amber-50">
+                {singleSaleLowStockHint.kind === "at_or_below_min"
+                  ? isRw
+                    ? `Stoki (${singleSaleLowStockHint.stock}) iri hasi cyangwa ku mubare wibanze wawe (${singleSaleLowStockHint.min}).`
+                    : isFr
+                      ? `Stock (${singleSaleLowStockHint.stock}) au niveau du minimum (${singleSaleLowStockHint.min}).`
+                      : `Current stock (${singleSaleLowStockHint.stock}) is at or below your minimum (${singleSaleLowStockHint.min}).`
+                  : isRw
+                    ? `Nyuma y'ubu buguruzi stoki izaba ${singleSaleLowStockHint.afterStock} (min ${singleSaleLowStockHint.min}).`
+                    : isFr
+                      ? `Après cette vente, le stock sera ${singleSaleLowStockHint.afterStock} (minimum ${singleSaleLowStockHint.min}).`
+                      : `After this sale, stock will be ${singleSaleLowStockHint.afterStock} (your minimum is ${singleSaleLowStockHint.min}).`}
+              </div>
+            )}
+            <div className="col-span-full flex items-center gap-2 text-xs text-white/85">
+              <Checkbox
+                id="low-stock-warn-dashboard-sale"
+                checked={warnLowStockOnSale}
+                onCheckedChange={(c) => {
+                  const on = c === true;
+                  setWarnLowStockOnSale(on);
+                  writeLowStockSaleWarningPref(on);
+                }}
+              />
+              <label htmlFor="low-stock-warn-dashboard-sale" className="cursor-pointer select-none">
+                {isRw
+                  ? "Menyesha iyo stoki iri hasi cyangwa ku mubare wibanze"
+                  : isFr
+                    ? "Alerter si le stock atteint le minimum"
+                    : "Warn when stock is at or below minimum (saved on this device)"}
+              </label>
+            </div>
+            {/* Revenue, Cost, and Profit Preview (revenue − cost = profit) */}
+            {salePreview && (
               <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30 mt-2">
-                {(() => {
-                  const product = products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  });
-                  if (!product) return null;
-                  
-                  // Calculate preview based on package or regular product
-                  let qty: number;
-                  let revenue: number;
-                  let cost: number;
-                  
-                  if (product.isPackage && product.packageQuantity) {
-                    if (packageSaleMode === "wholePackage") {
-                      qty = product.packageQuantity;
-                      if (product.priceType === "perPackage") {
-                        revenue = parseFloat(sellingPrice) || 0;
-                      } else {
-                        revenue = (parseFloat(sellingPrice) || 0) * product.packageQuantity;
-                      }
-                      if (product.costPriceType === "perPackage") {
-                        cost = product.costPrice;
-                      } else {
-                        cost = product.costPrice * product.packageQuantity;
-                      }
-                    } else {
-                      qty = parseInt(quantity) || 0;
-                      if (product.priceType === "perPackage") {
-                        const pricePerItem = (parseFloat(sellingPrice) || 0) / product.packageQuantity;
-                        revenue = pricePerItem * qty;
-                      } else {
-                        revenue = (parseFloat(sellingPrice) || 0) * qty;
-                      }
-                      if (product.costPriceType === "perPackage") {
-                        const costPerItem = product.costPrice / product.packageQuantity;
-                        cost = costPerItem * qty;
-                      } else {
-                        cost = product.costPrice * qty;
-                      }
-                    }
-                  } else {
-                    qty = parseInt(quantity) || 0;
-                    const price = parseFloat(sellingPrice) || 0;
-                    revenue = qty * price;
-                    cost = qty * product.costPrice;
-                  }
-                  
-                  const profit = revenue - cost;
-                  
-                  return (
-                    <>
-                      <div className="text-center">
-                        <p className="text-xs text-white/80 mb-1 font-medium">Revenue</p>
-                        <p className="text-xl font-bold text-blue-200">rwf {revenue.toLocaleString()}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-white/80 mb-1 font-medium">Cost</p>
-                        <p className="text-xl font-bold text-orange-200">rwf {cost.toLocaleString()}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-white/80 mb-1 font-medium">Profit</p>
-                        <p className={`text-xl font-bold ${profit >= 0 ? 'text-green-200' : 'text-red-200'}`}>
-                          rwf {profit.toLocaleString()}
-                        </p>
-                      </div>
-                    </>
-                  );
-                })()}
+                <div className="text-center">
+                  <p className="text-xs text-white/80 mb-1 font-medium">
+                    {isRw ? "Amafaranga yinjiye" : isFr ? "Revenu" : "Revenue"}
+                  </p>
+                  <p className="text-xl font-bold text-blue-200">
+                    rwf {salePreview.metrics.revenue.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-white/80 mb-1 font-medium">
+                    {isRw ? "Igiciro cy'inguzanyo" : isFr ? "Coût" : "Cost"}
+                  </p>
+                  <p className="text-xl font-bold text-orange-200">
+                    rwf {salePreview.metrics.cost.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-white/80 mb-1 font-medium">
+                    {isRw ? "Inyungu" : isFr ? "Profit" : "Profit"}
+                  </p>
+                  <p
+                    className={`text-xl font-bold ${
+                      salePreview.metrics.profit >= 0 ? "text-green-200" : "text-red-200"
+                    }`}
+                  >
+                    rwf {salePreview.metrics.profit.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-white/60 mt-1">
+                    {isRw ? "(Amafaranga − inguzanyo)" : isFr ? "(Revenu − coût)" : "(Revenue − cost)"}
+                  </p>
+                </div>
               </div>
             )}
             {/* Second Row: Payment Method and Sale Date */}
