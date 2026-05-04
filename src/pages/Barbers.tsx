@@ -43,17 +43,14 @@ function workerKey(b: Barber): string {
   return String((b as { _id?: string; id?: number })._id ?? b.id ?? b.name ?? "");
 }
 
+/** Sales attributed to this worker (by id, or by name if legacy rows lack workerId). */
 function saleBelongsToWorker(sale: Sale, worker: Barber): boolean {
-  const isServiceLike =
-    sale.saleType === "service" || Boolean(sale.workerId || sale.workerName?.trim());
-  if (!isServiceLike) return false;
   const wk = workerKey(worker);
   const sid = sale.workerId != null ? String(sale.workerId).trim() : "";
-  if (sid && wk && sid === wk) return true;
+  if (sid) return Boolean(wk && sid === wk);
   const wName = (worker.name || "").trim().toLowerCase();
   const sName = (sale.workerName || "").trim().toLowerCase();
-  if (!sid && wName && sName && wName === sName) return true;
-  return false;
+  return Boolean(wName && sName && wName === sName);
 }
 
 export default function Barbers() {
@@ -77,7 +74,7 @@ export default function Barbers() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedWorkerKey, setExpandedWorkerKey] = useState<string | null>(null);
 
-  const workerHistory = useMemo(() => {
+  const workerSalesHistory = useMemo(() => {
     const map = new Map<string, Sale[]>();
     for (const b of items.filter((x) => x.clientType === "worker")) {
       const key = workerKey(b);
@@ -179,6 +176,24 @@ export default function Barbers() {
     language === "rw" ? "Abakozi" : language === "fr" ? "Travailleurs" : "Workers";
   const barberSingular =
     language === "rw" ? "Umukozi" : language === "fr" ? "Travailleur" : "Worker";
+  const salesHistoryTitle =
+    language === "rw"
+      ? "Amateka y'ubucuruzi"
+      : language === "fr"
+        ? "Historique des ventes"
+        : "Sales history";
+  const salesHistoryLoading =
+    language === "rw"
+      ? "Gutangiza amateka y'ubucuruzi…"
+      : language === "fr"
+        ? "Chargement de l'historique des ventes…"
+        : "Loading sales history…";
+  const salesHistoryEmpty =
+    language === "rw"
+      ? "Nta bucuruzi bwanditswe kuri uyu mukozi."
+      : language === "fr"
+        ? "Aucune vente enregistrée pour ce travailleur."
+        : "No sales recorded for this worker yet.";
 
   return (
     <AppLayout title={barbersTitle}>
@@ -200,40 +215,41 @@ export default function Barbers() {
         </div>
 
         {isLoading ? (
-          <div className="rounded-lg border border-blue-700 overflow-hidden divide-y divide-blue-700/70">
+          <div className="rounded-lg border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100 shadow-sm">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-blue-600 px-3 py-2.5 flex items-center gap-2">
-                <Skeleton className="h-4 w-4 shrink-0 rounded bg-blue-500/50" />
-                <Skeleton className="h-8 w-8 shrink-0 rounded-full bg-blue-500/50" />
+              <div key={i} className="bg-white px-3 py-2.5 flex items-center gap-2">
+                <Skeleton className="h-4 w-4 shrink-0 rounded bg-muted" />
+                <Skeleton className="h-8 w-8 shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-2 min-w-0">
-                  <Skeleton className="h-3.5 w-[55%] bg-blue-500/50" />
-                  <Skeleton className="h-3 w-[40%] bg-blue-500/40" />
+                  <Skeleton className="h-3.5 w-[55%] bg-muted" />
+                  <Skeleton className="h-3 w-[40%] bg-muted/80" />
                 </div>
-                <Skeleton className="h-7 w-14 shrink-0 rounded-md bg-blue-500/50" />
+                <Skeleton className="h-7 w-14 shrink-0 rounded-md bg-muted" />
               </div>
             ))}
           </div>
         ) : barbers.length === 0 ? (
-          <div className="rounded-lg border border-blue-700 bg-blue-600 px-4 py-5 text-sm text-blue-100">
-            No workers found. Click <span className="font-semibold text-white">Add Worker</span> to create one.
+          <div className="rounded-lg border border-gray-200 bg-white px-4 py-5 text-sm text-muted-foreground">
+            No workers found. Click <span className="font-semibold text-foreground">Add Worker</span> to create one.
           </div>
         ) : (
-          <div className="rounded-lg border border-blue-700 overflow-hidden divide-y divide-blue-700/80 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100 shadow-sm">
             {barbers.map((b) => {
               const id = (b as { _id?: string; id?: number })._id ?? b.id;
               const idStr = id != null ? String(id) : "";
               const isDeletingThis = deletingId !== null && idStr === deletingId;
               const rowKey = workerKey(b);
               const isOpen = expandedWorkerKey === rowKey;
-              const history = workerHistory.get(rowKey) ?? [];
+              const history = workerSalesHistory.get(rowKey) ?? [];
 
               return (
-                <div key={rowKey} className="bg-blue-600">
+                <div key={rowKey} className="bg-white">
                   <div
                     role="button"
                     tabIndex={0}
                     aria-expanded={isOpen}
-                    className="flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors hover:bg-blue-700 outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset"
+                    aria-label={isOpen ? `Collapse ${salesHistoryTitle} for ${b.name}` : `Expand ${salesHistoryTitle} for ${b.name}`}
+                    className="flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors hover:bg-gray-50 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-inset"
                     onClick={() => setExpandedWorkerKey(isOpen ? null : rowKey)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -244,13 +260,13 @@ export default function Barbers() {
                   >
                     <ChevronRight
                       size={18}
-                      className={cn("shrink-0 text-white transition-transform", isOpen && "rotate-90")}
+                      className={cn("shrink-0 text-gray-500 transition-transform", isOpen && "rotate-90")}
                       aria-hidden
                     />
-                    <UserRound size={16} className="shrink-0 text-blue-100" />
+                    <UserRound size={16} className="shrink-0 text-gray-500" />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-white truncate">{b.name}</div>
-                      <div className="text-xs text-blue-100 truncate">{b.businessType || "Worker"}</div>
+                      <div className="text-sm font-medium text-gray-900 truncate">{b.name}</div>
+                      <div className="text-xs text-gray-600 truncate">{b.businessType || "Worker"}</div>
                     </div>
                     <div
                       className="flex items-center gap-0.5 shrink-0"
@@ -260,7 +276,7 @@ export default function Barbers() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-white hover:bg-blue-500/60 hover:text-white rounded-md"
+                        className="h-7 w-7 p-0 text-gray-700 hover:bg-gray-100 rounded-md"
                         onClick={() => openEdit(b)}
                         aria-label="Edit worker"
                       >
@@ -269,7 +285,7 @@ export default function Barbers() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-red-200 hover:bg-red-500/30 hover:text-white rounded-md"
+                        className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 rounded-md"
                         disabled={isDeletingThis}
                         onClick={() => void handleDelete(b)}
                         aria-label={isDeletingThis ? "Deleting" : "Delete worker"}
@@ -284,34 +300,34 @@ export default function Barbers() {
                   </div>
 
                   {isOpen && (
-                    <div className="border-t border-blue-700/70 bg-blue-800/40 px-3 py-2.5">
+                    <div className="border-t border-gray-100 bg-gray-50/80 px-3 py-2.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                        {salesHistoryTitle}
+                        {!salesLoading && history.length > 0 ? (
+                          <span className="ml-1 font-normal normal-case text-gray-600">({history.length})</span>
+                        ) : null}
+                      </div>
                       {salesLoading ? (
-                        <p className="text-xs text-blue-100">Loading history…</p>
+                        <p className="text-xs text-gray-600">{salesHistoryLoading}</p>
                       ) : history.length === 0 ? (
-                        <p className="text-xs text-blue-100">
-                          {language === "rw"
-                            ? "Nta serivisi yanditswe kuri uyu mukozi."
-                            : language === "fr"
-                              ? "Aucune prestation enregistrée pour ce travailleur."
-                              : "No recorded services for this worker yet."}
-                        </p>
+                        <p className="text-xs text-gray-600">{salesHistoryEmpty}</p>
                       ) : (
                         <ul className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
                           {history.map((sale) => {
                             const sid = (sale as { _id?: string; id?: number })._id ?? sale.id;
-                            const label = (sale.serviceName || sale.product || "Service").trim();
+                            const label = (sale.serviceName || sale.product || "Sale").trim();
                             const when = sale.timestamp || sale.date;
                             return (
                               <li
                                 key={sid != null ? String(sid) : `${label}-${when}`}
-                                className="text-xs rounded-md bg-blue-600/50 border border-blue-600/80 px-2.5 py-2 text-white"
+                                className="text-xs rounded-md bg-white border border-gray-200 px-2.5 py-2 text-gray-900 shadow-sm"
                               >
                                 <div className="font-medium leading-snug">{label}</div>
-                                <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-blue-100">
-                                  <span className="tabular-nums font-semibold text-white">
+                                <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-gray-600">
+                                  <span className="tabular-nums font-semibold text-gray-900">
                                     {Number(sale.revenue || 0).toLocaleString()} rwf
                                   </span>
-                                  <span className="text-[10px] opacity-90">{formatDateWithTime(when)}</span>
+                                  <span className="text-[10px] text-gray-500">{formatDateWithTime(when)}</span>
                                 </div>
                               </li>
                             );
