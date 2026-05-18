@@ -18,7 +18,6 @@ const getApiBaseUrl = (): string => {
                        (import.meta.env.DEV && import.meta.env.VITE_USE_LOCALHOST !== 'false');
   
   if (useLocalhost) {
-    // Default localhost port (change if your backend runs on different port)
     const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
     return `http://localhost:${localPort}/api`;
   }
@@ -650,6 +649,14 @@ export const adminApi = {
     });
   },
 
+  /** Enable or disable sign-in for a user account (backend: PATCH /admin/users/:id/account-status). */
+  async setUserAccountStatus(userId: string, isActive: boolean): Promise<ApiResponse> {
+    return request(`/admin/users/${userId}/account-status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+  },
+
   // Send email to single user
   async sendEmailToUser(userId: string, subject: string, message: string, html?: string): Promise<ApiResponse> {
     return request('/admin/send-email', {
@@ -871,6 +878,35 @@ export const expenseApi = {
 
   async delete(id: string): Promise<ApiResponse> {
     return request(`/expenses/${id}`, { method: "DELETE" });
+  },
+};
+
+// Inventory API functions
+export const inventoryApi = {
+  async getAll(): Promise<ApiResponse> {
+    return request('/inventories', { method: 'GET' });
+  },
+
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/inventories/${id}`, { method: 'GET' });
+  },
+
+  async create(data: { name: string; description?: string }): Promise<ApiResponse> {
+    return request('/inventories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: { name?: string; description?: string }): Promise<ApiResponse> {
+    return request(`/inventories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/inventories/${id}`, { method: 'DELETE' });
   },
 };
 

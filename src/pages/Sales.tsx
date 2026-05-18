@@ -47,8 +47,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { saleApi } from "@/lib/api";
+import { inventoryApi, saleApi } from "@/lib/api";
 import { buildDailyTicketsPdf, buildSaleTicketPdf, downloadPdf, printPdf, type TicketSale } from "@/lib/tickets";
+import { computeProductSaleMetrics } from "@/lib/saleCalculations";
 
 interface Product {
   id?: number;
@@ -64,6 +65,7 @@ interface Product {
   costPriceType?: "perQuantity" | "perPackage"; // "perQuantity" = cost price per individual item, "perPackage" = cost price for whole package
   productType?: string;
   minStock?: number;
+  inventoryId?: string | null;
 }
 
 interface Sale {
@@ -81,6 +83,7 @@ interface Sale {
   serviceName?: string;
   workerId?: string;
   workerName?: string;
+  inventoryId?: string | null;
 }
 
 interface Expense {
@@ -388,6 +391,19 @@ const Sales = () => {
   const [endDate, setEndDate] = useState("");
   const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "product-asc" | "product-desc" | "revenue-desc" | "revenue-asc" | "profit-desc" | "profit-asc">("date-desc");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [inventories, setInventories] = useState<Array<{ _id?: string; id?: number; name: string }>>([]);
+  const [selectedInventoryId, setSelectedInventoryId] = useState<string>(""); // ''=all, '__unassigned__'=null
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await inventoryApi.getAll();
+        setInventories(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        // inventory is optional; ignore
+      }
+    })();
+  }, []);
 
   // Ticket export (barber/day)
   const [ticketDay, setTicketDay] = useState(getTodayDate());
@@ -502,6 +518,15 @@ const Sales = () => {
     }
   };
 
+  const filteredProductsForSale = useMemo(() => {
+    if (!selectedInventoryId) return products;
+    return products.filter((p: any) => {
+      const inv = p.inventoryId ?? null;
+      if (selectedInventoryId === "__unassigned__") return !inv;
+      return inv && String(inv) === String(selectedInventoryId);
+    });
+  }, [products, selectedInventoryId]);
+
   const addBulkRow = () => {
     setBulkSales([...bulkSales, { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
   };
@@ -555,6 +580,15 @@ const Sales = () => {
             return id.toString() === sale.product;
           });
           if (!product) return null;
+
+          // Inventory filter in bulk mode (optional UI filter)
+          if (selectedInventoryId) {
+            const productInv = (product.inventoryId ?? null) as any;
+            if (selectedInventoryId === "__unassigned__" ? !!productInv : String(productInv) !== String(selectedInventoryId)) {
+              invalidSales.push(`${product.name}: Not in selected inventory`);
+              return null;
+            }
+          }
           
           const qty = parseInt(sale.quantity) || 1;
           
@@ -572,7 +606,7 @@ const Sales = () => {
           
           const price = parseFloat(sale.sellingPrice) || 0;
           const revenue = qty * price;
-          const cost = qty * product.costPrice;
+          const cost = qty * Number(product.costPrice ?? 0);
           const profit = revenue - cost;
 
           // Combine selected date with current time to preserve hours/minutes/seconds
@@ -590,6 +624,7 @@ const Sales = () => {
           return {
             product: product.name,
             productId: (product as any)._id || product.id,
+            inventoryId: selectedInventoryId === "__unassigned__" ? null : (selectedInventoryId ? selectedInventoryId : (product.inventoryId ?? null)),
             quantity: qty,
             revenue,
             cost,
@@ -723,120 +758,56 @@ const Sales = () => {
           return;
         }
 
-      // Handle package products
-      let qty: number;
-      let stockReduction: number;
-      let revenue: number;
-      let cost: number;
-      
-      if (product.isPackage && product.packageQuantity) {
-        if (packageSaleMode === "wholePackage") {
-          // Selling whole package
-          qty = product.packageQuantity; // Record the actual quantity sold
-          stockReduction = product.packageQuantity;
-          
-          // Calculate revenue based on price type
-          if (product.priceType === "perPackage") {
-            // Price is for whole package
-            revenue = parseFloat(sellingPrice);
-          } else {
-            // Price is per quantity, so multiply by package quantity
-            revenue = parseFloat(sellingPrice) * product.packageQuantity;
-          }
-          
-          // Calculate cost based on cost price type
-          if (product.costPriceType === "perPackage") {
-            // Cost is for whole package
-            cost = product.costPrice;
-          } else {
-            // Cost is per quantity, so multiply by package quantity
-            cost = product.costPrice * product.packageQuantity;
-          }
+      const metrics = computeProductSaleMetrics(product, {
+        quantityStr: quantity,
+        sellingPriceStr: sellingPrice,
+        packageSaleMode,
+      });
+      if (metrics.ok === false) {
+        playErrorBeep();
+        if (metrics.code === "invalid_quantity") {
+          toast({
+            title: isRw ? "Umubare utari wo" : "Invalid Quantity",
+            description: isRw
+              ? "Andika umubare nyawo urenze 0."
+              : "Please enter a valid quantity greater than 0.",
+            variant: "destructive",
+          });
+        } else if (metrics.code === "invalid_price") {
+          toast({
+            title: isRw ? "Igiciro kitari cyo" : isFr ? "Prix invalide" : "Invalid price",
+            description: isRw
+              ? "Injiza igiciro cyemewe."
+              : isFr
+                ? "Entrez un prix valide."
+                : "Enter a valid selling price (a number, zero or greater).",
+            variant: "destructive",
+          });
         } else {
-          // Selling by quantity
-          qty = parseInt(quantity);
-          
-          // Validate quantity is valid
-          if (isNaN(qty) || qty <= 0) {
-            playErrorBeep();
-            toast({
-              title: "Invalid Quantity",
-              description: "Please enter a valid quantity greater than 0.",
-              variant: "destructive",
-            });
-            setIsRecordingSale(false);
-            return;
-          }
-          
-          // Validate quantity doesn't exceed available stock
-          if (qty > product.stock || product.stock <= 0) {
-            playErrorBeep();
-            toast({
-              title: "Insufficient Stock",
-              description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-              variant: "destructive",
-            });
-            setIsRecordingSale(false);
-            return;
-          }
-          
-          stockReduction = qty;
-          
-          // Calculate revenue based on price type
-          if (product.priceType === "perPackage") {
-            // Price is for whole package, calculate per item
-            const pricePerItem = parseFloat(sellingPrice) / product.packageQuantity;
-            revenue = pricePerItem * qty;
-          } else {
-            // Price is per quantity
-            revenue = parseFloat(sellingPrice) * qty;
-          }
-          
-          // Calculate cost based on cost price type
-          if (product.costPriceType === "perPackage") {
-            // Cost is for whole package, calculate per item
-            const costPerItem = product.costPrice / product.packageQuantity;
-            cost = costPerItem * qty;
-          } else {
-            // Cost is per quantity
-            cost = product.costPrice * qty;
-          }
-        }
-      } else {
-        // Regular product (not a package)
-        qty = parseInt(quantity);
-        
-        // Validate quantity is valid
-        if (isNaN(qty) || qty <= 0) {
-          playErrorBeep();
+          const need =
+            product.isPackage && product.packageQuantity && packageSaleMode === "wholePackage"
+              ? product.packageQuantity
+              : null;
           toast({
-            title: "Invalid Quantity",
-            description: "Please enter a valid quantity greater than 0.",
+            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            description:
+              need != null
+                ? isRw
+                  ? `Hakeneye nibura ${need} muri stoki (hari ${product.stock}).`
+                  : isFr
+                    ? `Il faut au moins ${need} en stock (disponible : ${product.stock}).`
+                    : `You need at least ${need} in stock to sell a whole package (${product.stock} available).`
+                : isRw
+                  ? `Hari gusa ${product.stock} muri stoki.`
+                  : `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
             variant: "destructive",
           });
-          setIsRecordingSale(false);
-          return;
         }
-        
-        // Validate quantity doesn't exceed available stock
-        if (qty > product.stock || product.stock <= 0) {
-          playErrorBeep();
-          toast({
-            title: "Insufficient Stock",
-            description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-            variant: "destructive",
-          });
-          setIsRecordingSale(false);
-          return;
-        }
-        
-        stockReduction = qty;
-        const price = parseFloat(sellingPrice);
-        revenue = qty * price;
-        cost = qty * product.costPrice;
+        setIsRecordingSale(false);
+        return;
       }
-      
-      const profit = revenue - cost;
+
+      const { qty, stockReduction, revenue, cost, profit } = metrics;
 
       // Combine selected date with current time to preserve hours/minutes/seconds
       const now = new Date();
@@ -853,6 +824,7 @@ const Sales = () => {
       const newSale = {
         product: product.name,
         productId: (product as any)._id || product.id,
+        inventoryId: selectedInventoryId === "__unassigned__" ? null : (selectedInventoryId ? selectedInventoryId : (product.inventoryId ?? null)),
         quantity: qty,
         revenue,
         cost,
@@ -951,6 +923,15 @@ const Sales = () => {
   // Filter and sort sales
   const filteredSales = useMemo(() => {
     let filtered = [...sales];
+
+    // Filter by inventory
+    if (selectedInventoryId) {
+      filtered = filtered.filter((sale: any) => {
+        const inv = sale.inventoryId ?? null;
+        if (selectedInventoryId === "__unassigned__") return !inv;
+        return inv && String(inv) === String(selectedInventoryId);
+      });
+    }
     
     // Filter by search query (product/service/worker name)
     if (searchQuery.trim()) {
@@ -1019,7 +1000,7 @@ const Sales = () => {
     });
     
     return filtered;
-  }, [sales, searchQuery, startDate, endDate, sortBy]);
+  }, [sales, selectedInventoryId, searchQuery, startDate, endDate, sortBy]);
 
   const ticketBarberOptions = useMemo(() => {
     const map = new Map<string, { key: string; label: string }>();
@@ -1180,6 +1161,7 @@ const Sales = () => {
     setStartDate("");
     setEndDate("");
     setSortBy("date-desc");
+    setSelectedInventoryId("");
   };
 
   // Clear selection when exiting selection mode
@@ -1683,6 +1665,33 @@ const Sales = () => {
                     {isRw ? "Shungura ku itariki" : isFr ? "Filtrer par date" : "Filter by date"}
                   </div>
 
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-medium text-gray-600">
+                      {isRw ? "Stoki" : isFr ? "Stock" : "Inventory"}
+                    </div>
+                    <Select
+                      value={selectedInventoryId}
+                      onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
+                    >
+                      <SelectTrigger className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                        <SelectValue placeholder={isRw ? "Byose" : isFr ? "Tous" : "All"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">{isRw ? "Byose" : isFr ? "Tous" : "All"}</SelectItem>
+                        <SelectItem value="__unassigned__">{isRw ? "Nta stoki" : isFr ? "Non assigné" : "Unassigned"}</SelectItem>
+                        {inventories.map((inv) => {
+                          const id = String((inv as any)._id ?? (inv as any).id ?? "");
+                          if (!id) return null;
+                          return (
+                            <SelectItem key={id} value={id}>
+                              {inv.name}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     {/* Start Date */}
                     <div className="space-y-1">
@@ -1889,6 +1898,29 @@ const Sales = () => {
             {showFilters && (
               <div className="space-y-3">
                 <div className="grid grid-cols-5 gap-3">
+                  {/* Inventory */}
+                  <Select
+                    value={selectedInventoryId}
+                    onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                      <SelectValue placeholder={isRw ? "Byose" : isFr ? "Tous" : "All"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">{isRw ? "Byose" : isFr ? "Tous" : "All"}</SelectItem>
+                      <SelectItem value="__unassigned__">{isRw ? "Nta stoki" : isFr ? "Non assigné" : "Unassigned"}</SelectItem>
+                      {inventories.map((inv) => {
+                        const id = String((inv as any)._id ?? (inv as any).id ?? "");
+                        if (!id) return null;
+                        return (
+                          <SelectItem key={id} value={id}>
+                            {inv.name}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+
                   {/* Start Date */}
                   <div className="relative">
                     <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />

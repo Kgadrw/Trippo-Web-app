@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
+  Boxes,
   ShoppingCart,
   FileText,
   Wallet,
@@ -18,6 +19,11 @@ const getMenuItems = (t: (key: string) => string, language: string) => {
       icon: Package, 
       label: language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services",
       path: "/products" 
+    },
+    {
+      icon: Boxes,
+      label: language === "rw" ? "Stoki" : language === "fr" ? "Stock" : "Stock",
+      path: "/inventories",
     },
     { 
       icon: UserRound, 

@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
 import { getSubdomainUrl, useSubdomain } from "@/hooks/useSubdomain";
 import { Lock, User, Mail, Phone } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { getSavedLoginEmail, isRememberLoginEnabled, setLoginPrefs } from "@/lib/loginPrefs";
 
 interface LoginModalProps {
   open: boolean;
@@ -47,6 +49,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const [newPin, setNewPin] = useState("");
   const [confirmNewPin, setConfirmNewPin] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [errors, setErrors] = useState<{
     loginPin?: string;
     createPin?: string;
@@ -74,7 +77,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       setName("");
       setEmail("");
       setPhone("");
-      setLoginEmail("");
+      const remember = isRememberLoginEnabled();
+      setRememberMe(remember);
+      setLoginEmail(defaultTab === "login" && remember ? getSavedLoginEmail() : "");
       setShowForgotPin(false);
       setResetEmail("");
       setOtp("");
@@ -161,7 +166,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             title: "Admin Login Successful",
             description: "Welcome, Administrator!",
           });
-          
+
+          setLoginPrefs(loginEmail.trim().toLowerCase(), rememberMe);
+
           onOpenChange(false);
           // Redirect to admin subdomain with auth token in URL
           // Pass auth info via URL hash so subdomain can restore localStorage
@@ -213,6 +220,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           title: "Welcome back!",
           description: "You have successfully logged in.",
         });
+
+        setLoginPrefs(normalizedEmail, rememberMe);
+
         onOpenChange(false);
         // Desktop on main domain: stay on same origin so localStorage persists across visits
         if (subdomain === null && isDesktopViewport()) {
@@ -345,7 +355,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           title: "Account created!",
           description: "Welcome to Trippo. Your account has been created successfully.",
         });
-        
+
+        setLoginPrefs(email.trim().toLowerCase(), true);
+
         onOpenChange(false);
         if (subdomain === null && isDesktopViewport()) {
           navigate("/dashboard", { replace: true });
@@ -546,6 +558,17 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                   {errors.loginPin && (errors.loginPin !== "PIN must be 4 digits" || loginPin.length !== 4) && (
                     <p className="text-sm text-red-500">{errors.loginPin}</p>
                   )}
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="remember-login"
+                    checked={rememberMe}
+                    onCheckedChange={(v) => setRememberMe(v === true)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="remember-login" className="text-sm text-muted-foreground leading-snug cursor-pointer select-none">
+                    Remember my email on this device so I don&apos;t have to enter it every time. Your session stays signed in until you log out.
+                  </label>
                 </div>
                 <Button
                   onClick={handleLogin}

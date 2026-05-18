@@ -9,6 +9,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { authApi } from "@/lib/api";
+import { LOGIN_PREF_REMEMBER, LOGIN_PREF_SAVED_EMAIL } from "@/lib/loginPrefs";
 import { playErrorBeep, playUpdateBeep, initAudio } from "@/lib/sound";
 import {
   AlertDialog,
@@ -45,6 +46,10 @@ export default function SettingsDeleteAccount() {
       localStorage.removeItem("profit-pilot-user-email");
       localStorage.removeItem("profit-pilot-business-name");
       localStorage.removeItem("profit-pilot-is-admin");
+      localStorage.removeItem("profit-pilot-authenticated");
+      localStorage.removeItem("profit-pilot-pin");
+      localStorage.removeItem(LOGIN_PREF_SAVED_EMAIL);
+      localStorage.removeItem(LOGIN_PREF_REMEMBER);
       sessionStorage.clear();
 
       try {
