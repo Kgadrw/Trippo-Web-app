@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cn, formatDateWithTime } from "@/lib/utils";
+import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 
 interface Barber {
   id?: number;
@@ -397,7 +398,7 @@ export default function Barbers() {
 
         {isLoading || salesLoading ? (
           <div className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <DesktopDataTable breakpoint="lg">
               <table className="w-full border-collapse">
                 <thead className="bg-gray-100 border-b border-gray-200">
                   <tr>
@@ -420,7 +421,15 @@ export default function Barbers() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </DesktopDataTable>
+            <MobileDataList breakpoint="lg">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <MobileListCard key={i} index={i}>
+                  <Skeleton className="h-4 w-32 mb-2" />
+                  <Skeleton className="h-16 w-full" />
+                </MobileListCard>
+              ))}
+            </MobileDataList>
           </div>
         ) : barbers.length === 0 ? (
           <div className="px-4 py-5 text-sm text-muted-foreground">
@@ -428,7 +437,7 @@ export default function Barbers() {
           </div>
         ) : (
           <div className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <DesktopDataTable breakpoint="lg">
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                   <tr>
@@ -575,7 +584,93 @@ export default function Barbers() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </DesktopDataTable>
+
+            <MobileDataList breakpoint="lg">
+              {barbers.map((b, index) => {
+                const rowKey = workerKey(b);
+                const history = workerSalesHistory.get(rowKey) ?? [];
+                const total = history.reduce((sum, s) => sum + Number(s.revenue || 0), 0);
+                return (
+                  <MobileListCard key={rowKey} index={index}>
+                    <button
+                      type="button"
+                      className="text-left w-full"
+                      onClick={() => openEdit(b)}
+                    >
+                      <p className="text-sm font-semibold text-gray-900">{b.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {b.businessType || "Worker"}
+                        <span className="text-gray-400"> · </span>
+                        <span className="text-blue-600 tabular-nums">{history.length}</span>
+                      </p>
+                    </button>
+                    {history.length === 0 ? (
+                      <p className="mt-2 text-sm text-gray-500">{salesHistoryEmpty}</p>
+                    ) : (
+                      <ul className="mt-2 space-y-2">
+                        {history.map((sale) => {
+                          const label = (sale.serviceName || sale.product || "Sale").trim();
+                          const when = sale.timestamp || sale.date;
+                          const saleId = getSaleId(sale);
+                          const isDeletingSale = deletingSaleId !== null && saleId === deletingSaleId;
+                          return (
+                            <li
+                              key={saleId}
+                              className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
+                                <p className="text-xs text-gray-500">{formatDateWithTime(when)}</p>
+                              </div>
+                              <span className="text-sm text-gray-700 tabular-nums whitespace-nowrap shrink-0">
+                                {Number(sale.revenue || 0).toLocaleString()} rwf
+                              </span>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 shrink-0"
+                                    aria-label="Sale actions"
+                                  >
+                                    {isDeletingSale ? (
+                                      <Loader2 size={16} className="animate-spin" />
+                                    ) : (
+                                      <MoreVertical size={16} />
+                                    )}
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEditSale(sale)}>
+                                    <Pencil size={14} className="mr-2" />
+                                    {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => void handleDeleteSale(sale)}
+                                    disabled={isDeletingSale}
+                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                  >
+                                    <Trash2 size={14} className="mr-2" />
+                                    {t("delete")}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    {history.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-gray-200 flex items-center justify-between text-sm font-semibold">
+                        <span className="text-gray-800">{totalSalesLabel}</span>
+                        <span className="text-gray-900 tabular-nums">{total.toLocaleString()} rwf</span>
+                      </div>
+                    )}
+                  </MobileListCard>
+                );
+              })}
+            </MobileDataList>
           </div>
         )}
       </div>

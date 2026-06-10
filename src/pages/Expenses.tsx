@@ -47,6 +47,7 @@ import { Trash2, Plus, Loader2, MoreVertical, RefreshCw, CheckCircle2, Pencil } 
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { cn, formatDateWithTime } from "@/lib/utils";
+import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 
@@ -1017,7 +1018,8 @@ export default function Expenses() {
 
           ) : (
 
-            <div className="overflow-x-auto">
+            <>
+            <DesktopDataTable>
 
               <table className="w-full border-collapse">
 
@@ -1175,7 +1177,71 @@ export default function Expenses() {
 
               </table>
 
-            </div>
+            </DesktopDataTable>
+
+            <MobileDataList>
+              {recurringItems.map((item, index) => {
+                const id = String(item._id ?? item.id ?? "");
+                const isBusy = recurringActionId === id;
+                const isOverdue =
+                  item.active !== false &&
+                  new Date(item.nextDueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+                return (
+                  <MobileListCard key={id} index={index}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
+                        <p className="text-sm font-semibold text-red-600 tabular-nums mt-0.5">
+                          {Number(item.amount).toLocaleString()} rwf
+                        </p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" disabled={isBusy}>
+                            {isBusy ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <MoreVertical size={16} />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => void handleMarkPaid(item)}>
+                            <CheckCircle2 size={14} className="mr-2" />
+                            Mark paid
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditRecurring(item)}>
+                            <Pencil size={14} className="mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => void handleDeleteRecurring(item)}
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 size={14} className="mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs text-gray-600">
+                      <p>{getFrequencyText(item)}</p>
+                      <p className={cn(isOverdue ? "text-red-600 font-medium" : "text-gray-700")}>
+                        Due: {formatDateWithTime(item.nextDueDate)}
+                        {isOverdue ? " (pending)" : ""}
+                      </p>
+                      <p>
+                        {item.notifyEmail
+                          ? `Email ${item.advanceNotificationDays ?? 1}d before + on due date`
+                          : "Reminders off"}
+                        {item.autoRecord ? " · Auto-record" : ""}
+                      </p>
+                    </div>
+                  </MobileListCard>
+                );
+              })}
+            </MobileDataList>
+            </>
 
           )}
           </>
@@ -1187,7 +1253,8 @@ export default function Expenses() {
 
           {isLoading ? (
 
-            <div className="overflow-x-auto">
+            <>
+            <DesktopDataTable>
 
               <table className="w-full border-collapse">
 
@@ -1233,7 +1300,16 @@ export default function Expenses() {
 
               </table>
 
-            </div>
+            </DesktopDataTable>
+            <MobileDataList>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <MobileListCard key={i} index={i}>
+                  <Skeleton className="h-4 w-32 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                </MobileListCard>
+              ))}
+            </MobileDataList>
+            </>
 
           ) : sorted.length === 0 ? (
 
@@ -1241,7 +1317,8 @@ export default function Expenses() {
 
           ) : (
 
-            <div className="overflow-x-auto">
+            <>
+            <DesktopDataTable>
 
               <table className="w-full border-collapse">
 
@@ -1407,7 +1484,62 @@ export default function Expenses() {
 
               </table>
 
-            </div>
+            </DesktopDataTable>
+
+            <MobileDataList>
+              {sorted.map((expense, index) => {
+                const id = (expense as { _id?: string; id?: number })._id || expense.id;
+                const idStr = id != null ? String(id) : "";
+                const isDeletingThis = deletingId !== null && idStr === deletingId;
+                return (
+                  <MobileListCard key={id} index={index}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{expense.title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{expense.category || "general"}</p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" aria-label="Expense actions">
+                            {isDeletingThis ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <MoreVertical size={16} />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => void handleDelete(expense)}
+                            disabled={isDeletingThis}
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 size={14} className="mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-red-600 tabular-nums">
+                        {Number(expense.amount).toLocaleString()} rwf
+                      </span>
+                      <span className="text-xs text-gray-500">{formatDateWithTime(expense.date)}</span>
+                    </div>
+                    {expense.note ? (
+                      <p className="mt-1.5 text-xs text-gray-500 line-clamp-2">{expense.note}</p>
+                    ) : null}
+                  </MobileListCard>
+                );
+              })}
+              <MobileListCard className="bg-blue-50/70">
+                <div className="flex items-center justify-between text-sm font-semibold">
+                  <span className="text-gray-800">Total</span>
+                  <span className="text-red-600 tabular-nums">{total.toLocaleString()} rwf</span>
+                </div>
+              </MobileListCard>
+            </MobileDataList>
+            </>
 
           )}
       </div>

@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import {
   ComposedChart,
   Bar,
@@ -952,7 +953,8 @@ const Reports = () => {
           </p>
 
           {salesExpensesByPeriod.length > 0 ? (
-            <div className="overflow-x-auto">
+            <>
+            <DesktopDataTable>
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                   <tr>
@@ -1022,7 +1024,45 @@ const Reports = () => {
                   </tr>
                 </tbody>
               </table>
-            </div>
+            </DesktopDataTable>
+            <MobileDataList>
+              {salesExpensesByPeriod.map((row, index) => {
+                const net = (row.salesProfit || 0) - (row.expenses || 0);
+                return (
+                  <MobileListCard key={row.key} index={index}>
+                    <p className="text-sm font-semibold text-gray-900">{row.label}</p>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-500 block">{t("revenue")}</span>
+                        <span className="font-medium text-gray-700 tabular-nums">{row.salesRevenue.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 block">{isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"}</span>
+                        <span className="font-medium text-red-600 tabular-nums">{row.expenses.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 block">{isRw ? "Inyungu" : isFr ? "Net" : "Net"}</span>
+                        <span className={cn("font-semibold tabular-nums", net >= 0 ? "text-emerald-700" : "text-red-700")}>
+                          {net >= 0 ? "+" : ""}{net.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </MobileListCard>
+                );
+              })}
+              <MobileListCard className="bg-blue-50/70">
+                <p className="text-sm font-semibold text-gray-800 mb-2">{totalLabel}</p>
+                <div className="grid grid-cols-3 gap-2 text-xs font-semibold tabular-nums">
+                  <span className="text-gray-900">{salesExpensesPeriodTotals.revenue.toLocaleString()}</span>
+                  <span className="text-red-600">{salesExpensesPeriodTotals.expenses.toLocaleString()}</span>
+                  <span className={salesExpensesPeriodTotals.net >= 0 ? "text-emerald-700" : "text-red-700"}>
+                    {salesExpensesPeriodTotals.net >= 0 ? "+" : ""}
+                    {salesExpensesPeriodTotals.net.toLocaleString()}
+                  </span>
+                </div>
+              </MobileListCard>
+            </MobileDataList>
+            </>
           ) : (
             <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
               {isRw
@@ -1138,7 +1178,8 @@ const Reports = () => {
                 : "Top services ranked by revenue"}
             </p>
             {salesByProduct.length > 0 ? (
-              <div className="overflow-x-auto">
+              <>
+              <DesktopDataTable>
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
@@ -1174,7 +1215,28 @@ const Reports = () => {
                     </tr>
                   </tbody>
                 </table>
-              </div>
+              </DesktopDataTable>
+              <MobileDataList>
+                {salesByProduct.slice(0, 10).map((row, index) => (
+                  <MobileListCard key={row.product} index={index}>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{row.product}</p>
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className="text-gray-500">{t("quantity")}: <span className="font-medium text-gray-700 tabular-nums">{row.quantity}</span></span>
+                      <span className="font-semibold text-gray-700 tabular-nums">{row.revenue.toLocaleString()} rwf</span>
+                    </div>
+                  </MobileListCard>
+                ))}
+                <MobileListCard className="bg-blue-50/70">
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span className="text-gray-800">{totalLabel}</span>
+                    <div className="text-right tabular-nums">
+                      <div className="text-gray-900">{servicePerformanceTotals.quantity.toLocaleString()} qty</div>
+                      <div className="text-gray-900">{servicePerformanceTotals.revenue.toLocaleString()} rwf</div>
+                    </div>
+                  </div>
+                </MobileListCard>
+              </MobileDataList>
+              </>
             ) : (
               <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
                 {isRw
@@ -1235,7 +1297,8 @@ const Reports = () => {
                 : "No worker records for this period."}
             </p>
             {barberServiceBreakdown.length > 0 ? (
-              <div className="overflow-x-auto">
+              <>
+              <DesktopDataTable>
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
@@ -1302,7 +1365,36 @@ const Reports = () => {
                     </tr>
                   </tbody>
                 </table>
-              </div>
+              </DesktopDataTable>
+              <MobileDataList>
+                {barberServiceBreakdown.map((row, index) => (
+                  <MobileListCard key={row.barber} index={index}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{row.barber}</p>
+                      <span className="text-sm font-semibold text-gray-700 tabular-nums shrink-0">
+                        {row.revenue.toLocaleString()} rwf
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {isRw ? "Serivisi" : isFr ? "Services" : "Services"}:{" "}
+                      <span className="font-medium text-gray-700 tabular-nums">{row.services}</span>
+                    </p>
+                    {row.topServices.length > 0 ? (
+                      <p className="mt-1 text-xs text-gray-600 line-clamp-2">{row.topServices.join(", ")}</p>
+                    ) : null}
+                  </MobileListCard>
+                ))}
+                <MobileListCard className="bg-blue-50/70">
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span className="text-gray-800">{totalLabel}</span>
+                    <div className="text-right tabular-nums">
+                      <div className="text-gray-900">{workerPerformanceTotals.services.toLocaleString()} services</div>
+                      <div className="text-gray-900">{workerPerformanceTotals.revenue.toLocaleString()} rwf</div>
+                    </div>
+                  </div>
+                </MobileListCard>
+              </MobileDataList>
+              </>
             ) : (
               <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
                 {isRw

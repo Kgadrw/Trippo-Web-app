@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cn } from "@/lib/utils";
+import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -271,7 +272,7 @@ const Products = () => {
       <AppLayout title={servicesTitle}>
         <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
           <div className="lg:px-4 lg:py-4 mb-4 lg:mb-0">{toolbar}</div>
-          <div className="overflow-x-auto">
+          <DesktopDataTable>
             <table className="w-full border-collapse">
               <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
@@ -294,7 +295,15 @@ const Products = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </DesktopDataTable>
+          <MobileDataList>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <MobileListCard key={i} index={i}>
+                <Skeleton className="h-4 w-32 mb-2" />
+                <Skeleton className="h-4 w-24" />
+              </MobileListCard>
+            ))}
+          </MobileDataList>
         </div>
       </AppLayout>
     );
@@ -308,94 +317,162 @@ const Products = () => {
         {services.length === 0 ? (
           <div className="px-4 py-5 text-sm text-muted-foreground">No services found.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-                <tr>
-                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{nameLabel}</th>
-                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{priceLabel}</th>
-                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{recordColumnLabel}</th>
-                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{actionsLabel}</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                {services.map((service, index) => {
-                  const id = (service as { _id?: string; id?: number })._id || service.id;
-                  const idStr = id != null ? String(id) : "";
-                  const isDeletingThis = deletingId !== null && idStr === deletingId;
-                  return (
-                    <tr
-                      key={id}
-                      className={cn(
-                        "border-b border-gray-200",
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50",
-                      )}
-                    >
-                      <td className="py-4 px-6">
-                        <div className="text-sm font-medium text-gray-900">{service.name}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm font-semibold text-gray-700 tabular-nums">
+          <>
+            <DesktopDataTable>
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{nameLabel}</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{priceLabel}</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{recordColumnLabel}</th>
+                    <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{actionsLabel}</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {services.map((service, index) => {
+                    const id = (service as { _id?: string; id?: number })._id || service.id;
+                    const idStr = id != null ? String(id) : "";
+                    const isDeletingThis = deletingId !== null && idStr === deletingId;
+                    return (
+                      <tr
+                        key={id}
+                        className={cn(
+                          "border-b border-gray-200",
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50",
+                        )}
+                      >
+                        <td className="py-4 px-6">
+                          <div className="text-sm font-medium text-gray-900">{service.name}</div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="text-sm font-semibold text-gray-700 tabular-nums">
+                            {Number(service.sellingPrice || 0).toLocaleString()} rwf
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-8 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 text-xs font-medium"
+                            onClick={() => openRecordService(service)}
+                          >
+                            <ShoppingCart size={14} />
+                            {recordColumnLabel}
+                          </Button>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                aria-label="Service actions"
+                                disabled={isDeletingThis}
+                              >
+                                {isDeletingThis ? (
+                                  <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                  <MoreVertical size={16} />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEdit(service)}>
+                                <Pencil size={14} className="mr-2" />
+                                {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => void handleDelete(service)}
+                                disabled={isDeletingThis}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              >
+                                <Trash2 size={14} className="mr-2" />
+                                {language === "rw" ? "Siba" : language === "fr" ? "Supprimer" : "Delete"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t border-gray-200 bg-blue-50/70">
+                    <td className="py-4 px-6 text-sm font-semibold text-gray-800">{totalLabel}</td>
+                    <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums">
+                      {totalPrice.toLocaleString()} rwf
+                    </td>
+                    <td colSpan={2} />
+                  </tr>
+                </tbody>
+              </table>
+            </DesktopDataTable>
+
+            <MobileDataList>
+              {services.map((service, index) => {
+                const id = (service as { _id?: string; id?: number })._id || service.id;
+                const idStr = id != null ? String(id) : "";
+                const isDeletingThis = deletingId !== null && idStr === deletingId;
+                return (
+                  <MobileListCard key={id} index={index}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{service.name}</p>
+                        <p className="text-sm font-semibold text-gray-700 tabular-nums mt-0.5">
                           {Number(service.sellingPrice || 0).toLocaleString()} rwf
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-8 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 text-xs font-medium"
-                          onClick={() => openRecordService(service)}
-                        >
-                          <ShoppingCart size={14} />
-                          {recordColumnLabel}
-                        </Button>
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              aria-label="Service actions"
-                              disabled={isDeletingThis}
-                            >
-                              {isDeletingThis ? (
-                                <Loader2 size={16} className="animate-spin" />
-                              ) : (
-                                <MoreVertical size={16} />
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(service)}>
-                              <Pencil size={14} className="mr-2" />
-                              {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => void handleDelete(service)}
-                              disabled={isDeletingThis}
-                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                            >
-                              <Trash2 size={14} className="mr-2" />
-                              {language === "rw" ? "Siba" : language === "fr" ? "Supprimer" : "Delete"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr className="border-t border-gray-200 bg-blue-50/70">
-                  <td className="py-4 px-6 text-sm font-semibold text-gray-800">{totalLabel}</td>
-                  <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums">
-                    {totalPrice.toLocaleString()} rwf
-                  </td>
-                  <td colSpan={2} />
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                        </p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            aria-label="Service actions"
+                            disabled={isDeletingThis}
+                          >
+                            {isDeletingThis ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <MoreVertical size={16} />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(service)}>
+                            <Pencil size={14} className="mr-2" />
+                            {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => void handleDelete(service)}
+                            disabled={isDeletingThis}
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 size={14} className="mr-2" />
+                            {language === "rw" ? "Siba" : language === "fr" ? "Supprimer" : "Delete"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-3 w-full h-9 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium"
+                      onClick={() => openRecordService(service)}
+                    >
+                      <ShoppingCart size={14} />
+                      {recordColumnLabel}
+                    </Button>
+                  </MobileListCard>
+                );
+              })}
+              <MobileListCard className="bg-blue-50/70">
+                <div className="flex items-center justify-between text-sm font-semibold">
+                  <span className="text-gray-800">{totalLabel}</span>
+                  <span className="text-gray-900 tabular-nums">{totalPrice.toLocaleString()} rwf</span>
+                </div>
+              </MobileListCard>
+            </MobileDataList>
+          </>
         )}
       </div>
 
