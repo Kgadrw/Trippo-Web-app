@@ -1,3 +1,6 @@
+# Ignore backend folder (separate repo: profit-backend)
+backend/
+
 # Ignore node_modules everywhere
 node_modules/
 **/node_modules/
