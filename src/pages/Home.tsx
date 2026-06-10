@@ -106,10 +106,10 @@ const Home = () => {
       <Navbar />
       
       {/* Hero Section */}
-      <main className="relative min-h-[calc(100vh-4rem)] flex items-center px-6 lg:px-12 xl:px-20 py-16 lg:py-24">
+      <main className="relative min-h-[calc(100vh-4rem)] flex items-center py-16 lg:py-24">
         <div className="w-full flex flex-col gap-12">
           {/* Text Content */}
-          <header className="text-left max-w-2xl lg:max-w-none lg:w-full lg:px-10 xl:px-16 2xl:px-20">
+          <header className="text-left max-w-2xl lg:max-w-none lg:w-full px-6 lg:px-12 xl:px-20">
             <h1 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-8 leading-tight">
               {t("runBusinessSmarter")}
             </h1>
@@ -124,8 +124,8 @@ const Home = () => {
             </Button>
           </header>
           
-          {/* Hero Images */}
-          <div className="w-full flex gap-0">
+          {/* Hero Images — full bleed to viewport edges */}
+          <div className="w-full flex gap-0 overflow-hidden">
             {/* Card 1 */}
             <div className="w-1/5 relative group h-32 md:h-80">
               <img 
@@ -178,7 +178,7 @@ const Home = () => {
           </div>
 
           {/* Feature Cards */}
-          <section className="w-full lg:px-10 xl:px-16 2xl:px-20" aria-label="Features">
+          <section className="w-full px-6 lg:px-12 xl:px-20" aria-label="Features">
             <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6">{t("features")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Product Management Card */}
