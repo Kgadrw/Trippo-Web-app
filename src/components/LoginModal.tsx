@@ -566,8 +566,8 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                     onCheckedChange={(v) => setRememberMe(v === true)}
                     className="mt-0.5"
                   />
-                  <label htmlFor="remember-login" className="text-sm text-muted-foreground leading-snug cursor-pointer select-none">
-                    Remember my email on this device so I don&apos;t have to enter it every time. Your session stays signed in until you log out.
+                  <label htmlFor="remember-login" className="text-sm text-muted-foreground cursor-pointer select-none">
+                    Remember me
                   </label>
                 </div>
                 <Button
