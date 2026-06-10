@@ -3,31 +3,24 @@ import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
 
-// API URL Configuration
-// Priority: VITE_API_URL env variable > localhost (dev mode) > deployed URL
+// API URL Configuration — VITE_API_URL or localhost (no remote default)
 const getApiBaseUrl = (): string => {
-  // If VITE_API_URL is explicitly set, use it
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
-  // Check if we should use localhost (for local testing)
-  // In dev mode, defaults to localhost unless VITE_USE_LOCALHOST=false
-  // In production, defaults to deployed URL unless VITE_USE_LOCALHOST=true
-  const useLocalhost = import.meta.env.VITE_USE_LOCALHOST === 'true' || 
-                       (import.meta.env.DEV && import.meta.env.VITE_USE_LOCALHOST !== 'false');
-  
-  if (useLocalhost) {
-    const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
-    return `http://localhost:${localPort}/api`;
-  }
-  
-  // Default to deployed URL
-  return 'https://profit-backend-3exl.onrender.com/api';
+  const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
+  return `http://localhost:${localPort}/api`;
 };
 
 const API_BASE_URL = getApiBaseUrl();
 export const PUBLIC_API_BASE_URL = API_BASE_URL;
+
+/** WebSocket origin derived from API base (e.g. http://localhost:3000/api → ws://localhost:3000) */
+export function getWebSocketBaseUrl(): string {
+  const apiUrl = new URL(getApiBaseUrl());
+  const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${apiUrl.host}`;
+}
 
 // Log API URL in development mode for debugging (disabled for privacy/security)
 // logger.log(`🔌 API Base URL: ${API_BASE_URL}`);
@@ -878,6 +871,34 @@ export const expenseApi = {
 
   async delete(id: string): Promise<ApiResponse> {
     return request(`/expenses/${id}`, { method: "DELETE" });
+  },
+};
+
+export const recurringExpenseApi = {
+  async getAll(): Promise<ApiResponse> {
+    return request("/recurring-expenses", { method: "GET" });
+  },
+
+  async create(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/recurring-expenses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/recurring-expenses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/recurring-expenses/${id}`, { method: "DELETE" });
+  },
+
+  async markPaid(id: string): Promise<ApiResponse> {
+    return request(`/recurring-expenses/${id}/mark-paid`, { method: "POST" });
   },
 };
 

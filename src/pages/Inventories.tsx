@@ -1,250 +1,233 @@
-import { useEffect, useMemo, useState } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { inventoryApi } from "@/lib/api";
-import { useApi } from "@/hooks/useApi";
-import { Plus, Trash2, Loader2, Boxes } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
-type Inventory = {
-  _id?: string;
-  id?: number;
-  name: string;
-  description?: string;
-};
-
-type Product = {
-  _id?: string;
-  id?: number;
-  name: string;
-  inventoryId?: string | null;
-};
-
-const getIdString = (x: { _id?: string; id?: number }) => String(x._id ?? x.id ?? "");
-
-const Inventories = () => {
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const { items: products } = useApi<Product>({ endpoint: "products", defaultValue: [] });
-
-  const [inventories, setInventories] = useState<Inventory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-
-  const refresh = async () => {
-    setLoading(true);
-    try {
-      const res = await inventoryApi.getAll();
-      setInventories(Array.isArray(res.data) ? res.data : []);
-    } catch (e: any) {
-      toast({
-        title: "Failed to load inventories",
-        description: e?.message || "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const countsByInventoryId = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of products) {
-      const invId = (p.inventoryId ?? null) as any;
-      if (!invId) continue;
-      const key = String(invId);
-      map.set(key, (map.get(key) || 0) + 1);
-    }
-    return map;
-  }, [products]);
-
-  const openCreate = () => {
-    setName("");
-    setDescription("");
-    setOpen(true);
-  };
-
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      toast({ title: "Name is required", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    try {
-      await inventoryApi.create({ name: name.trim(), description: description.trim() || undefined });
-      toast({ title: "Inventory created" });
-      setOpen(false);
-      await refresh();
-    } catch (e: any) {
-      toast({
-        title: "Create failed",
-        description: e?.message || e?.response?.error || "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (inv: Inventory) => {
-    const id = getIdString(inv);
-    if (!id) return;
-    if (!window.confirm(`Delete inventory "${inv.name}"?`)) return;
-    setDeletingId(id);
-    try {
-      await inventoryApi.delete(id);
-      toast({ title: "Inventory deleted" });
-      await refresh();
-    } catch (e: any) {
-      toast({
-        title: "Delete failed",
-        description: e?.response?.error || e?.message || "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  return (
-    <AppLayout title="Inventories">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Boxes size={16} />
-            {loading ? "Loading..." : `${inventories.length} inventories`}
-          </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={openCreate}>
-            <Plus size={16} />
-            Add Inventory
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-56" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                  </div>
-                </div>
-              ))
-            : null}
-          {inventories.map((inv) => {
-            const id = getIdString(inv);
-            const count = id ? countsByInventoryId.get(id) || 0 : 0;
-            const isDeleting = deletingId === id;
-            return (
-              <div
-                key={id}
-                className="rounded-lg border border-gray-200 bg-white p-4 space-y-2 cursor-pointer hover:bg-gray-50"
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/inventories/${id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    navigate(`/inventories/${id}`);
-                  }
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-gray-900 truncate">{inv.name}</div>
-                    {inv.description ? (
-                      <div className="text-xs text-gray-500 line-clamp-2">{inv.description}</div>
-                    ) : null}
-                    <div className="text-xs text-gray-500 mt-1">{count} product(s)</div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
-                    disabled={isDeleting}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDelete(inv);
-                    }}
-                    aria-label={isDeleting ? "Deleting" : "Delete inventory"}
-                  >
-                    {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-          {!loading && inventories.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No inventories yet. Create one to group your products.</div>
-          ) : null}
-        </div>
-      </div>
-
-      <Dialog open={open} onOpenChange={(v) => (!saving ? setOpen(v) : null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Inventory</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} disabled={saving} placeholder="e.g. Shop 1" />
-            </div>
-            <div className="space-y-1">
-              <Label>Description (optional)</Label>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={saving}
-                placeholder="e.g. Main stock for retail"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
-              Cancel
-            </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleCreate} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </AppLayout>
-  );
-};
-
-export default Inventories;
-
+import { useMemo, useState } from "react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Button } from "@/components/ui/button";
+import { useApi } from "@/hooks/useApi";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Package, MoreVertical, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { AddProductModal, type InventoryProduct } from "@/components/inventories/AddProductModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const getIdString = (x: { _id?: string; id?: number }) => String(x._id ?? x.id ?? "");
+
+const isService = (p: InventoryProduct) => (p.category || "").toLowerCase() === "service";
+
+const Inventories = () => {
+  const { toast } = useToast();
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { items: products, isLoading, refresh, remove } = useApi<InventoryProduct>({
+    endpoint: "products",
+    defaultValue: [],
+  });
+
+  const stockProducts = useMemo(() => products.filter((p) => !isService(p)), [products]);
+
+  const totalStock = useMemo(
+    () => stockProducts.reduce((sum, p) => sum + (Number(p.stock) || 0), 0),
+    [stockProducts],
+  );
+
+  const totalValue = useMemo(
+    () => stockProducts.reduce((sum, p) => sum + (Number(p.sellingPrice) || 0) * (Number(p.stock) || 0), 0),
+    [stockProducts],
+  );
+
+  const openAdd = () => {
+    setEditingProduct(null);
+    setAddModalOpen(true);
+  };
+
+  const openEdit = (product: InventoryProduct) => {
+    setEditingProduct(product);
+    setAddModalOpen(true);
+  };
+
+  const handleModalOpenChange = (open: boolean) => {
+    setAddModalOpen(open);
+    if (!open) setEditingProduct(null);
+  };
+
+  const handleDelete = async (product: InventoryProduct) => {
+    if (!window.confirm(`Delete product "${product.name}"?`)) return;
+    const id = getIdString(product);
+    if (!id) return;
+    setDeletingId(id);
+    try {
+      await remove(product);
+      await refresh(true);
+      window.dispatchEvent(new CustomEvent("products-should-refresh"));
+      toast({ title: "Product deleted", description: "Product removed successfully." });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete product.";
+      toast({ title: "Delete failed", description: message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <AppLayout title="Inventories">
+      <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden space-y-4 pb-4">
+        <div className="lg:px-4 lg:pt-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <Package size={16} />
+            <span>
+              {isLoading ? "Loading..." : "Products available"}
+            </span>
+          </div>
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shrink-0 rounded-lg h-10"
+            onClick={openAdd}
+          >
+            <Plus size={16} />
+            Add product
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="overflow-x-auto px-4">
+            <table className="w-full border-collapse">
+              <thead className="bg-gray-100 border-b border-gray-200">
+                <tr>
+                  {["Product", "Category", "Stock", "Cost", "Selling", ""].map((col) => (
+                    <th key={col} className="text-left py-4 px-6">
+                      <Skeleton className="h-4 w-20" />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} className="border-b border-gray-200">
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <td key={j} className="py-4 px-6">
+                        <Skeleton className="h-4 w-24" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : stockProducts.length === 0 ? (
+          <div className="px-4 py-5 text-sm text-muted-foreground">
+            No products available yet. Click <strong>Add product</strong> to get started.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                <tr>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Product</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Category</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Stock</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Cost</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Selling</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stockProducts.map((p, index) => {
+                  const pid = getIdString(p);
+                  const stock = Number(p.stock || 0);
+                  const isDeleting = deletingId === pid;
+                  return (
+                    <tr
+                      key={pid}
+                      className={cn(
+                        "border-b border-gray-200",
+                        index % 2 === 0 ? "bg-white" : "bg-gray-50",
+                      )}
+                    >
+                      <td className="py-4 px-6 text-sm font-medium text-gray-900">{p.name}</td>
+                      <td className="py-4 px-6 text-sm text-gray-600">{(p.category || "—").toString()}</td>
+                      <td className="py-4 px-6 text-sm text-right tabular-nums">
+                        <span
+                          className={cn(
+                            "font-medium",
+                            stock === 0 ? "text-red-600" : stock <= 5 ? "text-amber-600" : "text-gray-900",
+                          )}
+                        >
+                          {stock.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-700 text-right tabular-nums">
+                        {Number(p.costPrice || 0).toLocaleString()} rwf
+                      </td>
+                      <td className="py-4 px-6 text-sm font-semibold text-gray-900 text-right tabular-nums">
+                        {Number(p.sellingPrice || 0).toLocaleString()} rwf
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              aria-label="Product actions"
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? (
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : (
+                                <MoreVertical size={16} />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(p)}>
+                              <Pencil size={14} className="mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => void handleDelete(p)}
+                              disabled={isDeleting}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            >
+                              <Trash2 size={14} className="mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="border-t border-gray-200 bg-blue-50/70">
+                  <td colSpan={2} className="py-4 px-6 text-sm font-semibold text-gray-800">
+                    Total
+                  </td>
+                  <td className="py-4 px-6 text-sm font-semibold text-gray-900 text-right tabular-nums">
+                    {totalStock.toLocaleString()}
+                  </td>
+                  <td />
+                  <td className="py-4 px-6 text-sm font-semibold text-gray-900 text-right tabular-nums">
+                    {totalValue.toLocaleString()} rwf
+                  </td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <AddProductModal
+        open={addModalOpen}
+        onOpenChange={handleModalOpenChange}
+        product={editingProduct}
+        onSuccess={() => void refresh(true)}
+      />
+    </AppLayout>
+  );
+};
+
+export default Inventories;

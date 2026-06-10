@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { notificationService } from "@/lib/notifications";
+import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 
 export default function SettingsNotifications() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { language } = useTranslation();
 
@@ -20,37 +18,26 @@ export default function SettingsNotifications() {
     setNotificationPermission(Notification.permission);
   }, []);
 
+  const title =
+    language === "rw" ? "Amatangazo" : language === "fr" ? "Notifications" : "Notifications";
+
   return (
-    <AppLayout title={language === "rw" ? "Amatangazo" : language === "fr" ? "Notifications" : "Notifications"}>
-      <div className="max-w-3xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => navigate("/settings")}>
-            {language === "rw" ? "Subira" : language === "fr" ? "Retour" : "Back"}
-          </Button>
-        </div>
+    <div className="flex flex-1 flex-col overflow-y-auto p-5">
+      <SettingsSubpageHeader
+        icon={Bell}
+        title={title}
+        description={
+          language === "rw"
+            ? "Genzura amatangazo yo muri browser"
+            : language === "fr"
+            ? "Gérer les notifications du navigateur"
+            : "Manage browser notifications for important updates"
+        }
+      />
 
-        <div className="form-card border border-transparent lg:bg-white bg-white/80 backdrop-blur-sm">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-blue-100 border border-blue-200 flex items-center justify-center rounded-lg">
-                <Bell size={16} className="text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-blue-700">
-                  {language === "rw" ? "Amatangazo" : language === "fr" ? "Notifications" : "Notifications"}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {language === "rw"
-                    ? "genzura amatangazo yo muri browser"
-                    : "Manage browser notifications for important updates"}
-                </p>
-              </div>
-            </div>
-          </div>
+      <Separator className="mb-4 bg-blue-200" />
 
-          <Separator className="mb-4 bg-blue-200" />
-
-          <div className="space-y-6">
+      <div className="space-y-6">
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
@@ -142,9 +129,7 @@ export default function SettingsNotifications() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </AppLayout>
+    </div>
   );
 }
 

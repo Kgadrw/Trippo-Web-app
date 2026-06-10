@@ -1,11 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
-import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
 import { MobileFixedBackground } from "./MobileFixedBackground";
 import { cn } from "@/lib/utils";
-import { useSubdomain } from "@/hooks/useSubdomain";
 import { LayoutDashboard, Package, UserRound, ShoppingCart, Wallet, FileText, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePinAuth } from "@/hooks/usePinAuth";
@@ -29,7 +27,6 @@ const desktopMenuItems = [
 
 export function AppLayout({ children, title }: AppLayoutProps) {
   const location = useLocation();
-  const subdomain = useSubdomain();
   const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
@@ -48,14 +45,6 @@ export function AppLayout({ children, title }: AppLayoutProps) {
     if (item.path === "/settings") return t("settings");
     return item.label;
   };
-
-  /** Hide bottom bar on user dashboard subdomain; keep other areas unchanged. */
-  const showBottomNav = useMemo(() => {
-    if (subdomain === "dashboard") {
-      return false;
-    }
-    return true;
-  }, [subdomain, location.pathname]);
 
   // Load sidebar collapsed state from localStorage
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -212,13 +201,6 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         />
       </div>
 
-      {/* Bottom Navigation - dashboard subdomain: only on home `/`; admin & main domain: all pages */}
-      {showBottomNav && (
-        <div className="lg:hidden">
-          <BottomNav />
-        </div>
-      )}
-
       {/* Main content */}
       <div
         className={cn(
@@ -227,7 +209,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           // On desktop, adjust based on sidebar state
           // Use transition only for sidebar changes, not initial load
           isMobile
-            ? cn("ml-0 pt-20", showBottomNav ? "pb-24" : "pb-6")
+            ? "ml-0 pt-20 pb-6"
             : cn(
                 "transition-all duration-300 lg:pt-6",
                 (sidebarHovered && sidebarCollapsed) || !sidebarCollapsed ? "lg:ml-56" : "lg:ml-16"

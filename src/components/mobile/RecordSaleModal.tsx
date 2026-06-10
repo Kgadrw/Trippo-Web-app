@@ -300,7 +300,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
 
   const availableServices = useMemo(() => {
     return [...products]
-      .filter((p) => p.name && p.name.trim().length > 0)
+      .filter((p) => (p.category || "").toLowerCase() === "service" && p.name?.trim())
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
 

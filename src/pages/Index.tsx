@@ -50,13 +50,7 @@ import { formatDateWithTime } from "@/lib/utils";
 import { formatStockDisplay } from "@/lib/stockFormatter";
 import { MobileNumberPad } from "@/components/mobile/MobileNumberPad";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  computeProductSaleMetrics,
-  getLowStockSaleHintState,
-  readLowStockSaleWarningPref,
-  writeLowStockSaleWarningPref,
-} from "@/lib/saleCalculations";
+import { computeProductSaleMetrics } from "@/lib/saleCalculations";
 
 interface Product {
   id?: number;
@@ -85,6 +79,17 @@ interface Sale {
   date: string;
   timestamp?: string;
   paymentMethod?: string;
+  saleType?: "product" | "service";
+  serviceName?: string;
+  workerId?: string;
+  workerName?: string;
+}
+
+interface Client {
+  id?: number;
+  _id?: string;
+  name: string;
+  clientType?: "debtor" | "worker" | "other";
 }
 
 interface Expense {
@@ -103,6 +108,7 @@ interface BulkSaleFormData {
   sellingPrice: string;
   paymentMethod: string;
   saleDate: string;
+  workerId: string;
 }
 
 type RevenuePeriod = "today" | "week" | "month" | "year";
@@ -152,6 +158,14 @@ function getPeriodStart(period: RevenuePeriod, now: Date): Date {
   }
 }
 
+function getProductId(p: Product) {
+  return String((p as { _id?: string; id?: number })._id ?? p.id ?? "");
+}
+
+function isServiceItem(p: Product) {
+  return (p.category || "").toLowerCase() === "service";
+}
+
 // Product Combobox Component
 interface ProductComboboxProps {
   value: string;
@@ -160,41 +174,45 @@ interface ProductComboboxProps {
   placeholder?: string;
   className?: string;
   onError?: (message: string) => void;
+  excludeServices?: boolean;
+  serviceBadgeLabel?: string;
 }
 
-const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search products by name, category, or type...", className, onError }: ProductComboboxProps) => {
+const ProductCombobox = ({
+  value,
+  onValueChange,
+  products,
+  placeholder = "Search products and services...",
+  className,
+  onError,
+  excludeServices = false,
+  serviceBadgeLabel = "Service",
+}: ProductComboboxProps) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredProducts = useMemo(() => {
-    // Filter out products with stock <= 0 (sold out)
-    const availableProducts = products.filter((product) => product.stock > 0);
-    
-    if (!searchQuery) return availableProducts;
+    const available = products.filter((product) => {
+      if (excludeServices && isServiceItem(product)) return false;
+      return isServiceItem(product) || product.stock > 0;
+    });
+
+    if (!searchQuery) return available;
     const query = searchQuery.toLowerCase();
-    return availableProducts.filter(
+    return available.filter(
       (product) =>
         product.name.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query) ||
+        (product.category || "").toLowerCase().includes(query) ||
         (product.productType && product.productType.toLowerCase().includes(query))
     );
-  }, [products, searchQuery]);
+  }, [products, searchQuery, excludeServices]);
 
-  const selectedProduct = products.find((p) => {
-    const id = (p as any)._id || p.id;
-    return id.toString() === value;
-  });
+  const selectedProduct = products.find((p) => getProductId(p) === value);
 
-  // Immediately clear selection if selected product becomes out of stock
-  // Watch products array directly for faster reactivity
   useEffect(() => {
     if (value && products.length > 0) {
-      const currentProduct = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === value;
-      });
-      
-      if (currentProduct && currentProduct.stock <= 0) {
+      const currentProduct = products.find((p) => getProductId(p) === value);
+      if (currentProduct && !isServiceItem(currentProduct) && currentProduct.stock <= 0) {
         onValueChange("");
         setSearchQuery("");
         if (onError) {
@@ -204,14 +222,16 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
     }
   }, [value, products, onValueChange, onError]);
 
-  // Only show selected product if it has stock > 0
-  const displayProduct = selectedProduct && selectedProduct.stock > 0 ? selectedProduct : null;
+  const displayProduct =
+    selectedProduct && (isServiceItem(selectedProduct) || selectedProduct.stock > 0)
+      ? selectedProduct
+      : null;
 
   return (
-    <div className="relative w-full">
+    <div className="relative h-full w-full">
       <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="relative h-full" onClick={(e) => e.stopPropagation()}>
             <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
@@ -234,7 +254,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
                 setOpen(true);
               }}
               placeholder={placeholder}
-              className={cn("pl-10 pr-10 cursor-text rounded-full", className)}
+              className={cn("input-field h-full pl-10 pr-10 cursor-text", className)}
             />
             {displayProduct && (
               <button
@@ -270,45 +290,52 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
         >
           <Command shouldFilter={false}>
             <CommandList>
-              <CommandEmpty>No products found.</CommandEmpty>
+              <CommandEmpty>No items found.</CommandEmpty>
               <CommandGroup>
                 {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
+                  filteredProducts.map((product) => {
+                    const pid = getProductId(product);
+                    const isService = isServiceItem(product);
+                    return (
                     <CommandItem
-                      key={product.id}
+                      key={pid}
                       value={`${product.name} ${product.category} ${product.productType || ""}`}
                       onSelect={() => {
-                        // Double-check stock before allowing selection
-                        if (product.stock > 0) {
-                        onValueChange(product.id.toString());
-                        setOpen(false);
-                        setSearchQuery("");
-                        } else {
-                          if (onError) {
-                            onError(`${product.name} is currently out of stock and cannot be sold.`);
-                          }
+                        if (isService || product.stock > 0) {
+                          onValueChange(pid);
+                          setOpen(false);
+                          setSearchQuery("");
+                        } else if (onError) {
+                          onError(`${product.name} is currently out of stock and cannot be sold.`);
                         }
                       }}
-                      disabled={product.stock <= 0}
+                      disabled={!isService && product.stock <= 0}
                       className={cn(
                         "flex items-center justify-between",
-                        product.stock <= 0 && "opacity-50 cursor-not-allowed"
+                        !isService && product.stock <= 0 && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4 shrink-0",
-                            value === product.id.toString() ? "opacity-100" : "opacity-0"
+                            value === pid ? "opacity-100" : "opacity-0"
                           )}
                         />
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="truncate font-medium">{product.name}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="truncate font-medium">{product.name}</span>
+                            {isService && (
+                              <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
+                                {serviceBadgeLabel}
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{product.category}</span>
+                            {!isService && <span>{product.category}</span>}
                             {product.productType && (
                               <>
-                                <span>•</span>
+                                {!isService && <span>•</span>}
                                 <span>{product.productType}</span>
                               </>
                             )}
@@ -328,9 +355,10 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
                         </div>
                       </div>
                     </CommandItem>
-                  ))
+                    );
+                  })
                 ) : (
-                  <CommandEmpty>No products found. Try a different search.</CommandEmpty>
+                  <CommandEmpty>No items found. Try a different search.</CommandEmpty>
                 )}
               </CommandGroup>
             </CommandList>
@@ -353,6 +381,27 @@ const Dashboard = () => {
     if (!n) return null;
     return n.split(" ")[0] || n;
   }, [user?.name]);
+
+  const [currentDateTime, setCurrentDateTime] = useState(() => new Date());
+  useEffect(() => {
+    const tick = () => setCurrentDateTime(new Date());
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const dateTimeLocale = language === "fr" ? "fr-FR" : language === "rw" ? "en-RW" : "en-US";
+  const greetingDate = currentDateTime.toLocaleDateString(dateTimeLocale, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const greetingTime = currentDateTime.toLocaleTimeString(dateTimeLocale, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: language !== "fr",
+  });
   const {
     items: products,
     isLoading: productsLoading,
@@ -384,6 +433,10 @@ const Dashboard = () => {
   });
   const { items: expenses, add: addExpense, refresh: refreshExpenses } = useApi<Expense>({
     endpoint: "expenses",
+    defaultValue: [],
+  });
+  const { items: clients } = useApi<Client>({
+    endpoint: "clients",
     defaultValue: [],
   });
   const [expensePresets, setExpensePresets] = useState<Array<{ title: string; amount?: number }>>(() => {
@@ -648,8 +701,14 @@ const Dashboard = () => {
   }, [mobileRevenuePeriod, t]);
   
   const serviceStats = useMemo(() => {
-    return { totalServices: products.length };
+    const services = products.filter((p) => (p.category || "").toLowerCase() === "service");
+    return { totalServices: services.length };
   }, [products]);
+
+  const workers = useMemo(
+    () => clients.filter((c) => c.clientType === "worker"),
+    [clients],
+  );
 
   // Get today's recent sales (last 10, sorted by date descending)
   const recentSales = useMemo(() => {
@@ -863,9 +922,9 @@ const Dashboard = () => {
   const [saleDate, setSaleDate] = useState(getTodayDate());
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [packageSaleMode, setPackageSaleMode] = useState<"quantity" | "wholePackage">("quantity"); // For package products: sell by quantity or whole package
-  const [warnLowStockOnSale, setWarnLowStockOnSale] = useState(() => readLowStockSaleWarningPref());
+  const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [bulkSales, setBulkSales] = useState<BulkSaleFormData[]>([
-    { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }
+    { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" }
   ]);
 
   // Sync sale date with today's date on component mount
@@ -874,16 +933,23 @@ const Dashboard = () => {
     setPaymentMethod("cash"); // Set default payment method to cash
   }, []);
 
-  // Clear selected product if it becomes out of stock
+  const selectedSaleItem = useMemo(() => {
+    if (!selectedProduct) return null;
+    return products.find((p) => getProductId(p) === selectedProduct) ?? null;
+  }, [selectedProduct, products]);
+
+  const isSelectedService = selectedSaleItem ? isServiceItem(selectedSaleItem) : false;
+
+  const serviceBadgeLabel = isRw ? "Serivisi" : isFr ? "Service" : "Service";
+
+  // Clear selected product if it becomes out of stock (services are exempt)
   useEffect(() => {
     if (selectedProduct) {
-      const product = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === selectedProduct;
-      });
-      if (product && product.stock <= 0) {
+      const product = products.find((p) => getProductId(p) === selectedProduct);
+      if (product && !isServiceItem(product) && product.stock <= 0) {
         setSelectedProduct("");
         setSellingPrice("");
+        setSelectedWorkerId("");
         playWarningBeep();
         toast({
           title: isRw ? "Icuruzwa rirangiye muri stoki" : "Product Out of Stock",
@@ -894,7 +960,7 @@ const Dashboard = () => {
         });
       }
     }
-  }, [products, selectedProduct]);
+  }, [products, selectedProduct, isRw, toast]);
 
   // Calculate selling price based on product priceType and sale mode
   const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
@@ -925,13 +991,9 @@ const Dashboard = () => {
   };
 
   const handleProductChange = (productId: string) => {
-    const product = products.find((p) => {
-      const id = (p as any)._id || p.id;
-      return id.toString() === productId;
-    });
-    
-    // Prevent selecting products with stock <= 0
-    if (product && product.stock <= 0) {
+    const product = products.find((p) => getProductId(p) === productId);
+
+    if (product && !isServiceItem(product) && product.stock <= 0) {
       playErrorBeep();
       toast({
         title: isRw ? "Icuruzwa rirangiye muri stoki" : "Product Out of Stock",
@@ -942,20 +1004,27 @@ const Dashboard = () => {
       });
       setSelectedProduct("");
       setSellingPrice("");
+      setSelectedWorkerId("");
       return;
     }
-    
+
     setSelectedProduct(productId);
     if (product) {
-      // Reset package sale mode when product changes
+      if (isServiceItem(product)) {
+        setQuantity("1");
+        setSellingPrice(String(product.sellingPrice || ""));
+        setPackageSaleMode("quantity");
+        return;
+      }
+      setSelectedWorkerId("");
       if (product.isPackage) {
         setPackageSaleMode("quantity");
       }
-      // Calculate and set selling price based on product priceType and sale mode
       const calculatedPrice = calculateSellingPrice(product, product.isPackage ? "quantity" : "quantity");
       setSellingPrice(calculatedPrice.toString());
     } else {
       setSellingPrice("");
+      setSelectedWorkerId("");
     }
   };
 
@@ -975,7 +1044,10 @@ const Dashboard = () => {
   }, [packageSaleMode, selectedProduct, products]);
 
   const addBulkRow = () => {
-    setBulkSales([...bulkSales, { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
+    setBulkSales([
+      ...bulkSales,
+      { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" },
+    ]);
   };
 
   const removeBulkRow = (index: number) => {
@@ -990,25 +1062,24 @@ const Dashboard = () => {
     
     // Auto-fill selling price when product is selected
     if (field === "product" && value) {
-      const product = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === value;
-      });
+      const product = products.find((p) => getProductId(p) === value);
       if (product) {
         updated[index].sellingPrice = product.sellingPrice.toString();
+        if (isServiceItem(product)) {
+          updated[index].quantity = "1";
+        } else {
+          updated[index].workerId = "";
+        }
       }
     }
-    
+
     setBulkSales(updated);
   };
 
   const salePreview = useMemo(() => {
     if (!selectedProduct || !sellingPrice.trim()) return null;
-    const product = products.find((p) => {
-      const id = (p as any)._id || p.id;
-      return id?.toString() === selectedProduct;
-    });
-    if (!product) return null;
+    const product = products.find((p) => getProductId(p) === selectedProduct);
+    if (!product || isServiceItem(product)) return null;
     const isWholePkg = packageSaleMode === "wholePackage" && !!(product.isPackage && product.packageQuantity);
     if (!isWholePkg) {
       const q = parseInt(quantity, 10);
@@ -1022,11 +1093,6 @@ const Dashboard = () => {
     if (!m.ok) return null;
     return { product, metrics: m };
   }, [selectedProduct, quantity, sellingPrice, packageSaleMode, products]);
-
-  const singleSaleLowStockHint = useMemo(() => {
-    if (!warnLowStockOnSale || !salePreview) return null;
-    return getLowStockSaleHintState(salePreview.product, salePreview.metrics.stockReduction);
-  }, [warnLowStockOnSale, salePreview]);
 
   const handleRecordSale = async () => {
     // Prevent duplicate submissions
@@ -1046,44 +1112,70 @@ const Dashboard = () => {
       // Validate all bulk sales before creating them
       const invalidSales: string[] = [];
       const salesToCreate = bulkSales
-        .filter((sale) => sale.product.trim() !== "" && sale.quantity && sale.sellingPrice)
+        .filter((sale) => {
+          if (!sale.product.trim() || !sale.sellingPrice) return false;
+          const product = products.find((p) => getProductId(p) === sale.product);
+          if (!product) return false;
+          if (isServiceItem(product)) return !!sale.workerId;
+          return !!sale.quantity;
+        })
         .map((sale) => {
-          const product = products.find((p) => {
-            const id = (p as any)._id || p.id;
-            return id.toString() === sale.product;
-          });
+          const product = products.find((p) => getProductId(p) === sale.product);
           if (!product) return null;
-          
-          const qty = parseInt(sale.quantity) || 1;
-          
-          // Validate quantity is valid
-          if (isNaN(qty) || qty <= 0) {
-            invalidSales.push(`${product.name}: Invalid quantity`);
-            return null;
-          }
-          
-          // Check if quantity exceeds stock (strict check)
-          if (qty > product.stock || product.stock <= 0) {
-            invalidSales.push(`${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available`);
-            return null;
-          }
-          
-          const price = parseFloat(sale.sellingPrice) || 0;
-          const revenue = qty * price;
-          const cost = qty * Number(product.costPrice ?? 0);
-          const profit = revenue - cost;
 
-          // Combine selected date with current time to preserve hours/minutes/seconds
           const now = new Date();
           let saleDateTime: Date;
           if (sale.saleDate) {
-            // Parse the date string and combine with current time
-            const selectedDate = new Date(sale.saleDate + 'T00:00:00');
+            const selectedDate = new Date(sale.saleDate + "T00:00:00");
             saleDateTime = new Date(selectedDate);
             saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
           } else {
             saleDateTime = now;
           }
+
+          if (isServiceItem(product)) {
+            const worker = workers.find(
+              (w) => String((w as { _id?: string; id?: number })._id ?? w.id ?? "") === sale.workerId,
+            );
+            if (!worker) {
+              invalidSales.push(`${product.name}: ${isRw ? "Hitamo umukozi" : "Worker required"}`);
+              return null;
+            }
+            const price = parseFloat(sale.sellingPrice) || 0;
+            if (price <= 0) {
+              invalidSales.push(`${product.name}: ${isRw ? "Igiciro kitari cyo" : "Invalid price"}`);
+              return null;
+            }
+            return {
+              product: product.name,
+              quantity: 1,
+              revenue: price,
+              cost: 0,
+              profit: 0,
+              date: saleDateTime.toISOString(),
+              timestamp: new Date().toISOString(),
+              paymentMethod: sale.paymentMethod || "cash",
+              saleType: "service" as const,
+              serviceName: product.name,
+              workerId: sale.workerId,
+              workerName: worker.name,
+            };
+          }
+
+          const qty = parseInt(sale.quantity) || 1;
+          if (isNaN(qty) || qty <= 0) {
+            invalidSales.push(`${product.name}: Invalid quantity`);
+            return null;
+          }
+          if (qty > product.stock || product.stock <= 0) {
+            invalidSales.push(`${product.name}: Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available`);
+            return null;
+          }
+
+          const price = parseFloat(sale.sellingPrice) || 0;
+          const revenue = qty * price;
+          const cost = qty * Number(product.costPrice ?? 0);
+          const profit = revenue - cost;
 
           return {
             product: product.name,
@@ -1093,7 +1185,7 @@ const Dashboard = () => {
             cost,
             profit,
             date: saleDateTime.toISOString(),
-            timestamp: new Date().toISOString(), // Record exact time when sale was recorded
+            timestamp: new Date().toISOString(),
             paymentMethod: sale.paymentMethod || "cash",
           };
         })
@@ -1120,6 +1212,7 @@ const Dashboard = () => {
         // Group sales by productId to handle multiple sales of the same product
         const stockReductions = new Map<string, number>();
         salesToCreate.forEach((sale: any) => {
+          if (sale.saleType === "service") return;
           const productId = sale.productId?.toString();
           if (productId) {
             const currentReduction = stockReductions.get(productId) || 0;
@@ -1185,7 +1278,7 @@ const Dashboard = () => {
           });
 
           // Reset bulk form
-          setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
+          setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" }]);
           setIsBulkMode(false);
       } else {
         playWarningBeep();
@@ -1199,7 +1292,7 @@ const Dashboard = () => {
       }
     } else {
       // Single sale mode
-      if (!selectedProduct || !quantity || !sellingPrice || !paymentMethod) {
+      if (!selectedProduct || !sellingPrice || !paymentMethod) {
         // Play error beep immediately (we're in user interaction context)
         playErrorBeep();
         toast({
@@ -1213,11 +1306,105 @@ const Dashboard = () => {
         return;
       }
 
-      const product = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === selectedProduct;
-      });
+      const product = products.find((p) => getProductId(p) === selectedProduct);
       if (!product) {
+        setIsRecordingSale(false);
+        return;
+      }
+
+      if (isServiceItem(product)) {
+        if (!selectedWorkerId) {
+          playErrorBeep();
+          toast({
+            title: isRw ? "Amakuru abura" : "Missing Information",
+            description: isRw ? "Hitamo umukozi utanga serivisi." : "Please select who offered the service.",
+            variant: "destructive",
+          });
+          setIsRecordingSale(false);
+          return;
+        }
+
+        const amount = parseFloat(sellingPrice);
+        if (isNaN(amount) || amount <= 0) {
+          playErrorBeep();
+          toast({
+            title: isRw ? "Amafaranga atari yo" : "Invalid Amount",
+            description: isRw
+              ? "Amafaranga ya serivisi agomba kurenza 0."
+              : "Service amount must be greater than 0.",
+            variant: "destructive",
+          });
+          setIsRecordingSale(false);
+          return;
+        }
+
+        const worker = workers.find(
+          (w) => String((w as { _id?: string; id?: number })._id ?? w.id ?? "") === selectedWorkerId,
+        );
+        if (!worker) {
+          playErrorBeep();
+          toast({
+            title: isRw ? "Umukozi ntaboneka" : "Worker Not Found",
+            description: isRw ? "Hitamo umukozi wemewe." : "Please select a valid worker.",
+            variant: "destructive",
+          });
+          setIsRecordingSale(false);
+          return;
+        }
+
+        const now = new Date();
+        let saleDateTime: Date;
+        if (saleDate) {
+          const selectedDate = new Date(saleDate + "T00:00:00");
+          saleDateTime = new Date(selectedDate);
+          saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+        } else {
+          saleDateTime = now;
+        }
+
+        const newSale: Sale = {
+          product: product.name,
+          quantity: 1,
+          revenue: amount,
+          cost: 0,
+          profit: 0,
+          date: saleDateTime.toISOString(),
+          timestamp: new Date().toISOString(),
+          paymentMethod,
+          saleType: "service",
+          serviceName: product.name,
+          workerId: selectedWorkerId,
+          workerName: worker.name,
+        };
+
+        await addSale(newSale);
+        playSaleBeep();
+        sonnerToast.success(isRw ? "Serivisi yanditswe" : "Service Recorded", {
+          description: isRw
+            ? `${product.name} yakozwe na ${worker.name} ku RWF ${amount.toLocaleString()}`
+            : `${product.name} by ${worker.name} for RWF ${amount.toLocaleString()}`,
+        });
+
+        setSelectedProduct("");
+        setSelectedWorkerId("");
+        setQuantity("1");
+        setSellingPrice("");
+        setPaymentMethod("cash");
+        setSaleDate(getTodayDate());
+
+        window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: newSale } }));
+        window.dispatchEvent(new CustomEvent("sales-should-refresh"));
+        setIsRecordingSale(false);
+        return;
+      }
+
+      if (!quantity) {
+        playErrorBeep();
+        toast({
+          title: isRw ? "Amakuru abura" : "Missing Information",
+          description: isRw ? "Andika umubare." : "Please enter quantity.",
+          variant: "destructive",
+        });
         setIsRecordingSale(false);
         return;
       }
@@ -1560,11 +1747,17 @@ const Dashboard = () => {
     <AppLayout title={t("dashboard")}>
       {/* Desktop: greeting + global search (sticky at top) */}
       <div className="hidden lg:block sticky top-0 z-40 -mx-6 px-6 pt-0 pb-4 bg-background/80 backdrop-blur-md">
-        <div className="flex items-center gap-2 text-sm mb-2">
-          <span className="text-muted-foreground">{isRw ? "Muraho" : isFr ? "Bonjour" : "Hello"}</span>
-          <span className="font-semibold text-foreground">
-            {greetingName ? `${greetingName}` : isRw ? "Inshuti" : isFr ? "Utilisateur" : "User"}
-          </span>
+        <div className="flex items-center justify-between gap-4 text-sm mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-muted-foreground">{isRw ? "Muraho" : isFr ? "Bonjour" : "Hello"}</span>
+            <span className="font-semibold text-foreground">
+              {greetingName ? `${greetingName}` : isRw ? "Inshuti" : isFr ? "Utilisateur" : "User"}
+            </span>
+          </div>
+          <div className="text-right shrink-0 tabular-nums">
+            <p className="text-xs text-muted-foreground">{greetingDate}</p>
+            <p className="text-sm font-medium text-foreground">{greetingTime}</p>
+          </div>
         </div>
 
         <Popover open={globalSearchOpen} onOpenChange={setGlobalSearchOpen}>
@@ -1951,7 +2144,7 @@ const Dashboard = () => {
               <Button
                 onClick={() => {
                   setIsBulkMode(false);
-                  setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
+                  setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" }]);
                 }}
                 variant="ghost"
                 className="text-white hover:text-white/80 hover:bg-white/10"
@@ -1978,27 +2171,18 @@ const Dashboard = () => {
               </Button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-blue-600 border-b border-blue-700">
-                  <tr>
-                    <th className="text-left p-2 text-xs font-medium text-white">{t("product")}</th>
-                    <th className="text-left p-2 text-xs font-medium text-white">{t("quantity")}</th>
-                    <th className="text-left p-2 text-xs font-medium text-white">{t("sellingPrice")} (rwf)</th>
-                    <th className="text-left p-2 text-xs font-medium text-white">{t("paymentMethod")}</th>
-                    <th className="text-left p-2 text-xs font-medium text-white">{t("saleDate")}</th>
-                    <th className="text-left p-2 text-xs font-medium text-white w-12"></th>
-                  </tr>
-                </thead>
+            <div className="overflow-x-auto space-y-3">
+              <table className="w-full border-collapse">
                 <tbody>
                   {bulkSales.map((sale, index) => (
-                    <tr key={index} className="border-b border-transparent last:border-0">
-                      <td className="p-2">
+                    <tr key={index} className="align-top">
+                      <td className="py-2 pr-2 align-top w-[28%] min-w-[140px]">
                         <ProductCombobox
                           value={sale.product}
                           onValueChange={(value) => updateBulkSale(index, "product", value)}
                           products={products}
-                          placeholder="Search products by name, category, or type..."
+                          serviceBadgeLabel={serviceBadgeLabel}
+                          placeholder={isRw ? "Shakisha ibicuruzwa cyangwa serivisi..." : "Search products and services..."}
                           className="h-9"
                           onError={(message) => {
                             playErrorBeep();
@@ -2010,57 +2194,78 @@ const Dashboard = () => {
                           }}
                         />
                       </td>
-                      <td className="p-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          max={sale.product ? (() => {
-                            const product = products.find(p => {
-                              const id = (p as any)._id || p.id;
-                              return id.toString() === sale.product;
-                            });
-                            return product?.stock || 0;
-                          })() : undefined}
-                          value={sale.quantity}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === "") {
-                              updateBulkSale(index, "quantity", "");
-                              return;
-                            }
-                            if (sale.product) {
-                              const product = products.find(p => {
-                                const id = (p as any)._id || p.id;
-                                return id.toString() === sale.product;
-                              });
-                              const numValue = parseInt(value);
-                              if (product && numValue > product.stock) {
-                                // Prevent entering more than available stock
-                                updateBulkSale(index, "quantity", product.stock.toString());
-                                playErrorBeep();
-                                toast({
-                                  title: "Maximum Quantity",
-                                  description: `${product.name}: Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-                            }
-                            updateBulkSale(index, "quantity", value);
-                          }}
-                          className="input-field h-9"
-                          placeholder={t("enterQuantity") || "Enter quantity"}
-                        />
-                        {sale.product && (
-                          <p className="text-xs text-white/80 mt-1">
-                            Stock: {products.find(p => {
-                              const id = (p as any)._id || p.id;
-                              return id.toString() === sale.product;
-                            })?.stock || 0}
-                          </p>
-                        )}
+                      <td className="py-2 pr-2 align-top w-[16%] min-w-[100px]">
+                        {(() => {
+                          const rowProduct = products.find((p) => getProductId(p) === sale.product);
+                          const isBulkService = rowProduct && isServiceItem(rowProduct);
+                          if (isBulkService) {
+                            return (
+                              <Select
+                                value={sale.workerId}
+                                onValueChange={(value) => updateBulkSale(index, "workerId", value)}
+                              >
+                                <SelectTrigger className="input-field h-9 w-full">
+                                  <SelectValue placeholder={isRw ? "Hitamo umukozi" : isFr ? "Choisir travailleur" : "Select worker"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {workers.length > 0 ? (
+                                    workers.map((worker) => {
+                                      const workerId = String((worker as { _id?: string; id?: number })._id ?? worker.id ?? "");
+                                      if (!workerId) return null;
+                                      return (
+                                        <SelectItem key={workerId} value={workerId}>
+                                          {worker.name}
+                                        </SelectItem>
+                                      );
+                                    })
+                                  ) : (
+                                    <SelectItem value="__no_worker__" disabled>
+                                      {isRw ? "Nta bakozi" : isFr ? "Aucun travailleur" : "No workers"}
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            );
+                          }
+                          return (
+                            <>
+                              <Input
+                                type="number"
+                                min="1"
+                                max={rowProduct?.stock || undefined}
+                                value={sale.quantity}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === "") {
+                                    updateBulkSale(index, "quantity", "");
+                                    return;
+                                  }
+                                  const numValue = parseInt(value);
+                                  if (rowProduct && numValue > rowProduct.stock) {
+                                    updateBulkSale(index, "quantity", rowProduct.stock.toString());
+                                    playErrorBeep();
+                                    toast({
+                                      title: "Maximum Quantity",
+                                      description: `${rowProduct.name}: Only ${rowProduct.stock} ${rowProduct.stock === 1 ? "item" : "items"} available in stock.`,
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  updateBulkSale(index, "quantity", value);
+                                }}
+                                className="input-field h-9"
+                                placeholder={t("enterQuantity") || "Enter quantity"}
+                              />
+                              {rowProduct && (
+                                <p className="text-xs text-white/80 mt-1">
+                                  Stock: {rowProduct.stock || 0}
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
-                      <td className="p-2">
+                      <td className="py-2 pr-2 align-top w-[14%] min-w-[90px]">
                         <Input
                           type="number"
                           value={sale.sellingPrice}
@@ -2068,53 +2273,30 @@ const Dashboard = () => {
                           className="input-field h-9"
                           placeholder={isRw ? "Injiza igiciro" : "Enter price"}
                         />
-                        {sale.product && sale.quantity && sale.sellingPrice && (() => {
-                          const p = products.find((pr) => {
-                            const id = (pr as any)._id || pr.id;
-                            return id.toString() === sale.product;
-                          });
+                        {sale.product && sale.sellingPrice && (() => {
+                          const p = products.find((pr) => getProductId(pr) === sale.product);
                           if (!p) return null;
-                          const q = parseInt(sale.quantity, 10);
+                          const isBulkService = isServiceItem(p);
+                          const q = isBulkService ? 1 : parseInt(sale.quantity, 10);
                           const price = parseFloat(sale.sellingPrice);
-                          if (isNaN(q) || q <= 0 || isNaN(price)) return null;
+                          if ((!isBulkService && (isNaN(q) || q <= 0)) || isNaN(price)) return null;
                           const revenue = q * price;
-                          const cost = q * Number(p.costPrice ?? 0);
+                          const cost = isBulkService ? 0 : q * Number(p.costPrice ?? 0);
                           const profit = revenue - cost;
-                          const bulkHint =
-                            warnLowStockOnSale && p.minStock != null && p.minStock > 0
-                              ? getLowStockSaleHintState(p, q)
-                              : { kind: "none" as const };
                           return (
-                            <div className="mt-1 space-y-0.5">
-                              <p className={`text-xs font-medium tabular-nums ${profit >= 0 ? "text-emerald-200" : "text-red-200"}`}>
-                                {isRw ? "Inyungu" : isFr ? "Profit" : "Profit"}: rwf {profit.toLocaleString()}
-                              </p>
-                              {bulkHint.kind !== "none" && (
-                                <p className="text-[11px] text-amber-200 leading-snug">
-                                  {bulkHint.kind === "at_or_below_min"
-                                    ? isRw
-                                      ? `Stoki (${bulkHint.stock}) iri hasi cyangwa ku mubare wibanze (${bulkHint.min}).`
-                                      : isFr
-                                        ? `Stock (${bulkHint.stock}) au niveau du minimum (${bulkHint.min}).`
-                                        : `Stock (${bulkHint.stock}) is at or below your minimum (${bulkHint.min}).`
-                                    : isRw
-                                      ? `Nyuma y'ubu buguruzi stoki izaba ${bulkHint.afterStock} (min ${bulkHint.min}).`
-                                      : isFr
-                                        ? `Après cette vente, stock ${bulkHint.afterStock} (min ${bulkHint.min}).`
-                                        : `After this sale, stock will be ${bulkHint.afterStock} (minimum ${bulkHint.min}).`}
-                                </p>
-                              )}
-                            </div>
+                            <p className={`mt-1 text-xs font-medium tabular-nums ${profit >= 0 ? "text-emerald-200" : "text-red-200"}`}>
+                              {isRw ? "Inyungu" : isFr ? "Profit" : "Profit"}: rwf {profit.toLocaleString()}
+                            </p>
                           );
                         })()}
                       </td>
-                      <td className="p-2">
+                      <td className="py-2 pr-2 align-top w-[16%] min-w-[110px]">
                         <Select
                           value={sale.paymentMethod}
                           onValueChange={(value) => updateBulkSale(index, "paymentMethod", value)}
                         >
                           <SelectTrigger className="input-field h-9 w-full">
-                            <SelectValue />
+                            <SelectValue placeholder={t("paymentMethod")} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="cash">{t("cash")}</SelectItem>
@@ -2125,7 +2307,7 @@ const Dashboard = () => {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="p-2">
+                      <td className="py-2 pr-2 align-top w-[14%] min-w-[130px]">
                         <Input
                           type="date"
                           value={sale.saleDate}
@@ -2133,7 +2315,7 @@ const Dashboard = () => {
                           className="input-field h-9 w-full"
                         />
                       </td>
-                      <td className="p-2">
+                      <td className="py-2 align-top w-10">
                         {bulkSales.length > 1 && (
                           <Button
                             size="sm"
@@ -2165,165 +2347,162 @@ const Dashboard = () => {
         ) : (
           /* Single Sale Form */
           <div className="space-y-4">
-            {/* First Row: Product, Quantity, Selling Price */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
-              <div className="space-y-2">
-                <Label className="text-white">{t("selectProduct")}</Label>
-                <ProductCombobox
-                  value={selectedProduct}
-                  onValueChange={handleProductChange}
-                  products={products}
-                  placeholder="Search products by name, category, or type..."
-                  onError={(message) => {
-                    playErrorBeep();
-                    toast({
-                      title: "Product Out of Stock",
-                      description: message,
-                      variant: "destructive",
-                    });
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
+            {/* First Row: labels on one row, inputs on the next — always aligned */}
+            <div>
+              <div className="grid grid-cols-3 gap-x-4 gap-y-2">
                 <Label className="text-white">
-                  {selectedProduct && (() => {
-                    const product = products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    });
-                    if (product?.isPackage && packageSaleMode === "wholePackage") {
-                      return isRw ? "Igipaki" : "Package";
-                    }
-                    return t("quantity");
-                  })()}
+                  {isRw ? "Igicuruzwa / Serivisi" : isFr ? "Produit / Service" : "Product / Service"}
                 </Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max={selectedProduct ? products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  })?.stock || 0 : undefined}
-                  value={selectedProduct && (() => {
-                    const product = products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    });
-                    if (product?.isPackage && packageSaleMode === "wholePackage") {
-                      return product.packageQuantity?.toString() || "1";
-                    }
-                    return quantity;
-                  })()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === "") {
-                      setQuantity("");
-                      return;
-                    }
-                    const numValue = parseInt(value);
-                    if (selectedProduct) {
-                      const product = products.find(p => {
-                        const id = (p as any)._id || p.id;
-                        return id.toString() === selectedProduct;
+                <Label className="text-white">
+                  {isSelectedService
+                    ? isRw
+                      ? "Umukozi"
+                      : isFr
+                        ? "Travailleur"
+                        : "Worker"
+                    : (() => {
+                        if (!selectedProduct) return t("quantity");
+                        const product = products.find((p) => getProductId(p) === selectedProduct);
+                        if (product?.isPackage && packageSaleMode === "wholePackage") {
+                          return isRw ? "Igipaki" : "Package";
+                        }
+                        return t("quantity");
+                      })()}
+                </Label>
+                <Label className="text-white">{t("sellingPrice")} (rwf)</Label>
+
+                <div className="h-10">
+                  <ProductCombobox
+                    value={selectedProduct}
+                    onValueChange={handleProductChange}
+                    products={products}
+                    serviceBadgeLabel={serviceBadgeLabel}
+                    placeholder={isRw ? "Shakisha ibicuruzwa cyangwa serivisi..." : "Search products and services..."}
+                    className="h-10"
+                    onError={(message) => {
+                      playErrorBeep();
+                      toast({
+                        title: "Product Out of Stock",
+                        description: message,
+                        variant: "destructive",
                       });
-                      if (product && numValue > product.stock) {
-                        // Prevent entering more than available stock
-                        setQuantity(product.stock.toString());
-                        playErrorBeep();
-                        toast({
-                          title: "Maximum Quantity",
-                          description: `Only ${product.stock} ${product.stock === 1 ? 'item' : 'items'} available in stock.`,
-                          variant: "destructive",
-                        });
+                    }}
+                  />
+                </div>
+                {isSelectedService ? (
+                  <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
+                    <SelectTrigger className="input-field h-10 w-full">
+                      <SelectValue placeholder={isRw ? "Hitamo umukozi" : isFr ? "Choisir un travailleur" : "Select worker"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workers.length > 0 ? (
+                        workers.map((worker) => {
+                          const workerId = String((worker as { _id?: string; id?: number })._id ?? worker.id ?? "");
+                          if (!workerId) return null;
+                          return (
+                            <SelectItem key={workerId} value={workerId}>
+                              {worker.name}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="__no_worker__" disabled>
+                          {isRw ? "Nta bakozi babonetse" : isFr ? "Aucun travailleur" : "No workers found"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    type="number"
+                    min="1"
+                    max={selectedProduct ? products.find((p) => getProductId(p) === selectedProduct)?.stock || 0 : undefined}
+                    value={selectedProduct && (() => {
+                      const product = products.find((p) => getProductId(p) === selectedProduct);
+                      if (product?.isPackage && packageSaleMode === "wholePackage") {
+                        return product.packageQuantity?.toString() || "1";
+                      }
+                      return quantity;
+                    })()}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "") {
+                        setQuantity("");
                         return;
                       }
-                    }
-                    setQuantity(value);
-                  }}
-                  disabled={selectedProduct && (() => {
-                    const product = products.find(p => {
-                      const id = (p as any)._id || p.id;
-                      return id.toString() === selectedProduct;
-                    });
-                    return product?.isPackage && packageSaleMode === "wholePackage";
-                  })()}
-                  className="input-field"
-                  placeholder={t("enterQuantity") || "Enter quantity"}
+                      const numValue = parseInt(value);
+                      if (selectedProduct) {
+                        const product = products.find((p) => getProductId(p) === selectedProduct);
+                        if (product && numValue > product.stock) {
+                          setQuantity(product.stock.toString());
+                          playErrorBeep();
+                          toast({
+                            title: "Maximum Quantity",
+                            description: `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                      }
+                      setQuantity(value);
+                    }}
+                    disabled={selectedProduct && (() => {
+                      const product = products.find((p) => getProductId(p) === selectedProduct);
+                      return product?.isPackage && packageSaleMode === "wholePackage";
+                    })()}
+                    className="input-field h-10"
+                    placeholder={t("enterQuantity") || "Enter quantity"}
+                  />
+                )}
+                <Input
+                  type="number"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  className="input-field h-10"
+                  placeholder={selectedProduct ? "Enter price" : "Select product first"}
                 />
-                {selectedProduct && (() => {
-                  const product = products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  });
-                  if (!product) return null;
-                  
-                  return (
+              </div>
+              {selectedProduct && !isSelectedService && (() => {
+                const product = products.find((p) => getProductId(p) === selectedProduct);
+                if (!product) return null;
+
+                let priceHint: string | null = null;
+                if (product.isPackage && product.packageQuantity) {
+                  const basePrice = product.sellingPrice;
+                  const priceType = product.priceType || "perQuantity";
+                  const currentMode = packageSaleMode;
+
+                  if (priceType === "perQuantity") {
+                    priceHint = currentMode === "wholePackage"
+                      ? `Price per item: ${basePrice.toLocaleString()} rwf × ${product.packageQuantity} = ${(basePrice * product.packageQuantity).toLocaleString()} rwf (whole package)`
+                      : `Price per item: ${basePrice.toLocaleString()} rwf - You can change this`;
+                  } else {
+                    priceHint = currentMode === "wholePackage"
+                      ? `Price for whole package: ${basePrice.toLocaleString()} rwf - You can change this`
+                      : `Price per item: ${(basePrice / product.packageQuantity).toFixed(2)} rwf (from ${basePrice.toLocaleString()} rwf ÷ ${product.packageQuantity})`;
+                  }
+                } else {
+                  priceHint = `${t("suggestedPrice")}: rwf ${product.sellingPrice.toLocaleString()} - You can change this`;
+                }
+
+                return (
+                  <div className="grid grid-cols-3 gap-x-4 mt-1">
+                    <div />
                     <p className="text-xs text-white/80">
                       {t("availableStock")}: {formatStockDisplay(product, t("language") as 'en' | 'rw')}
                       {product.isPackage && product.packageQuantity && (
                         <span className="ml-1">(Box of {product.packageQuantity})</span>
                       )}
                     </p>
-                  );
-                })()}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-white">{t("sellingPrice")} (rwf)</Label>
-                <Input
-                  type="number"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                  className="input-field"
-                  placeholder={selectedProduct ? "Enter price" : "Select product first"}
-                />
-                {selectedProduct && (() => {
-                  const product = products.find(p => {
-                    const id = (p as any)._id || p.id;
-                    return id.toString() === selectedProduct;
-                  });
-                  if (!product) return null;
-                  
-                  if (product.isPackage && product.packageQuantity) {
-                    const basePrice = product.sellingPrice;
-                    const priceType = product.priceType || "perQuantity";
-                    const currentMode = packageSaleMode;
-                    
-                    if (priceType === "perQuantity") {
-                      return (
-                        <p className="text-xs text-white/80">
-                          {currentMode === "wholePackage" 
-                            ? `Price per item: ${basePrice.toLocaleString()} rwf × ${product.packageQuantity} = ${(basePrice * product.packageQuantity).toLocaleString()} rwf (whole package)`
-                            : `Price per item: ${basePrice.toLocaleString()} rwf - You can change this`
-                          }
-                        </p>
-                      );
-                    } else {
-                      return (
-                        <p className="text-xs text-white/80">
-                          {currentMode === "wholePackage"
-                            ? `Price for whole package: ${basePrice.toLocaleString()} rwf - You can change this`
-                            : `Price per item: ${(basePrice / product.packageQuantity).toFixed(2)} rwf (from ${basePrice.toLocaleString()} rwf ÷ ${product.packageQuantity})`
-                          }
-                        </p>
-                      );
-                    }
-                  } else {
-                    return (
-                      <p className="text-xs text-white/80">
-                        {t("suggestedPrice")}: rwf {product.sellingPrice.toLocaleString()} - You can change this
-                      </p>
-                    );
-                  }
-                })()}
-              </div>
+                    <p className="text-xs text-white/80">{priceHint}</p>
+                  </div>
+                );
+              })()}
             </div>
             
             {/* Package Sale Mode Selector - Only for package products */}
-            {selectedProduct && (() => {
-              const product = products.find(p => {
-                const id = (p as any)._id || p.id;
-                return id.toString() === selectedProduct;
-              });
+            {selectedProduct && !isSelectedService && (() => {
+              const product = products.find((p) => getProductId(p) === selectedProduct);
               if (product?.isPackage && product.packageQuantity) {
                 return (
                   <div className="space-y-2">
@@ -2351,39 +2530,6 @@ const Dashboard = () => {
               }
               return null;
             })()}
-            {singleSaleLowStockHint && singleSaleLowStockHint.kind !== "none" && (
-              <div className="col-span-full rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-sm text-amber-50">
-                {singleSaleLowStockHint.kind === "at_or_below_min"
-                  ? isRw
-                    ? `Stoki (${singleSaleLowStockHint.stock}) iri hasi cyangwa ku mubare wibanze wawe (${singleSaleLowStockHint.min}).`
-                    : isFr
-                      ? `Stock (${singleSaleLowStockHint.stock}) au niveau du minimum (${singleSaleLowStockHint.min}).`
-                      : `Current stock (${singleSaleLowStockHint.stock}) is at or below your minimum (${singleSaleLowStockHint.min}).`
-                  : isRw
-                    ? `Nyuma y'ubu buguruzi stoki izaba ${singleSaleLowStockHint.afterStock} (min ${singleSaleLowStockHint.min}).`
-                    : isFr
-                      ? `Après cette vente, le stock sera ${singleSaleLowStockHint.afterStock} (minimum ${singleSaleLowStockHint.min}).`
-                      : `After this sale, stock will be ${singleSaleLowStockHint.afterStock} (your minimum is ${singleSaleLowStockHint.min}).`}
-              </div>
-            )}
-            <div className="col-span-full flex items-center gap-2 text-xs text-white/85">
-              <Checkbox
-                id="low-stock-warn-dashboard-sale"
-                checked={warnLowStockOnSale}
-                onCheckedChange={(c) => {
-                  const on = c === true;
-                  setWarnLowStockOnSale(on);
-                  writeLowStockSaleWarningPref(on);
-                }}
-              />
-              <label htmlFor="low-stock-warn-dashboard-sale" className="cursor-pointer select-none">
-                {isRw
-                  ? "Menyesha iyo stoki iri hasi cyangwa ku mubare wibanze"
-                  : isFr
-                    ? "Alerter si le stock atteint le minimum"
-                    : "Warn when stock is at or below minimum (saved on this device)"}
-              </label>
-            </div>
             {/* Revenue, Cost, and Profit Preview (revenue − cost = profit) */}
             {salePreview && (
               <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30 mt-2">
@@ -2420,38 +2566,34 @@ const Dashboard = () => {
                 </div>
               </div>
             )}
-            {/* Second Row: Payment Method and Sale Date */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-end">
-              <div className="space-y-2">
-                <Label className="text-white">{t("paymentMethod")}</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="input-field w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">{t("cash")}</SelectItem>
-                    <SelectItem value="momo">{t("momoPay")}</SelectItem>
-                    <SelectItem value="card">{t("card")}</SelectItem>
-                    <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
-                    <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-white">{t("saleDate")}</Label>
-                <Input
-                  type="date"
-                  value={saleDate}
-                  onChange={(e) => setSaleDate(e.target.value)}
-                  className="input-field w-full"
-                />
-              </div>
-            </div>
-            <div className="flex items-end">
-              <Button 
-                onClick={handleRecordSale} 
+            {/* Payment Method, Sale Date, and Record — one row */}
+            <div className="grid grid-cols-3 gap-x-4 gap-y-2 items-end">
+              <Label className="text-white">{t("paymentMethod")}</Label>
+              <Label className="text-white">{t("saleDate")}</Label>
+              <div />
+
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="input-field h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">{t("cash")}</SelectItem>
+                  <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                  <SelectItem value="card">{t("card")}</SelectItem>
+                  <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                  <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+                className="input-field h-10 w-full"
+              />
+              <Button
+                onClick={handleRecordSale}
                 disabled={isRecordingSale}
-                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent w-full gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold h-10 px-4 border border-transparent w-full gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart size={16} />
                 {isRecordingSale ? t("recording") : t("recordSale")}
@@ -2463,9 +2605,9 @@ const Dashboard = () => {
 
       {/* Desktop Large Quick Actions */}
       <div className="hidden lg:block mb-6">
-        <div className="rounded-lg border border-blue-200 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <TrendingUp className="w-5 h-5 text-gray-600" />
             <h3 className="text-lg font-semibold text-gray-900">
               {isRw ? "Ibyibanze" : isFr ? "Actions de base" : "Quick Actions"}
             </h3>

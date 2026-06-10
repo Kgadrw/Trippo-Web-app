@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Trash2 } from "lucide-react";
@@ -21,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 
 export default function SettingsDeleteAccount() {
   const navigate = useNavigate();
@@ -89,37 +89,26 @@ export default function SettingsDeleteAccount() {
     }
   };
 
+  const title = language === "rw" ? "Kuraho Konti" : language === "fr" ? "Supprimer le compte" : "Delete Account";
+
   return (
-    <AppLayout title={language === "rw" ? "Kuraho Konti" : "Delete Account"}>
-      <div className="max-w-3xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => navigate("/settings")}>
-            {language === "rw" ? "Subira" : language === "fr" ? "Retour" : "Back"}
-          </Button>
-        </div>
+    <div className="flex flex-1 flex-col overflow-y-auto p-5">
+      <SettingsSubpageHeader
+        icon={Trash2}
+        title={title}
+        tone="red"
+        description={
+          language === "rw"
+            ? "Iki gikorwa ntigisubirwamo"
+            : language === "fr"
+            ? "Cette action est irréversible"
+            : "This action cannot be undone"
+        }
+      />
 
-        <div className="form-card border border-transparent lg:bg-white bg-white/80 backdrop-blur-sm">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-red-100 border border-red-200 flex items-center justify-center rounded-lg">
-                <Trash2 size={16} className="text-red-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-red-700">
-                  {language === "rw" ? "Kuraho Konti" : "Delete Account"}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {language === "rw"
-                    ? "Iki gikorwa ntigisubirwamo"
-                    : "This action cannot be undone"}
-                </p>
-              </div>
-            </div>
-          </div>
+      <Separator className="mb-4 bg-red-200" />
 
-          <Separator className="mb-4 bg-red-200" />
-
-          <div className="space-y-4">
+      <div className="space-y-4">
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-start gap-3">
                 <AlertTriangle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
@@ -145,8 +134,6 @@ export default function SettingsDeleteAccount() {
               {language === "rw" ? "Kuraho Konti" : "Delete My Account"}
             </Button>
           </div>
-        </div>
-      </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -188,7 +175,7 @@ export default function SettingsDeleteAccount() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </div>
   );
 }
 

@@ -1,5 +1,6 @@
 // WebSocket hook for real-time updates
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getWebSocketBaseUrl } from '@/lib/api';
 
 interface WebSocketMessage {
   type: string;
@@ -34,7 +35,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   const connect = useCallback(() => {
     // Get API base URL and userId
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://profit-backend-3exl.onrender.com';
     const userId = localStorage.getItem('profit-pilot-user-id');
     
     if (!userId) {
@@ -42,8 +42,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       return;
     }
 
-    // Convert HTTP URL to WebSocket URL
-    const wsUrl = API_BASE_URL.replace(/^http/, 'ws') + '/ws?userId=' + encodeURIComponent(userId);
+    const wsUrl = `${getWebSocketBaseUrl()}/ws?userId=${encodeURIComponent(userId)}`;
     
     try {
       const ws = new WebSocket(wsUrl);

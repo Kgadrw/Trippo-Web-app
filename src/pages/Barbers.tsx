@@ -12,8 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { useApi } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, UserRound, Pencil, Loader2, ChevronRight } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, Loader2, MoreVertical } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cn, formatDateWithTime } from "@/lib/utils";
 
@@ -121,7 +127,13 @@ export default function Barbers() {
     endpoint: "clients",
     defaultValue: [],
   });
-  const { items: sales, isLoading: salesLoading, refresh: refreshSales } = useApi<Sale>({
+  const {
+    items: sales,
+    isLoading: salesLoading,
+    refresh: refreshSales,
+    update: updateSale,
+    remove: removeSale,
+  } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
   });
@@ -144,8 +156,15 @@ export default function Barbers() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [expandedWorkerKey, setExpandedWorkerKey] = useState<string | null>(null);
+  const [deletingWorkerId, setDeletingWorkerId] = useState<string | null>(null);
+  const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  const [saleDialogOpen, setSaleDialogOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [saleServiceName, setSaleServiceName] = useState("");
+  const [saleQuantity, setSaleQuantity] = useState("1");
+  const [saleRevenue, setSaleRevenue] = useState("");
+  const [saleDate, setSaleDate] = useState("");
+  const [isSavingSale, setIsSavingSale] = useState(false);
 
   const workerSalesHistory = useMemo(() => {
     const map = new Map<string, Sale[]>();
@@ -225,23 +244,100 @@ export default function Barbers() {
     }
   };
 
-  const handleDelete = async (barber: Barber) => {
-    if (!window.confirm(`Delete ${barber.name}?`)) return;
+  const getSaleId = (sale: Sale) =>
+    String((sale as { _id?: string; id?: number })._id ?? sale.id ?? "");
+
+  const handleDelete = async (barber: Barber): Promise<boolean> => {
+    if (!window.confirm(`Delete ${barber.name}?`)) return false;
     const id = String((barber as { _id?: string; id?: number })._id ?? barber.id ?? "");
-    if (!id) return;
-    setDeletingId(id);
+    if (!id) return false;
+    setDeletingWorkerId(id);
     try {
       await remove(barber as any);
       await refresh(true);
       toast({ title: "Deleted", description: "Worker removed." });
+      return true;
     } catch (error: any) {
       toast({
         title: "Delete Failed",
         description: error?.message || "Failed to delete worker. Please try again.",
         variant: "destructive",
       });
+      return false;
     } finally {
-      setDeletingId(null);
+      setDeletingWorkerId(null);
+    }
+  };
+
+  const openEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    setSaleServiceName((sale.serviceName || sale.product || "").trim());
+    setSaleQuantity(String(sale.quantity || 1));
+    setSaleRevenue(String(sale.revenue ?? 0));
+    const rawDate = sale.date || sale.timestamp;
+    setSaleDate(rawDate ? new Date(rawDate).toISOString().slice(0, 10) : "");
+    setSaleDialogOpen(true);
+  };
+
+  const handleSaveSale = async () => {
+    if (!editingSale) return;
+    const qty = parseInt(saleQuantity, 10);
+    const revenue = parseFloat(saleRevenue);
+    if (!saleServiceName.trim() || Number.isNaN(qty) || qty < 1 || Number.isNaN(revenue) || revenue < 0) {
+      toast({
+        title: "Invalid sale",
+        description: "Enter a valid service name, quantity, and amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSavingSale(true);
+    try {
+      const cost = Number((editingSale as Sale & { cost?: number }).cost ?? 0);
+      await updateSale({
+        ...editingSale,
+        serviceName: saleServiceName.trim(),
+        product: saleServiceName.trim(),
+        quantity: qty,
+        revenue,
+        profit: revenue - cost,
+        date: saleDate || editingSale.date,
+      } as any);
+      await refreshSales(true);
+      window.dispatchEvent(new CustomEvent("sales-should-refresh"));
+      toast({ title: "Sale updated", description: "History entry saved." });
+      setSaleDialogOpen(false);
+      setEditingSale(null);
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error?.message || "Could not update sale.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSale(false);
+    }
+  };
+
+  const handleDeleteSale = async (sale: Sale) => {
+    const label = (sale.serviceName || sale.product || "Sale").trim();
+    if (!window.confirm(`Delete sale "${label}"?`)) return;
+    const id = getSaleId(sale);
+    if (!id) return;
+    setDeletingSaleId(id);
+    try {
+      await removeSale(sale as any);
+      await refreshSales(true);
+      window.dispatchEvent(new CustomEvent("sales-should-refresh"));
+      toast({ title: "Sale deleted", description: "History entry removed." });
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error?.message || "Could not delete sale.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingSaleId(null);
     }
   };
 
@@ -249,172 +345,322 @@ export default function Barbers() {
     language === "rw" ? "Abakozi" : language === "fr" ? "Travailleurs" : "Workers";
   const barberSingular =
     language === "rw" ? "Umukozi" : language === "fr" ? "Travailleur" : "Worker";
-  const salesHistoryTitle =
-    language === "rw"
-      ? "Amateka y'ubucuruzi"
-      : language === "fr"
-        ? "Historique des ventes"
-        : "Sales history";
-  const salesHistoryLoading =
-    language === "rw"
-      ? "Gutangiza amateka y'ubucuruzi…"
-      : language === "fr"
-        ? "Chargement de l'historique des ventes…"
-        : "Loading sales history…";
   const salesHistoryEmpty =
     language === "rw"
-      ? "Nta bucuruzi bwanditswe kuri uyu mukozi."
+      ? "Nta bucuruzi"
       : language === "fr"
-        ? "Aucune vente enregistrée pour ce travailleur."
-        : "No sales recorded for this worker yet.";
+        ? "Aucune vente"
+        : "No sales";
+  const historyRowLabel =
+    language === "rw" ? "#" : language === "fr" ? "#" : "#";
+  const totalSalesLabel =
+    language === "rw" ? "Byose" : language === "fr" ? "Total" : "Total";
+
+  const maxHistoryRows = useMemo(() => {
+    let max = 0;
+    for (const b of barbers) {
+      const len = workerSalesHistory.get(workerKey(b))?.length ?? 0;
+      if (len > max) max = len;
+    }
+    return max;
+  }, [barbers, workerSalesHistory]);
+
+  const historyRowIndices = useMemo(
+    () => Array.from({ length: maxHistoryRows }, (_, i) => i),
+    [maxHistoryRows],
+  );
 
   return (
     <AppLayout title={barbersTitle}>
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`${t("search")} ${barbersTitle.toLowerCase()}...`}
-              className="pl-9 rounded-full"
-            />
+      <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
+        <div className="lg:px-4 lg:py-4 flex-shrink-0 mb-4 lg:mb-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1 min-w-0">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`${t("search")} ${barbersTitle.toLowerCase()}...`}
+                className="pl-9 h-10 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+                autoComplete="off"
+              />
+            </div>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-lg px-4 h-10 shrink-0"
+              onClick={openCreate}
+            >
+              <Plus size={16} />
+              {t("add")} {barberSingular}
+            </Button>
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-full" onClick={openCreate}>
-            <Plus size={16} />
-            {t("add")} {barberSingular}
-          </Button>
         </div>
 
-        {isLoading ? (
-          <div className="rounded-lg border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100 shadow-sm">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-white px-3 py-2.5 flex items-center gap-2">
-                <Skeleton className="h-4 w-4 shrink-0 rounded bg-muted" />
-                <Skeleton className="h-8 w-8 shrink-0 rounded-full bg-muted" />
-                <div className="flex-1 space-y-2 min-w-0">
-                  <Skeleton className="h-3.5 w-[55%] bg-muted" />
-                  <Skeleton className="h-3 w-[40%] bg-muted/80" />
-                </div>
-                <Skeleton className="h-7 w-14 shrink-0 rounded-md bg-muted" />
-              </div>
-            ))}
+        {isLoading || salesLoading ? (
+          <div className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <th key={i} className="text-left py-4 px-6">
+                        <Skeleton className="h-4 w-24" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b border-gray-200">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <td key={j} className="py-4 px-6">
+                          <Skeleton className="h-4 w-28" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : barbers.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white px-4 py-5 text-sm text-muted-foreground">
+          <div className="px-4 py-5 text-sm text-muted-foreground">
             No workers found. Click <span className="font-semibold text-foreground">Add Worker</span> to create one.
           </div>
         ) : (
-          <div className="rounded-lg border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100 shadow-sm">
-            {barbers.map((b) => {
-              const id = (b as { _id?: string; id?: number })._id ?? b.id;
-              const idStr = id != null ? String(id) : "";
-              const isDeletingThis = deletingId !== null && idStr === deletingId;
-              const rowKey = workerKey(b);
-              const isOpen = expandedWorkerKey === rowKey;
-              const history = workerSalesHistory.get(rowKey) ?? [];
-
-              return (
-                <div key={rowKey} className="bg-white">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isOpen}
-                    aria-label={isOpen ? `Collapse ${salesHistoryTitle} for ${b.name}` : `Expand ${salesHistoryTitle} for ${b.name}`}
-                    className="flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors hover:bg-gray-50 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-inset"
-                    onClick={() => setExpandedWorkerKey(isOpen ? null : rowKey)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setExpandedWorkerKey(isOpen ? null : rowKey);
-                      }
-                    }}
-                  >
-                    <ChevronRight
-                      size={18}
-                      className={cn("shrink-0 text-gray-500 transition-transform", isOpen && "rotate-90")}
-                      aria-hidden
-                    />
-                    <UserRound size={16} className="shrink-0 text-gray-500" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-gray-900 truncate">{b.name}</div>
-                      <div className="text-xs text-gray-600 truncate">{b.businessType || "Worker"}</div>
-                    </div>
-                    <div
-                      className="flex items-center gap-0.5 shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => e.stopPropagation()}
-                    >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-gray-700 hover:bg-gray-100 rounded-md"
-                        onClick={() => openEdit(b)}
-                        aria-label="Edit worker"
-                      >
-                        <Pencil size={13} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 rounded-md"
-                        disabled={isDeletingThis}
-                        onClick={() => void handleDelete(b)}
-                        aria-label={isDeletingThis ? "Deleting" : "Delete worker"}
-                      >
-                        {isDeletingThis ? (
-                          <Loader2 size={13} className="animate-spin" />
-                        ) : (
-                          <Trash2 size={13} />
+          <div className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6 min-w-[56px] sticky left-0 z-20 bg-gray-100 border-r border-gray-200">
+                      {historyRowLabel}
+                    </th>
+                    {barbers.map((b) => {
+                      const rowKey = workerKey(b);
+                      const history = workerSalesHistory.get(rowKey) ?? [];
+                      return (
+                        <th
+                          key={rowKey}
+                          className="text-left text-sm font-semibold text-gray-700 py-4 px-4 min-w-[340px]"
+                        >
+                          <button
+                            type="button"
+                            className="text-left hover:text-blue-600"
+                            onClick={() => openEdit(b)}
+                          >
+                            <div>{b.name}</div>
+                            <div className="text-xs font-normal text-gray-500 mt-0.5">
+                              {b.businessType || "Worker"}
+                              <span className="text-gray-400"> · </span>
+                              <span className="text-blue-600 tabular-nums">{history.length}</span>
+                            </div>
+                          </button>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {maxHistoryRows === 0 ? (
+                    <tr className="border-b border-gray-200">
+                      <td className="py-4 px-6 text-sm text-gray-500 sticky left-0 z-10 bg-white border-r border-gray-200">
+                        —
+                      </td>
+                      {barbers.map((b) => (
+                        <td key={workerKey(b)} className="py-4 px-6 text-sm text-gray-500">
+                          {salesHistoryEmpty}
+                        </td>
+                      ))}
+                    </tr>
+                  ) : (
+                    historyRowIndices.map((rowIndex) => (
+                      <tr
+                        key={rowIndex}
+                        className={cn(
+                          "border-b border-gray-200",
+                          rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50",
                         )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {isOpen && (
-                    <div className="border-t border-gray-100 bg-gray-50/80 px-3 py-2.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                        {salesHistoryTitle}
-                        {!salesLoading && history.length > 0 ? (
-                          <span className="ml-1 font-normal normal-case text-gray-600">({history.length})</span>
-                        ) : null}
-                      </div>
-                      {salesLoading ? (
-                        <p className="text-xs text-gray-600">{salesHistoryLoading}</p>
-                      ) : history.length === 0 ? (
-                        <p className="text-xs text-gray-600">{salesHistoryEmpty}</p>
-                      ) : (
-                        <ul className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-                          {history.map((sale) => {
-                            const sid = (sale as { _id?: string; id?: number })._id ?? sale.id;
-                            const label = (sale.serviceName || sale.product || "Sale").trim();
-                            const when = sale.timestamp || sale.date;
+                      >
+                        <td
+                          className={cn(
+                            "py-4 px-6 text-sm font-medium text-gray-600 tabular-nums sticky left-0 z-10 border-r border-gray-200",
+                            rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50",
+                          )}
+                        >
+                          {rowIndex + 1}
+                        </td>
+                        {barbers.map((b) => {
+                          const history = workerSalesHistory.get(workerKey(b)) ?? [];
+                          const sale = history[rowIndex];
+                          if (!sale) {
                             return (
-                              <li
-                                key={sid != null ? String(sid) : `${label}-${when}`}
-                                className="text-xs rounded-md bg-white border border-gray-200 px-2.5 py-2 text-gray-900 shadow-sm"
-                              >
-                                <div className="font-medium leading-snug">{label}</div>
-                                <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-gray-600">
-                                  <span className="tabular-nums font-semibold text-gray-900">
-                                    {Number(sale.revenue || 0).toLocaleString()} rwf
-                                  </span>
-                                  <span className="text-[10px] text-gray-500">{formatDateWithTime(when)}</span>
-                                </div>
-                              </li>
+                              <td key={workerKey(b)} className="py-4 px-6 text-sm text-gray-300">
+                                —
+                              </td>
                             );
-                          })}
-                        </ul>
-                      )}
-                    </div>
+                          }
+                          const label = (sale.serviceName || sale.product || "Sale").trim();
+                          const when = sale.timestamp || sale.date;
+                          const saleId = getSaleId(sale);
+                          const isDeletingSale = deletingSaleId !== null && saleId === deletingSaleId;
+                          return (
+                            <td key={workerKey(b)} className="py-3 px-4 align-middle">
+                              <div className="flex items-center gap-2 min-w-[320px]">
+                                <span className="text-sm font-medium text-gray-900 truncate min-w-0 max-w-[120px]">
+                                  {label}
+                                </span>
+                                <span className="text-sm text-gray-700 tabular-nums whitespace-nowrap shrink-0">
+                                  {Number(sale.revenue || 0).toLocaleString()} rwf
+                                </span>
+                                <span className="text-xs text-gray-500 whitespace-nowrap shrink-0">
+                                  {formatDateWithTime(when)}
+                                </span>
+                                <div className="shrink-0 ml-auto">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        aria-label="Sale actions"
+                                      >
+                                        {isDeletingSale ? (
+                                          <Loader2 size={16} className="animate-spin" />
+                                        ) : (
+                                          <MoreVertical size={16} />
+                                        )}
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => openEditSale(sale)}>
+                                        <Pencil size={14} className="mr-2" />
+                                        {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => void handleDeleteSale(sale)}
+                                        disabled={isDeletingSale}
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                      >
+                                        <Trash2 size={14} className="mr-2" />
+                                        {t("delete")}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))
                   )}
-                </div>
-              );
-            })}
+                  {maxHistoryRows > 0 && (
+                    <tr className="border-t border-gray-200 bg-blue-50/70">
+                      <td className="py-4 px-6 text-sm font-semibold text-gray-800 sticky left-0 z-10 bg-blue-50/70 border-r border-gray-200">
+                        {totalSalesLabel}
+                      </td>
+                      {barbers.map((b) => {
+                        const history = workerSalesHistory.get(workerKey(b)) ?? [];
+                        const total = history.reduce((sum, s) => sum + Number(s.revenue || 0), 0);
+                        return (
+                          <td
+                            key={workerKey(b)}
+                            className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums"
+                          >
+                            {total.toLocaleString()} rwf
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
+
+      <Dialog
+        open={saleDialogOpen}
+        onOpenChange={(next) => {
+          if (!next && isSavingSale) return;
+          setSaleDialogOpen(next);
+          if (!next) setEditingSale(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {language === "rw" ? "Hindura ubucuruzi" : language === "fr" ? "Modifier la vente" : "Edit sale"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>{language === "rw" ? "Serivisi" : language === "fr" ? "Service" : "Service"}</Label>
+              <Input
+                value={saleServiceName}
+                onChange={(e) => setSaleServiceName(e.target.value)}
+                disabled={isSavingSale}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{language === "rw" ? "Umubare" : language === "fr" ? "Quantité" : "Quantity"}</Label>
+              <Input
+                type="number"
+                min="1"
+                value={saleQuantity}
+                onChange={(e) => setSaleQuantity(e.target.value)}
+                disabled={isSavingSale}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{language === "rw" ? "Amafaranga (rwf)" : language === "fr" ? "Montant (rwf)" : "Amount (rwf)"}</Label>
+              <Input
+                type="number"
+                min="0"
+                value={saleRevenue}
+                onChange={(e) => setSaleRevenue(e.target.value)}
+                disabled={isSavingSale}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{language === "rw" ? "Itariki" : language === "fr" ? "Date" : "Date"}</Label>
+              <Input
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+                disabled={isSavingSale}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSaleDialogOpen(false);
+                setEditingSale(null);
+              }}
+              disabled={isSavingSale}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[7rem]"
+              onClick={() => void handleSaveSale()}
+              disabled={isSavingSale}
+            >
+              {isSavingSale ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {language === "rw" ? "Bika..." : language === "fr" ? "Enregistrement..." : "Saving..."}
+                </>
+              ) : (
+                t("save")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={open}
@@ -447,36 +693,61 @@ export default function Barbers() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setOpen(false);
-                setEditingBarber(null);
-                setName("");
-                setCategory("");
-              }}
-              className="rounded-full"
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full min-w-[7rem]"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {editingBarber ? "Updating..." : "Saving..."}
-                </>
-              ) : editingBarber ? (
-                "Update"
-              ) : (
-                "Save"
-              )}
-            </Button>
+          <DialogFooter className="gap-2 sm:justify-between">
+            {editingBarber ? (
+              <Button
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50 rounded-full"
+                disabled={isSaving || deletingWorkerId !== null}
+                onClick={async () => {
+                  const deleted = await handleDelete(editingBarber);
+                  if (!deleted) return;
+                  setOpen(false);
+                  setEditingBarber(null);
+                  setName("");
+                  setCategory("");
+                }}
+              >
+                {deletingWorkerId ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  t("delete")
+                )}
+              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOpen(false);
+                  setEditingBarber(null);
+                  setName("");
+                  setCategory("");
+                }}
+                className="rounded-full"
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full min-w-[7rem]"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {editingBarber ? "Updating..." : "Saving..."}
+                  </>
+                ) : editingBarber ? (
+                  "Update"
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

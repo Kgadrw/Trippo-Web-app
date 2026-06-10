@@ -1422,7 +1422,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       try {
         // logger.log(`[useApi] Attempting to send bulk sales via DIRECT API call:`, itemsData);
         // logger.log(`[useApi] Online status: ${navigator.onLine}`);
-        // logger.log(`[useApi] API Base URL: ${import.meta.env.VITE_API_URL || 'https://profit-backend-3exl.onrender.com/api'}`);
+        // logger.log(`[useApi] API Base URL: ${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}`);
         
         // Direct API call - no offline storage, no syncing
         const response = await saleApi.createBulk(itemsData);

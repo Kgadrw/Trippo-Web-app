@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { AdminSidebar } from "./AdminSidebar";
-import { AdminBottomNav } from "./AdminBottomNav";
 import { MobileFixedBackground } from "./MobileFixedBackground";
 import { cn } from "@/lib/utils";
 
@@ -161,14 +160,6 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
         />
       </div>
 
-      {/* Bottom Navigation - Only visible on mobile */}
-      <div className="lg:hidden">
-        <AdminBottomNav
-          activeSection={activeSection}
-          onSectionChange={onSectionChange}
-        />
-      </div>
-
       {/* Main content */}
       <div
         className={cn(
@@ -176,7 +167,7 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
           // On mobile, no margin (bottom nav instead of sidebar)
           // On desktop, adjust based on sidebar state
           isMobile 
-            ? "ml-0 pb-24" // Extra room for taller floating bottom nav
+            ? "ml-0 pb-6"
             : "lg:ml-0",
           !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed 
             ? "lg:ml-56" 

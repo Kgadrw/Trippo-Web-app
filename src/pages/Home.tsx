@@ -107,7 +107,7 @@ const Home = () => {
       
       {/* Hero Section */}
       <main className="relative min-h-[calc(100vh-4rem)] flex items-center px-6 lg:px-12 xl:px-20 py-16 lg:py-24">
-        <div className="w-full max-w-7xl mx-auto flex flex-col gap-12">
+        <div className="w-full flex flex-col gap-12">
           {/* Text Content */}
           <header className="text-left max-w-2xl lg:max-w-none lg:w-full lg:px-10 xl:px-16 2xl:px-20">
             <h1 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-8 leading-tight">

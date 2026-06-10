@@ -279,7 +279,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+      <nav className="flex-1 px-2 py-4 space-y-2.5 overflow-y-auto scrollbar-thin">
         {menuItems.map((item) => {
           // For dashboard item: active if path matches OR if on dashboard subdomain root
           const isDashboardItem = item.path === "/dashboard";

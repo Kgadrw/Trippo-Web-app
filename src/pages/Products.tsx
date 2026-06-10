@@ -5,10 +5,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Pencil, Trash2, Scissors, Loader2, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Loader2, ArrowUpDown, MoreVertical, ShoppingCart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { useTranslation } from "@/hooks/useTranslation";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -89,7 +96,8 @@ const Products = () => {
 
   const services = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = !q ? [...items] : items.filter((x) => x.name.toLowerCase().includes(q));
+    const serviceItems = items.filter((x) => (x.category || "").toLowerCase() === "service");
+    const list = !q ? [...serviceItems] : serviceItems.filter((x) => x.name.toLowerCase().includes(q));
     if (sortBy !== "default") {
       list.sort((a, b) => compareServices(a, b, sortBy));
     }
@@ -161,7 +169,7 @@ const Products = () => {
       sellingPrice: parsedPrice,
       costPrice: 0,
       category: "service",
-      stock: 999999,
+      stock: 0,
     } as ServiceItem;
     setIsSaving(true);
     try {
@@ -203,37 +211,89 @@ const Products = () => {
     language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services";
   const serviceSingular =
     language === "rw" ? "Serivisi" : language === "fr" ? "Service" : "Service";
+  const priceLabel = language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price";
+  const nameLabel = language === "rw" ? "Izina" : language === "fr" ? "Nom" : "Service";
+  const actionsLabel = language === "rw" ? "Ibikorwa" : language === "fr" ? "Actions" : "Actions";
+  const recordColumnLabel =
+    language === "rw" ? "Andika" : language === "fr" ? "Enregistrer" : "Record";
+  const totalLabel = language === "rw" ? "Byose" : language === "fr" ? "Total" : "Total";
+
+  const totalPrice = useMemo(
+    () => services.reduce((sum, s) => sum + (Number(s.sellingPrice) || 0), 0),
+    [services],
+  );
+
+  const toolbar = (
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <div className="relative flex-1 min-w-0">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`${t("search")} ${servicesTitle.toLowerCase()}...`}
+          className="pl-9 h-10 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+          autoComplete="off"
+        />
+      </div>
+      <div className="flex gap-2 shrink-0">
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as ServiceSort)}>
+          <SelectTrigger
+            className="w-full sm:w-[200px] h-10 bg-white border border-gray-300 rounded-lg"
+            aria-label={sortTriggerLabel}
+          >
+            <ArrowUpDown size={14} className="mr-1 shrink-0 text-muted-foreground" aria-hidden />
+            <SelectValue placeholder={sortTriggerLabel} />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(sortOptionLabels) as ServiceSort[]).map((key) => (
+              <SelectItem key={key} value={key}>
+                {sortOptionLabels[key][sortLang]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shrink-0 rounded-lg h-10"
+          onClick={openCreate}
+        >
+          <Plus size={16} />
+          <span className="hidden sm:inline">
+            {t("add")} {serviceSingular}
+          </span>
+          <span className="sm:hidden">{t("add")}</span>
+        </Button>
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
       <AppLayout title={servicesTitle}>
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <Skeleton className="h-10 flex-1 rounded-md" />
-            <div className="flex gap-2 shrink-0">
-              <Skeleton className="h-10 w-full sm:w-[200px] rounded-md" />
-              <Skeleton className="h-10 w-36 rounded-md" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-lg border border-blue-700 bg-blue-600 p-2 flex flex-col gap-2 min-h-[88px]"
-              >
-                <div className="flex items-start justify-between gap-1.5">
-                  <Skeleton className="h-3.5 w-[65%] bg-blue-500/50" />
-                  <div className="flex gap-0.5 shrink-0">
-                    <Skeleton className="h-7 w-7 rounded-md bg-blue-500/50" />
-                    <Skeleton className="h-7 w-7 rounded-md bg-blue-500/50" />
-                  </div>
-                </div>
-                <div className="mt-auto space-y-1 pt-0.5">
-                  <Skeleton className="h-2.5 w-12 bg-blue-500/40" />
-                  <Skeleton className="h-4 w-20 bg-blue-500/50" />
-                </div>
-              </div>
-            ))}
+        <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
+          <div className="lg:px-4 lg:py-4 mb-4 lg:mb-0">{toolbar}</div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead className="bg-gray-100 border-b border-gray-200">
+                <tr>
+                  {[nameLabel, priceLabel, recordColumnLabel, actionsLabel].map((col) => (
+                    <th key={col} className="text-left py-4 px-6">
+                      <Skeleton className="h-4 w-20" />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} className="border-b border-gray-200">
+                    {Array.from({ length: 4 }).map((_, j) => (
+                      <td key={j} className="py-4 px-6">
+                        <Skeleton className="h-4 w-28" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </AppLayout>
@@ -242,113 +302,101 @@ const Products = () => {
 
   return (
     <AppLayout title={servicesTitle}>
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="relative flex-1 min-w-0">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`${t("search")} ${servicesTitle.toLowerCase()}...`}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as ServiceSort)}>
-              <SelectTrigger className="w-full sm:w-[200px] h-10 bg-background" aria-label={sortTriggerLabel}>
-                <ArrowUpDown size={14} className="mr-1 shrink-0 text-muted-foreground" aria-hidden />
-                <SelectValue placeholder={sortTriggerLabel} />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(sortOptionLabels) as ServiceSort[]).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {sortOptionLabels[key][sortLang]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shrink-0" onClick={openCreate}>
-              <Plus size={16} />
-              <span className="hidden sm:inline">{t("add")} {serviceSingular}</span>
-              <span className="sm:hidden">{t("add")}</span>
-            </Button>
-          </div>
-        </div>
+      <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
+        <div className="lg:px-4 lg:py-4 mb-4 lg:mb-0">{toolbar}</div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-          {services.map((service) => {
-            const id = (service as any)._id || service.id;
-            const idStr = id != null ? String(id) : "";
-            const isDeletingThis = deletingId !== null && idStr === deletingId;
-            return (
-              <div
-                key={id}
-                className="rounded-lg border border-blue-700 bg-blue-600 p-2 cursor-pointer transition-colors hover:bg-blue-700 hover:border-blue-800 shadow-sm flex flex-col relative overflow-hidden min-h-[88px]"
-                onClick={() => openRecordService(service)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openRecordService(service);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                aria-label={`Record new service for ${service.name}`}
-              >
-                <img
-                  src="/logo.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 m-auto h-14 w-14 opacity-[0.07] select-none object-contain"
-                />
-                <div className="flex items-start justify-between gap-1.5">
-                  <div className="flex items-start gap-1.5 font-medium text-white text-sm min-w-0 flex-1 leading-snug">
-                    <Scissors size={14} className="mt-0.5 shrink-0 text-blue-100" />
-                    <span className="line-clamp-2 break-words">{service.name}</span>
-                  </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-white hover:bg-blue-500/60 hover:text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEdit(service);
-                      }}
-                    >
-                      <Pencil size={13} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-red-200 hover:bg-red-500/30 hover:text-white"
-                      disabled={isDeletingThis}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleDelete(service);
-                      }}
-                      aria-label={isDeletingThis ? "Deleting" : "Delete service"}
-                    >
-                      {isDeletingThis ? (
-                        <Loader2 size={13} className="animate-spin" />
-                      ) : (
-                        <Trash2 size={13} />
+        {services.length === 0 ? (
+          <div className="px-4 py-5 text-sm text-muted-foreground">No services found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                <tr>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{nameLabel}</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{priceLabel}</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{recordColumnLabel}</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{actionsLabel}</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                {services.map((service, index) => {
+                  const id = (service as { _id?: string; id?: number })._id || service.id;
+                  const idStr = id != null ? String(id) : "";
+                  const isDeletingThis = deletingId !== null && idStr === deletingId;
+                  return (
+                    <tr
+                      key={id}
+                      className={cn(
+                        "border-b border-gray-200",
+                        index % 2 === 0 ? "bg-white" : "bg-gray-50",
                       )}
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-auto pt-1.5">
-                  <div className="text-[10px] uppercase tracking-wide text-blue-100">
-                    {language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price"}
-                  </div>
-                  <div className="text-sm font-semibold text-white whitespace-nowrap tabular-nums">
-                    {Number(service.sellingPrice || 0).toLocaleString()} rwf
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                    >
+                      <td className="py-4 px-6">
+                        <div className="text-sm font-medium text-gray-900">{service.name}</div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="text-sm font-semibold text-gray-700 tabular-nums">
+                          {Number(service.sellingPrice || 0).toLocaleString()} rwf
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 text-xs font-medium"
+                          onClick={() => openRecordService(service)}
+                        >
+                          <ShoppingCart size={14} />
+                          {recordColumnLabel}
+                        </Button>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              aria-label="Service actions"
+                              disabled={isDeletingThis}
+                            >
+                              {isDeletingThis ? (
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : (
+                                <MoreVertical size={16} />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(service)}>
+                              <Pencil size={14} className="mr-2" />
+                              {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => void handleDelete(service)}
+                              disabled={isDeletingThis}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            >
+                              <Trash2 size={14} className="mr-2" />
+                              {language === "rw" ? "Siba" : language === "fr" ? "Supprimer" : "Delete"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="border-t border-gray-200 bg-blue-50/70">
+                  <td className="py-4 px-6 text-sm font-semibold text-gray-800">{totalLabel}</td>
+                  <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums">
+                    {totalPrice.toLocaleString()} rwf
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <Dialog

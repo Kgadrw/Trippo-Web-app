@@ -60,6 +60,7 @@ import Expenses from "./pages/Expenses";
 import Inventories from "./pages/Inventories";
 import InventoryDetail from "./pages/InventoryDetail";
 import Settings from "./pages/Settings";
+import { SettingsLayout } from "./components/settings/SettingsLayout";
 import SettingsBusiness from "./pages/settings/SettingsBusiness";
 import SettingsLanguage from "./pages/settings/SettingsLanguage";
 import SettingsSecurity from "./pages/settings/SettingsSecurity";
@@ -161,54 +162,21 @@ const SubdomainRouter = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
+        <Route
           path="/settings"
           element={
             <ProtectedRoute requireAdmin={true}>
-              <Settings />
+              <SettingsLayout />
             </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/business"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <SettingsBusiness />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/language"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <SettingsLanguage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/security"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <SettingsSecurity />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/notifications"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <SettingsNotifications />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/delete-account"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <SettingsDeleteAccount />
-            </ProtectedRoute>
-          } 
-        />
+          }
+        >
+          <Route index element={<Settings />} />
+          <Route path="business" element={<SettingsBusiness />} />
+          <Route path="language" element={<SettingsLanguage />} />
+          <Route path="security" element={<SettingsSecurity />} />
+          <Route path="notifications" element={<SettingsNotifications />} />
+          <Route path="delete-account" element={<SettingsDeleteAccount />} />
+        </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
     );
@@ -299,54 +267,21 @@ const SubdomainRouter = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
+        <Route
           path="/settings"
           element={
             <ProtectedRoute>
-              <Settings />
+              <SettingsLayout />
             </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/business"
-          element={
-            <ProtectedRoute>
-              <SettingsBusiness />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/language"
-          element={
-            <ProtectedRoute>
-              <SettingsLanguage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/security"
-          element={
-            <ProtectedRoute>
-              <SettingsSecurity />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/notifications"
-          element={
-            <ProtectedRoute>
-              <SettingsNotifications />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings/delete-account"
-          element={
-            <ProtectedRoute>
-              <SettingsDeleteAccount />
-            </ProtectedRoute>
-          } 
-        />
+          }
+        >
+          <Route index element={<Settings />} />
+          <Route path="business" element={<SettingsBusiness />} />
+          <Route path="language" element={<SettingsLanguage />} />
+          <Route path="security" element={<SettingsSecurity />} />
+          <Route path="notifications" element={<SettingsNotifications />} />
+          <Route path="delete-account" element={<SettingsDeleteAccount />} />
+        </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
     );
@@ -444,54 +379,21 @@ const SubdomainRouter = () => {
           </ProtectedRoute>
         } 
       />
-      <Route 
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>
-            <Settings />
+            <SettingsLayout />
           </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings/business"
-        element={
-          <ProtectedRoute>
-            <SettingsBusiness />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings/language"
-        element={
-          <ProtectedRoute>
-            <SettingsLanguage />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings/security"
-        element={
-          <ProtectedRoute>
-            <SettingsSecurity />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings/notifications"
-        element={
-          <ProtectedRoute>
-            <SettingsNotifications />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings/delete-account"
-        element={
-          <ProtectedRoute>
-            <SettingsDeleteAccount />
-          </ProtectedRoute>
-        } 
-      />
+        }
+      >
+        <Route index element={<Settings />} />
+        <Route path="business" element={<SettingsBusiness />} />
+        <Route path="language" element={<SettingsLanguage />} />
+        <Route path="security" element={<SettingsSecurity />} />
+        <Route path="notifications" element={<SettingsNotifications />} />
+        <Route path="delete-account" element={<SettingsDeleteAccount />} />
+      </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
