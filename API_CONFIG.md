@@ -1,40 +1,26 @@
 # API Configuration Guide
 
-Configure the API URL via environment variables. The app defaults to a local backend at `http://localhost:3000/api`.
+The frontend always talks to a **local** backend at `http://localhost:3000/api` by default.
 
 ## Quick Start
 
-### Default (localhost)
+1. Start the backend from the `backend/` folder (`npm run dev` — port **3000**).
+2. Start the frontend (`npm run dev` — port **8080**).
 
-When no environment variables are set, the app uses `http://localhost:3000/api`.
+No remote/deployed API URL is used.
 
-### Custom API URL
+## Custom backend port
 
-Create a `.env.local` file in the root directory (gitignored):
-
-```bash
-VITE_API_URL=http://localhost:3000/api
-```
-
-### Different backend port
+If your backend runs on a different port, create `.env.local` in the project root (gitignored):
 
 ```bash
 VITE_LOCAL_API_PORT=5000
 ```
 
-Or set the full URL:
-
-```bash
-VITE_API_URL=http://localhost:5000/api
-```
-
-## Configuration priority
-
-1. **`VITE_API_URL`** — full API base URL (highest priority)
-2. **Localhost** — `http://localhost:{VITE_LOCAL_API_PORT || 3000}/api`
+This resolves to `http://localhost:5000/api`.
 
 ## Notes
 
 - `.env.local` is gitignored
 - Restart the dev server after changing env vars (`npm run dev`)
-- For production, set `VITE_API_URL` at build time to your API host
+- The service worker (`public/sw.js`) uses the same localhost API base URL

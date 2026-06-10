@@ -3,11 +3,8 @@ import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
 
-// API URL Configuration — VITE_API_URL or localhost (no remote default)
+// API URL Configuration — always local backend (see backend/ repo)
 const getApiBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
   const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
   return `http://localhost:${localPort}/api`;
 };
