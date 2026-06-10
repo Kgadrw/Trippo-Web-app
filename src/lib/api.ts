@@ -352,10 +352,31 @@ export const authApi = {
 
   // Update user information
   async updateUser(data: { name?: string; email?: string; phone?: string; businessName?: string }): Promise<ApiResponse> {
-    return request('/auth/update', {
+    const response = await request('/auth/update', {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+
+    const userData = response?.user || response?.data;
+    if (userData) {
+      if (userData.name) {
+        localStorage.setItem('profit-pilot-user-name', userData.name);
+      }
+      if (userData.email) {
+        localStorage.setItem('profit-pilot-user-email', userData.email);
+      }
+      if (userData.businessName) {
+        localStorage.setItem('profit-pilot-business-name', userData.businessName);
+      } else if (data.businessName !== undefined && !data.businessName) {
+        localStorage.removeItem('profit-pilot-business-name');
+      }
+      if (userData.phone) {
+        localStorage.setItem('profit-pilot-user-phone', userData.phone);
+      }
+      window.dispatchEvent(new Event('user-data-changed'));
+    }
+
+    return response;
   },
 
   // Change PIN
