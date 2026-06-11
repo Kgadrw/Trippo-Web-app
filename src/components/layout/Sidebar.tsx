@@ -7,6 +7,7 @@ import {
   ShoppingCart,
   FileText,
   Wallet,
+  CreditCard,
   Settings,
   LogOut,
   Pin,
@@ -33,12 +34,13 @@ import { useSubdomain } from "@/hooks/useSubdomain";
 const getMenuItems = (t: (key: string) => string) => {
   return [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
-    { icon: Package, label: "Services", path: "/products" },
-    { icon: Boxes, label: "Inventories", path: "/inventories" },
-    { icon: UserRound, label: "Workers", path: "/barbers" },
+    { icon: Package, label: t("services"), path: "/products" },
+    { icon: Boxes, label: t("inventories"), path: "/inventories" },
+    { icon: UserRound, label: t("workers"), path: "/barbers" },
     { icon: ShoppingCart, label: t("sales"), path: "/sales" },
-    { icon: Wallet, label: "Expenses", path: "/expenses" },
+    { icon: Wallet, label: t("expenses"), path: "/expenses" },
     { icon: FileText, label: t("reports"), path: "/reports" },
+    { icon: CreditCard, label: t("billing"), path: "/billing" },
     { icon: Settings, label: t("settings"), path: "/settings" },
   ];
 };

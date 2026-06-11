@@ -1,0 +1,486 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import { subscriptionApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
+import {
+  clearPendingPaymentRef,
+  getPaymentUserMessage,
+  getPendingPaymentRef,
+  savePendingPaymentRef,
+  type PaymentStatusPayload,
+} from "@/lib/subscriptionPayment";
+
+type MobileNetwork = "mtn" | "airtel";
+
+function formatBillingDate(value: string | Date | null | undefined, isRw: boolean) {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(isRw ? "rw-RW" : "en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2 text-sm">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-medium text-foreground text-right">{value}</span>
+    </div>
+  );
+}
+
+function NetworkOption({
+  id,
+  value,
+  label,
+  logoSrc,
+  logoAlt,
+}: {
+  id: string;
+  value: MobileNetwork;
+  label: string;
+  logoSrc: string;
+  logoAlt: string;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="flex items-center gap-3 sm:gap-4 cursor-pointer rounded-xl p-4 sm:p-5 w-full"
+    >
+      <RadioGroupItem
+        value={value}
+        id={id}
+        className="h-6 w-6 shrink-0 rounded-full border-2 border-gray-400 text-foreground data-[state=checked]:border-foreground [&_svg]:h-3 [&_svg]:w-3"
+      />
+      <img src={logoSrc} alt={logoAlt} className="h-14 w-14 sm:h-16 sm:w-16 object-contain shrink-0" />
+      <span className="text-sm font-semibold text-muted-foreground">{label}</span>
+    </label>
+  );
+}
+
+export default function Billing() {
+  const { toast } = useToast();
+  const { language } = useTranslation();
+  const isRw = language === "rw";
+
+  const { loading, plan, paymentConfig, pendingPayment, refresh, updatePlan } = useSubscriptionAccess();
+  const [paying, setPaying] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [network, setNetwork] = useState<MobileNetwork | null>(null);
+  const pollStartedRef = useRef(false);
+
+  const txt = useMemo(
+    () => ({
+      title: isRw ? "Incamake" : "Summary",
+      subtitle: isRw ? "Kurikiza amabwiriza yose yuko bishyura" : "Follow all payment instructions",
+      package: isRw ? "Ifatabuguzi" : "Package",
+      price: isRw ? "Ayo Rigura" : "Price",
+      starts: isRw ? "Rizatangira" : "Starts",
+      ends: isRw ? "Rizarangira" : "Ends",
+      total: isRw ? "Totali" : "Total",
+      pay: isRw ? "Kwishyura" : "Pay",
+      tapMethod: isRw ? "Kanda kuburyo uri bukoreshe wishyura" : "Tap your payment method to pay",
+      phone: isRw ? "Nomero ya telefone" : "Phone number",
+      pinHint: isRw
+        ? "Shyiramo PIN wemeze muri telefone yanyu"
+        : "Enter your PIN to confirm on your phone",
+      noPromptMtn: isRw
+        ? "Ntimutabonye ubutumwa kanda: *182*7*1#"
+        : "If you don't receive a prompt, dial: *182*7*1#",
+      noPromptAirtel: isRw
+        ? "Ntimutabonye ubutumwa kanda: *185*7*1#"
+        : "If you don't receive a prompt, dial: *185*7*1#",
+      processing: isRw ? "Tegereza wishyura..." : "Processing payment...",
+      loading: isRw ? "Gukura..." : "Loading...",
+      trialBanner: isRw
+        ? "Urimo gukoresha igerageza ryawe rya iminsi 7 ku buntu. Ushobora kwishyura ubu niba ubishaka."
+        : "You are on your 7-day free trial. You can pay now anytime to secure Trippo Plus.",
+      trialEndedBanner: isRw
+        ? "Igerageza ryawe ryarangiye. Wishyura kugira ngo ukomeze ukoreshe Trippo."
+        : "Your trial has ended. Pay below to unlock Trippo again.",
+      payAmount: (n: number) =>
+        isRw ? `Kwishyura ${n.toLocaleString()} RWF` : `Pay ${n.toLocaleString()} RWF`,
+    }),
+    [isRw],
+  );
+
+  useEffect(() => {
+    const storedPhone = localStorage.getItem("profit-pilot-user-phone");
+    if (storedPhone) setPhone(storedPhone);
+  }, []);
+
+  const periodStart = plan?.isOnTrial
+    ? plan.startDate || plan.lastPaidAt
+    : plan?.lastPaidAt || plan?.startDate;
+
+  const periodEnd = plan?.isOnTrial ? plan.trialEndsAt : plan?.nextDueDate;
+
+  const packageName = plan?.planName ? `${plan.planName} Pack` : "Plus Pack";
+  const amount = plan?.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
+  const currency = plan?.currency || "RWF";
+
+  const isPaidActive = Boolean(plan?.hasPlus && plan?.lastPaidAt && !plan?.isOnTrial);
+  const isTrialEnded = Boolean(plan?.requiresPayment && !plan?.hasPlus);
+  const paymentReady = Boolean(paymentConfig?.mock || paymentConfig?.configured);
+  const canPay =
+    paymentReady &&
+    !isPaidActive &&
+    (plan?.isOnTrial || plan?.requiresPayment || plan?.status === "past_due");
+
+  const showPaymentSuccess = useCallback(() => {
+    clearPendingPaymentRef();
+    toast({
+      title: isRw ? "Wishyura byagenze neza" : "Payment successful",
+      description: isRw ? "Trippo Plus irakora." : "Trippo Plus is active for another month.",
+    });
+    window.dispatchEvent(new Event("subscription-updated"));
+    setPolling(false);
+  }, [isRw, toast]);
+
+  const pollPayment = useCallback(
+    async (referenceId: string) => {
+      savePendingPaymentRef(referenceId);
+      setPolling(true);
+      const maxAttempts = 48;
+
+      const checkStatus = async () => {
+        const res = await subscriptionApi.getPaymentStatus(referenceId);
+        const payload = res.data as PaymentStatusPayload;
+        if (payload.plan) updatePlan(payload.plan as typeof plan);
+        return payload;
+      };
+
+      for (let i = 0; i < maxAttempts; i++) {
+        if (i > 0) {
+          await new Promise((r) => setTimeout(r, 5000));
+        }
+        try {
+          const payload = await checkStatus();
+          const status = payload.payment.status;
+          const syncIssue = payload.payment.sync?.latestIssue;
+          const issueMessage = getPaymentUserMessage(syncIssue, isRw);
+
+          if (status === "SUCCESSFUL" || payload.plan?.hasPlus) {
+            showPaymentSuccess();
+            return;
+          }
+
+          if (syncIssue?.code === "REF_OWNED_BY_OTHER_USER") {
+            clearPendingPaymentRef();
+            toast({
+              title: isRw ? "Ikosa ryo kwishyura" : "Payment issue",
+              description: issueMessage || syncIssue.message,
+              variant: "destructive",
+            });
+            setPolling(false);
+            return;
+          }
+
+          if (status === "FAILED") {
+            clearPendingPaymentRef();
+            const reason =
+              issueMessage || payload.payment.providerStatus || payload.payment.mtnStatus;
+            toast({
+              title: isRw ? "Wishyura byanze" : "Payment failed",
+              description: reason
+                ? isRw
+                  ? `Byanze: ${reason}. Ongera ugerageze.`
+                  : `Payment was not completed (${reason}). Try again.`
+                : isRw
+                  ? "Ongera ugerageze cyangwa reba niba ufite amafaranga ahagije."
+                  : "The payment was not completed. Check your MoMo balance and try again.",
+              variant: "destructive",
+            });
+            setPolling(false);
+            return;
+          }
+        } catch {
+          // keep polling through transient errors
+        }
+      }
+
+      try {
+        const freshPlan = await refresh(true);
+        if (freshPlan?.hasPlus && freshPlan?.lastPaidAt) {
+          showPaymentSuccess();
+          return;
+        }
+      } catch {
+        // ignore
+      }
+
+      setPolling(false);
+      toast({
+        title: isRw ? "Iracyategereje" : "Still confirming",
+        description: isRw
+          ? "Niba wishyura byagenze neza, subiza urupapuro — tuzabimenya."
+          : "If money was deducted, refresh this page — we will sync your payment.",
+      });
+    },
+    [isRw, refresh, showPaymentSuccess, toast, updatePlan],
+  );
+
+  useEffect(() => {
+    if (loading || pollStartedRef.current || plan?.hasPlus) return;
+
+    const storedRef = getPendingPaymentRef();
+    const refToResume = pendingPayment?.referenceId || storedRef;
+    if (!refToResume) return;
+
+    pollStartedRef.current = true;
+    void pollPayment(refToResume);
+  }, [loading, pendingPayment?.referenceId, plan?.hasPlus, pollPayment]);
+
+  const handlePay = async () => {
+    if (!network) {
+      toast({
+        title: isRw ? "Hitamo uburyo" : "Select network",
+        description: isRw ? "Hitamo MTN cyangwa Airtel." : "Choose MTN or Airtel.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!phone.trim()) {
+      toast({
+        title: isRw ? "Nomero irakenewe" : "Phone required",
+        description: isRw ? "Andika nomero ya telefone." : "Enter your mobile money number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const digits = phone.replace(/\D/g, "");
+    const isMtn =
+      digits.startsWith("078") ||
+      digits.startsWith("079") ||
+      digits.startsWith("25078") ||
+      digits.startsWith("25079");
+    const isAirtel =
+      digits.startsWith("072") ||
+      digits.startsWith("073") ||
+      digits.startsWith("25072") ||
+      digits.startsWith("25073");
+
+    if (network === "mtn" && !isMtn) {
+      toast({
+        title: isRw ? "Nomero siyo" : "Invalid number",
+        description: isRw ? "Koresha nomero ya MTN (078 cyangwa 079)." : "Use an MTN number (078 or 079).",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (network === "airtel" && !isAirtel) {
+      toast({
+        title: isRw ? "Nomero siyo" : "Invalid number",
+        description: isRw ? "Koresha nomero ya Airtel (072 cyangwa 073)." : "Use an Airtel number (072 or 073).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (paying || polling) return;
+
+    setPaying(true);
+    try {
+      const res = await subscriptionApi.pay(phone.trim(), network ?? undefined);
+      const data = res.data as { referenceId: string; inProgress?: boolean };
+      if (data.inProgress) {
+        toast({
+          title: isRw ? "Wishyura iracyakora" : "Payment in progress",
+          description: isRw
+            ? "Ubusanzwe hari kwishyura butegereje. Reba telefone yawe."
+            : "You already have a payment waiting. Check your phone to approve it.",
+        });
+      } else {
+        toast({
+          title: isRw ? "Emeza kuri telefone" : "Approve on your phone",
+          description: isRw ? "Reba ubutumwa kuri telefone yawe." : "Check your phone for the payment request.",
+        });
+      }
+      void pollPayment(data.referenceId);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not start payment.";
+      toast({ title: isRw ? "Ikosa" : "Payment error", description: message, variant: "destructive" });
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  return (
+    <AppLayout title={isRw ? "Kwishyura" : "Billing"}>
+      <div className="flex flex-col min-h-0 w-full space-y-4 pb-4">
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-20 lg:bg-white lg:rounded-lg">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {txt.loading}
+          </div>
+        ) : (
+          <div className="space-y-4 w-full">
+            {plan?.isOnTrial ? (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                <p className="font-semibold">
+                  {isRw ? "Igerageza rya Trippo Plus" : "Trippo Plus trial"}
+                </p>
+                <p className="text-xs text-blue-800 mt-1">
+                  {txt.trialBanner}{" "}
+                  {plan.trialDaysLeft !== undefined
+                    ? `(${plan.trialDaysLeft} ${isRw ? "iminsi" : "days"} ${isRw ? "zasigaye" : "left"})`
+                    : ""}
+                </p>
+              </div>
+            ) : null}
+            {isTrialEnded ? (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p className="font-semibold">{isRw ? "Kwishyura bisabwa" : "Payment required"}</p>
+                <p className="text-xs text-amber-800 mt-1">{txt.trialEndedBanner}</p>
+              </div>
+            ) : null}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+            {/* Summary */}
+            <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-1">
+              <h1 className="text-lg font-semibold text-foreground">{txt.title}</h1>
+              <p className="text-sm text-muted-foreground pb-4">{txt.subtitle}</p>
+
+              <div className="divide-y divide-border/60">
+                <SummaryRow label={`${txt.package}:`} value={packageName} />
+                <SummaryRow
+                  label={`${txt.price}:`}
+                  value={`${amount.toLocaleString()} ${currency}`}
+                />
+                <SummaryRow label={`${txt.starts}:`} value={formatBillingDate(periodStart, isRw)} />
+                <SummaryRow label={`${txt.ends}:`} value={formatBillingDate(periodEnd, isRw)} />
+              </div>
+
+              <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
+                <span className="text-sm font-semibold text-foreground">{txt.total}:</span>
+                <span className="text-lg font-bold text-foreground tabular-nums">
+                  {amount.toLocaleString()} {currency}
+                </span>
+              </div>
+            </div>
+
+            {/* Checkout */}
+            <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-5 relative min-h-[280px]">
+              {(paying || polling) && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[2px]">
+                  <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
+                  <p className="text-sm font-medium text-foreground">{txt.processing}</p>
+                </div>
+              )}
+
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">{txt.pay}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isPaidActive
+                    ? isRw
+                      ? "Wishyura wawe urakora"
+                      : "Your subscription is active"
+                    : plan?.isOnTrial
+                      ? isRw
+                        ? "Wishyura ubu cyangwa tegereza igerageza rihera"
+                        : "Pay now or continue your free trial"
+                      : txt.tapMethod}
+                </p>
+              </div>
+
+              {isPaidActive ? (
+                <div className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-green-900">
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    <p className="text-sm font-semibold">
+                      {isRw ? "Wishyura byagenze neza" : "Payment successful"}
+                    </p>
+                  </div>
+                  <p className="text-xs text-green-800">
+                    {isRw ? "Trippo Plus irakora kugeza" : "Trippo Plus is active until"}{" "}
+                    {formatBillingDate(plan.nextDueDate, isRw)}.
+                  </p>
+                  {plan.lastPaidAt ? (
+                    <p className="text-xs text-green-800">
+                      {isRw ? "Byishyuwe" : "Last paid"}: {formatBillingDate(plan.lastPaidAt, isRw)}
+                    </p>
+                  ) : null}
+                </div>
+              ) : canPay && paymentConfig?.configured ? (
+                <>
+                  <RadioGroup
+                    value={network ?? ""}
+                    onValueChange={(v) => setNetwork(v as MobileNetwork)}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full"
+                    disabled={paying || polling}
+                  >
+                    <NetworkOption
+                      id="pay-mtn"
+                      value="mtn"
+                      label="MTN MoMo"
+                      logoSrc="/mtn.png"
+                      logoAlt="MTN MoMo"
+                    />
+                    <NetworkOption
+                      id="pay-airtel"
+                      value="airtel"
+                      label="Airtel Money"
+                      logoSrc="/airtel.png"
+                      logoAlt="Airtel Money"
+                    />
+                  </RadioGroup>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="billing-phone" className="text-sm text-muted-foreground">
+                      {txt.phone}
+                    </Label>
+                    <Input
+                      id="billing-phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder={network === "airtel" ? "0721234567" : "0781234567"}
+                      className="h-11 text-sm w-full border-border"
+                      disabled={paying || polling}
+                    />
+                  </div>
+
+                  {network && (
+                    <div className="space-y-1 text-xs text-muted-foreground leading-relaxed">
+                      <p>{txt.pinHint}</p>
+                      <p>{network === "mtn" ? txt.noPromptMtn : txt.noPromptAirtel}</p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={() => void handlePay()}
+                    disabled={paying || polling || !network}
+                    className={cn(
+                      "w-full h-11 font-semibold",
+                      "bg-yellow-500 hover:bg-yellow-600 text-gray-900",
+                    )}
+                  >
+                    {txt.payAmount(amount)}
+                  </Button>
+                </>
+              ) : !paymentReady ? (
+                <p className="text-sm text-muted-foreground">
+                  {isRw ? "Kwishyura ntibishoboka ubu." : "Payments are not available right now."}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          </div>
+        )}
+      </div>
+    </AppLayout>
+  );
+}

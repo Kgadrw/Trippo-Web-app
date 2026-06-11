@@ -26,8 +26,7 @@ const Home = () => {
     
     // If somehow on subdomain, redirect to main domain
     if (!isMainDomain && (hostname.startsWith('admin.') || hostname.startsWith('dashboard.'))) {
-      const mainUrl = getSubdomainUrl(null);
-      window.location.replace(mainUrl);
+      window.location.replace(`${getSubdomainUrl(null)}?logout=1`);
       return;
     }
 

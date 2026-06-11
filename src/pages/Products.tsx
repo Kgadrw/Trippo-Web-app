@@ -162,7 +162,7 @@ const Products = () => {
   const handleSave = async () => {
     const parsedPrice = Number(price);
     if (!name.trim() || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
-      toast({ title: "Invalid Input", description: "Enter a valid service name and price.", variant: "destructive" });
+      toast({ title: t("invalidInput"), description: t("validServiceRequired"), variant: "destructive" });
       return;
     }
     const payload = {
@@ -176,47 +176,44 @@ const Products = () => {
     try {
       if (editing) {
         await update({ ...editing, ...payload } as any);
-        toast({ title: "Service Updated", description: "Service updated successfully." });
+        toast({ title: t("serviceUpdated"), description: t("changesSaved") });
       } else {
         await add(payload as any);
-        toast({ title: "Service Added", description: "Service created successfully." });
+        toast({ title: t("serviceAdded"), description: t("productSaved") });
       }
       setOpen(false);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to save service.";
-      toast({ title: "Save Failed", description: message, variant: "destructive" });
+      toast({ title: t("failed"), description: message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (item: ServiceItem) => {
-    if (!window.confirm(`Delete service "${item.name}"?`)) return;
+    if (!window.confirm(`${t("deleteServiceConfirm")} "${item.name}"?`)) return;
     const id = String((item as { _id?: string; id?: number })._id ?? item.id ?? "");
     if (!id) return;
     setDeletingId(id);
     try {
       await remove(item as any);
       await refresh(true);
-      toast({ title: "Service Deleted", description: "Service removed successfully." });
+      toast({ title: t("serviceDeleted"), description: t("deleted") });
       window.dispatchEvent(new CustomEvent("products-should-refresh"));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to delete service.";
-      toast({ title: "Delete Failed", description: message, variant: "destructive" });
+      toast({ title: t("failed"), description: message, variant: "destructive" });
     } finally {
       setDeletingId(null);
     }
   };
 
-  const servicesTitle =
-    language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services";
-  const serviceSingular =
-    language === "rw" ? "Serivisi" : language === "fr" ? "Service" : "Service";
-  const priceLabel = language === "rw" ? "Igiciro" : language === "fr" ? "Prix" : "Price";
-  const nameLabel = language === "rw" ? "Izina" : language === "fr" ? "Nom" : "Service";
-  const actionsLabel = language === "rw" ? "Ibikorwa" : language === "fr" ? "Actions" : "Actions";
-  const recordColumnLabel =
-    language === "rw" ? "Andika" : language === "fr" ? "Enregistrer" : "Record";
+  const servicesTitle = t("services");
+  const serviceSingular = t("services");
+  const priceLabel = language === "fr" ? "Prix" : t("cost");
+  const nameLabel = language === "fr" ? "Nom" : t("services");
+  const actionsLabel = t("actions");
+  const recordColumnLabel = t("record");
   const totalLabel = language === "rw" ? "Byose" : language === "fr" ? "Total" : "Total";
 
   const totalPrice = useMemo(
@@ -315,7 +312,7 @@ const Products = () => {
         <div className="lg:px-4 lg:py-4 mb-4 lg:mb-0">{toolbar}</div>
 
         {services.length === 0 ? (
-          <div className="px-4 py-5 text-sm text-muted-foreground">No services found.</div>
+          <div className="px-4 py-5 text-sm text-muted-foreground">{t("noServicesFound")}</div>
         ) : (
           <>
             <DesktopDataTable>
@@ -380,7 +377,7 @@ const Products = () => {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => openEdit(service)}>
                                 <Pencil size={14} className="mr-2" />
-                                {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                                {t("edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => void handleDelete(service)}
@@ -388,7 +385,7 @@ const Products = () => {
                                 className="text-red-600 focus:text-red-600 focus:bg-red-50"
                               >
                                 <Trash2 size={14} className="mr-2" />
-                                {language === "rw" ? "Siba" : language === "fr" ? "Supprimer" : "Delete"}
+                                {t("delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -440,7 +437,7 @@ const Products = () => {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(service)}>
                             <Pencil size={14} className="mr-2" />
-                            {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                            {t("edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => void handleDelete(service)}
@@ -448,7 +445,7 @@ const Products = () => {
                             className="text-red-600 focus:text-red-600 focus:bg-red-50"
                           >
                             <Trash2 size={14} className="mr-2" />
-                            {language === "rw" ? "Siba" : language === "fr" ? "Supprimer" : "Delete"}
+                            {t("delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -485,11 +482,11 @@ const Products = () => {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Service" : "Add Service"}</DialogTitle>
+            <DialogTitle>{editing ? t("editService") : t("addService")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label>Service Name</Label>
+              <Label>{t("serviceName")}</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -498,7 +495,7 @@ const Products = () => {
               />
             </div>
             <div className="space-y-1">
-              <Label>Price</Label>
+              <Label>{t("price")}</Label>
               <Input
                 type="number"
                 min="0"
@@ -511,7 +508,7 @@ const Products = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white min-w-[7rem]"
@@ -521,12 +518,12 @@ const Products = () => {
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {editing ? "Updating..." : "Saving..."}
+                  {editing ? t("updating") : t("saving")}
                 </>
               ) : editing ? (
-                "Update"
+                t("update")
               ) : (
-                "Save"
+                t("save")
               )}
             </Button>
           </DialogFooter>

@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 
 import { Trash2, Plus, Loader2, MoreVertical, RefreshCw, CheckCircle2, Pencil } from "lucide-react";
 
@@ -149,6 +150,7 @@ const defaultRecurringForm = () => ({
 export default function Expenses() {
 
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const { items: expenses, isLoading, add, remove, refresh } = useApi<Expense>({
 
@@ -658,7 +660,7 @@ export default function Expenses() {
 
   return (
 
-    <AppLayout title="Expenses">
+    <AppLayout title={t("expenses")}>
 
       <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden p-4 sm:p-5 space-y-4">
           <ToggleGroup
@@ -670,10 +672,10 @@ export default function Expenses() {
             size="sm"
           >
             <ToggleGroupItem value="one-time" className="h-9 text-xs sm:text-sm">
-              One-time expense
+              {t("oneTimeExpense")}
             </ToggleGroupItem>
             <ToggleGroupItem value="recurring" className="h-9 text-xs sm:text-sm">
-              Recurring expenses
+              {t("recurringExpenses")}
             </ToggleGroupItem>
           </ToggleGroup>
 
@@ -685,7 +687,7 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Expense Title</Label>
+              <Label>{t("expenseTitle")}</Label>
 
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Rent, Utilities, Transport" />
 
@@ -693,15 +695,15 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Amount (rwf)</Label>
+              <Label>{t("amount")} (rwf)</Label>
 
-              <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" />
+              <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t("amount")} />
 
             </div>
 
             <div className="space-y-1">
 
-              <Label>Category</Label>
+              <Label>{t("category")}</Label>
 
               <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Rent, Supplies, Salaries" />
 
@@ -709,7 +711,7 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Date</Label>
+              <Label>{t("date")}</Label>
 
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
 
@@ -719,7 +721,7 @@ export default function Expenses() {
 
           <div className="space-y-1">
 
-            <Label>Note (Optional)</Label>
+            <Label>{t("noteOptional")}</Label>
 
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional details..." />
 
@@ -737,7 +739,7 @@ export default function Expenses() {
 
             <Plus size={16} />
 
-            Save Expense
+            {t("saveExpense")}
           </Button>
           </>
           ) : (
@@ -1247,7 +1249,7 @@ export default function Expenses() {
           </>
           )}
 
-          <h3 className="text-sm font-semibold text-gray-800 border-t border-gray-200 pt-6 mt-6">Recent Expenses</h3>
+          <h3 className="text-sm font-semibold text-gray-800 border-t border-gray-200 pt-6 mt-6">{t("recentExpenses")}</h3>
 
 
 

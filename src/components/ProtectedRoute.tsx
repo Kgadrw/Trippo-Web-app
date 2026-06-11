@@ -119,8 +119,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     
     // Only redirect if we're on a subdomain
     if (currentHost !== homeHost && (currentHost.includes('admin.') || currentHost.includes('dashboard.'))) {
-      // Redirect to main domain and stay there (no redirect loop)
-      window.location.replace(homeUrl);
+      // Clear stale session on main domain (separate localStorage per subdomain origin)
+      window.location.replace(`${homeUrl}?logout=1`);
       return null;
     }
     
@@ -136,7 +136,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     
     // Only redirect if we're on a subdomain
     if (currentHost !== homeHost && (currentHost.includes('admin.') || currentHost.includes('dashboard.'))) {
-      window.location.replace(homeUrl);
+      window.location.replace(`${homeUrl}?logout=1`);
       return null;
     }
     

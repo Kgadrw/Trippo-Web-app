@@ -17,6 +17,7 @@ import { getSubdomainUrl, useSubdomain } from "@/hooks/useSubdomain";
 import { Lock, User, Mail, Phone } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getSavedLoginEmail, isRememberLoginEnabled, setLoginPrefs } from "@/lib/loginPrefs";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface LoginModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const subdomain = useSubdomain();
   const { setPin } = usePinAuth(); // Still use setPin for backward compatibility
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   const [activeTab, setActiveTab] = useState<"login" | "create">(defaultTab);
   const [loginPin, setLoginPin] = useState("");
@@ -49,6 +51,8 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const [newPin, setNewPin] = useState("");
   const [confirmNewPin, setConfirmNewPin] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [registerOtp, setRegisterOtp] = useState("");
+  const [registerOtpSent, setRegisterOtpSent] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errors, setErrors] = useState<{
     loginPin?: string;
@@ -59,6 +63,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     phone?: string;
     resetEmail?: string;
     otp?: string;
+    registerOtp?: string;
     newPin?: string;
     confirmNewPin?: string;
   }>({});
@@ -66,6 +71,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const loginPinRef = useRef<HTMLInputElement>(null);
   const createPinRef = useRef<HTMLInputElement>(null);
   const otpRef = useRef<HTMLInputElement>(null);
+  const registerOtpRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens/closes or tab changes
   useEffect(() => {
@@ -86,6 +92,8 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       setNewPin("");
       setConfirmNewPin("");
       setOtpSent(false);
+      setRegisterOtp("");
+      setRegisterOtpSent(false);
       setErrors({});
       
       // Focus appropriate input
@@ -269,38 +277,78 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     setErrors((prev) => ({ ...prev, confirmPin: undefined }));
   };
 
-  const handleCreateAccount = async () => {
+  const validateRegistrationFields = () => {
     const newErrors: typeof errors = {};
 
-    // Validate name
     if (!name.trim()) {
       newErrors.name = "Name is required";
     }
 
-    // Validate email (required)
     if (!email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = "Please enter a valid email address";
     }
 
-    // Validate phone (required)
     if (!phone.trim()) {
       newErrors.phone = "Phone number is required";
     } else if (phone.trim().length < 10) {
       newErrors.phone = "Phone number must be at least 10 digits";
     }
 
-    // Validate PIN
     if (createPin.length !== 4) {
       newErrors.createPin = "PIN must be 4 digits";
     }
 
-    // Validate PIN confirmation
     if (confirmPin.length !== 4) {
       newErrors.confirmPin = "Please confirm your PIN";
     } else if (createPin !== confirmPin) {
       newErrors.confirmPin = "PINs do not match";
+    }
+
+    return newErrors;
+  };
+
+  const handleSendRegistrationOtp = async () => {
+    const fieldErrors = validateRegistrationFields();
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      await authApi.sendRegistrationOtp({ email: email.trim().toLowerCase() });
+      setRegisterOtpSent(true);
+      toast({
+        title: "Verification code sent",
+        description: `Check ${email.trim().toLowerCase()} for your 6-digit code.`,
+      });
+      setTimeout(() => registerOtpRef.current?.focus(), 100);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.error || error.message || "Failed to send verification code.";
+      if (errorMessage.toLowerCase().includes("email")) {
+        setErrors((prev) => ({ ...prev, email: errorMessage }));
+      } else {
+        setErrors((prev) => ({ ...prev, email: errorMessage }));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    const newErrors = validateRegistrationFields();
+
+    if (!registerOtpSent) {
+      newErrors.registerOtp = "Send a verification code to your email first";
+    } else if (!registerOtp.trim()) {
+      newErrors.registerOtp = "Verification code is required";
+    } else if (registerOtp.length !== 6 || !/^\d{6}$/.test(registerOtp)) {
+      newErrors.registerOtp = "Verification code must be 6 digits";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -317,6 +365,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
         pin: createPin,
+        otp: registerOtp.trim(),
       });
 
       if (response.user) {
@@ -378,7 +427,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       const errorMessage = error.response?.error || error.message || "Failed to create account. Please try again.";
       
       // Set appropriate error field
-      if (errorMessage.includes("email")) {
+      if (errorMessage.toLowerCase().includes("verification") || errorMessage.toLowerCase().includes("otp")) {
+        setErrors((prev) => ({ ...prev, registerOtp: errorMessage }));
+      } else if (errorMessage.includes("email")) {
         setErrors((prev) => ({ ...prev, email: errorMessage }));
       } else if (errorMessage.includes("PIN")) {
         setErrors((prev) => ({ ...prev, createPin: errorMessage }));
@@ -497,13 +548,13 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Welcome to Trippo</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">{t("welcomeToTrippo")}</DialogTitle>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "create")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="create">Create Account</TabsTrigger>
+            <TabsTrigger value="login">{t("signIn")}</TabsTrigger>
+            <TabsTrigger value="create">{t("createAccount")}</TabsTrigger>
           </TabsList>
 
           {/* Login Tab */}
@@ -513,7 +564,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 <div className="space-y-2">
                   <Label htmlFor="login-email" className="flex items-center gap-2">
                     <Mail size={16} />
-                    Email
+                    {t("emailAddress")}
                   </Label>
                   <Input
                     id="login-email"
@@ -523,7 +574,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                       setLoginEmail(e.target.value);
                       setErrors((prev) => ({ ...prev, email: undefined }));
                     }}
-                    placeholder="Enter your email"
+                    placeholder={t("emailAddress")}
                     className={errors.email ? "border-red-500" : ""}
                     required
                   />
@@ -534,7 +585,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 <div className="space-y-2">
                   <Label htmlFor="login-pin" className="flex items-center gap-2">
                     <Lock size={16} />
-                    Enter your PIN
+                    {t("enterYourPin")}
                   </Label>
                   <Input
                     id="login-pin"
@@ -586,7 +637,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                     }}
                     className="text-sm text-blue-600 hover:text-blue-700 underline"
                   >
-                    Forgot PIN?
+                    {t("forgotPin")}
                   </button>
                 </div>
               </>
@@ -595,7 +646,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 {/* Forgot PIN Section */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Reset Your PIN</h3>
+                    <h3 className="text-lg font-semibold">{t("resetYourPin")}</h3>
                     <button
                       type="button"
                       onClick={() => {
@@ -756,7 +807,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             <div className="space-y-2">
               <Label htmlFor="name" className="flex items-center gap-2">
                 <User size={16} />
-                Full Name
+                {t("fullName")}
               </Label>
               <Input
                 id="name"
@@ -785,7 +836,9 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  setErrors((prev) => ({ ...prev, email: undefined }));
+                  setRegisterOtpSent(false);
+                  setRegisterOtp("");
+                  setErrors((prev) => ({ ...prev, email: undefined, registerOtp: undefined }));
                 }}
                 placeholder="Enter your email"
                 className={errors.email ? "border-red-500" : ""}
@@ -799,7 +852,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
                 <Phone size={16} />
-                Phone Number
+                {t("phoneNumber")}
               </Label>
               <Input
                 id="phone"
@@ -821,7 +874,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             <div className="space-y-2">
               <Label htmlFor="create-pin" className="flex items-center gap-2">
                 <Lock size={16} />
-                Create PIN (4 digits)
+                {t("setPin")} (4)
               </Label>
               <Input
                 id="create-pin"
@@ -842,7 +895,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             <div className="space-y-2">
               <Label htmlFor="confirm-pin" className="flex items-center gap-2">
                 <Lock size={16} />
-                Confirm PIN
+                {t("confirmPin")}
               </Label>
               <Input
                 id="confirm-pin"
@@ -860,13 +913,62 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
               )}
             </div>
 
-            <Button
-              onClick={handleCreateAccount}
-              className="w-full bg-blue-600 text-white hover:bg-blue-700"
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating account..." : "Create Account"}
-            </Button>
+            {registerOtpSent ? (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  A 6-digit code was sent to <strong>{email.trim().toLowerCase()}</strong>.
+                </p>
+                <Label htmlFor="register-otp" className="flex items-center gap-2">
+                  <Mail size={16} />
+                  {t("verificationCode")}
+                </Label>
+                <Input
+                  id="register-otp"
+                  ref={registerOtpRef}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={registerOtp}
+                  onChange={(e) => {
+                    const numericValue = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setRegisterOtp(numericValue);
+                    setErrors((prev) => ({ ...prev, registerOtp: undefined }));
+                  }}
+                  onKeyPress={(e) => handleKeyPress(e, handleCreateAccount)}
+                  placeholder="Enter 6-digit code"
+                  className={errors.registerOtp ? "border-red-500" : ""}
+                />
+                {errors.registerOtp && (
+                  <p className="text-sm text-red-500">{errors.registerOtp}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleSendRegistrationOtp()}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline"
+                  disabled={isLoading}
+                >
+                  {t("resendCode")}
+                </button>
+              </div>
+            ) : null}
+
+            {!registerOtpSent ? (
+              <Button
+                onClick={() => void handleSendRegistrationOtp()}
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                disabled={isLoading}
+              >
+                {isLoading ? t("sendingCode") : t("sendVerificationCode")}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => void handleCreateAccount()}
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                disabled={isLoading || registerOtp.length !== 6}
+              >
+                {isLoading ? t("creatingAccount") : t("createAccount")}
+              </Button>
+            )}
           </TabsContent>
         </Tabs>
       </DialogContent>

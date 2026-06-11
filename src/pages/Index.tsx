@@ -1745,8 +1745,8 @@ const Dashboard = () => {
 
   return (
     <AppLayout title={t("dashboard")}>
-      {/* Desktop: greeting + global search (sticky at top) */}
-      <div className="hidden lg:block sticky top-0 z-40 -mx-6 px-6 pt-0 pb-4 bg-background/80 backdrop-blur-md">
+      {/* Desktop: greeting + global search */}
+      <div className="hidden lg:block mb-4 -mx-6 px-6 pt-0 pb-4">
         <div className="flex items-center justify-between gap-4 text-sm mb-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-muted-foreground">{isRw ? "Muraho" : isFr ? "Bonjour" : "Hello"}</span>
@@ -1800,13 +1800,13 @@ const Dashboard = () => {
                     {language === "rw" ? "Byose" : language === "fr" ? "Tout" : "All"}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="services" className="h-8 text-[11px]">
-                    {language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services"}
+                    {t("services")}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="sales" className="h-8 text-[11px]">
                     {t("sales")}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="expenses" className="h-8 text-[11px]">
-                    {language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses"}
+                    {t("expenses")}
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
@@ -1816,7 +1816,7 @@ const Dashboard = () => {
                 </CommandEmpty>
 
                 {globalSearchResults.services.length > 0 && (
-                  <CommandGroup heading={language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services"}>
+                  <CommandGroup heading={t("services")}>
                     {globalSearchResults.services.map((p) => (
                       <CommandItem
                         key={(p as any)._id || p.id || p.name}
@@ -1855,7 +1855,7 @@ const Dashboard = () => {
                 )}
 
                 {globalSearchResults.expenses.length > 0 && (
-                  <CommandGroup heading={language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses"}>
+                  <CommandGroup heading={t("expenses")}>
                     {globalSearchResults.expenses.map((e, idx) => (
                       <CommandItem
                         key={(e as any)._id || e.id || `${e.title}-${idx}`}
@@ -2923,15 +2923,11 @@ const Dashboard = () => {
         <DialogContent className="w-[calc(100vw-24px)] sm:w-full max-w-[560px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-2xl shadow-xl">
           <div className="p-4">
           <DialogHeader>
-            <DialogTitle>
-              {isRw ? "Andika ikiguzi" : isFr ? "Enregistrer une dépense" : "Record Expense"}
-            </DialogTitle>
+            <DialogTitle>{t("recordExpense")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>
-                {isRw ? "Izina ry'ikiguzi" : isFr ? "Nom de la dépense" : "Expense Name"}
-              </Label>
+              <Label>{t("expenseTitle")}</Label>
               <Input
                 value={expenseTitle}
                 onChange={(e) => {
@@ -3037,9 +3033,7 @@ const Dashboard = () => {
               )}
             </div>
             <div className="space-y-1">
-              <Label>
-                {isRw ? "Amafaranga (rwf)" : isFr ? "Montant (RWF)" : "Amount (rwf)"}
-              </Label>
+              <Label>{t("amount")} (rwf)</Label>
               {isMobile ? (
                 <button
                   type="button"
@@ -3067,7 +3061,7 @@ const Dashboard = () => {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>{isRw ? "Icyiciro" : isFr ? "Catégorie" : "Category"}</Label>
+                <Label>{t("category")}</Label>
                 <Input
                   value={expenseCategory}
                   onChange={(e) => setExpenseCategory(e.target.value)}
@@ -3075,7 +3069,7 @@ const Dashboard = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label>{isRw ? "Itariki" : isFr ? "Date" : "Date"}</Label>
+                <Label>{t("date")}</Label>
                 <Input
                   type="date"
                   value={expenseDate}
@@ -3084,7 +3078,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>{isRw ? "Ibisobanuro (si ngombwa)" : isFr ? "Note (facultatif)" : "Note (optional)"}</Label>
+              <Label>{t("noteOptional")}</Label>
               <Textarea
                 value={expenseNote}
                 onChange={(e) => setExpenseNote(e.target.value)}
@@ -3095,24 +3089,14 @@ const Dashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setExpenseModalOpen(false)}>
-              {isRw ? "Funga" : isFr ? "Annuler" : "Cancel"}
+              {t("cancel")}
             </Button>
             <Button
               onClick={handleRecordExpense}
               className="bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isSavingExpense}
             >
-              {isSavingExpense
-                ? isRw
-                  ? "Birabikwa..."
-                  : isFr
-                  ? "Enregistrement..."
-                  : "Saving..."
-                : isRw
-                ? "Bika ikiguzi"
-                : isFr
-                ? "Enregistrer la dépense"
-                : "Save Expense"}
+              {isSavingExpense ? t("saving") : t("saveExpense")}
             </Button>
           </DialogFooter>
           </div>

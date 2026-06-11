@@ -11,11 +11,13 @@ import { SplashScreen } from "@/components/SplashScreen";
 import { NotificationManager } from "@/components/NotificationManager";
 import { StockUpdateDialog } from "@/components/StockUpdateDialog";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
+import { SubscriptionProvider } from "@/hooks/useSubscriptionAccess";
 import { useSyncReminder } from "@/hooks/useSyncReminder";
 import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { useSubdomain, getSubdomainUrl } from "@/hooks/useSubdomain";
+import { applyLogoutQueryParamIfPresent } from "@/lib/session";
 import Home from "./pages/Home";
 
 // Component to handle cross-domain redirects
@@ -66,6 +68,7 @@ import SettingsLanguage from "./pages/settings/SettingsLanguage";
 import SettingsSecurity from "./pages/settings/SettingsSecurity";
 import SettingsNotifications from "./pages/settings/SettingsNotifications";
 import SettingsDeleteAccount from "./pages/settings/SettingsDeleteAccount";
+import Billing from "./pages/Billing";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import VerifyTicket from "./pages/VerifyTicket";
@@ -163,6 +166,14 @@ const SubdomainRouter = () => {
           } 
         />
         <Route
+          path="/billing"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Billing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/settings"
           element={
             <ProtectedRoute requireAdmin={true}>
@@ -172,6 +183,7 @@ const SubdomainRouter = () => {
         >
           <Route index element={<Settings />} />
           <Route path="business" element={<SettingsBusiness />} />
+          <Route path="subscription" element={<Navigate to="/billing" replace />} />
           <Route path="language" element={<SettingsLanguage />} />
           <Route path="security" element={<SettingsSecurity />} />
           <Route path="notifications" element={<SettingsNotifications />} />
@@ -268,6 +280,14 @@ const SubdomainRouter = () => {
           } 
         />
         <Route
+          path="/billing"
+          element={
+            <ProtectedRoute>
+              <Billing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/settings"
           element={
             <ProtectedRoute>
@@ -277,6 +297,7 @@ const SubdomainRouter = () => {
         >
           <Route index element={<Settings />} />
           <Route path="business" element={<SettingsBusiness />} />
+          <Route path="subscription" element={<Navigate to="/billing" replace />} />
           <Route path="language" element={<SettingsLanguage />} />
           <Route path="security" element={<SettingsSecurity />} />
           <Route path="notifications" element={<SettingsNotifications />} />
@@ -380,6 +401,14 @@ const SubdomainRouter = () => {
         } 
       />
       <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <Billing />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>
@@ -389,6 +418,7 @@ const SubdomainRouter = () => {
       >
         <Route index element={<Settings />} />
         <Route path="business" element={<SettingsBusiness />} />
+        <Route path="subscription" element={<Navigate to="/billing" replace />} />
         <Route path="language" element={<SettingsLanguage />} />
         <Route path="security" element={<SettingsSecurity />} />
         <Route path="notifications" element={<SettingsNotifications />} />
@@ -400,6 +430,10 @@ const SubdomainRouter = () => {
 };
 
 const App = () => {
+  if (typeof window !== "undefined") {
+    applyLogoutQueryParamIfPresent();
+  }
+
   // State for stock update dialog from notification
   const [stockUpdateDialogOpen, setStockUpdateDialogOpen] = useState(false);
   const [stockUpdateProductId, setStockUpdateProductId] = useState<string | number | null>(null);
@@ -409,6 +443,10 @@ const App = () => {
 
   // Restore authentication from URL hash when arriving from main domain
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("logout") === "1") {
+      return;
+    }
+
     const hash = window.location.hash;
     if (hash && hash.startsWith('#auth=')) {
       try {
@@ -510,6 +548,7 @@ const App = () => {
         <ThemeProvider>
           <LanguageProvider>
             <WebSocketProvider>
+              <SubscriptionProvider>
               <SplashScreen />
               <SubdomainRouter />
             <OfflineIndicator />
@@ -521,6 +560,7 @@ const App = () => {
               open={stockUpdateDialogOpen}
               onOpenChange={setStockUpdateDialogOpen}
             />
+              </SubscriptionProvider>
             </WebSocketProvider>
           </LanguageProvider>
         </ThemeProvider>

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
   Activity,
   UserCog,
   Bell,
+  CreditCard,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
+import { logoutAndGoHome } from "@/lib/session";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +33,7 @@ const adminMenuItems = [
   { icon: Activity, label: "Activity", section: "activity" },
   { icon: UserCog, label: "Accounts", section: "accounts" },
   { icon: Bell, label: "Notifications", section: "notifications" },
+  { icon: CreditCard, label: "Payments", section: "payments" },
 ];
 
 interface AdminSidebarProps {
@@ -54,7 +57,6 @@ export function AdminSidebar({
   onSectionChange,
   mobileExpanded = false
 }: AdminSidebarProps) {
-  const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
@@ -85,28 +87,16 @@ export function AdminSidebar({
   };
 
   const handleLogoutConfirm = () => {
-    // Clear authentication state
     clearAuth();
-    
-    // Clear user ID
-    localStorage.removeItem("profit-pilot-user-id");
-    
-    // Clear session storage
-    sessionStorage.clear();
-    
-    // Clear admin flag and authentication
-    localStorage.removeItem("profit-pilot-is-admin");
-    localStorage.removeItem("profit-pilot-authenticated");
-    
-    // Show logout confirmation
+    setLogoutDialogOpen(false);
+
     toast({
       title: "Logged Out",
       description: "You have been successfully logged out.",
     });
-    
-    // Redirect to homepage
-    navigate("/");
-    setLogoutDialogOpen(false);
+
+    // Full navigation to main domain — clears cross-origin session via ?logout=1
+    logoutAndGoHome();
   };
 
   // Determine if sidebar should appear expanded (hover overrides collapsed state on desktop)

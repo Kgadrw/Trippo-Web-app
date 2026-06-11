@@ -1464,7 +1464,7 @@ const Sales = () => {
 
   // Sales Page Skeleton
   const SalesSkeleton = () => (
-      <AppLayout title="Sales">
+      <AppLayout title={t("sales")}>
       <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
 
         {/* Filters and Table Container Skeleton */}
@@ -1580,7 +1580,7 @@ const Sales = () => {
   }
 
   return (
-    <AppLayout title="Sales">
+    <AppLayout title={t("sales")}>
       <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
 
       {/* Sales History Table - Static Header with Scrollable Body */}

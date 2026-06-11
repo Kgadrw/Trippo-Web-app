@@ -150,7 +150,8 @@ async function request<T>(
     const isGet = (options.method || 'GET').toUpperCase() === 'GET';
     const disableGetCache =
       endpoint.startsWith('/notifications') ||
-      endpoint.startsWith('/auth/me');
+      endpoint.startsWith('/auth/me') ||
+      endpoint.startsWith('/subscription');
     // Get userId for cache key (use the value from defaultHeaders if set, otherwise 'anonymous')
     const userIdForCache = defaultHeaders['X-User-Id'] || userId || 'anonymous';
     const cacheKey = `${options.method || 'GET'}:${endpoint}:${userIdForCache}`;
@@ -163,15 +164,15 @@ async function request<T>(
       }
     }
 
-    // Use request manager for deduplication (only for GET requests)
-    if (isGet && retryCount === 0 && !disableGetCache) {
+    // Deduplicate in-flight GET requests (even when TTL cache is disabled)
+    if (isGet && retryCount === 0) {
       return requestManager.execute(cacheKey, async () => {
-        return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount);
+        return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount, disableGetCache);
       });
     }
     
     // For non-GET requests or retries, execute directly
-    return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount);
+    return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount, disableGetCache);
   } catch (error) {
     if (error instanceof ApiError) {
       // Retry 429 errors with exponential backoff
@@ -208,7 +209,8 @@ async function executeRequest<T>(
   url: string,
   cacheKey: string,
   isGet: boolean,
-  retryCount: number
+  retryCount: number,
+  disableGetCache = false
 ): Promise<ApiResponse<T>> {
     // Create request promise
     const requestPromise = (async () => {
@@ -223,6 +225,18 @@ async function executeRequest<T>(
       }
 
       if (!response.ok) {
+        // Trial ended — redirect to billing (subscription endpoints still allowed)
+        if (
+          response.status === 402 &&
+          data?.code === 'SUBSCRIPTION_REQUIRED' &&
+          !endpoint.startsWith('/subscription')
+        ) {
+          window.dispatchEvent(new Event('subscription-updated'));
+          if (!window.location.pathname.startsWith('/billing')) {
+            window.location.assign('/billing');
+          }
+        }
+
         // Handle 429 Too Many Requests with retry logic
         if (response.status === 429 && retryCount < 3) {
           // Get retry-after from header or response data, default to exponential backoff
@@ -243,7 +257,7 @@ async function executeRequest<T>(
         // Retry the request (will go through request manager again)
         const { requestManager } = await import('./requestManager');
         return requestManager.execute(cacheKey, async () => {
-          return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount + 1);
+          return executeRequest<T>(endpoint, config, url, cacheKey, isGet, retryCount + 1, disableGetCache);
         });
         }
         
@@ -259,8 +273,8 @@ async function executeRequest<T>(
       return data;
     })();
 
-    // Cache GET requests
-    if (isGet && retryCount === 0) {
+    // Cache GET requests (skip endpoints that need fresh data every time)
+    if (isGet && retryCount === 0 && !disableGetCache) {
       requestCache.set(cacheKey, {
         promise: requestPromise as Promise<ApiResponse<any>>,
         timestamp: Date.now()
@@ -277,8 +291,22 @@ async function executeRequest<T>(
 
 // Auth API functions
 export const authApi = {
-  // Register a new user
-  async register(data: { name: string; email: string; phone: string; pin: string }): Promise<ApiResponse> {
+  // Send email verification code for new account registration
+  async sendRegistrationOtp(data: { email: string }): Promise<ApiResponse> {
+    return request('/auth/register/send-otp', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Register a new user (requires email verification OTP)
+  async register(data: {
+    name: string;
+    email: string;
+    phone: string;
+    pin: string;
+    otp: string;
+  }): Promise<ApiResponse> {
     return request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -753,6 +781,44 @@ export const adminApi = {
       body: JSON.stringify({ to }),
     });
   },
+
+  async getSubscriptionPaymentStats(days = 30): Promise<ApiResponse> {
+    return request(`/admin/subscription-payments/stats?days=${days}`, { method: 'GET' });
+  },
+
+  async listSubscriptionPayments(params?: {
+    days?: number;
+    status?: string;
+    hasIssues?: boolean;
+    search?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<ApiResponse> {
+    const qs = new URLSearchParams();
+    if (params?.days) qs.set('days', String(params.days));
+    if (params?.status) qs.set('status', params.status);
+    if (params?.hasIssues) qs.set('hasIssues', '1');
+    if (params?.search) qs.set('search', params.search);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.skip) qs.set('skip', String(params.skip));
+    const query = qs.toString();
+    return request(`/admin/subscription-payments${query ? `?${query}` : ''}`, { method: 'GET' });
+  },
+
+  async getSubscriptionPayment(paymentId: string): Promise<ApiResponse> {
+    return request(`/admin/subscription-payments/${paymentId}`, { method: 'GET' });
+  },
+
+  async resyncSubscriptionPayment(paymentId: string): Promise<ApiResponse> {
+    return request(`/admin/subscription-payments/${paymentId}/resync`, { method: 'POST' });
+  },
+
+  async reconcileStuckSubscriptionPayments(limit = 25): Promise<ApiResponse> {
+    return request('/admin/subscription-payments/reconcile', {
+      method: 'POST',
+      body: JSON.stringify({ limit }),
+    });
+  },
 };
 
 // Client API functions
@@ -991,6 +1057,26 @@ export const notificationApi = {
   async clearAll(): Promise<ApiResponse> {
     return request('/notifications/all', {
       method: 'DELETE',
+    });
+  },
+};
+
+export const subscriptionApi = {
+  async getStatus(sync = false): Promise<ApiResponse> {
+    const qs = sync ? '?sync=1' : '';
+    return request(`/subscription/status${qs}`, { method: 'GET' });
+  },
+
+  async pay(phone: string, network?: 'mtn' | 'airtel'): Promise<ApiResponse> {
+    return request('/subscription/pay', {
+      method: 'POST',
+      body: JSON.stringify({ phone, network }),
+    });
+  },
+
+  async getPaymentStatus(referenceId: string): Promise<ApiResponse> {
+    return request(`/subscription/payments/${encodeURIComponent(referenceId)}`, {
+      method: 'GET',
     });
   },
 };

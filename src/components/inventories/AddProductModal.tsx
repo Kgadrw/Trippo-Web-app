@@ -12,6 +12,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export interface InventoryProduct {
   _id?: string;
@@ -57,6 +58,7 @@ const emptyForm = {
 export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddProductModalProps) {
   const isEdit = !!product;
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { items: products, add, update, refresh } = useApi<InventoryProduct>({
     endpoint: "products",
     defaultValue: [],
@@ -86,7 +88,7 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      toast({ title: "Name required", description: "Enter a product name.", variant: "destructive" });
+      toast({ title: t("nameRequired"), description: t("enterProductNameMsg"), variant: "destructive" });
       return;
     }
 
@@ -99,8 +101,8 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
     });
     if (duplicate) {
       toast({
-        title: "Duplicate product",
-        description: "A product with this name and category already exists.",
+        title: t("duplicateProduct"),
+        description: t("duplicateProductDesc"),
         variant: "destructive",
       });
       return;
@@ -118,10 +120,10 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
     try {
       if (isEdit && product) {
         await update({ ...product, ...payload } as InventoryProduct);
-        toast({ title: "Product updated", description: "Changes saved successfully." });
+        toast({ title: t("productUpdated"), description: t("changesSaved") });
       } else {
         await add(payload as InventoryProduct);
-        toast({ title: "Product added", description: "Product saved successfully." });
+        toast({ title: t("productAdded"), description: t("productSaved") });
       }
       await refresh(true);
       window.dispatchEvent(new CustomEvent("products-should-refresh"));
@@ -129,7 +131,7 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
       onSuccess?.();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to save product.";
-      toast({ title: "Save failed", description: message, variant: "destructive" });
+      toast({ title: t("failed"), description: message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -145,30 +147,30 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit product" : "Add product"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("editProduct") : t("addProduct")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1">
-            <Label>Product name</Label>
+            <Label>{t("productName")}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Enter product name"
+              placeholder={t("enterProductName")}
               disabled={isSaving}
             />
           </div>
           <div className="space-y-1">
-            <Label>Category</Label>
+            <Label>{t("category")}</Label>
             <Input
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              placeholder="Enter category"
+              placeholder={t("enterCategory")}
               disabled={isSaving}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>Cost (rwf)</Label>
+              <Label>{t("cost")} (rwf)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -180,7 +182,7 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
               />
             </div>
             <div className="space-y-1">
-              <Label>Selling (rwf)</Label>
+              <Label>{t("selling")} (rwf)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -193,7 +195,7 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Stock quantity</Label>
+            <Label>{t("stockQuantity")}</Label>
             <Input
               type="text"
               inputMode="numeric"
@@ -207,7 +209,7 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700 text-white min-w-[7rem]"
@@ -217,12 +219,12 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {t("saving")}
               </>
             ) : isEdit ? (
-              "Update"
+              t("update")
             ) : (
-              "Save"
+              t("save")
             )}
           </Button>
         </DialogFooter>

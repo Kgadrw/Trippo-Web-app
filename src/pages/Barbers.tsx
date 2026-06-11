@@ -342,10 +342,8 @@ export default function Barbers() {
     }
   };
 
-  const barbersTitle =
-    language === "rw" ? "Abakozi" : language === "fr" ? "Travailleurs" : "Workers";
-  const barberSingular =
-    language === "rw" ? "Umukozi" : language === "fr" ? "Travailleur" : "Worker";
+  const barbersTitle = t("workers");
+  const barberSingular = t("worker");
   const salesHistoryEmpty =
     language === "rw"
       ? "Nta bucuruzi"
@@ -433,7 +431,7 @@ export default function Barbers() {
           </div>
         ) : barbers.length === 0 ? (
           <div className="px-4 py-5 text-sm text-muted-foreground">
-            No workers found. Click <span className="font-semibold text-foreground">Add Worker</span> to create one.
+            {t("noWorkersAddFirst")}
           </div>
         ) : (
           <div className="overflow-hidden">
@@ -459,7 +457,7 @@ export default function Barbers() {
                           >
                             <div>{b.name}</div>
                             <div className="text-xs font-normal text-gray-500 mt-0.5">
-                              {b.businessType || "Worker"}
+                              {b.businessType || t("worker")}
                               <span className="text-gray-400"> · </span>
                               <span className="text-blue-600 tabular-nums">{history.length}</span>
                             </div>
@@ -685,13 +683,11 @@ export default function Barbers() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {language === "rw" ? "Hindura ubucuruzi" : language === "fr" ? "Modifier la vente" : "Edit sale"}
-            </DialogTitle>
+            <DialogTitle>{t("editSale")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label>{language === "rw" ? "Serivisi" : language === "fr" ? "Service" : "Service"}</Label>
+              <Label>{t("services")}</Label>
               <Input
                 value={saleServiceName}
                 onChange={(e) => setSaleServiceName(e.target.value)}
@@ -699,7 +695,7 @@ export default function Barbers() {
               />
             </div>
             <div className="space-y-1">
-              <Label>{language === "rw" ? "Umubare" : language === "fr" ? "Quantité" : "Quantity"}</Label>
+              <Label>{t("quantity")}</Label>
               <Input
                 type="number"
                 min="1"
@@ -709,7 +705,7 @@ export default function Barbers() {
               />
             </div>
             <div className="space-y-1">
-              <Label>{language === "rw" ? "Amafaranga (rwf)" : language === "fr" ? "Montant (rwf)" : "Amount (rwf)"}</Label>
+              <Label>{t("amount")} (rwf)</Label>
               <Input
                 type="number"
                 min="0"
@@ -719,7 +715,7 @@ export default function Barbers() {
               />
             </div>
             <div className="space-y-1">
-              <Label>{language === "rw" ? "Itariki" : language === "fr" ? "Date" : "Date"}</Label>
+              <Label>{t("date")}</Label>
               <Input
                 type="date"
                 value={saleDate}
@@ -747,7 +743,7 @@ export default function Barbers() {
               {isSavingSale ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {language === "rw" ? "Bika..." : language === "fr" ? "Enregistrement..." : "Saving..."}
+                  {t("saving")}
                 </>
               ) : (
                 t("save")
@@ -766,11 +762,11 @@ export default function Barbers() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingBarber ? "Edit Worker" : "Add Worker"}</DialogTitle>
+            <DialogTitle>{editingBarber ? t("editWorker") : t("addWorker")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label>Name</Label>
+              <Label>{t("name")}</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -779,11 +775,11 @@ export default function Barbers() {
               />
             </div>
             <div className="space-y-1">
-              <Label>Category</Label>
+              <Label>{t("category")}</Label>
               <Input
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Hair stylist, Nails"
+                placeholder={t("category")}
                 disabled={isSaving}
               />
             </div>
@@ -824,7 +820,7 @@ export default function Barbers() {
                 className="rounded-full"
                 disabled={isSaving}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-full min-w-[7rem]"
@@ -834,12 +830,12 @@ export default function Barbers() {
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingBarber ? "Updating..." : "Saving..."}
+                    {editingBarber ? t("updating") : t("saving")}
                   </>
                 ) : editingBarber ? (
-                  "Update"
+                  t("update")
                 ) : (
-                  "Save"
+                  t("save")
                 )}
               </Button>
             </div>

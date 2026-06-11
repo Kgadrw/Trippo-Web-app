@@ -715,7 +715,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                   <Plus size={18} className="text-white" />
                 </div>
-                <span>{isRw ? "Andika serivisi" : "Record Service"}</span>
+                <span>{t("recordService")}</span>
               </span>
             </DialogTitle>
           </DialogHeader>
@@ -724,7 +724,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
           <div className="space-y-3">
             <>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{isRw ? "Izina rya serivisi" : "Service Name"}</Label>
+                  <Label className="text-xs font-medium text-gray-600">{t("serviceName")}</Label>
                   <Select
                     value={serviceName}
                     onValueChange={(value) => {
@@ -736,7 +736,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                     }}
                   >
                     <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                      <SelectValue placeholder={isRw ? "Hitamo serivisi" : "Select service"} />
+                      <SelectValue placeholder={t("selectService")} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableServices.length > 0 ? (
@@ -750,7 +750,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                         })
                       ) : (
                         <SelectItem value="__no_service__" disabled>
-                          {isRw ? "Nta serivisi ziboneka. Banza wongereho Serivisi." : "No services found. Add Service first."}
+                          {t("noServicesAddFirst")}
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -758,11 +758,11 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                 </div>
                 <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-gray-600">
-                      {isRw ? "Umukozi" : isFr ? "Travailleur" : "Worker"}
+                      {t("worker")}
                     </Label>
                   <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
                     <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                      <SelectValue placeholder={isRw ? "Hitamo umukozi" : isFr ? "Choisir un travailleur" : "Select worker"} />
+                      <SelectValue placeholder={t("selectWorker")} />
                     </SelectTrigger>
                     <SelectContent>
                       {workers.length > 0 ? (
@@ -777,11 +777,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                         })
                       ) : (
                         <SelectItem value="__no_worker__" disabled>
-                          {isRw
-                            ? "Nta bakozi babonetse. Banza wongereho Umukozi muri Ibyibanze."
-                            : isFr
-                            ? "Aucun travailleur. Ajoutez-en depuis Travailleurs."
-                            : "No workers found. Add Worker first from Workers."}
+                          {t("noWorkersAddFirst")}
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -789,7 +785,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Amafaranga (rwf)" : "Amount (rwf)"}</Label>
+                    <Label className="text-xs font-medium text-gray-600">{t("amount")} (rwf)</Label>
                     <Input
                       type="number"
                       min="0"
@@ -802,7 +798,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Kwishyura" : "Payment"}</Label>
+                    <Label className="text-xs font-medium text-gray-600">{t("paymentMethod")}</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                       <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
                         <SelectValue />
@@ -817,7 +813,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{isRw ? "Itariki" : "Date"}</Label>
+                    <Label className="text-xs font-medium text-gray-600">{t("date")}</Label>
                     <Input
                       type="date"
                       value={saleDate}

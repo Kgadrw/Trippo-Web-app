@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   BarChart,
   Bar,
@@ -21,6 +22,8 @@ interface SalesTrendChartProps {
 }
 
 export function SalesTrendChart({ sales = [], className }: SalesTrendChartProps) {
+  const { t } = useTranslation();
+
   // Calculate last 7 days sales data
   const chartData = useMemo(() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -50,7 +53,7 @@ export function SalesTrendChart({ sales = [], className }: SalesTrendChartProps)
   }, [sales]);
   return (
     <div className={cn("kpi-card bg-white rounded-none border border-gray-200 shadow-sm", className)}>
-      <h3 className="section-title text-gray-600">Sales Trend (Last 7 Days)</h3>
+      <h3 className="section-title text-gray-600">{t("salesTrendLast7Days")}</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>

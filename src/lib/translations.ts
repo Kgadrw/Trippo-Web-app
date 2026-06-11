@@ -4,6 +4,12 @@ export interface Translations {
   // Navigation
   dashboard: string;
   products: string;
+  services: string;
+  inventories: string;
+  workers: string;
+  worker: string;
+  expenses: string;
+  billing: string;
   sales: string;
   reports: string;
   settings: string;
@@ -11,10 +17,15 @@ export interface Translations {
   
   // Common
   save: string;
+  update: string;
+  updating: string;
+  saving: string;
   cancel: string;
   delete: string;
   edit: string;
   add: string;
+  name: string;
+  price: string;
   search: string;
   filter: string;
   loading: string;
@@ -38,10 +49,14 @@ export interface Translations {
   // Products
   productName: string;
   category: string;
+  cost: string;
   costPrice: string;
+  selling: string;
   sellingPrice: string;
   stock: string;
   addProduct: string;
+  productsAvailable: string;
+  noProductsYet: string;
   editProduct: string;
   deleteProduct: string;
   stockQuantity: string;
@@ -230,6 +245,7 @@ export interface Translations {
   exportPdf: string;
   exportExcel: string;
   salesTrend: string;
+  salesTrendLast7Days: string;
   topProducts: string;
   salesByCategory: string;
   paymentMethods: string;
@@ -247,6 +263,73 @@ export interface Translations {
   deleted: string;
   failed: string;
   pleaseTryAgain: string;
+
+  // Expenses
+  oneTimeExpense: string;
+  recurringExpenses: string;
+  expenseTitle: string;
+  amount: string;
+  note: string;
+  noteOptional: string;
+  saveExpense: string;
+  recentExpenses: string;
+
+  // Modals — services & products
+  addService: string;
+  editService: string;
+  serviceName: string;
+  noServicesFound: string;
+  noServicesAddFirst: string;
+  recordService: string;
+  selectService: string;
+  selectWorker: string;
+  invalidInput: string;
+  validServiceRequired: string;
+  serviceUpdated: string;
+  serviceAdded: string;
+  serviceDeleted: string;
+  deleteServiceConfirm: string;
+  nameRequired: string;
+  enterProductNameMsg: string;
+  duplicateProduct: string;
+  duplicateProductDesc: string;
+  productUpdated: string;
+  productAdded: string;
+  changesSaved: string;
+  productSaved: string;
+
+  // Modals — workers
+  addWorker: string;
+  editWorker: string;
+  noWorkersFound: string;
+  noWorkersAddFirst: string;
+  editSale: string;
+
+  // Modals — stock
+  updateStock: string;
+  updateStockFor: string;
+  enterStockQuantity: string;
+  minimumStockLabel: string;
+  stockUpdated: string;
+  invalidStock: string;
+  invalidStockDesc: string;
+  updateFailed: string;
+  recordExpense: string;
+  record: string;
+
+  // Auth modal
+  welcomeToTrippo: string;
+  createAccount: string;
+  enterYourPin: string;
+  forgotPin: string;
+  sendVerificationCode: string;
+  verificationCode: string;
+  resendCode: string;
+  sendingCode: string;
+  creatingAccount: string;
+  resetYourPin: string;
+  phoneNumber: string;
+  fullName: string;
 }
 
 export const translations: Partial<Record<Language, Partial<Translations>>> = {
@@ -254,6 +337,12 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     // Navigation
     dashboard: "Dashboard",
     products: "Products",
+    services: "Services",
+    inventories: "Inventories",
+    workers: "Workers",
+    worker: "Worker",
+    expenses: "Expenses",
+    billing: "Billing",
     sales: "Sales",
     reports: "Reports",
     settings: "Settings",
@@ -261,10 +350,15 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     
     // Common
     save: "Save",
+    update: "Update",
+    updating: "Updating...",
+    saving: "Saving...",
     cancel: "Cancel",
     delete: "Delete",
     edit: "Edit",
     add: "Add",
+    name: "Name",
+    price: "Price",
     search: "Search",
     filter: "Filter",
     loading: "Loading...",
@@ -288,10 +382,14 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     // Products
     productName: "Product Name",
     category: "Category",
+    cost: "Cost",
     costPrice: "Cost Price",
+    selling: "Selling",
     sellingPrice: "Selling Price",
     stock: "Stock",
     addProduct: "Add Product",
+    productsAvailable: "Products available",
+    noProductsYet: "No products available yet. Click Add product to get started.",
     editProduct: "Edit Product",
     deleteProduct: "Delete Product",
     stockQuantity: "Stock Quantity",
@@ -480,6 +578,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     exportPdf: "Export PDF",
     exportExcel: "Export Excel",
     salesTrend: "Sales Trend",
+    salesTrendLast7Days: "Sales Trend (Last 7 Days)",
     topProducts: "Top Products",
     salesByCategory: "Sales by Category",
     paymentMethods: "Payment Methods",
@@ -497,18 +596,87 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     deleted: "Deleted",
     failed: "Failed",
     pleaseTryAgain: "Please try again",
+
+    // Expenses
+    oneTimeExpense: "One-time expense",
+    recurringExpenses: "Recurring expenses",
+    expenseTitle: "Expense Title",
+    amount: "Amount",
+    note: "Note",
+    noteOptional: "Note (Optional)",
+    saveExpense: "Save Expense",
+    recentExpenses: "Recent Expenses",
+
+    addService: "Add Service",
+    editService: "Edit Service",
+    serviceName: "Service Name",
+    noServicesFound: "No services found.",
+    noServicesAddFirst: "No services found. Add a service first.",
+    recordService: "Record Service",
+    selectService: "Select service",
+    selectWorker: "Select worker",
+    invalidInput: "Invalid Input",
+    validServiceRequired: "Enter a valid service name and price.",
+    serviceUpdated: "Service Updated",
+    serviceAdded: "Service Added",
+    serviceDeleted: "Service Deleted",
+    deleteServiceConfirm: "Delete service",
+    nameRequired: "Name required",
+    enterProductNameMsg: "Enter a product name.",
+    duplicateProduct: "Duplicate product",
+    duplicateProductDesc: "A product with this name and category already exists.",
+    productUpdated: "Product updated",
+    productAdded: "Product added",
+    changesSaved: "Changes saved successfully.",
+    productSaved: "Product saved successfully.",
+    addWorker: "Add Worker",
+    editWorker: "Edit Worker",
+    noWorkersFound: "No workers found.",
+    noWorkersAddFirst: "No workers found. Click Add Worker to create one.",
+    editSale: "Edit sale",
+    updateStock: "Update Stock",
+    updateStockFor: "Update stock quantity for",
+    enterStockQuantity: "Enter stock quantity",
+    minimumStockLabel: "Minimum stock",
+    stockUpdated: "Stock Updated",
+    invalidStock: "Invalid Stock",
+    invalidStockDesc: "Please enter a valid stock quantity.",
+    updateFailed: "Update Failed",
+    recordExpense: "Record Expense",
+    record: "Record",
+    welcomeToTrippo: "Welcome to Trippo",
+    createAccount: "Create Account",
+    enterYourPin: "Enter your PIN",
+    forgotPin: "Forgot PIN?",
+    sendVerificationCode: "Send verification code",
+    verificationCode: "Email verification code",
+    resendCode: "Resend code",
+    sendingCode: "Sending code...",
+    creatingAccount: "Creating account...",
+    resetYourPin: "Reset Your PIN",
+    phoneNumber: "Phone Number",
+    fullName: "Full Name",
   },
   rw: {
     // Navigation
-    dashboard: "Ikibaho",
+    dashboard: "Ahabanza",
     products: "Ibicuruzwa",
-    sales: "Ubucuruzi",
+    services: "Serivisi",
+    inventories: "Ibicuruzwa",
+    workers: "Abakozi",
+    worker: "Umukozi",
+    expenses: "Ibyasohotse",
+    billing: "Kwishyura",
+    sales: "Ibyakozwe",
     reports: "Raporo",
     settings: "Igenamiterere",
     logout: "Sohoka",
     
     // Common
     save: "Bika",
+    update: "Hindura",
+    updating: "Birimo guhindura...",
+    saving: "Birimo kubika...",
     cancel: "Kureka",
     delete: "Siba",
     edit: "Hindura",
@@ -535,11 +703,15 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     
     // Products
     productName: "Izina ry'icuruzwa",
-    category: "Ubwoko",
-    costPrice: "Igiciro cyo kugura",
-    sellingPrice: "Igiciro cyo kugurisha",
-    stock: "Stoki",
-    addProduct: "Ongeraho icuruzwa",
+    category: "Icyiciro",
+    cost: "Igiciro",
+    costPrice: "Igiciro",
+    selling: "Kugurisha",
+    sellingPrice: "Kugurisha",
+    stock: "Ibihari",
+    addProduct: "Igicuruzwa gishya",
+    productsAvailable: "Ibicuruzwa biboneka",
+    noProductsYet: "Nta bicuruzwa biraboneka. Kanda Igicuruzwa gishya utangire.",
     editProduct: "Hindura icuruzwa",
     deleteProduct: "Siba icuruzwa",
     stockQuantity: "Umubare w'stoki",
@@ -706,7 +878,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     startDate: "Itariki yatangira",
     endDate: "Itariki yarangiye",
     noSales: "Ntacyo cyabonetse",
-    product: "Icuruzwa",
+    product: "Ibicuruzwa",
     revenue: "Amafaranga",
     profit: "Inyungu",
     date: "Itariki",
@@ -727,7 +899,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     custom: "Bihagije",
     exportPdf: "Kohereza PDF",
     exportExcel: "Kohereza Excel",
-    salesTrend: "Imiterere y'ubucuruzi",
+    salesTrend: "Ibiheruka gukorwa (mu minsi 7)",
+    salesTrendLast7Days: "Ibiheruka gukorwa (mu minsi 7)",
     topProducts: "Ibicuruzwa by'ibanze",
     salesByCategory: "Ubucuruzi by'ubwoko",
     paymentMethods: "Uburyo bwo kwishyura",
@@ -745,6 +918,66 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     deleted: "Byasibwe",
     failed: "Byanze",
     pleaseTryAgain: "Nyamuneka gerageza nanone",
+
+    // Expenses
+    oneTimeExpense: "Ibyasohotse",
+    recurringExpenses: "Ibikunda gusohoka",
+    expenseTitle: "Izina ry'icyasohotse",
+    amount: "Amafaranga",
+    note: "Detaye",
+    noteOptional: "Detaye (si ngombwa)",
+    saveExpense: "Bika ibyakozwe",
+    recentExpenses: "Ibiheruka gusohoka",
+
+    addService: "Ongeraho serivisi",
+    editService: "Hindura serivisi",
+    serviceName: "Izina rya serivisi",
+    noServicesFound: "Nta serivisi ziboneka.",
+    noServicesAddFirst: "Nta serivisi ziboneka. Banza wongereho serivisi.",
+    recordService: "Andika serivisi",
+    selectService: "Hitamo serivisi",
+    selectWorker: "Hitamo umukozi",
+    invalidInput: "Amakuru atari yo",
+    validServiceRequired: "Andika izina rya serivisi n'igiciro cyemewe.",
+    serviceUpdated: "Serivisi yahinduwe",
+    serviceAdded: "Serivisi yongeweho",
+    serviceDeleted: "Serivisi yasibwe",
+    deleteServiceConfirm: "Siba serivisi",
+    nameRequired: "Izina rirakenewe",
+    enterProductNameMsg: "Andika izina ry'icuruzwa.",
+    duplicateProduct: "Igicuruzwa cyamaze kubaho",
+    duplicateProductDesc: "Hari igicuruzwa gifite iri zina n'icyiciro.",
+    productUpdated: "Igicuruzwa cyahinduwe",
+    productAdded: "Igicuruzwa cyongeweho",
+    changesSaved: "Impinduka zabitswe neza.",
+    productSaved: "Igicuruzwa cyabitswe neza.",
+    addWorker: "Ongeraho umukozi",
+    editWorker: "Hindura umukozi",
+    noWorkersFound: "Nta bakozi babonetse.",
+    noWorkersAddFirst: "Nta bakozi babonetse. Kanda Ongeraho umukozi utangire.",
+    editSale: "Hindura ibyakozwe",
+    updateStock: "Hindura ibihari",
+    updateStockFor: "Hindura ingano y'ibihari bya",
+    enterStockQuantity: "Andika ingano y'ibihari",
+    minimumStockLabel: "Ibihari by'ubusa",
+    stockUpdated: "Ibihari byahinduwe",
+    invalidStock: "Ibihari bitari byo",
+    invalidStockDesc: "Andika ingano y'ibihari yemewe.",
+    updateFailed: "Guhindura byanze",
+    recordExpense: "Andika ibyasohotse",
+    record: "Andika",
+    welcomeToTrippo: "Murakaza neza muri Trippo",
+    createAccount: "Fungura konti",
+    enterYourPin: "Andika PIN yawe",
+    forgotPin: "Wibagiwe PIN?",
+    sendVerificationCode: "Ohereza kode yo kwemeza",
+    verificationCode: "Kode yo kwemeza imeri",
+    resendCode: "Ohereza kode nanone",
+    sendingCode: "Birimo kohereza kode...",
+    creatingAccount: "Birimo gufungura konti...",
+    resetYourPin: "Hindura PIN yawe",
+    phoneNumber: "Telefone",
+    fullName: "Amazina yose",
   },
   fr: {
     // Navigation

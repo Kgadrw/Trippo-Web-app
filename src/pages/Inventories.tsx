@@ -13,6 +13,7 @@ import { Plus, Package, MoreVertical, Pencil, Trash2, Loader2 } from "lucide-rea
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 
 import { AddProductModal, type InventoryProduct } from "@/components/inventories/AddProductModal";
@@ -42,6 +43,7 @@ const isService = (p: InventoryProduct) => (p.category || "").toLowerCase() === 
 const Inventories = () => {
 
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [addModalOpen, setAddModalOpen] = useState(false);
 
@@ -151,7 +153,7 @@ const Inventories = () => {
 
   return (
 
-    <AppLayout title="Inventories">
+    <AppLayout title={t("inventories")}>
 
       <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden space-y-4 pb-4">
 
@@ -163,7 +165,7 @@ const Inventories = () => {
 
             <span>
 
-              {isLoading ? "Loading..." : "Products available"}
+              {isLoading ? t("loading") : t("productsAvailable")}
 
             </span>
 
@@ -179,7 +181,7 @@ const Inventories = () => {
 
             <Plus size={16} />
 
-            Add product
+            {t("addProduct")}
 
           </Button>
 
@@ -252,7 +254,7 @@ const Inventories = () => {
 
           <div className="px-4 py-5 text-sm text-muted-foreground">
 
-            No products available yet. Click <strong>Add product</strong> to get started.
+            {t("noProductsYet")}
 
           </div>
 
@@ -267,17 +269,17 @@ const Inventories = () => {
 
                 <tr>
 
-                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Product</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("product")}</th>
 
-                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Category</th>
+                  <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("category")}</th>
 
-                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Stock</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("stock")}</th>
 
-                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Cost</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("cost")}</th>
 
-                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Selling</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("selling")}</th>
 
-                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Actions</th>
+                  <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("actions")}</th>
 
                 </tr>
 
@@ -506,13 +508,13 @@ const Inventories = () => {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block">Cost</span>
+                      <span className="text-gray-500 block">{t("cost")}</span>
                       <span className="font-medium text-gray-700 tabular-nums">
                         {Number(p.costPrice || 0).toLocaleString()}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block">Selling</span>
+                      <span className="text-gray-500 block">{t("selling")}</span>
                       <span className="font-semibold text-gray-900 tabular-nums">
                         {Number(p.sellingPrice || 0).toLocaleString()}
                       </span>

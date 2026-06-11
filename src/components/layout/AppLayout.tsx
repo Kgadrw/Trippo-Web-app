@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Navigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileHeader } from "./MobileHeader";
 import { MobileFixedBackground } from "./MobileFixedBackground";
+import { PlusBanner } from "@/components/dashboard/PlusBanner";
+import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Package, UserRound, ShoppingCart, Wallet, FileText, Settings } from "lucide-react";
+import { LayoutDashboard, Package, UserRound, ShoppingCart, Wallet, FileText, CreditCard, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +24,7 @@ const desktopMenuItems = [
   { icon: ShoppingCart, label: "Sales", path: "/sales" },
   { icon: Wallet, label: "Expenses", path: "/expenses" },
   { icon: FileText, label: "Reports", path: "/reports" },
+  { icon: CreditCard, label: "Billing", path: "/billing" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
@@ -31,17 +34,18 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const { t, language } = useTranslation();
+  const { loading: subLoading, hasAccess, isLocked } = useSubscriptionAccess();
+  const isBillingRoute = location.pathname.startsWith("/billing");
 
   const getDesktopNavLabel = (item: { label: string; path: string }) => {
-    if (item.path === "/products")
-      return language === "rw" ? "Serivisi" : language === "fr" ? "Services" : "Services";
-    if (item.path === "/barbers")
-      return language === "rw" ? "Abakozi" : language === "fr" ? "Travailleurs" : "Workers";
-    if (item.path === "/expenses")
-      return language === "rw" ? "Ibikiguzi" : language === "fr" ? "Dépenses" : "Expenses";
+    if (item.path === "/products") return t("services");
+    if (item.path === "/inventories") return t("inventories");
+    if (item.path === "/barbers") return t("workers");
+    if (item.path === "/expenses") return t("expenses");
     if (item.path === "/dashboard") return t("dashboard");
     if (item.path === "/sales") return t("sales");
     if (item.path === "/reports") return t("reports");
+    if (item.path === "/billing") return t("billing");
     if (item.path === "/settings") return t("settings");
     return item.label;
   };
@@ -59,6 +63,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const [showArrow, setShowArrow] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarExpanded, setMobileSidebarExpanded] = useState(false);
+
+  const sidebarExpandedOnDesktop =
+    !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed);
 
   // Save sidebar collapsed state to localStorage whenever it changes (only on desktop)
   useEffect(() => {
@@ -212,15 +219,31 @@ export function AppLayout({ children, title }: AppLayoutProps) {
             ? "ml-0 pt-20 pb-6"
             : cn(
                 "transition-all duration-300 lg:pt-6",
-                (sidebarHovered && sidebarCollapsed) || !sidebarCollapsed ? "lg:ml-56" : "lg:ml-16"
+                sidebarExpandedOnDesktop ? "lg:ml-56" : "lg:ml-16"
               )
         )}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        style={{ touchAction: 'pan-y' }}
+        style={{
+          touchAction: "pan-y",
+          ...(!isMobile && {
+            ["--content-inset" as string]: sidebarExpandedOnDesktop ? "14rem" : "4rem",
+            // Sidebar is left-2 + width; banner sits after sidebar with a gap
+            ["--sidebar-end" as string]: sidebarExpandedOnDesktop
+              ? "calc(0.5rem + 14rem)"
+              : "calc(0.5rem + 4rem)",
+            ["--banner-left" as string]: "calc(var(--sidebar-end) + 0.75rem)",
+          }),
+        }}
       >
-        <main className="p-6 pt-6">{children}</main>
+        <main className="p-6 pt-6">
+          {!subLoading && isLocked && !isBillingRoute ? (
+            <Navigate to="/billing" replace />
+          ) : null}
+          {!subLoading && !isBillingRoute ? <PlusBanner /> : null}
+          {children}
+        </main>
       </div>
     </div>
   );

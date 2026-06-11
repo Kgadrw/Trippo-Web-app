@@ -74,6 +74,7 @@ import { adminApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { UptimeTimeline } from "@/components/admin/UptimeTimeline";
+import { AdminPaymentsPanel } from "@/components/admin/AdminPaymentsPanel";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 
 interface SystemStats {
@@ -86,6 +87,29 @@ interface SystemStats {
   recentUsers: number;
   recentProducts: number;
   recentSales: number;
+}
+
+interface UserPaymentSummary {
+  provider: string;
+  lastStatus: string;
+  lastAttemptAt: string;
+  lastAmount: number;
+  lastMsisdn?: string;
+  successfulPayments: number;
+  failedPayments: number;
+  pendingPayments: number;
+  totalPaidAmount: number;
+}
+
+interface UserSubscription {
+  planName?: string;
+  isOnTrial?: boolean;
+  status?: string;
+  nextDueDate?: string | null;
+  lastPaidAt?: string | null;
+  trialDaysLeft?: number;
+  hasPlus?: boolean;
+  requiresPayment?: boolean;
 }
 
 interface User {
@@ -111,7 +135,11 @@ interface User {
     lastPaidAt?: string;
     status?: string;
   };
+  subscription?: UserSubscription;
+  paymentSummary?: UserPaymentSummary | null;
 }
+
+type UserPaymentFilter = "all" | "paid" | "failed" | "trial" | "none";
 
 interface ActivityData {
   products: any[];
@@ -202,7 +230,7 @@ const AdminDashboard = () => {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [apiStats, setApiStats] = useState<ApiStats | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "users" | "activity" | "accounts" | "notifications"
+    "overview" | "users" | "activity" | "accounts" | "notifications" | "payments"
   >("overview");
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -228,17 +256,18 @@ const AdminDashboard = () => {
 
   const [billingDialogOpen, setBillingDialogOpen] = useState(false);
   const [billingUser, setBillingUser] = useState<User | null>(null);
-  const [billingAmount, setBillingAmount] = useState("5800");
+  const [billingAmount, setBillingAmount] = useState("10000");
   const [billingIntervalMonths, setBillingIntervalMonths] = useState("1");
   const [billingNextDueDate, setBillingNextDueDate] = useState("");
   const [billingStatus, setBillingStatus] = useState("active");
   const [billingActive, setBillingActive] = useState(true);
   const [isSavingBilling, setIsSavingBilling] = useState(false);
+  const [userPaymentFilter, setUserPaymentFilter] = useState<UserPaymentFilter>("all");
 
   const openBilling = (u: User) => {
     setBillingUser(u);
     const plan = u.paymentPlan || {};
-    setBillingAmount(String(plan.amount ?? 5800));
+    setBillingAmount(String(plan.amount ?? 10000));
     setBillingIntervalMonths(String(plan.intervalMonths ?? 1));
     setBillingNextDueDate(plan.nextDueDate ? String(plan.nextDueDate).slice(0, 10) : "");
     setBillingStatus(String(plan.status ?? "active"));
@@ -422,6 +451,181 @@ const AdminDashboard = () => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
+
+  const matchesUserPaymentFilter = (user: User, filter: UserPaymentFilter) => {
+    const summary = user.paymentSummary;
+    const subscription = user.subscription;
+    switch (filter) {
+      case "paid":
+        return (summary?.successfulPayments ?? 0) > 0;
+      case "failed":
+        return (summary?.failedPayments ?? 0) > 0;
+      case "trial":
+        return subscription?.isOnTrial === true;
+      case "none":
+        return (
+          !summary ||
+          (summary.successfulPayments === 0 &&
+            summary.failedPayments === 0 &&
+            summary.pendingPayments === 0)
+        );
+      default:
+        return true;
+    }
+  };
+
+  const filteredUsers = users.filter((user) => matchesUserPaymentFilter(user, userPaymentFilter));
+
+  const paymentFilterCounts = {
+    all: users.length,
+    paid: users.filter((u) => matchesUserPaymentFilter(u, "paid")).length,
+    failed: users.filter((u) => matchesUserPaymentFilter(u, "failed")).length,
+    trial: users.filter((u) => matchesUserPaymentFilter(u, "trial")).length,
+    none: users.filter((u) => matchesUserPaymentFilter(u, "none")).length,
+  };
+
+  const renderPlanBadge = (user: User) => {
+    const sub = user.subscription;
+    const status = sub?.status || user.paymentPlan?.status || "active";
+    const styles: Record<string, string> = {
+      trial: "bg-blue-100 text-blue-800",
+      active: "bg-green-100 text-green-800",
+      past_due: "bg-red-100 text-red-800",
+      paused: "bg-gray-100 text-gray-800",
+    };
+    return (
+      <div className="space-y-1">
+        <span
+          className={cn(
+            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+            styles[status] || "bg-gray-100 text-gray-800"
+          )}
+        >
+          {status.replace("_", " ")}
+        </span>
+        {sub?.isOnTrial && sub.trialDaysLeft !== undefined ? (
+          <div className="text-xs text-muted-foreground">{sub.trialDaysLeft}d trial left</div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderPaymentApiBadges = (summary: UserPaymentSummary | null | undefined) => {
+    if (
+      !summary ||
+      (summary.successfulPayments === 0 &&
+        summary.failedPayments === 0 &&
+        summary.pendingPayments === 0)
+    ) {
+      return <span className="text-xs text-muted-foreground">No API attempts</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {summary.successfulPayments > 0 ? (
+          <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+            Paid ({summary.successfulPayments})
+          </span>
+        ) : null}
+        {summary.failedPayments > 0 ? (
+          <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+            Failed ({summary.failedPayments})
+          </span>
+        ) : null}
+        {summary.pendingPayments > 0 ? (
+          <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            Pending ({summary.pendingPayments})
+          </span>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderLastPaymentAttempt = (summary: UserPaymentSummary | null | undefined) => {
+    if (!summary?.lastAttemptAt) {
+      return <span className="text-xs text-muted-foreground">—</span>;
+    }
+
+    const statusStyles: Record<string, string> = {
+      SUCCESSFUL: "bg-green-100 text-green-800",
+      FAILED: "bg-red-100 text-red-800",
+      PENDING: "bg-amber-100 text-amber-800",
+    };
+
+    return (
+      <div className="space-y-1">
+        <span
+          className={cn(
+            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+            statusStyles[summary.lastStatus] || "bg-gray-100 text-gray-800"
+          )}
+        >
+          {summary.lastStatus}
+        </span>
+        <div className="text-xs text-muted-foreground">{formatDate(summary.lastAttemptAt)}</div>
+        {summary.lastAmount ? (
+          <div className="text-xs text-muted-foreground">{formatCurrency(summary.lastAmount)}</div>
+        ) : null}
+        {summary.lastMsisdn ? (
+          <div className="text-xs text-muted-foreground">{summary.lastMsisdn}</div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderUserActions = (user: User) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="User actions">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        {user.email ? (
+          <DropdownMenuItem onClick={() => handleSendEmailClick(user)}>
+            <Mail className="mr-2 h-4 w-4" />
+            Send email
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onClick={() => handleSendNotificationClick(user)}>
+          <Bell className="mr-2 h-4 w-4" />
+          Send notification
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openBilling(user)}>
+          <DollarSign className="mr-2 h-4 w-4" />
+          Payment plan
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => markPaid(user)}>
+          <CheckCircle className="mr-2 h-4 w-4" />
+          Mark paid
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {user.isActive !== false ? (
+          <DropdownMenuItem
+            onClick={() => handleSetUserAccountActive(user, false)}
+            disabled={togglingUserId === user._id}
+          >
+            Deactivate account
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            onClick={() => handleSetUserAccountActive(user, true)}
+            disabled={togglingUserId === user._id}
+          >
+            Activate account
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-red-600 focus:text-red-600"
+          onClick={() => handleDeleteClick(user)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete user
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
@@ -944,135 +1148,126 @@ const AdminDashboard = () => {
         {activeTab === "users" && (
           <Card className="bg-white">
             <CardHeader>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="font-normal">All Users</CardTitle>
-                  <CardDescription>Complete list of registered users and their activity</CardDescription>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="font-normal">All Users</CardTitle>
+                    <CardDescription>
+                      Registered users, subscription status, and Paypack payment attempts
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => handleSendNotificationClick(null)} className="gap-2">
+                      <Bell className="h-4 w-4" />
+                      Notify users
+                    </Button>
+                    <Button variant="outline" onClick={() => handleSendEmailClick(null)} className="gap-2">
+                      <Mail className="h-4 w-4" />
+                      Bulk email
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => handleSendNotificationClick(null)} className="gap-2">
-                    <Bell className="h-4 w-4" />
-                    Notify users
-                  </Button>
-                  <Button variant="outline" onClick={() => handleSendEmailClick(null)} className="gap-2">
-                    <Mail className="h-4 w-4" />
-                    Bulk email
-                  </Button>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["all", "All users"],
+                      ["paid", "Paid via API"],
+                      ["failed", "Failed attempts"],
+                      ["trial", "On trial"],
+                      ["none", "No API attempts"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <Button
+                      key={key}
+                      size="sm"
+                      variant={userPaymentFilter === key ? "default" : "outline"}
+                      onClick={() => setUserPaymentFilter(key)}
+                    >
+                      {label} ({paymentFilterCounts[key]})
+                    </Button>
+                  ))}
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[1200px]">
                   <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2 text-sm">Name</th>
-                      <th className="text-left p-2 text-sm">Email</th>
-                      <th className="text-left p-2 text-sm">Phone</th>
-                      <th className="text-left p-2 text-sm">Business</th>
-                      <th className="text-left p-2 text-sm">Products</th>
-                      <th className="text-left p-2 text-sm">Sales</th>
-                      <th className="text-left p-2 text-sm">Revenue</th>
-                      <th className="text-left p-2 text-sm">Profit</th>
-                      <th className="text-left p-2 text-sm">Joined</th>
-                      <th className="text-left p-2 text-sm">Next Pay</th>
-                      <th className="text-left p-2 text-sm">Account</th>
-                      <th className="text-right p-2 text-sm w-12">Actions</th>
+                    <tr className="border-b bg-muted/40">
+                      <th className="text-left p-2 text-sm font-medium">Name</th>
+                      <th className="text-left p-2 text-sm font-medium">Email</th>
+                      <th className="text-left p-2 text-sm font-medium">Phone</th>
+                      <th className="text-left p-2 text-sm font-medium">Business</th>
+                      <th className="text-left p-2 text-sm font-medium">Plan</th>
+                      <th className="text-left p-2 text-sm font-medium">API payments</th>
+                      <th className="text-left p-2 text-sm font-medium">Last API attempt</th>
+                      <th className="text-left p-2 text-sm font-medium">Total paid (API)</th>
+                      <th className="text-left p-2 text-sm font-medium">Next due</th>
+                      <th className="text-left p-2 text-sm font-medium">Joined</th>
+                      <th className="text-left p-2 text-sm font-medium">Account</th>
+                      <th className="text-right p-2 text-sm font-medium w-12">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
-                      <tr key={user._id} className="border-b hover:bg-gray-50">
-                        <td className="p-2 text-sm">{user.name}</td>
-                        <td className="p-2 text-sm text-muted-foreground">{user.email || "-"}</td>
-                        <td className="p-2 text-sm text-muted-foreground">{user.phone || "-"}</td>
-                        <td className="p-2 text-sm text-muted-foreground">
-                          {user.businessName || "-"}
-                        </td>
-                        <td className="p-2 text-sm">{user.productCount}</td>
-                        <td className="p-2 text-sm">{user.saleCount}</td>
-                        <td className="p-2 text-sm">{formatCurrency(user.totalRevenue)}</td>
-                        <td className="p-2 text-sm text-green-600">
-                          {formatCurrency(user.totalProfit)}
-                        </td>
-                        <td className="p-2 text-sm text-muted-foreground">
-                          {formatDate(user.createdAt)}
-                        </td>
-                        <td className="p-2 text-sm">
-                          <div className="text-sm font-medium">
-                            {user.paymentPlan?.nextDueDate ? formatDate(user.paymentPlan.nextDueDate) : "—"}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {user.paymentPlan?.status || "active"}
-                          </div>
-                        </td>
-                        <td className="p-2">
-                          <span
-                            className={cn(
-                              "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                              user.isActive !== false
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            )}
-                          >
-                            {user.isActive !== false ? "Active" : "Disabled"}
-                          </span>
-                        </td>
-                        <td className="p-2 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="User actions">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              {user.email ? (
-                                <DropdownMenuItem onClick={() => handleSendEmailClick(user)}>
-                                  <Mail className="mr-2 h-4 w-4" />
-                                  Send email
-                                </DropdownMenuItem>
-                              ) : null}
-                              <DropdownMenuItem onClick={() => handleSendNotificationClick(user)}>
-                                <Bell className="mr-2 h-4 w-4" />
-                                Send notification
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openBilling(user)}>
-                                <DollarSign className="mr-2 h-4 w-4" />
-                                Payment plan
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => markPaid(user)}>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Mark paid
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {user.isActive !== false ? (
-                                <DropdownMenuItem
-                                  onClick={() => handleSetUserAccountActive(user, false)}
-                                  disabled={togglingUserId === user._id}
-                                >
-                                  Deactivate account
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem
-                                  onClick={() => handleSetUserAccountActive(user, true)}
-                                  disabled={togglingUserId === user._id}
-                                >
-                                  Activate account
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600"
-                                onClick={() => handleDeleteClick(user)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete user
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={12} className="p-8 text-center text-sm text-muted-foreground">
+                          No users match this filter.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <tr key={user._id} className="border-b hover:bg-gray-50 align-top">
+                          <td className="p-2 text-sm font-medium">{user.name}</td>
+                          <td className="p-2 text-sm text-muted-foreground">{user.email || "—"}</td>
+                          <td className="p-2 text-sm text-muted-foreground">{user.phone || "—"}</td>
+                          <td className="p-2 text-sm text-muted-foreground">{user.businessName || "—"}</td>
+                          <td className="p-2 text-sm">{renderPlanBadge(user)}</td>
+                          <td className="p-2 text-sm">{renderPaymentApiBadges(user.paymentSummary)}</td>
+                          <td className="p-2 text-sm">{renderLastPaymentAttempt(user.paymentSummary)}</td>
+                          <td className="p-2 text-sm">
+                            {user.paymentSummary?.totalPaidAmount
+                              ? formatCurrency(user.paymentSummary.totalPaidAmount)
+                              : "—"}
+                          </td>
+                          <td className="p-2 text-sm">
+                            <div className="text-sm">
+                              {user.subscription?.nextDueDate || user.paymentPlan?.nextDueDate
+                                ? formatDate(
+                                    (user.subscription?.nextDueDate ||
+                                      user.paymentPlan?.nextDueDate) as string
+                                  )
+                                : "—"}
+                            </div>
+                            {user.subscription?.lastPaidAt || user.paymentPlan?.lastPaidAt ? (
+                              <div className="text-xs text-muted-foreground">
+                                Last paid:{" "}
+                                {formatDate(
+                                  (user.subscription?.lastPaidAt ||
+                                    user.paymentPlan?.lastPaidAt) as string
+                                )}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="p-2 text-sm text-muted-foreground">
+                            {formatDate(user.createdAt)}
+                          </td>
+                          <td className="p-2">
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                                user.isActive !== false
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              )}
+                            >
+                              {user.isActive !== false ? "Active" : "Disabled"}
+                            </span>
+                          </td>
+                          <td className="p-2 text-right">{renderUserActions(user)}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1446,12 +1641,16 @@ const AdminDashboard = () => {
           </Card>
         )}
 
+        {activeTab === "payments" && <AdminPaymentsPanel />}
+
         {/* Refresh Button */}
+        {activeTab !== "payments" && (
         <div className="flex justify-end">
           <Button onClick={loadDashboardData} variant="outline">
             Refresh Data
           </Button>
         </div>
+        )}
 
         {/* Delete User Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
