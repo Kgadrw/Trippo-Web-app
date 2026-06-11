@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -88,6 +98,8 @@ export default function Billing() {
   } = useSubscriptionAccess();
   const [paying, setPaying] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [phone, setPhone] = useState("");
   const [network, setNetwork] = useState<MobileNetwork | null>(null);
   const pollStartedRef = useRef(false);
@@ -120,6 +132,17 @@ export default function Billing() {
         : "Your trial has ended. Pay below to unlock Trippo again.",
       payAmount: (n: number) =>
         isRw ? `Kwishyura ${n.toLocaleString()} RWF` : `Pay ${n.toLocaleString()} RWF`,
+      cancelPlan: isRw ? "Hagarika gahunda" : "Cancel plan",
+      cancelTitle: isRw ? "Hagarika Trippo Plus?" : "Cancel Trippo Plus?",
+      cancelTrialDesc: isRw
+        ? "Igerageza rirangira ako kanya kandi ntuzongera gukenera kwishyura ubu."
+        : "Your trial will end immediately and you will lose Plus access.",
+      cancelPaidDesc: isRw
+        ? "Ntuzongera kwishyurwa. Uzakomeza ukoreshe Plus kugeza itariki yanyuma yishyuwe."
+        : "You will not be charged again. Plus stays active until your current paid period ends.",
+      cancelConfirm: isRw ? "Hagarika gahunda" : "Cancel plan",
+      cancelledTitle: isRw ? "Gahunda yahagaritswe" : "Plan cancelled",
+      cancelledUntil: isRw ? "Plus irakomeza kugeza" : "Plus remains active until",
     }),
     [isRw],
   );
@@ -153,11 +176,18 @@ export default function Billing() {
 
   const isPaidActive = hasPaidSubscription(plan);
   const isTrialEnded = Boolean(plan?.requiresPayment && !plan?.hasPlus);
+  const isCancelled = Boolean(plan?.isCancelled);
+  const canCancelPlan = Boolean(
+    !isCancelled && (plan?.hasPlus || plan?.isOnTrial || isPaidActive),
+  );
   const paymentReady = Boolean(paymentConfig?.mock || paymentConfig?.configured);
   const canPay =
     paymentReady &&
     !isPaidActive &&
-    (plan?.isOnTrial || plan?.requiresPayment || plan?.status === "past_due");
+    ((plan?.isOnTrial && !isCancelled) ||
+      plan?.requiresPayment ||
+      plan?.status === "past_due" ||
+      (isCancelled && !plan?.hasPlus));
 
   const stopProcessing = useCallback(() => {
     pollStartedRef.current = false;
@@ -285,6 +315,36 @@ export default function Billing() {
       void pollPayment(pendingPayment.referenceId);
     })();
   }, [loading, paying, polling, pendingPayment, plan, pollPayment, refresh]);
+
+  const handleCancelPlan = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      stopProcessing();
+      clearPendingPaymentRef();
+      const res = await subscriptionApi.cancel();
+      const data = res.data as { plan?: typeof plan };
+      const updatedPlan = data?.plan ?? null;
+      if (updatedPlan) updatePlan(updatedPlan);
+      await refresh(true);
+      setCancelDialogOpen(false);
+      toast({
+        title: txt.cancelledTitle,
+        description:
+          updatedPlan?.hasPlus && updatedPlan.nextDueDate
+            ? `${txt.cancelledUntil} ${formatBillingDate(updatedPlan.nextDueDate, isRw)}.`
+            : isRw
+              ? "Ntuzongera kubona ibiranga Plus."
+              : "You no longer have Plus access.",
+      });
+      window.dispatchEvent(new Event("subscription-updated"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not cancel plan.";
+      toast({ title: isRw ? "Ikosa" : "Error", description: message, variant: "destructive" });
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const handlePay = async (options?: { forceRetry?: boolean }) => {
     if (!network) {
@@ -428,6 +488,35 @@ export default function Billing() {
                   {amount.toLocaleString()} {currency}
                 </span>
               </div>
+
+              {isCancelled ? (
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1">
+                  <p className="text-sm font-semibold text-foreground">{txt.cancelledTitle}</p>
+                  {plan?.hasPlus && plan.nextDueDate ? (
+                    <p className="text-xs text-muted-foreground">
+                      {txt.cancelledUntil} {formatBillingDate(plan.nextDueDate, isRw)}.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {isRw ? "Ntuzongera kwishyurwa buri kwezi." : "You will not be billed monthly."}
+                    </p>
+                  )}
+                </div>
+              ) : canCancelPlan ? (
+                <div className="mt-4 pt-2">
+                  <Button
+                    type="button"
+                    className={cn(
+                      "w-full border border-destructive bg-background text-destructive",
+                      "hover:bg-destructive hover:text-white hover:border-destructive",
+                    )}
+                    onClick={() => setCancelDialogOpen(true)}
+                    disabled={paying || polling || cancelling}
+                  >
+                    {txt.cancelPlan}
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
             {/* Checkout */}
@@ -583,6 +672,41 @@ export default function Billing() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{txt.cancelTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isPaidActive || (plan?.lastPaidAt && !plan?.isOnTrial)
+                ? txt.cancelPaidDesc
+                : txt.cancelTrialDesc}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>
+              {isRw ? "Subiza inyuma" : "Keep plan"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={cancelling}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleCancelPlan();
+              }}
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  {isRw ? "Birategereje..." : "Cancelling..."}
+                </>
+              ) : (
+                txt.cancelConfirm
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

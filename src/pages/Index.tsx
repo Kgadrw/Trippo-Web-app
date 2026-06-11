@@ -185,6 +185,7 @@ const ProductCombobox = ({
   excludeServices = false,
   serviceBadgeLabel = "Service",
 }: ProductComboboxProps) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -213,7 +214,7 @@ const ProductCombobox = ({
         onValueChange("");
         setSearchQuery("");
         if (onError) {
-          onError(`${currentProduct.name} is now out of stock and has been removed from selection.`);
+          onError(`${currentProduct.name} ${t("productOutOfStockRemovedSuffix")}`);
         }
       }
     }
@@ -287,7 +288,7 @@ const ProductCombobox = ({
         >
           <Command shouldFilter={false}>
             <CommandList>
-              <CommandEmpty>No items found.</CommandEmpty>
+              <CommandEmpty>{t("noProducts")}</CommandEmpty>
               <CommandGroup>
                 {filteredProducts.length > 0 ? (
                   filteredProducts.map((product) => {
@@ -303,7 +304,7 @@ const ProductCombobox = ({
                           setOpen(false);
                           setSearchQuery("");
                         } else if (onError) {
-                          onError(`${product.name} is currently out of stock and cannot be sold.`);
+                          onError(`${product.name} ${t("productOutOfStockCannotSellSuffix")}`);
                         }
                       }}
                       disabled={!isService && product.stock <= 0}
@@ -341,7 +342,7 @@ const ProductCombobox = ({
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
                                   <Package size={10} />
-                                  Box of {product.packageQuantity}
+                                  {t("boxOf").replace("{qty}", String(product.packageQuantity))}
                                 </span>
                               </>
                             )}
@@ -355,7 +356,7 @@ const ProductCombobox = ({
                     );
                   })
                 ) : (
-                  <CommandEmpty>No items found. Try a different search.</CommandEmpty>
+                  <CommandEmpty>{t("noProductsSearchHint")}</CommandEmpty>
                 )}
               </CommandGroup>
             </CommandList>
@@ -371,8 +372,6 @@ const Dashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
-  const isRw = language === "rw";
-  const isFr = language === "fr";
   const greetingName = useMemo(() => {
     const n = user?.name?.trim();
     if (!n) return null;
@@ -559,8 +558,8 @@ const Dashboard = () => {
       // ignore
     }
     toast({
-      title: isRw ? "Byabitswe" : "Saved",
-      description: isRw ? "Ikiguzi cyabitswe nk'icyihuse." : "Expense saved as a quick preset.",
+      title: t("saved"),
+      description: t("expensePresetSavedDesc"),
     });
   };
 
@@ -937,7 +936,7 @@ const Dashboard = () => {
 
   const isSelectedService = selectedSaleItem ? isServiceItem(selectedSaleItem) : false;
 
-  const serviceBadgeLabel = isRw ? "Serivisi" : isFr ? "Service" : "Service";
+  const serviceBadgeLabel = t("serviceBadge");
 
   // Clear selected product if it becomes out of stock (services are exempt)
   useEffect(() => {
@@ -949,15 +948,13 @@ const Dashboard = () => {
         setSelectedWorkerId("");
         playWarningBeep();
         toast({
-          title: isRw ? "Icuruzwa rirangiye muri stoki" : "Product Out of Stock",
-          description: isRw
-            ? `${product.name} ntikiboneka muri stoki kandi cyakuweho mu mahitamo.`
-            : `${product.name} is now out of stock and has been removed from selection.`,
+          title: t("productOutOfStock"),
+          description: `${product.name} ${t("productOutOfStockRemovedSuffix")}`,
           variant: "destructive",
         });
       }
     }
-  }, [products, selectedProduct, isRw, toast]);
+  }, [products, selectedProduct, t, toast]);
 
   // Calculate selling price based on product priceType and sale mode
   const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
@@ -993,10 +990,8 @@ const Dashboard = () => {
     if (product && !isServiceItem(product) && product.stock <= 0) {
       playErrorBeep();
       toast({
-        title: isRw ? "Icuruzwa rirangiye muri stoki" : "Product Out of Stock",
-        description: isRw
-          ? `${product.name} ntikiboneka muri stoki kandi ntigishobora kugurishwa.`
-          : `${product.name} is currently out of stock and cannot be sold.`,
+        title: t("productOutOfStock"),
+        description: `${product.name} ${t("productOutOfStockCannotSellSuffix")}`,
         variant: "destructive",
       });
       setSelectedProduct("");
@@ -1135,12 +1130,12 @@ const Dashboard = () => {
               (w) => String((w as { _id?: string; id?: number })._id ?? w.id ?? "") === sale.workerId,
             );
             if (!worker) {
-              invalidSales.push(`${product.name}: ${isRw ? "Hitamo umukozi" : "Worker required"}`);
+              invalidSales.push(`${product.name}: ${t("workerRequired")}`);
               return null;
             }
             const price = parseFloat(sale.sellingPrice) || 0;
             if (price <= 0) {
-              invalidSales.push(`${product.name}: ${isRw ? "Igiciro kitari cyo" : "Invalid price"}`);
+              invalidSales.push(`${product.name}: ${t("invalidPriceShort")}`);
               return null;
             }
             return {
@@ -1161,11 +1156,14 @@ const Dashboard = () => {
 
           const qty = parseInt(sale.quantity) || 1;
           if (isNaN(qty) || qty <= 0) {
-            invalidSales.push(`${product.name}: Invalid quantity`);
+            invalidSales.push(`${product.name}: ${t("invalidQuantityShort")}`);
             return null;
           }
           if (qty > product.stock || product.stock <= 0) {
-            invalidSales.push(`${product.name}: Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available`);
+            const itemWord = product.stock === 1 ? t("itemSingular") : t("itemsPlural");
+            invalidSales.push(
+              `${product.name}: ${t("onlyItemsAvailable").replace("{stock}", String(product.stock)).replace("{items}", itemWord)}`,
+            );
             return null;
           }
 
@@ -1192,10 +1190,8 @@ const Dashboard = () => {
         if (invalidSales.length > 0) {
           playErrorBeep();
           toast({
-            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
-            description: isRw
-              ? `Ntibishoboka kwandika ubu bucuruzi: ${invalidSales.join(', ')}. Ntushobora kugurisha birenze ibiri muri stoki.`
-              : `Cannot record sales for: ${invalidSales.join(', ')}. You cannot sell more than available quantity.`,
+            title: t("insufficientStock"),
+            description: t("insufficientStockBulkDesc").replace("{list}", invalidSales.join(", ")),
             variant: "destructive",
           });
           setIsRecordingSale(false);
@@ -1268,10 +1264,8 @@ const Dashboard = () => {
           playSaleBeep();
 
           // Extra desktop popup using Sonner
-          sonnerToast.success(isRw ? "Ubucuruzi bwanditswe" : "Sales Recorded", {
-            description: isRw
-              ? `Handitswe neza ubucuruzi ${salesToCreate.length}.`
-              : `Successfully recorded ${salesToCreate.length} sale(s).`,
+          sonnerToast.success(t("salesRecorded"), {
+            description: t("salesRecordedBulkDesc").replace("{count}", String(salesToCreate.length)),
           });
 
           // Reset bulk form
@@ -1280,10 +1274,8 @@ const Dashboard = () => {
       } else {
         playWarningBeep();
         toast({
-          title: isRw ? "Nta bucuruzi bwanditswe" : "No Sales Recorded",
-          description: isRw
-            ? "Andika nibura ubucuruzi bumwe bwuzuye."
-            : "Please fill in at least one complete sale entry.",
+          title: t("noSalesRecorded"),
+          description: t("noSalesRecordedDesc"),
           variant: "destructive",
         });
       }
@@ -1293,10 +1285,8 @@ const Dashboard = () => {
         // Play error beep immediately (we're in user interaction context)
         playErrorBeep();
         toast({
-          title: isRw ? "Amakuru abura" : "Missing Information",
-          description: isRw
-            ? "Uzuza ibisabwa byose."
-            : "Please fill in all required fields.",
+          title: t("missingInformation"),
+          description: t("fillAllRequired"),
           variant: "destructive",
         });
         setIsRecordingSale(false);
@@ -1313,8 +1303,8 @@ const Dashboard = () => {
         if (!selectedWorkerId) {
           playErrorBeep();
           toast({
-            title: isRw ? "Amakuru abura" : "Missing Information",
-            description: isRw ? "Hitamo umukozi utanga serivisi." : "Please select who offered the service.",
+            title: t("missingInformation"),
+            description: t("selectServiceWorker"),
             variant: "destructive",
           });
           setIsRecordingSale(false);
@@ -1325,10 +1315,8 @@ const Dashboard = () => {
         if (isNaN(amount) || amount <= 0) {
           playErrorBeep();
           toast({
-            title: isRw ? "Amafaranga atari yo" : "Invalid Amount",
-            description: isRw
-              ? "Amafaranga ya serivisi agomba kurenza 0."
-              : "Service amount must be greater than 0.",
+            title: t("invalidAmount"),
+            description: t("serviceAmountMustBePositive"),
             variant: "destructive",
           });
           setIsRecordingSale(false);
@@ -1341,8 +1329,8 @@ const Dashboard = () => {
         if (!worker) {
           playErrorBeep();
           toast({
-            title: isRw ? "Umukozi ntaboneka" : "Worker Not Found",
-            description: isRw ? "Hitamo umukozi wemewe." : "Please select a valid worker.",
+            title: t("workerNotFound"),
+            description: t("selectValidWorker"),
             variant: "destructive",
           });
           setIsRecordingSale(false);
@@ -1376,10 +1364,11 @@ const Dashboard = () => {
 
         await addSale(newSale);
         playSaleBeep();
-        sonnerToast.success(isRw ? "Serivisi yanditswe" : "Service Recorded", {
-          description: isRw
-            ? `${product.name} yakozwe na ${worker.name} ku RWF ${amount.toLocaleString()}`
-            : `${product.name} by ${worker.name} for RWF ${amount.toLocaleString()}`,
+        sonnerToast.success(t("serviceRecorded"), {
+          description: t("serviceRecordedDesc")
+            .replace("{product}", product.name)
+            .replace("{worker}", worker.name)
+            .replace("{amount}", amount.toLocaleString()),
         });
 
         setSelectedProduct("");
@@ -1398,8 +1387,8 @@ const Dashboard = () => {
       if (!quantity) {
         playErrorBeep();
         toast({
-          title: isRw ? "Amakuru abura" : "Missing Information",
-          description: isRw ? "Andika umubare." : "Please enter quantity.",
+          title: t("missingInformation"),
+          description: t("enterQuantityDesc"),
           variant: "destructive",
         });
         setIsRecordingSale(false);
@@ -1415,20 +1404,14 @@ const Dashboard = () => {
         playErrorBeep();
         if (metrics.code === "invalid_quantity") {
           toast({
-            title: isRw ? "Umubare utari wo" : "Invalid Quantity",
-            description: isRw
-              ? "Andika umubare nyawo urenze 0."
-              : "Please enter a valid quantity greater than 0.",
+            title: t("invalidQuantity"),
+            description: t("invalidQuantityDesc"),
             variant: "destructive",
           });
         } else if (metrics.code === "invalid_price") {
           toast({
-            title: isRw ? "Igiciro kitari cyo" : isFr ? "Prix invalide" : "Invalid price",
-            description: isRw
-              ? "Injiza igiciro cyemewe (umubare wuzuye)."
-              : isFr
-                ? "Entrez un prix valide (nombre positif ou zéro)."
-                : "Enter a valid selling price (a number, zero or greater).",
+            title: t("invalidPriceShort"),
+            description: t("invalidPriceDesc"),
             variant: "destructive",
           });
         } else {
@@ -1436,18 +1419,17 @@ const Dashboard = () => {
             product.isPackage && product.packageQuantity && packageSaleMode === "wholePackage"
               ? product.packageQuantity
               : null;
+          const itemWord = product.stock === 1 ? t("itemSingular") : t("itemsPlural");
           toast({
-            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            title: t("insufficientStock"),
             description:
               need != null
-                ? isRw
-                  ? `Hakeneye nibura ${need} muri stoki (hari ${product.stock}).`
-                  : isFr
-                    ? `Il faut au moins ${need} en stock (disponible : ${product.stock}).`
-                    : `You need at least ${need} in stock to sell a whole package (${product.stock} available).`
-                : isRw
-                  ? `Hari gusa ${product.stock} ${product.stock === 1 ? "ikintu" : "ibintu"} muri stoki.`
-                  : `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
+                ? t("needWholePackageStock")
+                    .replace("{need}", String(need))
+                    .replace("{stock}", String(product.stock))
+                : t("onlyItemsInStock")
+                    .replace("{stock}", String(product.stock))
+                    .replace("{items}", itemWord),
             variant: "destructive",
           });
         }
@@ -1485,10 +1467,10 @@ const Dashboard = () => {
         
         // Show success immediately (addSale already updates UI)
         playSaleBeep();
-        sonnerToast.success(isRw ? "Ubucuruzi bwanditswe" : "Sale Recorded", {
-          description: isRw
-            ? `Handitswe neza: ${qty}x ${product.name}`
-            : `Successfully recorded sale of ${qty}x ${product.name}`,
+        sonnerToast.success(t("saleRecorded"), {
+          description: t("saleRecordedDesc")
+            .replace("{qty}", String(qty))
+            .replace("{product}", product.name),
         });
 
         // Reset form immediately for better UX
@@ -1544,24 +1526,20 @@ const Dashboard = () => {
         if (error?.response?.silent || error?.response?.connectionError || !navigator.onLine) {
           // Offline mode - treat as success
           playSaleBeep();
-          sonnerToast.success(isRw ? "Ubucuruzi bwanditswe (nta interineti)" : "Sale Recorded (Offline Mode)", {
-            description: isRw
-              ? (errorProduct
-                ? `Handitswe neza: ${errorQty}x ${errorProduct.name}. Bizahuzwa interineti igarutse.`
-                : "Ubucuruzi bwanditswe nta interineti. Bizahuzwa interineti igarutse.")
-              : (errorProduct
-                ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.`
-                : "Sale recorded offline. Changes will sync when you're back online."),
+          sonnerToast.success(t("saleRecordedOffline"), {
+            description: errorProduct
+              ? t("saleRecordedOfflineWithProduct")
+                  .replace("{qty}", String(errorQty))
+                  .replace("{product}", errorProduct.name)
+              : t("saleRecordedOfflineGeneric"),
           });
           toast({
-            title: isRw ? "Ubucuruzi bwanditswe (nta interineti)" : "Sale Recorded (Offline Mode)",
-            description: isRw
-              ? (errorProduct
-                ? `Handitswe neza: ${errorQty}x ${errorProduct.name}. Bizahuzwa interineti igarutse.`
-                : "Ubucuruzi bwanditswe nta interineti. Bizahuzwa interineti igarutse.")
-              : (errorProduct
-                ? `Successfully recorded sale of ${errorQty}x ${errorProduct.name}. Changes will sync when you're back online.`
-                : "Sale recorded offline. Changes will sync when you're back online."),
+            title: t("saleRecordedOffline"),
+            description: errorProduct
+              ? t("saleRecordedOfflineWithProduct")
+                  .replace("{qty}", String(errorQty))
+                  .replace("{product}", errorProduct.name)
+              : t("saleRecordedOfflineGeneric"),
           });
           
           // Reset form
@@ -1575,10 +1553,8 @@ const Dashboard = () => {
           playErrorBeep();
           console.error("Error recording sale:", error);
           toast({
-            title: isRw ? "Kwandika byanze" : "Record Failed",
-            description: error?.message || error?.response?.error || (isRw
-              ? "Kwandika ubucuruzi byanze. Reba interneti wongere ugerageze."
-              : "Failed to record sale. Please check your connection and try again."),
+            title: t("recordFailed"),
+            description: error?.message || error?.response?.error || t("recordFailedDesc"),
             variant: "destructive",
           });
         }
@@ -1594,10 +1570,8 @@ const Dashboard = () => {
     const amount = parseFloat(expenseAmount);
     if (!expenseTitle.trim() || isNaN(amount) || amount <= 0) {
       toast({
-        title: isRw ? "Amakuru abura" : "Missing Information",
-        description: isRw
-          ? "Andika izina ry'ikiguzi n'amafaranga nyayo."
-          : "Please provide expense name and valid amount.",
+        title: t("missingInformation"),
+        description: t("expenseNameAmountRequired"),
         variant: "destructive",
       });
       return;
@@ -1619,8 +1593,8 @@ const Dashboard = () => {
       await refreshExpenses(true);
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
       playSaleBeep();
-      sonnerToast.success(isRw ? "Ikiguzi cyanditswe" : "Expense Recorded", {
-        description: isRw ? "Ikiguzi cyabitswe neza." : "Expense saved successfully.",
+      sonnerToast.success(t("expenseRecorded"), {
+        description: t("expenseRecordedDesc"),
       });
 
       setExpenseModalOpen(false);
@@ -1632,8 +1606,8 @@ const Dashboard = () => {
     } catch (error: any) {
       playErrorBeep();
       toast({
-        title: isRw ? "Kwandika byanze" : "Save Failed",
-        description: error?.message || (isRw ? "Kwandika ikiguzi byanze." : "Failed to save expense."),
+        title: t("saveFailed"),
+        description: error?.message || t("saveExpenseFailed"),
         variant: "destructive",
       });
     } finally {
@@ -1708,9 +1682,9 @@ const Dashboard = () => {
         style={{ left: "var(--content-left, calc(14.5rem + 0.75rem))" }}
       >
         <p className="min-w-0 text-[15px] leading-tight">
-          <span className="text-muted-foreground">{isRw ? "Muraho" : isFr ? "Bonjour" : "Hello"}</span>{" "}
+          <span className="text-muted-foreground">{t("hello")}</span>{" "}
           <span className="font-semibold text-foreground">
-            {greetingName ? greetingName : isRw ? "Inshuti" : isFr ? "Utilisateur" : "User"}
+            {greetingName ? greetingName : t("greetingFallback")}
           </span>
         </p>
         <p className="shrink-0 text-right text-xs leading-tight tabular-nums text-muted-foreground">
@@ -1756,9 +1730,9 @@ const Dashboard = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <KPICard
-                title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
+                title={t("servicesToday")}
                 value={`${todayStats.totalItems}`}
-                subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
+                subtitle={t("servicesRecorded")}
                 icon={ShoppingCart}
                 tone="inverted"
                 bgColor="bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm"
@@ -1782,9 +1756,9 @@ const Dashboard = () => {
                 }
               />
               <KPICard
-                title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
+                title={t("activeServices")}
                 value={`${serviceStats.totalServices}`}
-                subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
+                subtitle={t("servicesInSystem")}
                 icon={Package}
                 tone="inverted"
                 bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm"
@@ -1815,9 +1789,9 @@ const Dashboard = () => {
               <>
           <div className="grid grid-cols-4 gap-4">
             <KPICard
-              title={isRw ? "Serivisi z'uyu munsi" : isFr ? "Services d'aujourd'hui" : "Services Today"}
+              title={t("servicesToday")}
               value={`${todayStats.totalItems}`}
-              subtitle={isRw ? "serivisi zakozwe" : isFr ? "services enregistrés" : "services recorded"}
+              subtitle={t("servicesRecorded")}
               icon={ShoppingCart}
                     hideIcon
                     tone="inverted"
@@ -1844,9 +1818,9 @@ const Dashboard = () => {
                     }
             />
             <KPICard
-              title={isRw ? "Serivisi ziboneka" : isFr ? "Services actifs" : "Active Services"}
+              title={t("activeServices")}
               value={`${serviceStats.totalServices}`}
-              subtitle={isRw ? "serivisi muri sisitemu" : isFr ? "services dans le système" : "services in system"}
+              subtitle={t("servicesInSystem")}
               icon={Package}
                     hideIcon
                     tone="inverted"
@@ -1867,11 +1841,11 @@ const Dashboard = () => {
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-gray-600" />
                 <h3 className="text-sm font-semibold text-gray-900">
-                  {isRw ? "Biheruka" : isFr ? "Récent" : "Recent"}
+                  {t("recentActivity")}
                 </h3>
               </div>
               <p className="text-xs text-gray-600 mt-1">
-                {isRw ? "Serivisi n'ibyakoreshejwe" : isFr ? "Ventes & dépenses" : "Sales & expenses"}
+                {t("salesAndExpenses")}
               </p>
             </div>
 
@@ -1887,10 +1861,10 @@ const Dashboard = () => {
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
+                        {t("typeLabel")}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
+                        {t("amount")}
                       </th>
                     </tr>
                   </thead>
@@ -1899,17 +1873,7 @@ const Dashboard = () => {
                       <tr key={entry.id || index} className="border-b border-gray-200 last:border-0">
                         <td className="py-3 px-3">
                           <div className={cn("text-xs font-semibold", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
-                            {entry.type === "sale"
-                              ? isRw
-                                ? "Serivisi"
-                                : isFr
-                                ? "Service"
-                                : "Sale"
-                              : isRw
-                              ? "Ikiguzi"
-                              : isFr
-                              ? "Dépense"
-                              : "Expense"}
+                            {entry.type === "sale" ? t("activitySaleLabel") : t("activityExpenseLabel")}
                           </div>
                           <div className="text-xs text-gray-700 truncate max-w-[160px]">{entry.title}</div>
                         </td>
@@ -1927,18 +1891,14 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                {isRw ? "Nta bikorwa" : isFr ? "Aucune activité" : "No activity"}
+                {t("noActivity")}
               </div>
             )}
 
             {recentMobileActivity.length > 7 && (
               <div className="p-3 border-t border-gray-200">
                 <Button variant="outline" className="w-full" onClick={() => navigate("/sales")}>
-                  {language === "rw"
-                    ? "Reba byinshi muri Sales"
-                    : language === "fr"
-                    ? "Voir plus dans Ventes"
-                    : "View more in Sales"}
+                  {t("viewMoreInSales")}
                 </Button>
               </div>
             )}
@@ -1983,7 +1943,7 @@ const Dashboard = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <p className="text-sm text-white/90">
-                {isRw ? "Andika ubucuruzi bwinshi icyarimwe" : "Add multiple sales at once"}
+                {t("addMultipleSalesHint")}
               </p>
               <Button
                 onClick={addBulkRow}
@@ -2005,7 +1965,7 @@ const Dashboard = () => {
                           onValueChange={(value) => updateBulkSale(index, "product", value)}
                           products={products}
                           serviceBadgeLabel={serviceBadgeLabel}
-                          placeholder={isRw ? "Shakisha ibicuruzwa cyangwa serivisi..." : "Search products and services..."}
+                          placeholder={t("searchProductsAndServices")}
                           className="h-9"
                           onError={(message) => {
                             playErrorBeep();
@@ -2028,7 +1988,7 @@ const Dashboard = () => {
                                 onValueChange={(value) => updateBulkSale(index, "workerId", value)}
                               >
                                 <SelectTrigger className="input-field h-9 w-full">
-                                  <SelectValue placeholder={isRw ? "Hitamo umukozi" : isFr ? "Choisir travailleur" : "Select worker"} />
+                                  <SelectValue placeholder={t("selectWorker")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {workers.length > 0 ? (
@@ -2043,7 +2003,7 @@ const Dashboard = () => {
                                     })
                                   ) : (
                                     <SelectItem value="__no_worker__" disabled>
-                                      {isRw ? "Nta bakozi" : isFr ? "Aucun travailleur" : "No workers"}
+                                      {t("noWorkersFound")}
                                     </SelectItem>
                                   )}
                                 </SelectContent>
@@ -2068,8 +2028,13 @@ const Dashboard = () => {
                                     updateBulkSale(index, "quantity", rowProduct.stock.toString());
                                     playErrorBeep();
                                     toast({
-                                      title: "Maximum Quantity",
-                                      description: `${rowProduct.name}: Only ${rowProduct.stock} ${rowProduct.stock === 1 ? "item" : "items"} available in stock.`,
+                                      title: t("maximumQuantity"),
+                                      description: `${rowProduct.name}: ${t("onlyItemsInStock")
+                                        .replace("{stock}", String(rowProduct.stock))
+                                        .replace(
+                                          "{items}",
+                                          rowProduct.stock === 1 ? t("itemSingular") : t("itemsPlural"),
+                                        )}`,
                                       variant: "destructive",
                                     });
                                     return;
@@ -2077,11 +2042,11 @@ const Dashboard = () => {
                                   updateBulkSale(index, "quantity", value);
                                 }}
                                 className="input-field h-9"
-                                placeholder={t("enterQuantity") || "Enter quantity"}
+                                placeholder={t("enterQuantity")}
                               />
                               {rowProduct && (
                                 <p className="text-xs text-white/80 mt-1">
-                                  Stock: {rowProduct.stock || 0}
+                                  {t("stockLabel")}: {rowProduct.stock || 0}
                                 </p>
                               )}
                             </>
@@ -2094,7 +2059,7 @@ const Dashboard = () => {
                           value={sale.sellingPrice}
                           onChange={(e) => updateBulkSale(index, "sellingPrice", e.target.value)}
                           className="input-field h-9"
-                          placeholder={isRw ? "Injiza igiciro" : "Enter price"}
+                          placeholder={t("enterPrice")}
                         />
                         {sale.product && sale.sellingPrice && (() => {
                           const p = products.find((pr) => getProductId(pr) === sale.product);
@@ -2108,7 +2073,7 @@ const Dashboard = () => {
                           const profit = revenue - cost;
                           return (
                             <p className={`mt-1 text-xs font-medium tabular-nums ${profit >= 0 ? "text-emerald-200" : "text-red-200"}`}>
-                              {isRw ? "Inyungu" : isFr ? "Profit" : "Profit"}: rwf {profit.toLocaleString()}
+                              {t("profit")}: rwf {profit.toLocaleString()}
                             </p>
                           );
                         })()}
@@ -2174,20 +2139,16 @@ const Dashboard = () => {
             <div>
               <div className="grid grid-cols-3 gap-x-4 gap-y-2">
                 <Label className="text-white">
-                  {isRw ? "Igicuruzwa / Serivisi" : isFr ? "Produit / Service" : "Product / Service"}
+                  {t("productOrService")}
                 </Label>
                 <Label className="text-white">
                   {isSelectedService
-                    ? isRw
-                      ? "Umukozi"
-                      : isFr
-                        ? "Travailleur"
-                        : "Worker"
+                    ? t("worker")
                     : (() => {
                         if (!selectedProduct) return t("quantity");
                         const product = products.find((p) => getProductId(p) === selectedProduct);
                         if (product?.isPackage && packageSaleMode === "wholePackage") {
-                          return isRw ? "Igipaki" : "Package";
+                          return t("packageLabel");
                         }
                         return t("quantity");
                       })()}
@@ -2200,7 +2161,7 @@ const Dashboard = () => {
                     onValueChange={handleProductChange}
                     products={products}
                     serviceBadgeLabel={serviceBadgeLabel}
-                    placeholder={isRw ? "Shakisha ibicuruzwa cyangwa serivisi..." : "Search products and services..."}
+                    placeholder={t("searchProductsAndServices")}
                     className="h-10"
                     onError={(message) => {
                       playErrorBeep();
@@ -2215,7 +2176,7 @@ const Dashboard = () => {
                 {isSelectedService ? (
                   <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
                     <SelectTrigger className="input-field h-10 w-full">
-                      <SelectValue placeholder={isRw ? "Hitamo umukozi" : isFr ? "Choisir un travailleur" : "Select worker"} />
+                      <SelectValue placeholder={t("selectWorker")} />
                     </SelectTrigger>
                     <SelectContent>
                       {workers.length > 0 ? (
@@ -2230,7 +2191,7 @@ const Dashboard = () => {
                         })
                       ) : (
                         <SelectItem value="__no_worker__" disabled>
-                          {isRw ? "Nta bakozi babonetse" : isFr ? "Aucun travailleur" : "No workers found"}
+                          {t("noWorkersFound")}
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -2260,8 +2221,13 @@ const Dashboard = () => {
                           setQuantity(product.stock.toString());
                           playErrorBeep();
                           toast({
-                            title: "Maximum Quantity",
-                            description: `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
+                            title: t("maximumQuantity"),
+                            description: t("onlyItemsInStock")
+                              .replace("{stock}", String(product.stock))
+                              .replace(
+                                "{items}",
+                                product.stock === 1 ? t("itemSingular") : t("itemsPlural"),
+                              ),
                             variant: "destructive",
                           });
                           return;
@@ -2274,7 +2240,7 @@ const Dashboard = () => {
                       return product?.isPackage && packageSaleMode === "wholePackage";
                     })()}
                     className="input-field h-10"
-                    placeholder={t("enterQuantity") || "Enter quantity"}
+                    placeholder={t("enterQuantity")}
                   />
                 )}
                 <Input
@@ -2282,7 +2248,7 @@ const Dashboard = () => {
                   value={sellingPrice}
                   onChange={(e) => setSellingPrice(e.target.value)}
                   className="input-field h-10"
-                  placeholder={selectedProduct ? "Enter price" : "Select product first"}
+                  placeholder={selectedProduct ? t("enterPrice") : t("selectProductFirst")}
                 />
               </div>
               {selectedProduct && !isSelectedService && (() => {
@@ -2297,24 +2263,30 @@ const Dashboard = () => {
 
                   if (priceType === "perQuantity") {
                     priceHint = currentMode === "wholePackage"
-                      ? `Price per item: ${basePrice.toLocaleString()} rwf × ${product.packageQuantity} = ${(basePrice * product.packageQuantity).toLocaleString()} rwf (whole package)`
-                      : `Price per item: ${basePrice.toLocaleString()} rwf - You can change this`;
+                      ? t("priceWholePackageCalc")
+                          .replace("{base}", basePrice.toLocaleString())
+                          .replace("{qty}", String(product.packageQuantity))
+                          .replace("{total}", (basePrice * product.packageQuantity).toLocaleString())
+                      : `${t("pricePerItem")}: ${basePrice.toLocaleString()} rwf - ${t("youCanChangeThis")}`;
                   } else {
                     priceHint = currentMode === "wholePackage"
-                      ? `Price for whole package: ${basePrice.toLocaleString()} rwf - You can change this`
-                      : `Price per item: ${(basePrice / product.packageQuantity).toFixed(2)} rwf (from ${basePrice.toLocaleString()} rwf ÷ ${product.packageQuantity})`;
+                      ? `${t("priceForWholePackageLabel")}: ${basePrice.toLocaleString()} rwf - ${t("youCanChangeThis")}`
+                      : t("priceFromPackageCalc")
+                          .replace("{perItem}", (basePrice / product.packageQuantity).toFixed(2))
+                          .replace("{base}", basePrice.toLocaleString())
+                          .replace("{qty}", String(product.packageQuantity));
                   }
                 } else {
-                  priceHint = `${t("suggestedPrice")}: rwf ${product.sellingPrice.toLocaleString()} - You can change this`;
+                  priceHint = `${t("suggestedPrice")}: rwf ${product.sellingPrice.toLocaleString()} - ${t("youCanChangeThis")}`;
                 }
 
                 return (
                   <div className="grid grid-cols-3 gap-x-4 mt-1">
                     <div />
                     <p className="text-xs text-white/80">
-                      {t("availableStock")}: {formatStockDisplay(product, t("language") as 'en' | 'rw')}
+                      {t("availableStock")}: {formatStockDisplay(product, language === "rw" ? "rw" : "en")}
                       {product.isPackage && product.packageQuantity && (
-                        <span className="ml-1">(Box of {product.packageQuantity})</span>
+                        <span className="ml-1">({t("boxOf").replace("{qty}", String(product.packageQuantity))})</span>
                       )}
                     </p>
                     <p className="text-xs text-white/80">{priceHint}</p>
@@ -2330,7 +2302,7 @@ const Dashboard = () => {
                 return (
                   <div className="space-y-2">
                     <Label className="text-white">
-                      {isRw ? "Uburyo bwo kugurisha" : "Sale Mode"}
+                      {t("saleMode")}
                     </Label>
                     <Select
                       value={packageSaleMode}
@@ -2341,10 +2313,10 @@ const Dashboard = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="quantity">
-                          {isRw ? "Kugurisha ku mubare" : "Sell by Quantity"}
+                          {t("sellByQuantity")}
                         </SelectItem>
                         <SelectItem value="wholePackage">
-                          {isRw ? "Kugurisha igipaki cyose" : "Sell Whole Package"}
+                          {t("sellWholePackage")}
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -2358,7 +2330,7 @@ const Dashboard = () => {
               <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30 mt-2">
                 <div className="text-center">
                   <p className="text-xs text-white/80 mb-1 font-medium">
-                    {isRw ? "Amafaranga yinjiye" : isFr ? "Revenu" : "Revenue"}
+                    {t("revenue")}
                   </p>
                   <p className="text-xl font-bold text-blue-200">
                     rwf {salePreview.metrics.revenue.toLocaleString()}
@@ -2366,7 +2338,7 @@ const Dashboard = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-white/80 mb-1 font-medium">
-                    {isRw ? "Igiciro cy'inguzanyo" : isFr ? "Coût" : "Cost"}
+                    {t("cost")}
                   </p>
                   <p className="text-xl font-bold text-orange-200">
                     rwf {salePreview.metrics.cost.toLocaleString()}
@@ -2374,7 +2346,7 @@ const Dashboard = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-white/80 mb-1 font-medium">
-                    {isRw ? "Inyungu" : isFr ? "Profit" : "Profit"}
+                    {t("profit")}
                   </p>
                   <p
                     className={`text-xl font-bold ${
@@ -2384,7 +2356,7 @@ const Dashboard = () => {
                     rwf {salePreview.metrics.profit.toLocaleString()}
                   </p>
                   <p className="text-[10px] text-white/60 mt-1">
-                    {isRw ? "(Amafaranga − inguzanyo)" : isFr ? "(Revenu − coût)" : "(Revenue − cost)"}
+                    {t("revenueMinusCost")}
                   </p>
                 </div>
               </div>
@@ -2432,25 +2404,25 @@ const Dashboard = () => {
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-gray-600" />
             <h3 className="text-lg font-semibold text-gray-900">
-              {isRw ? "Ibyibanze" : isFr ? "Actions de base" : "Quick Actions"}
+              {t("quickActions")}
             </h3>
           </div>
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
             <Button onClick={() => navigate("/products")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
               <Package size={20} />
-              <span>{isRw ? "Serivisi" : isFr ? "Services" : "Services"}</span>
+              <span>{t("services")}</span>
             </Button>
             <Button onClick={() => setSaleModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
               <Plus size={20} />
-              <span>{isRw ? "Andika serivisi" : isFr ? "Enregistrer un service" : "Record Service"}</span>
+              <span>{t("recordService")}</span>
             </Button>
             <Button onClick={() => setExpenseModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white">
               <Wallet size={20} />
-              <span>{isRw ? "Andika ikiguzi" : isFr ? "Enregistrer une dépense" : "Record Expense"}</span>
+              <span>{t("recordExpense")}</span>
             </Button>
             <Button onClick={() => navigate("/barbers")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white">
               <UserRound size={20} />
-              <span>{isRw ? "Umwogoshi" : isFr ? "Coiffeurs" : "Barbers"}</span>
+              <span>{t("workers")}</span>
             </Button>
             <Button onClick={() => navigate("/sales")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white">
               <ShoppingCart size={20} />
@@ -2472,15 +2444,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
               <h3 className="text-base font-semibold text-gray-900">
-              {isRw ? "Ibyibanze" : isFr ? "Actions de base" : "Quick Actions"}
+              {t("quickActions")}
               </h3>
             </div>
             <p className="text-xs text-gray-600 mb-4">
-              {isRw
-                ? "Kanda kugirango ukore ibikorwa byihuse"
-                : isFr
-                ? "Cliquez pour effectuer des actions rapides"
-                : "Click to perform quick actions"}
+              {t("quickActionsHint")}
             </p>
             
             
@@ -2492,7 +2460,7 @@ const Dashboard = () => {
               >
                 <Package size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Serivisi" : isFr ? "Services" : "Services"}
+                  {t("services")}
                 </span>
               </Button>
 
@@ -2503,7 +2471,7 @@ const Dashboard = () => {
               >
                 <Plus size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Andika serivisi" : isFr ? "Enregistrer un service" : "Record Service"}
+                  {t("recordService")}
                 </span>
               </Button>
 
@@ -2514,7 +2482,7 @@ const Dashboard = () => {
               >
                 <UserRound size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Umwogoshi" : isFr ? "Coiffeurs" : "Barbers"}
+                  {t("workers")}
                 </span>
               </Button>
 
@@ -2546,7 +2514,7 @@ const Dashboard = () => {
               >
                 <Wallet size={18} />
                 <span className="text-xs font-medium">
-                  {isRw ? "Andika ikiguzi" : isFr ? "Enregistrer une dépense" : "Record Expense"}
+                  {t("recordExpense")}
                 </span>
               </Button>
 
@@ -2564,11 +2532,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-gray-600" />
               <h3 className="text-lg font-semibold text-gray-900">
-                {isRw ? "Serivisi n'ibyakoreshejwe" : isFr ? "Ventes récentes et dépenses" : "Recent Sales & Expenses"}
+                {t("recentSalesAndExpenses")}
               </h3>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {isRw ? "Ibikorwa biheruka" : isFr ? "Activité récente" : "Latest activity"}
+              {t("latestActivity")}
             </p>
           </div>
           
@@ -2586,13 +2554,13 @@ const Dashboard = () => {
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
+                        {t("typeLabel")}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Ibisobanuro" : isFr ? "Détails" : "Details"}
+                        {t("details")}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Amafaranga (Rwf)" : isFr ? "Montant (RWF)" : "Amount (Rwf)"}
+                        {t("amountRwf")}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                         {t("date")}
@@ -2613,17 +2581,7 @@ const Dashboard = () => {
                             "text-sm font-semibold",
                             entry.type === "sale" ? "text-green-700" : "text-red-700"
                           )}>
-                            {entry.type === "sale"
-                              ? isRw
-                                ? "Serivisi"
-                                : isFr
-                                ? "Service"
-                                : "Sale"
-                              : isRw
-                              ? "Ikiguzi"
-                              : isFr
-                              ? "Dépense"
-                              : "Expense"}
+                            {entry.type === "sale" ? t("activitySaleLabel") : t("activityExpenseLabel")}
                           </div>
                         </td>
                         <td className="py-4 px-6">
@@ -2656,17 +2614,7 @@ const Dashboard = () => {
                 <div className="divide-y divide-border/60">
                   {recentMobileActivity.slice(0, 7).map((entry, index) => {
                     const isSale = entry.type === "sale";
-                    const label = isSale
-                                  ? isRw
-                                    ? "Serivisi"
-                                    : isFr
-                                    ? "Service"
-                                    : "Sale"
-                                  : isRw
-                                  ? "Ikiguzi"
-                                  : isFr
-                                  ? "Dépense"
-                      : "Expense";
+                    const label = isSale ? t("activitySaleLabel") : t("activityExpenseLabel");
                     return (
                       <button
                         key={entry.id || index}
@@ -2714,14 +2662,10 @@ const Dashboard = () => {
               <div className="flex flex-col items-center justify-center text-gray-400">
                 <ShoppingCart size={48} className="mb-4 opacity-50" />
                 <p className="text-base font-medium">
-                  {isRw ? "Nta bikorwa biheruka" : isFr ? "Aucune activité récente" : "No recent activity"}
+                  {t("noRecentActivity")}
                 </p>
                 <p className="text-sm mt-1">
-                  {isRw
-                    ? "Serivisi n'ibyakoreshejwe bizagaragara hano"
-                    : isFr
-                    ? "Les ventes et dépenses récentes apparaîtront ici"
-                    : "Recent sales and expenses will appear here"}
+                  {t("activityEmptyHint")}
                 </p>
               </div>
             </div>
@@ -2730,11 +2674,7 @@ const Dashboard = () => {
         {recentMobileActivity.length > 7 && (
           <div className="pt-3 lg:hidden">
             <Button variant="outline" className="w-full" onClick={() => navigate("/sales")}>
-              {language === "rw"
-                ? "Reba byinshi muri Sales"
-                : language === "fr"
-                ? "Voir plus dans Ventes"
-                : "View more in Sales"}
+              {t("viewMoreInSales")}
             </Button>
           </div>
         )}
@@ -2761,7 +2701,7 @@ const Dashboard = () => {
                     setExpenseAmount(String(suggested));
                   }
                 }}
-                placeholder={isRw ? "nka: Umuriro, Ubukode..." : isFr ? "ex: Services, Loyer..." : "e.g. Utilities, Rent..."}
+                placeholder={t("expenseExamplePlaceholder")}
               />
 
               {(expenseSuggestions.presetTitles.length > 0 ||
@@ -2771,7 +2711,7 @@ const Dashboard = () => {
                   {expenseSuggestions.presetTitles.length > 0 && (
                     <div>
                       <div className="text-[11px] font-semibold text-gray-600">
-                        {isRw ? "Ibyihuse" : isFr ? "Favoris" : "Presets"}
+                        {t("presets")}
                       </div>
                       <div className="mt-1 -mx-1 px-1 overflow-x-auto">
                         <div className="flex gap-2 w-max">
@@ -2795,7 +2735,7 @@ const Dashboard = () => {
                   {expenseSuggestions.mostUsed.length > 0 && (
                     <div>
                       <div className="text-[11px] font-semibold text-gray-600">
-                        {isRw ? "Byinshi ukoresha" : isFr ? "Les plus utilisés" : "Most used"}
+                        {t("mostUsed")}
                       </div>
                       <div className="mt-1 -mx-1 px-1 overflow-x-auto">
                         <div className="flex gap-2 w-max">
@@ -2819,7 +2759,7 @@ const Dashboard = () => {
                   {expenseSuggestions.recent.length > 0 && (
                     <div>
                       <div className="text-[11px] font-semibold text-gray-600">
-                        {isRw ? "Biheruka" : isFr ? "Récentes" : "Recent"}
+                        {t("recentExpenses")}
                       </div>
                       <div className="mt-1 -mx-1 px-1 overflow-x-auto">
                         <div className="flex gap-2 w-max">
@@ -2849,7 +2789,7 @@ const Dashboard = () => {
                       onClick={saveExpensePreset}
                       disabled={!expenseTitle.trim()}
                     >
-                      {isRw ? "Bika nk'icyihuse" : isFr ? "Enregistrer favori" : "Save preset"}
+                      {t("savePreset")}
                     </Button>
                   </div>
                 </div>
@@ -2888,7 +2828,7 @@ const Dashboard = () => {
                 <Input
                   value={expenseCategory}
                   onChange={(e) => setExpenseCategory(e.target.value)}
-                  placeholder={isRw ? "nka: Ibikoresho" : isFr ? "ex: Fournitures" : "e.g. Supplies"}
+                  placeholder={t("expenseCategoryPlaceholder")}
                 />
               </div>
               <div className="space-y-1">
@@ -2905,7 +2845,7 @@ const Dashboard = () => {
               <Textarea
                 value={expenseNote}
                 onChange={(e) => setExpenseNote(e.target.value)}
-                placeholder={isRw ? "Andika ibisobanuro..." : isFr ? "Ajouter des détails..." : "Add extra details..."}
+                placeholder={t("expenseNotePlaceholder")}
                 rows={3}
               />
             </div>

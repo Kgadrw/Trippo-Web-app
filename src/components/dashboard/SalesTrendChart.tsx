@@ -24,9 +24,13 @@ interface SalesTrendChartProps {
 export function SalesTrendChart({ sales = [], className }: SalesTrendChartProps) {
   const { t } = useTranslation();
 
+  const dayLabels = useMemo(
+    () => [t("daySun"), t("dayMon"), t("dayTue"), t("dayWed"), t("dayThu"), t("dayFri"), t("daySat")],
+    [t],
+  );
+
   // Calculate last 7 days sales data
   const chartData = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const today = new Date();
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(today);
@@ -34,7 +38,7 @@ export function SalesTrendChart({ sales = [], className }: SalesTrendChartProps)
       return date;
     });
 
-    return last7Days.map((date, index) => {
+    return last7Days.map((date) => {
       const dateStr = date.toISOString().split('T')[0];
       const daySales = sales.filter((sale) => {
         const saleDate = typeof sale.date === 'string' 
@@ -46,11 +50,11 @@ export function SalesTrendChart({ sales = [], className }: SalesTrendChartProps)
       const totalRevenue = daySales.reduce((sum, sale) => sum + sale.revenue, 0);
       
       return {
-        day: days[date.getDay()],
+        day: dayLabels[date.getDay()],
         sales: totalRevenue,
       };
     });
-  }, [sales]);
+  }, [sales, dayLabels]);
   return (
     <div className={cn("kpi-card bg-white rounded-none border border-gray-200 shadow-sm", className)}>
       <h3 className="section-title text-gray-600">{t("salesTrendLast7Days")}</h3>
@@ -78,7 +82,7 @@ export function SalesTrendChart({ sales = [], className }: SalesTrendChartProps)
               }}
               labelStyle={{ color: "#475569", fontWeight: 600 }}
               itemStyle={{ color: "#5b8fc7", fontWeight: 600 }}
-              formatter={(value: number) => [`rwf ${value.toLocaleString()}`, "Sales"]}
+              formatter={(value: number) => [`rwf ${value.toLocaleString()}`, t("chartSalesLabel")]}
             />
             <Bar
               dataKey="sales"

@@ -1076,4 +1076,8 @@ export const subscriptionApi = {
       method: 'GET',
     });
   },
+
+  async cancel(): Promise<ApiResponse> {
+    return request('/subscription/cancel', { method: 'POST' });
+  },
 };

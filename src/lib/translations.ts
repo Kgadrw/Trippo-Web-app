@@ -184,6 +184,39 @@ export interface Translations {
   youCanChangeThis: string;
   availableStock: string;
   addRow: string;
+  hello: string;
+  greetingFallback: string;
+  quickActions: string;
+  quickActionsHint: string;
+  servicesToday: string;
+  servicesRecorded: string;
+  activeServices: string;
+  servicesInSystem: string;
+  recentActivity: string;
+  salesAndExpenses: string;
+  recentSalesAndExpenses: string;
+  latestActivity: string;
+  noActivity: string;
+  noRecentActivity: string;
+  details: string;
+  amountRwf: string;
+  searchProductsAndServices: string;
+  packageLabel: string;
+  productOrService: string;
+  saleMode: string;
+  sellByQuantity: string;
+  sellWholePackage: string;
+  cost: string;
+  revenueMinusCost: string;
+  expenseExamplePlaceholder: string;
+  expenseCategoryPlaceholder: string;
+  expenseNotePlaceholder: string;
+  presets: string;
+  mostUsed: string;
+  savePreset: string;
+  addMultipleSalesHint: string;
+  serviceBadge: string;
+  typeLabel: string;
   
   // Products Page
   allProducts: string;
@@ -330,6 +363,71 @@ export interface Translations {
   resetYourPin: string;
   phoneNumber: string;
   fullName: string;
+
+  // Dashboard toasts & validation
+  expensePresetSavedDesc: string;
+  productOutOfStock: string;
+  productOutOfStockRemovedSuffix: string;
+  productOutOfStockCannotSellSuffix: string;
+  workerRequired: string;
+  invalidPriceShort: string;
+  insufficientStock: string;
+  insufficientStockBulkDesc: string;
+  salesRecorded: string;
+  salesRecordedBulkDesc: string;
+  noSalesRecorded: string;
+  noSalesRecordedDesc: string;
+  missingInformation: string;
+  fillAllRequired: string;
+  selectServiceWorker: string;
+  invalidAmount: string;
+  serviceAmountMustBePositive: string;
+  workerNotFound: string;
+  selectValidWorker: string;
+  serviceRecorded: string;
+  serviceRecordedDesc: string;
+  enterQuantityDesc: string;
+  invalidQuantity: string;
+  invalidQuantityDesc: string;
+  invalidPriceDesc: string;
+  needWholePackageStock: string;
+  onlyItemsInStock: string;
+  itemSingular: string;
+  itemsPlural: string;
+  saleRecorded: string;
+  saleRecordedDesc: string;
+  saleRecordedOffline: string;
+  saleRecordedOfflineWithProduct: string;
+  saleRecordedOfflineGeneric: string;
+  recordFailed: string;
+  recordFailedDesc: string;
+  expenseNameAmountRequired: string;
+  expenseRecorded: string;
+  expenseRecordedDesc: string;
+  saveFailed: string;
+  saveExpenseFailed: string;
+  activitySaleLabel: string;
+  activityExpenseLabel: string;
+  activityEmptyHint: string;
+  viewMoreInSales: string;
+  invalidQuantityShort: string;
+  onlyItemsAvailable: string;
+  chartSalesLabel: string;
+  daySun: string;
+  dayMon: string;
+  dayTue: string;
+  dayWed: string;
+  dayThu: string;
+  dayFri: string;
+  daySat: string;
+  pricePerItem: string;
+  priceForWholePackageLabel: string;
+  priceWholePackageCalc: string;
+  priceFromPackageCalc: string;
+  maximumQuantity: string;
+  stockLabel: string;
+  boxOf: string;
+  noProductsSearchHint: string;
 }
 
 export const translations: Partial<Record<Language, Partial<Translations>>> = {
@@ -517,6 +615,39 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     youCanChangeThis: "You can change this",
     availableStock: "Available stock",
     addRow: "Add Row",
+    hello: "Hello",
+    greetingFallback: "User",
+    quickActions: "Quick Actions",
+    quickActionsHint: "Click to perform quick actions",
+    servicesToday: "Services Today",
+    servicesRecorded: "services recorded",
+    activeServices: "Active Services",
+    servicesInSystem: "services in system",
+    recentActivity: "Recent",
+    salesAndExpenses: "Sales & expenses",
+    recentSalesAndExpenses: "Recent Sales & Expenses",
+    latestActivity: "Latest activity",
+    noActivity: "No activity",
+    noRecentActivity: "No recent activity",
+    details: "Details",
+    amountRwf: "Amount (Rwf)",
+    searchProductsAndServices: "Search products and services...",
+    packageLabel: "Package",
+    productOrService: "Product / Service",
+    saleMode: "Sale Mode",
+    sellByQuantity: "Sell by Quantity",
+    sellWholePackage: "Sell Whole Package",
+    cost: "Cost",
+    revenueMinusCost: "(Revenue − cost)",
+    expenseExamplePlaceholder: "e.g. Utilities, Rent...",
+    expenseCategoryPlaceholder: "e.g. Supplies",
+    expenseNotePlaceholder: "Add extra details...",
+    presets: "Presets",
+    mostUsed: "Most used",
+    savePreset: "Save preset",
+    addMultipleSalesHint: "Add multiple sales at once",
+    serviceBadge: "Service",
+    typeLabel: "Type",
     
     // Products Page
     allProducts: "All Products",
@@ -656,6 +787,70 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     resetYourPin: "Reset Your PIN",
     phoneNumber: "Phone Number",
     fullName: "Full Name",
+
+    expensePresetSavedDesc: "Expense saved as a quick preset.",
+    productOutOfStock: "Product Out of Stock",
+    productOutOfStockRemovedSuffix: "is now out of stock and has been removed from selection.",
+    productOutOfStockCannotSellSuffix: "is currently out of stock and cannot be sold.",
+    workerRequired: "Worker required",
+    invalidPriceShort: "Invalid price",
+    insufficientStock: "Insufficient Stock",
+    insufficientStockBulkDesc: "Cannot record sales for: {list}. You cannot sell more than available quantity.",
+    salesRecorded: "Sales Recorded",
+    salesRecordedBulkDesc: "Successfully recorded {count} sale(s).",
+    noSalesRecorded: "No Sales Recorded",
+    noSalesRecordedDesc: "Please fill in at least one complete sale entry.",
+    missingInformation: "Missing Information",
+    fillAllRequired: "Please fill in all required fields.",
+    selectServiceWorker: "Please select who offered the service.",
+    invalidAmount: "Invalid Amount",
+    serviceAmountMustBePositive: "Service amount must be greater than 0.",
+    workerNotFound: "Worker Not Found",
+    selectValidWorker: "Please select a valid worker.",
+    serviceRecorded: "Service Recorded",
+    serviceRecordedDesc: "{product} by {worker} for RWF {amount}",
+    enterQuantityDesc: "Please enter quantity.",
+    invalidQuantity: "Invalid Quantity",
+    invalidQuantityDesc: "Please enter a valid quantity greater than 0.",
+    invalidPriceDesc: "Enter a valid selling price (a number, zero or greater).",
+    needWholePackageStock: "You need at least {need} in stock to sell a whole package ({stock} available).",
+    onlyItemsInStock: "Only {stock} {items} available in stock.",
+    itemSingular: "item",
+    itemsPlural: "items",
+    saleRecorded: "Sale Recorded",
+    saleRecordedDesc: "Successfully recorded sale of {qty}x {product}",
+    saleRecordedOffline: "Sale Recorded (Offline Mode)",
+    saleRecordedOfflineWithProduct: "Successfully recorded sale of {qty}x {product}. Changes will sync when you're back online.",
+    saleRecordedOfflineGeneric: "Sale recorded offline. Changes will sync when you're back online.",
+    recordFailed: "Record Failed",
+    recordFailedDesc: "Failed to record sale. Please check your connection and try again.",
+    expenseNameAmountRequired: "Please provide expense name and valid amount.",
+    expenseRecorded: "Expense Recorded",
+    expenseRecordedDesc: "Expense saved successfully.",
+    saveFailed: "Save Failed",
+    saveExpenseFailed: "Failed to save expense.",
+    activitySaleLabel: "Sale",
+    activityExpenseLabel: "Expense",
+    activityEmptyHint: "Recent sales and expenses will appear here",
+    viewMoreInSales: "View more in Sales",
+    invalidQuantityShort: "Invalid quantity",
+    onlyItemsAvailable: "Only {stock} {items} available",
+    chartSalesLabel: "Sales",
+    daySun: "Sun",
+    dayMon: "Mon",
+    dayTue: "Tue",
+    dayWed: "Wed",
+    dayThu: "Thu",
+    dayFri: "Fri",
+    daySat: "Sat",
+    pricePerItem: "Price per item",
+    priceForWholePackageLabel: "Price for whole package",
+    priceWholePackageCalc: "Price per item: {base} rwf × {qty} = {total} rwf (whole package)",
+    priceFromPackageCalc: "Price per item: {perItem} rwf (from {base} rwf ÷ {qty})",
+    maximumQuantity: "Maximum Quantity",
+    stockLabel: "Stock",
+    boxOf: "Box of {qty}",
+    noProductsSearchHint: "No items found. Try a different search.",
   },
   rw: {
     // Navigation
@@ -839,6 +1034,39 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     youCanChangeThis: "Urashobora guhindura",
     availableStock: "Stoki buhari",
     addRow: "Ongeraho umurongo",
+    hello: "Muraho",
+    greetingFallback: "Inshuti",
+    quickActions: "Ibyibanze",
+    quickActionsHint: "Kanda kugirango ukore ibikorwa byihuse",
+    servicesToday: "Serivisi z'uyu munsi",
+    servicesRecorded: "serivisi zakozwe",
+    activeServices: "Serivisi ziboneka",
+    servicesInSystem: "serivisi muri sisitemu",
+    recentActivity: "Biheruka",
+    salesAndExpenses: "Serivisi n'ibyakoreshejwe",
+    recentSalesAndExpenses: "Serivisi n'ibyakoreshejwe",
+    latestActivity: "Ibikorwa biheruka",
+    noActivity: "Nta bikorwa",
+    noRecentActivity: "Nta bikorwa biheruka",
+    details: "Ibisobanuro",
+    amountRwf: "Amafaranga (Rwf)",
+    searchProductsAndServices: "Shakisha ibicuruzwa cyangwa serivisi...",
+    packageLabel: "Igipaki",
+    productOrService: "Igicuruzwa / Serivisi",
+    saleMode: "Uburyo bwo kugurisha",
+    sellByQuantity: "Kugurisha ku mubare",
+    sellWholePackage: "Kugurisha igipaki cyose",
+    cost: "Igiciro cy'inguzanyo",
+    revenueMinusCost: "(Amafaranga − inguzanyo)",
+    expenseExamplePlaceholder: "nka: Umuriro, Ubukode...",
+    expenseCategoryPlaceholder: "nka: Ibikoresho",
+    expenseNotePlaceholder: "Andika ibisobanuro...",
+    presets: "Ibyihuse",
+    mostUsed: "Byinshi ukoresha",
+    savePreset: "Bika nk'icyihuse",
+    addMultipleSalesHint: "Andika ubucuruzi bwinshi icyarimwe",
+    serviceBadge: "Serivisi",
+    typeLabel: "Ubwoko",
     
     // Products Page
     allProducts: "Ibicuruzwa byose",
@@ -978,11 +1206,81 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     resetYourPin: "Hindura PIN yawe",
     phoneNumber: "Telefone",
     fullName: "Amazina yose",
+
+    expensePresetSavedDesc: "Ikiguzi cyabitswe nk'icyihuse.",
+    productOutOfStock: "Icuruzwa rirangiye muri stoki",
+    productOutOfStockRemovedSuffix: "ntikiboneka muri stoki kandi cyakuweho mu mahitamo.",
+    productOutOfStockCannotSellSuffix: "ntikiboneka muri stoki kandi ntigishobora kugurishwa.",
+    workerRequired: "Hitamo umukozi",
+    invalidPriceShort: "Igiciro kitari cyo",
+    insufficientStock: "Stoki ntihagije",
+    insufficientStockBulkDesc: "Ntibishoboka kwandika ubu bucuruzi: {list}. Ntushobora kugurisha birenze ibiri muri stoki.",
+    salesRecorded: "Ubucuruzi bwanditswe",
+    salesRecordedBulkDesc: "Handitswe neza ubucuruzi {count}.",
+    noSalesRecorded: "Nta bucuruzi bwanditswe",
+    noSalesRecordedDesc: "Andika nibura ubucuruzi bumwe bwuzuye.",
+    missingInformation: "Amakuru abura",
+    fillAllRequired: "Uzuza ibisabwa byose.",
+    selectServiceWorker: "Hitamo umukozi utanga serivisi.",
+    invalidAmount: "Amafaranga atari yo",
+    serviceAmountMustBePositive: "Amafaranga ya serivisi agomba kurenza 0.",
+    workerNotFound: "Umukozi ntaboneka",
+    selectValidWorker: "Hitamo umukozi wemewe.",
+    serviceRecorded: "Serivisi yanditswe",
+    serviceRecordedDesc: "{product} yakozwe na {worker} ku RWF {amount}",
+    enterQuantityDesc: "Andika umubare.",
+    invalidQuantity: "Umubare utari wo",
+    invalidQuantityDesc: "Andika umubare nyawo urenze 0.",
+    invalidPriceDesc: "Injiza igiciro cyemewe (umubare wuzuye).",
+    needWholePackageStock: "Hakeneye nibura {need} muri stoki (hari {stock}).",
+    onlyItemsInStock: "Hari gusa {stock} {items} muri stoki.",
+    itemSingular: "ikintu",
+    itemsPlural: "ibintu",
+    saleRecorded: "Ubucuruzi bwanditswe",
+    saleRecordedDesc: "Handitswe neza: {qty}x {product}",
+    saleRecordedOffline: "Ubucuruzi bwanditswe (nta interineti)",
+    saleRecordedOfflineWithProduct: "Handitswe neza: {qty}x {product}. Bizahuzwa interineti igarutse.",
+    saleRecordedOfflineGeneric: "Ubucuruzi bwanditswe nta interineti. Bizahuzwa interineti igarutse.",
+    recordFailed: "Kwandika byanze",
+    recordFailedDesc: "Kwandika ubucuruzi byanze. Reba interneti wongere ugerageze.",
+    expenseNameAmountRequired: "Andika izina ry'ikiguzi n'amafaranga nyayo.",
+    expenseRecorded: "Ikiguzi cyanditswe",
+    expenseRecordedDesc: "Ikiguzi cyabitswe neza.",
+    saveFailed: "Kwandika byanze",
+    saveExpenseFailed: "Kwandika ikiguzi byanze.",
+    activitySaleLabel: "Serivisi",
+    activityExpenseLabel: "Ikiguzi",
+    activityEmptyHint: "Serivisi n'ibyakoreshejwe bizagaragara hano",
+    viewMoreInSales: "Reba byinshi muri Sales",
+    invalidQuantityShort: "Umubare utari wo",
+    onlyItemsAvailable: "Hari gusa {stock} {items}",
+    chartSalesLabel: "Ubucuruzi",
+    daySun: "Ku wa 7",
+    dayMon: "Ku wa 1",
+    dayTue: "Ku wa 2",
+    dayWed: "Ku wa 3",
+    dayThu: "Ku wa 4",
+    dayFri: "Ku wa 5",
+    daySat: "Ku wa 6",
+    pricePerItem: "Igiciro ku kintu",
+    priceForWholePackageLabel: "Igiciro cy'ipaki yose",
+    priceWholePackageCalc: "Igiciro ku kintu: {base} rwf × {qty} = {total} rwf (ipaki yose)",
+    priceFromPackageCalc: "Igiciro ku kintu: {perItem} rwf (kuva {base} rwf ÷ {qty})",
+    maximumQuantity: "Umubare ntarengwa",
+    stockLabel: "Ibihari",
+    boxOf: "Agafuka ka {qty}",
+    noProductsSearchHint: "Nta bicuruzwa bibonetse. Gerageza indi shakiro.",
   },
   fr: {
     // Navigation
     dashboard: "Tableau de bord",
     products: "Services",
+    services: "Services",
+    inventories: "Stocks",
+    workers: "Travailleurs",
+    worker: "Travailleur",
+    expenses: "Dépenses",
+    billing: "Facturation",
     sales: "Ventes",
     reports: "Rapports",
     settings: "Paramètres",
@@ -990,6 +1288,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     
     // Common
     save: "Enregistrer",
+    update: "Mettre à jour",
+    updating: "Mise à jour...",
+    saving: "Enregistrement...",
     cancel: "Annuler",
     delete: "Supprimer",
     edit: "Modifier",
@@ -999,6 +1300,24 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     loading: "Chargement...",
     signIn: "Connexion",
     getStarted: "Commencer",
+    close: "Fermer",
+    confirm: "Confirmer",
+    back: "Retour",
+    next: "Suivant",
+    yes: "Oui",
+    no: "Non",
+    all: "Tout",
+    none: "Aucun",
+    total: "Total",
+    subtotal: "Sous-total",
+    name: "Nom",
+    category: "Catégorie",
+    price: "Prix",
+    stock: "Stock",
+    quantity: "Quantité",
+    description: "Description",
+    optional: "Optionnel",
+    required: "Obligatoire",
     
     // Settings
     businessInfo: "Informations sur l'entreprise",
@@ -1017,7 +1336,6 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     // Sales (labels)
     recordSale: "Enregistrer une vente",
     recordSales: "Enregistrer des ventes",
-    quantity: "Quantité",
     enterQuantity: "Saisir la quantité",
     paymentMethod: "Mode de paiement",
     saleDate: "Date de vente",
@@ -1041,6 +1359,85 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     periodMonth: "Mois",
     periodYear: "Année",
     todaysItems: "Services d'aujourd'hui",
+    currentStockValue: "Valeur du stock actuel",
+    items: "articles",
+    recordNewSale: "Enregistrer une nouvelle vente",
+    bulkAdd: "Ajout groupé",
+    singleSale: "Vente unique",
+    selectProduct: "Sélectionner un produit",
+    suggestedPrice: "Prix suggéré",
+    youCanChangeThis: "Vous pouvez modifier",
+    availableStock: "Stock disponible",
+    addRow: "Ajouter une ligne",
+    hello: "Bonjour",
+    greetingFallback: "Utilisateur",
+    quickActions: "Actions rapides",
+    quickActionsHint: "Cliquez pour effectuer des actions rapides",
+    servicesToday: "Services d'aujourd'hui",
+    servicesRecorded: "services enregistrés",
+    activeServices: "Services actifs",
+    servicesInSystem: "services dans le système",
+    recentActivity: "Récent",
+    salesAndExpenses: "Ventes et dépenses",
+    recentSalesAndExpenses: "Ventes récentes et dépenses",
+    latestActivity: "Activité récente",
+    noActivity: "Aucune activité",
+    noRecentActivity: "Aucune activité récente",
+    details: "Détails",
+    amountRwf: "Montant (RWF)",
+    searchProductsAndServices: "Rechercher produits et services...",
+    packageLabel: "Paquet",
+    productOrService: "Produit / Service",
+    saleMode: "Mode de vente",
+    sellByQuantity: "Vendre à l'unité",
+    sellWholePackage: "Vendre le paquet entier",
+    cost: "Coût",
+    revenueMinusCost: "(Revenu − coût)",
+    expenseExamplePlaceholder: "ex. : Services, Loyer...",
+    expenseCategoryPlaceholder: "ex. : Fournitures",
+    expenseNotePlaceholder: "Ajouter des détails...",
+    presets: "Favoris",
+    mostUsed: "Les plus utilisés",
+    savePreset: "Enregistrer favori",
+    addMultipleSalesHint: "Ajouter plusieurs ventes à la fois",
+    serviceBadge: "Service",
+    typeLabel: "Type",
+    revenue: "Revenu",
+    profit: "Bénéfice",
+    product: "Produit",
+    date: "Date",
+    payment: "Paiement",
+    recording: "Enregistrement...",
+    addMultipleSales: "Ajouter plusieurs ventes à la fois",
+    enterPrice: "Saisir le prix",
+    sellingPrice: "Prix de vente",
+    
+    // Expenses
+    oneTimeExpense: "Dépense ponctuelle",
+    recurringExpenses: "Dépenses récurrentes",
+    expenseTitle: "Titre de la dépense",
+    amount: "Montant",
+    note: "Note",
+    noteOptional: "Note (optionnel)",
+    saveExpense: "Enregistrer la dépense",
+    recentExpenses: "Dépenses récentes",
+    recordExpense: "Enregistrer une dépense",
+    record: "Enregistrer",
+
+    // Modals
+    addService: "Ajouter un service",
+    editService: "Modifier le service",
+    serviceName: "Nom du service",
+    noServicesFound: "Aucun service trouvé.",
+    noServicesAddFirst: "Aucun service trouvé. Ajoutez un service d'abord.",
+    recordService: "Enregistrer un service",
+    selectService: "Sélectionner un service",
+    selectWorker: "Choisir un travailleur",
+    noWorkersFound: "Aucun travailleur trouvé.",
+    noWorkersAddFirst: "Aucun travailleur trouvé. Cliquez sur Ajouter un travailleur.",
+    addWorker: "Ajouter un travailleur",
+    editWorker: "Modifier le travailleur",
+    editSale: "Modifier la vente",
     
     // Common messages
     confirmDelete: "Confirmer la suppression",
@@ -1055,6 +1452,72 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     deleted: "Supprimé",
     failed: "Échec",
     pleaseTryAgain: "Veuillez réessayer",
+
+    salesTrendLast7Days: "Tendance des ventes (7 derniers jours)",
+    expensePresetSavedDesc: "Dépense enregistrée comme favori rapide.",
+    productOutOfStock: "Produit en rupture de stock",
+    productOutOfStockRemovedSuffix: "est en rupture de stock et a été retiré de la sélection.",
+    productOutOfStockCannotSellSuffix: "est en rupture de stock et ne peut pas être vendu.",
+    workerRequired: "Travailleur requis",
+    invalidPriceShort: "Prix invalide",
+    insufficientStock: "Stock insuffisant",
+    insufficientStockBulkDesc: "Impossible d'enregistrer les ventes pour : {list}. Vous ne pouvez pas vendre plus que la quantité disponible.",
+    salesRecorded: "Ventes enregistrées",
+    salesRecordedBulkDesc: "{count} vente(s) enregistrée(s) avec succès.",
+    noSalesRecorded: "Aucune vente enregistrée",
+    noSalesRecordedDesc: "Veuillez remplir au moins une vente complète.",
+    missingInformation: "Informations manquantes",
+    fillAllRequired: "Veuillez remplir tous les champs obligatoires.",
+    selectServiceWorker: "Veuillez sélectionner qui a effectué le service.",
+    invalidAmount: "Montant invalide",
+    serviceAmountMustBePositive: "Le montant du service doit être supérieur à 0.",
+    workerNotFound: "Travailleur introuvable",
+    selectValidWorker: "Veuillez sélectionner un travailleur valide.",
+    serviceRecorded: "Service enregistré",
+    serviceRecordedDesc: "{product} par {worker} pour {amount} RWF",
+    enterQuantityDesc: "Veuillez saisir la quantité.",
+    invalidQuantity: "Quantité invalide",
+    invalidQuantityDesc: "Veuillez saisir une quantité valide supérieure à 0.",
+    invalidPriceDesc: "Entrez un prix valide (nombre positif ou zéro).",
+    needWholePackageStock: "Il faut au moins {need} en stock pour vendre un paquet entier ({stock} disponible(s)).",
+    onlyItemsInStock: "Seulement {stock} {items} disponible(s) en stock.",
+    itemSingular: "article",
+    itemsPlural: "articles",
+    saleRecorded: "Vente enregistrée",
+    saleRecordedDesc: "Vente enregistrée : {qty}x {product}",
+    saleRecordedOffline: "Vente enregistrée (hors ligne)",
+    saleRecordedOfflineWithProduct: "Vente enregistrée : {qty}x {product}. Synchronisation à la reconnexion.",
+    saleRecordedOfflineGeneric: "Vente enregistrée hors ligne. Synchronisation à la reconnexion.",
+    recordFailed: "Échec de l'enregistrement",
+    recordFailedDesc: "Impossible d'enregistrer la vente. Vérifiez votre connexion et réessayez.",
+    expenseNameAmountRequired: "Veuillez indiquer le nom et un montant valide.",
+    expenseRecorded: "Dépense enregistrée",
+    expenseRecordedDesc: "Dépense enregistrée avec succès.",
+    saveFailed: "Échec de l'enregistrement",
+    saveExpenseFailed: "Impossible d'enregistrer la dépense.",
+    activitySaleLabel: "Vente",
+    activityExpenseLabel: "Dépense",
+    activityEmptyHint: "Les ventes et dépenses récentes apparaîtront ici",
+    viewMoreInSales: "Voir plus dans Ventes",
+    invalidQuantityShort: "Quantité invalide",
+    onlyItemsAvailable: "Seulement {stock} {items} disponible(s)",
+    chartSalesLabel: "Ventes",
+    daySun: "Dim",
+    dayMon: "Lun",
+    dayTue: "Mar",
+    dayWed: "Mer",
+    dayThu: "Jeu",
+    dayFri: "Ven",
+    daySat: "Sam",
+    pricePerItem: "Prix à l'unité",
+    priceForWholePackageLabel: "Prix du paquet entier",
+    priceWholePackageCalc: "Prix à l'unité : {base} rwf × {qty} = {total} rwf (paquet entier)",
+    priceFromPackageCalc: "Prix à l'unité : {perItem} rwf (de {base} rwf ÷ {qty})",
+    maximumQuantity: "Quantité maximale",
+    stockLabel: "Stock",
+    boxOf: "Paquet de {qty}",
+    noProductsSearchHint: "Aucun élément trouvé. Essayez une autre recherche.",
+    noProducts: "Aucun produit trouvé",
   },
 };
 

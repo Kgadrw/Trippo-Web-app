@@ -23,6 +23,8 @@ export type SubscriptionPlan = {
   startDate?: string | null;
   nextDueDate?: string | null;
   lastPaidAt?: string | null;
+  cancelledAt?: string | null;
+  isCancelled?: boolean;
 };
 
 export type SubscriptionPaymentConfig = {

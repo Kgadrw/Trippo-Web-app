@@ -38,8 +38,6 @@ import {
 } from "@/components/ui/dialog";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { notificationService } from '@/lib/notifications';
-import { notificationService } from '@/lib/notifications';
-import { notificationService } from '@/lib/notifications';
 
 interface Product {
   id?: number;
