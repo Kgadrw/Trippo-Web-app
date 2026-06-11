@@ -3,8 +3,25 @@ import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
 
-// API URL Configuration — always local backend (see backend/ repo)
+// API URL Configuration (see API_CONFIG.md)
 const getApiBaseUrl = (): string => {
+  const fromEnv = import.meta.env.VITE_API_URL;
+  if (fromEnv) {
+    return String(fromEnv).replace(/\/$/, '');
+  }
+
+  // Same-origin /api — works with Vite dev + preview proxy on localhost
+  if (import.meta.env.DEV) {
+    return '/api';
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return '/api';
+    }
+  }
+
   const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
   return `http://localhost:${localPort}/api`;
 };
@@ -14,6 +31,10 @@ export const PUBLIC_API_BASE_URL = API_BASE_URL;
 
 /** WebSocket origin derived from API base (e.g. http://localhost:3000/api → ws://localhost:3000) */
 export function getWebSocketBaseUrl(): string {
+  if (import.meta.env.DEV) {
+    const localPort = import.meta.env.VITE_LOCAL_API_PORT || '3000';
+    return `ws://localhost:${localPort}`;
+  }
   const apiUrl = new URL(getApiBaseUrl());
   const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${apiUrl.host}`;
@@ -66,12 +87,16 @@ async function request<T>(
                          endpoint.startsWith('/auth/login') ||
                          endpoint.startsWith('/auth/forgot-pin') ||
                          endpoint.startsWith('/auth/reset-pin') ||
-                         endpoint.startsWith('/auth/me');
+                         endpoint.startsWith('/auth/me') ||
+                         endpoint.startsWith('/auth/verify-ticket') ||
+                         endpoint.startsWith('/auth/register/send-otp');
   
   // Admin endpoints don't require regular userId (admin has special userId)
   const isAdminEndpoint = endpoint.startsWith('/admin/');
+
+  const isPublicEndpoint = endpoint.startsWith('/subscription/payment-config');
   
-  if (!isAuthEndpoint && !isAdminEndpoint && !userId) {
+  if (!isAuthEndpoint && !isAdminEndpoint && !isPublicEndpoint && !userId) {
     throw new ApiError(
       'User not authenticated. Please login to access your data.',
       401,
@@ -1062,15 +1087,23 @@ export const notificationApi = {
 };
 
 export const subscriptionApi = {
+  async getPaymentConfig(): Promise<ApiResponse> {
+    return request('/subscription/payment-config', { method: 'GET' });
+  },
+
   async getStatus(sync = false): Promise<ApiResponse> {
     const qs = sync ? '?sync=1' : '';
     return request(`/subscription/status${qs}`, { method: 'GET' });
   },
 
-  async pay(phone: string, network?: 'mtn' | 'airtel'): Promise<ApiResponse> {
+  async pay(
+    phone: string,
+    network?: 'mtn' | 'airtel',
+    options?: { forceRetry?: boolean },
+  ): Promise<ApiResponse> {
     return request('/subscription/pay', {
       method: 'POST',
-      body: JSON.stringify({ phone, network }),
+      body: JSON.stringify({ phone, network, forceRetry: options?.forceRetry === true }),
     });
   },
 

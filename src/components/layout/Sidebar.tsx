@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubdomain } from "@/hooks/useSubdomain";
+import { PlusBanner } from "@/components/dashboard/PlusBanner";
 
 const getMenuItems = (t: (key: string) => string) => {
   return [
@@ -319,6 +320,8 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
           );
         })}
       </nav>
+
+      <PlusBanner variant="sidebar" expanded={isExpanded} />
 
       {/* Logout */}
         <div className="p-2">

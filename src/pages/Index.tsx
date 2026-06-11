@@ -26,7 +26,6 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
@@ -112,8 +111,6 @@ interface BulkSaleFormData {
 }
 
 type RevenuePeriod = "today" | "week" | "month" | "year";
-type GlobalSearchScope = "all" | "services" | "sales" | "expenses";
-
 function getSaleTimeMs(sale: Sale): number | null {
   if (sale.timestamp) {
     const t = new Date(sale.timestamp).getTime();
@@ -1646,46 +1643,6 @@ const Dashboard = () => {
 
   const isLoading = productsLoading || salesLoading;
 
-  // Global search (Dashboard)
-  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
-  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
-  const [globalSearchScope, setGlobalSearchScope] = useState<GlobalSearchScope>("all");
-
-  const globalSearchResults = useMemo(() => {
-    const q = globalSearchQuery.trim().toLowerCase();
-    if (!q) return { services: [] as Product[], sales: [] as Sale[], expenses: [] as Expense[] };
-
-    const services =
-      globalSearchScope === "all" || globalSearchScope === "services"
-        ? products.filter((p) => (p?.name || "").toLowerCase().includes(q)).slice(0, 6)
-        : [];
-
-    const salesRes =
-      globalSearchScope === "all" || globalSearchScope === "sales"
-        ? sales
-            .filter((s) => {
-              const product = String(s.product || "").toLowerCase();
-              const method = String(s.paymentMethod || "").toLowerCase();
-              return product.includes(q) || method.includes(q);
-            })
-            .slice(0, 6)
-        : [];
-
-    const expensesRes =
-      globalSearchScope === "all" || globalSearchScope === "expenses"
-        ? expenses
-            .filter((e) => {
-              const title = String(e.title || "").toLowerCase();
-              const cat = String(e.category || "").toLowerCase();
-              const note = String(e.note || "").toLowerCase();
-              return title.includes(q) || cat.includes(q) || note.includes(q);
-            })
-            .slice(0, 6)
-        : [];
-
-    return { services, sales: salesRes, expenses: expensesRes };
-  }, [globalSearchQuery, globalSearchScope, products, sales, expenses]);
-
   // KPI Card Skeleton Component
   const KPICardSkeleton = ({ hideIcon }: { hideIcon?: boolean } = {}) => (
     <div className="kpi-card">
@@ -1745,156 +1702,22 @@ const Dashboard = () => {
 
   return (
     <AppLayout title={t("dashboard")}>
-      {/* Desktop: greeting + global search */}
-      <div className="hidden lg:block mb-4 -mx-6 px-6 pt-0 pb-4">
-        <div className="flex items-center justify-between gap-4 text-sm mb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-muted-foreground">{isRw ? "Muraho" : isFr ? "Bonjour" : "Hello"}</span>
-            <span className="font-semibold text-foreground">
-              {greetingName ? `${greetingName}` : isRw ? "Inshuti" : isFr ? "Utilisateur" : "User"}
-            </span>
-          </div>
-          <div className="text-right shrink-0 tabular-nums">
-            <p className="text-xs text-muted-foreground">{greetingDate}</p>
-            <p className="text-sm font-medium text-foreground">{greetingTime}</p>
-          </div>
-        </div>
-
-        <Popover open={globalSearchOpen} onOpenChange={setGlobalSearchOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "w-full h-11 px-3 rounded-xl border border-border bg-white flex items-center gap-2 text-left",
-                "hover:bg-card focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-              )}
-              onClick={() => setGlobalSearchOpen(true)}
-            >
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <span className={cn("text-sm", globalSearchQuery ? "text-foreground" : "text-muted-foreground")}>
-                {language === "rw"
-                  ? "Shakisha..."
-                  : language === "fr"
-                  ? "Rechercher..."
-                  : "Search anything..."}
-              </span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[calc(100vw-24px)] sm:w-[520px] p-0" align="start">
-            <Command>
-              <CommandInput
-                placeholder={language === "rw" ? "Andika..." : language === "fr" ? "Tapez..." : "Type to search..."}
-                value={globalSearchQuery}
-                onValueChange={(v) => setGlobalSearchQuery(v)}
-              />
-              <div className="px-2 pb-2">
-                <ToggleGroup
-                  type="single"
-                  value={globalSearchScope}
-                  onValueChange={(v) => v && setGlobalSearchScope(v as GlobalSearchScope)}
-                  className="grid grid-cols-4 gap-1.5 w-full"
-                  variant="outline"
-                  size="sm"
-                >
-                  <ToggleGroupItem value="all" className="h-8 text-[11px]">
-                    {language === "rw" ? "Byose" : language === "fr" ? "Tout" : "All"}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="services" className="h-8 text-[11px]">
-                    {t("services")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="sales" className="h-8 text-[11px]">
-                    {t("sales")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="expenses" className="h-8 text-[11px]">
-                    {t("expenses")}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-              <CommandList>
-                <CommandEmpty>
-                  {language === "rw" ? "Nta bisubizo." : language === "fr" ? "Aucun résultat." : "No results."}
-                </CommandEmpty>
-
-                {globalSearchResults.services.length > 0 && (
-                  <CommandGroup heading={t("services")}>
-                    {globalSearchResults.services.map((p) => (
-                      <CommandItem
-                        key={(p as any)._id || p.id || p.name}
-                        value={p.name}
-                        onSelect={() => {
-                          setGlobalSearchOpen(false);
-                          navigate(`/products?q=${encodeURIComponent(p.name)}`);
-                        }}
-                      >
-                        <Package className="mr-2 h-4 w-4" />
-                        <span className="truncate">{p.name}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-
-                {globalSearchResults.sales.length > 0 && (
-                  <CommandGroup heading={t("sales")}>
-                    {globalSearchResults.sales.map((s, idx) => (
-                      <CommandItem
-                        key={(s as any)._id || s.id || `${s.product}-${idx}`}
-                        value={String(s.product)}
-                        onSelect={() => {
-                          setGlobalSearchOpen(false);
-                          navigate(`/sales?q=${encodeURIComponent(String(s.product || ""))}`);
-                        }}
-                      >
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        <span className="truncate">{String(s.product || "Sale")}</span>
-                        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                          {Number(s.revenue || 0).toLocaleString()} rwf
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-
-                {globalSearchResults.expenses.length > 0 && (
-                  <CommandGroup heading={t("expenses")}>
-                    {globalSearchResults.expenses.map((e, idx) => (
-                      <CommandItem
-                        key={(e as any)._id || e.id || `${e.title}-${idx}`}
-                        value={String(e.title)}
-                        onSelect={() => {
-                          setGlobalSearchOpen(false);
-                          navigate(`/expenses?q=${encodeURIComponent(String(e.title || ""))}`);
-                        }}
-                      >
-                        <Wallet className="mr-2 h-4 w-4" />
-                        <span className="truncate">{String(e.title || "Expense")}</span>
-                        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                          {Number(e.amount || 0).toLocaleString()} rwf
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-
-                <div className="p-2 border-t">
-                  <Button
-                    variant="outline"
-                    className="w-full h-9"
-                    onClick={() => {
-                      setGlobalSearchOpen(false);
-                      navigate(`/sales?q=${encodeURIComponent(globalSearchQuery || "")}`);
-                    }}
-                  >
-                    {language === "rw"
-                      ? "Reba byinshi muri Sales"
-                      : language === "fr"
-                      ? "Voir plus dans Ventes"
-                      : "View more in Sales"}
-                  </Button>
-                </div>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+      {/* Desktop: greeting */}
+      <div
+        className="hidden lg:flex fixed top-4 z-40 right-6 items-center justify-between gap-4"
+        style={{ left: "var(--content-left, calc(14.5rem + 0.75rem))" }}
+      >
+        <p className="min-w-0 text-[15px] leading-tight">
+          <span className="text-muted-foreground">{isRw ? "Muraho" : isFr ? "Bonjour" : "Hello"}</span>{" "}
+          <span className="font-semibold text-foreground">
+            {greetingName ? greetingName : isRw ? "Inshuti" : isFr ? "Utilisateur" : "User"}
+          </span>
+        </p>
+        <p className="shrink-0 text-right text-xs leading-tight tabular-nums text-muted-foreground">
+          <span className="font-medium text-foreground">{greetingTime}</span>
+          <span className="mx-1.5 text-border">·</span>
+          {greetingDate}
+        </p>
       </div>
 
       {/* Mobile: KPI grid + period toggle */}

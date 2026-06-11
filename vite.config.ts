@@ -17,6 +17,16 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  preview: {
+    host: "::",
+    port: 8080,
+    proxy: {
+      "/api": {
+        target: `http://localhost:${process.env.VITE_LOCAL_API_PORT || "3000"}`,
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     react({
       jsxRuntime: "automatic",

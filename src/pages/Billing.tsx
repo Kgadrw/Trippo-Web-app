@@ -14,7 +14,8 @@ import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
 import {
   clearPendingPaymentRef,
   getPaymentUserMessage,
-  getPendingPaymentRef,
+  hasPaidSubscription,
+  isPaymentSettled,
   savePendingPaymentRef,
   type PaymentStatusPayload,
 } from "@/lib/subscriptionPayment";
@@ -75,7 +76,16 @@ export default function Billing() {
   const { language } = useTranslation();
   const isRw = language === "rw";
 
-  const { loading, plan, paymentConfig, pendingPayment, refresh, updatePlan } = useSubscriptionAccess();
+  const {
+    loading,
+    statusError,
+    configError,
+    plan,
+    paymentConfig,
+    pendingPayment,
+    refresh,
+    updatePlan,
+  } = useSubscriptionAccess();
   const [paying, setPaying] = useState(false);
   const [polling, setPolling] = useState(false);
   const [phone, setPhone] = useState("");
@@ -105,9 +115,6 @@ export default function Billing() {
         : "If you don't receive a prompt, dial: *185*7*1#",
       processing: isRw ? "Tegereza wishyura..." : "Processing payment...",
       loading: isRw ? "Gukura..." : "Loading...",
-      trialBanner: isRw
-        ? "Urimo gukoresha igerageza ryawe rya iminsi 7 ku buntu. Ushobora kwishyura ubu niba ubishaka."
-        : "You are on your 7-day free trial. You can pay now anytime to secure Trippo Plus.",
       trialEndedBanner: isRw
         ? "Igerageza ryawe ryarangiye. Wishyura kugira ngo ukomeze ukoreshe Trippo."
         : "Your trial has ended. Pay below to unlock Trippo again.",
@@ -122,6 +129,14 @@ export default function Billing() {
     if (storedPhone) setPhone(storedPhone);
   }, []);
 
+  // Drop stale client-side refs unless the server still has a pending payment
+  useEffect(() => {
+    if (loading) return;
+    if (!pendingPayment?.referenceId) {
+      clearPendingPaymentRef();
+    }
+  }, [loading, pendingPayment?.referenceId]);
+
   const periodStart = plan?.isOnTrial
     ? plan.startDate || plan.lastPaidAt
     : plan?.lastPaidAt || plan?.startDate;
@@ -132,7 +147,7 @@ export default function Billing() {
   const amount = plan?.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
   const currency = plan?.currency || "RWF";
 
-  const isPaidActive = Boolean(plan?.hasPlus && plan?.lastPaidAt && !plan?.isOnTrial);
+  const isPaidActive = hasPaidSubscription(plan);
   const isTrialEnded = Boolean(plan?.requiresPayment && !plan?.hasPlus);
   const paymentReady = Boolean(paymentConfig?.mock || paymentConfig?.configured);
   const canPay =
@@ -140,15 +155,21 @@ export default function Billing() {
     !isPaidActive &&
     (plan?.isOnTrial || plan?.requiresPayment || plan?.status === "past_due");
 
+  const stopProcessing = useCallback(() => {
+    pollStartedRef.current = false;
+    setPolling(false);
+    setPaying(false);
+  }, []);
+
   const showPaymentSuccess = useCallback(() => {
     clearPendingPaymentRef();
+    stopProcessing();
     toast({
       title: isRw ? "Wishyura byagenze neza" : "Payment successful",
       description: isRw ? "Trippo Plus irakora." : "Trippo Plus is active for another month.",
     });
     window.dispatchEvent(new Event("subscription-updated"));
-    setPolling(false);
-  }, [isRw, toast]);
+  }, [isRw, stopProcessing, toast]);
 
   const pollPayment = useCallback(
     async (referenceId: string) => {
@@ -173,7 +194,8 @@ export default function Billing() {
           const syncIssue = payload.payment.sync?.latestIssue;
           const issueMessage = getPaymentUserMessage(syncIssue, isRw);
 
-          if (status === "SUCCESSFUL" || payload.plan?.hasPlus) {
+          if (isPaymentSettled(payload)) {
+            await refresh(true);
             showPaymentSuccess();
             return;
           }
@@ -185,26 +207,27 @@ export default function Billing() {
               description: issueMessage || syncIssue.message,
               variant: "destructive",
             });
-            setPolling(false);
+            stopProcessing();
             return;
           }
 
           if (status === "FAILED") {
             clearPendingPaymentRef();
+            stopProcessing();
+            await refresh(true);
             const reason =
-              issueMessage || payload.payment.providerStatus || payload.payment.mtnStatus;
+              issueMessage ||
+              payload.payment.providerStatus ||
+              payload.payment.mtnStatus ||
+              (isRw
+                ? "MTN/Airtel yanze kwishyura. Reba niba MoMo ikora, ufite amafaranga, cyangwa kanda *182*7*1# (MTN)."
+                : "MoMo declined the request. Ensure the wallet is active, you have enough balance, or dial *182*7*1# (MTN) / *185*7*1# (Airtel).");
             toast({
               title: isRw ? "Wishyura byanze" : "Payment failed",
-              description: reason
-                ? isRw
-                  ? `Byanze: ${reason}. Ongera ugerageze.`
-                  : `Payment was not completed (${reason}). Try again.`
-                : isRw
-                  ? "Ongera ugerageze cyangwa reba niba ufite amafaranga ahagije."
-                  : "The payment was not completed. Check your MoMo balance and try again.",
+              description: reason,
               variant: "destructive",
             });
-            setPolling(false);
+            stopProcessing();
             return;
           }
         } catch {
@@ -213,16 +236,26 @@ export default function Billing() {
       }
 
       try {
-        const freshPlan = await refresh(true);
-        if (freshPlan?.hasPlus && freshPlan?.lastPaidAt) {
+        const finalCheck = await subscriptionApi.getPaymentStatus(referenceId);
+        const finalPayload = finalCheck.data as PaymentStatusPayload;
+        if (isPaymentSettled(finalPayload)) {
+          if (finalPayload.plan) updatePlan(finalPayload.plan as typeof plan);
+          await refresh(true);
           showPaymentSuccess();
+          return;
+        }
+        if (finalPayload.payment?.status === "FAILED") {
+          clearPendingPaymentRef();
+          await refresh(true);
+          stopProcessing();
           return;
         }
       } catch {
         // ignore
       }
 
-      setPolling(false);
+      await refresh(true);
+      stopProcessing();
       toast({
         title: isRw ? "Iracyategereje" : "Still confirming",
         description: isRw
@@ -230,21 +263,26 @@ export default function Billing() {
           : "If money was deducted, refresh this page — we will sync your payment.",
       });
     },
-    [isRw, refresh, showPaymentSuccess, toast, updatePlan],
+    [isRw, refresh, showPaymentSuccess, stopProcessing, toast, updatePlan],
   );
 
+  // Resume polling only for a live server-side PENDING payment after sync
   useEffect(() => {
-    if (loading || pollStartedRef.current || plan?.hasPlus) return;
-
-    const storedRef = getPendingPaymentRef();
-    const refToResume = pendingPayment?.referenceId || storedRef;
-    if (!refToResume) return;
+    if (loading || pollStartedRef.current || paying || polling) return;
+    if (!pendingPayment?.referenceId || pendingPayment.status !== "PENDING") return;
+    if (hasPaidSubscription(plan)) {
+      clearPendingPaymentRef();
+      return;
+    }
 
     pollStartedRef.current = true;
-    void pollPayment(refToResume);
-  }, [loading, pendingPayment?.referenceId, plan?.hasPlus, pollPayment]);
+    void (async () => {
+      await refresh(true);
+      void pollPayment(pendingPayment.referenceId);
+    })();
+  }, [loading, paying, polling, pendingPayment, plan, pollPayment, refresh]);
 
-  const handlePay = async () => {
+  const handlePay = async (options?: { forceRetry?: boolean }) => {
     if (!network) {
       toast({
         title: isRw ? "Hitamo uburyo" : "Select network",
@@ -292,23 +330,43 @@ export default function Billing() {
       return;
     }
 
-    if (paying || polling) return;
+    if (paying) return;
+    if (polling && !options?.forceRetry) return;
+
+    if (polling && options?.forceRetry) {
+      stopProcessing();
+    }
 
     setPaying(true);
     try {
-      const res = await subscriptionApi.pay(phone.trim(), network ?? undefined);
-      const data = res.data as { referenceId: string; inProgress?: boolean };
+      const res = await subscriptionApi.pay(phone.trim(), network ?? undefined, {
+        forceRetry: options?.forceRetry,
+      });
+      const data = res.data as {
+        referenceId: string;
+        inProgress?: boolean;
+        status?: string;
+      };
+
+      if (data.status === "SUCCESSFUL") {
+        await refresh(true);
+        showPaymentSuccess();
+        return;
+      }
+
       if (data.inProgress) {
         toast({
           title: isRw ? "Wishyura iracyakora" : "Payment in progress",
           description: isRw
-            ? "Ubusanzwe hari kwishyura butegereje. Reba telefone yawe."
-            : "You already have a payment waiting. Check your phone to approve it.",
+            ? "Reba telefone yawe kugira ngo wemeze. Niba utabonye ubutumwa, kanda Payongera uhereze undi mucyo."
+            : "Check your phone to approve. If no prompt appeared, tap Pay again to send a new one.",
         });
       } else {
         toast({
           title: isRw ? "Emeza kuri telefone" : "Approve on your phone",
-          description: isRw ? "Reba ubutumwa kuri telefone yawe." : "Check your phone for the payment request.",
+          description: isRw
+            ? "Reba ubutumwa kuri telefone yawe. Niba utabonye, kanda *182*7*1# (MTN) cyangwa *185*7*1# (Airtel)."
+            : "Check your phone for the MoMo prompt. If nothing appears within 30 seconds, dial *182*7*1# (MTN) or *185*7*1# (Airtel).",
         });
       }
       void pollPayment(data.referenceId);
@@ -330,19 +388,6 @@ export default function Billing() {
           </div>
         ) : (
           <div className="space-y-4 w-full">
-            {plan?.isOnTrial ? (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                <p className="font-semibold">
-                  {isRw ? "Igerageza rya Trippo Plus" : "Trippo Plus trial"}
-                </p>
-                <p className="text-xs text-blue-800 mt-1">
-                  {txt.trialBanner}{" "}
-                  {plan.trialDaysLeft !== undefined
-                    ? `(${plan.trialDaysLeft} ${isRw ? "iminsi" : "days"} ${isRw ? "zasigaye" : "left"})`
-                    : ""}
-                </p>
-              </div>
-            ) : null}
             {isTrialEnded ? (
               <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <p className="font-semibold">{isRw ? "Kwishyura bisabwa" : "Payment required"}</p>
@@ -376,9 +421,25 @@ export default function Billing() {
             {/* Checkout */}
             <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-5 relative min-h-[280px]">
               {(paying || polling) && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[2px]">
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[2px] px-4">
                   <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
-                  <p className="text-sm font-medium text-foreground">{txt.processing}</p>
+                  <p className="text-sm font-medium text-foreground text-center">{txt.processing}</p>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {isRw
+                      ? "Reba telefone yawe kugira ngo wemeze wishyura."
+                      : "Check your phone and approve the MoMo prompt."}
+                  </p>
+                  {polling ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() => void handlePay({ forceRetry: true })}
+                    >
+                      {isRw ? "Ohereza undi mucyo" : "Send new prompt"}
+                    </Button>
+                  ) : null}
                 </div>
               )}
 
@@ -389,11 +450,7 @@ export default function Billing() {
                     ? isRw
                       ? "Wishyura wawe urakora"
                       : "Your subscription is active"
-                    : plan?.isOnTrial
-                      ? isRw
-                        ? "Wishyura ubu cyangwa tegereza igerageza rihera"
-                        : "Pay now or continue your free trial"
-                      : txt.tapMethod}
+                    : txt.tapMethod}
                 </p>
               </div>
 
@@ -415,7 +472,7 @@ export default function Billing() {
                     </p>
                   ) : null}
                 </div>
-              ) : canPay && paymentConfig?.configured ? (
+              ) : canPay && paymentReady ? (
                 <>
                   <RadioGroup
                     value={network ?? ""}
@@ -456,13 +513,23 @@ export default function Billing() {
                   {network && (
                     <div className="space-y-1 text-xs text-muted-foreground leading-relaxed">
                       <p>{txt.pinHint}</p>
+                      <p>
+                        {isRw
+                          ? `Ukeneye nibura ${Math.ceil(amount * 1.023).toLocaleString()} RWF kuri MoMo (${amount.toLocaleString()} + amafaranga ya serivisi).`
+                          : `Have at least ${Math.ceil(amount * 1.023).toLocaleString()} RWF on MoMo (${amount.toLocaleString()} + fees).`}
+                      </p>
                       <p>{network === "mtn" ? txt.noPromptMtn : txt.noPromptAirtel}</p>
+                      <p>
+                        {isRw
+                          ? "Niba wishyura byanze, kanda *182*7*1# usibe ibyo wemereje, tegereza iminota 5–10, hanyuma ugerageze rimwe."
+                          : "If payment fails, dial *182*7*1#, cancel pending approvals, wait 5–10 min, then try once only."}
+                      </p>
                     </div>
                   )}
 
                   <Button
-                    onClick={() => void handlePay()}
-                    disabled={paying || polling || !network}
+                    onClick={() => void handlePay(polling ? { forceRetry: true } : undefined)}
+                    disabled={paying || !network}
                     className={cn(
                       "w-full h-11 font-semibold",
                       "bg-yellow-500 hover:bg-yellow-600 text-gray-900",
@@ -472,9 +539,32 @@ export default function Billing() {
                   </Button>
                 </>
               ) : !paymentReady ? (
-                <p className="text-sm text-muted-foreground">
-                  {isRw ? "Kwishyura ntibishoboka ubu." : "Payments are not available right now."}
-                </p>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p>
+                    {isRw ? "Kwishyura ntibishoboka ubu." : "Payments are not available right now."}
+                  </p>
+                  {statusError || configError ? (
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                      {isRw
+                        ? "Ntitwashoboye kuvugana na seriveri. Reba ko backend ikora kuri port 3000, hanyuma ongera ugerageze."
+                        : `${statusError || configError} Make sure the backend is running on port 3000.`}
+                    </p>
+                  ) : (
+                    <p className="text-xs">
+                      {isRw
+                        ? "Reba niba Paypack yashyizweho muri backend .env (PAYPACK_CLIENT_ID na PAYPACK_CLIENT_SECRET)."
+                        : "Check that Paypack is configured in backend .env (PAYPACK_CLIENT_ID and PAYPACK_CLIENT_SECRET)."}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => void refresh()}
+                  >
+                    {isRw ? "Ongera ugerageze" : "Retry"}
+                  </Button>
+                </div>
               ) : null}
             </div>
           </div>

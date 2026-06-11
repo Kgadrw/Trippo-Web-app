@@ -1,26 +1,32 @@
 # API Configuration Guide
 
-The frontend always talks to a **local** backend at `http://localhost:3000/api` by default.
-
-## Quick Start
+## Quick Start (local)
 
 1. Start the backend from the `backend/` folder (`npm run dev` — port **3000**).
-2. Start the frontend (`npm run dev` — port **8080**).
+2. Start the frontend (`npm run dev` — port **8080**, or the next free port).
 
-No remote/deployed API URL is used.
+On localhost, the frontend uses **`/api`** (Vite proxies to the backend). No extra env vars are needed.
 
-## Custom backend port
+## Production / deployed frontend
 
-If your backend runs on a different port, create `.env.local` in the project root (gitignored):
+Set the backend URL at **build time**:
+
+```bash
+VITE_API_URL=https://your-backend.example.com/api
+```
+
+## Custom backend port (local)
+
+Create `.env.local` in the project root (gitignored):
 
 ```bash
 VITE_LOCAL_API_PORT=5000
 ```
 
-This resolves to `http://localhost:5000/api`.
+Vite dev/preview proxy forwards `/api` to `http://localhost:5000/api`.
 
 ## Notes
 
 - `.env.local` is gitignored
 - Restart the dev server after changing env vars (`npm run dev`)
-- The service worker (`public/sw.js`) uses the same localhost API base URL
+- `npm run preview` also proxies `/api` when testing a production build locally

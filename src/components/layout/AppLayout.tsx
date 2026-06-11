@@ -228,12 +228,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         style={{
           touchAction: "pan-y",
           ...(!isMobile && {
-            ["--content-inset" as string]: sidebarExpandedOnDesktop ? "14rem" : "4rem",
-            // Sidebar is left-2 + width; banner sits after sidebar with a gap
-            ["--sidebar-end" as string]: sidebarExpandedOnDesktop
-              ? "calc(0.5rem + 14rem)"
-              : "calc(0.5rem + 4rem)",
-            ["--banner-left" as string]: "calc(var(--sidebar-end) + 0.75rem)",
+            ["--content-left" as string]: sidebarExpandedOnDesktop
+              ? "calc(0.5rem + 14rem + 0.75rem)"
+              : "calc(0.5rem + 4rem + 0.75rem)",
           }),
         }}
       >

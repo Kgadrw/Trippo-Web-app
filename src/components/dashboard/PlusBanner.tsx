@@ -1,109 +1,229 @@
-import { Link } from "react-router-dom";
-import { Crown, Sparkles } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { Crown } from "lucide-react";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { cn, formatDateWithTime } from "@/lib/utils";
+import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
 
-export function PlusBanner() {
-  const { plan } = useSubscriptionAccess();
+const payButtonClass = cn(
+  "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold shrink-0",
+  "bg-yellow-500 text-gray-900 hover:bg-yellow-600 transition-colors",
+);
 
-  if (!plan) return null;
+type PlusBannerProps = {
+  variant?: "content" | "sidebar";
+  expanded?: boolean;
+};
+
+function PlusBadge({ expanded, subtitle }: { expanded: boolean; subtitle?: string }) {
+  return (
+    <div className={cn("min-w-0", expanded ? "space-y-0.5" : "flex flex-col items-center gap-1")}>
+      <div className={cn("flex items-center", expanded ? "gap-1.5" : "flex-col gap-1")}>
+        <Crown
+          className={cn("shrink-0 text-yellow-400", expanded ? "h-4 w-4" : "h-5 w-5")}
+          aria-hidden
+        />
+        <span
+          className={cn(
+            "font-bold text-yellow-400 leading-none",
+            expanded ? "text-sm tracking-tight" : "text-[10px] uppercase",
+          )}
+        >
+          Plus
+        </span>
+      </div>
+      {expanded && subtitle ? (
+        <p className="text-[11px] text-blue-100 leading-snug">{subtitle}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function ContentBannerShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className={cn(
+        "mb-4 rounded-lg border border-yellow-500 px-4 py-3",
+        "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
+        "lg:hidden",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SidebarBannerShell({
+  children,
+  expanded,
+}: {
+  children: React.ReactNode;
+  expanded: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "shrink-0 border-t border-blue-500/50",
+        expanded ? "px-3 py-3" : "px-2 py-2",
+      )}
+    >
+      <Link
+        to="/billing"
+        className={cn(
+          "block rounded-lg border border-yellow-500 transition-colors hover:bg-blue-700/40",
+          expanded ? "px-3 py-3 space-y-2.5" : "p-2",
+        )}
+      >
+        {children}
+      </Link>
+    </div>
+  );
+}
+
+export function PlusBanner({ variant = "content", expanded = true }: PlusBannerProps) {
+  const location = useLocation();
+  const { plan, loading } = useSubscriptionAccess();
+  const isBillingRoute = location.pathname.startsWith("/billing");
+  const isSidebar = variant === "sidebar";
+
+  if (loading || !plan) return null;
+  if (!isSidebar && isBillingRoute) return null;
+
+  const amount = plan.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
+  const currency = plan.currency || "RWF";
+  const showSidebarPlus =
+    isSidebar &&
+    (plan.isOnTrial || plan.requiresPayment || plan.status === "past_due" || plan.hasPlus);
+
+  if (showSidebarPlus && !expanded) {
+    return (
+      <SidebarBannerShell expanded={false}>
+        <PlusBadge expanded={false} />
+      </SidebarBannerShell>
+    );
+  }
 
   if (plan.isOnTrial) {
     const days = plan.trialDaysLeft ?? 0;
-    return (
-      <div className="mb-4 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-            <Sparkles className="h-4 w-4 text-blue-700" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-blue-900 flex items-center gap-1.5">
-              <Crown size={14} className="text-yellow-600" />
-              Trippo Plus trial
-            </p>
-            <p className="text-xs text-blue-800 mt-0.5">
-              {days} day{days === 1 ? "" : "s"} left in your free trial
-              {plan.trialEndsAt ? ` · ends ${formatDateWithTime(plan.trialEndsAt)}` : ""}. Then{" "}
-              {(plan.amount ?? 10000).toLocaleString()} {plan.currency || "RWF"}/month.
-            </p>
-          </div>
+    const trialSubtitle = `${days} day${days === 1 ? "" : "s"} left · then ${amount.toLocaleString()} ${currency}/mo`;
+
+    const body = (
+      <>
+        <div className={cn("flex gap-2.5 min-w-0", isSidebar ? "items-start justify-between gap-3" : "items-start")}>
+          {isSidebar ? (
+            <PlusBadge expanded subtitle="Trippo Plus trial" />
+          ) : (
+            <>
+              <Crown className="h-5 w-5 shrink-0 text-yellow-500 mt-0.5" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">Trippo Plus trial</p>
+                <p className="text-xs text-gray-900 mt-0.5 leading-relaxed">
+                  {days} day{days === 1 ? "" : "s"} left
+                  {plan.trialEndsAt ? ` · ends ${formatDateWithTime(plan.trialEndsAt)}` : ""}. Then{" "}
+                  {amount.toLocaleString()} {currency}/mo.
+                </p>
+              </div>
+            </>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link
-            to="/billing"
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold",
-              "bg-yellow-500 text-gray-900 hover:bg-yellow-600 transition-colors",
-            )}
-          >
-            Pay now
-          </Link>
-          <Link
-            to="/billing"
-            className="text-xs font-semibold text-blue-700 hover:text-blue-900 underline-offset-2 hover:underline"
-          >
-            Billing
-          </Link>
-        </div>
-      </div>
+        {isSidebar ? (
+          <>
+            <p className="text-[11px] text-blue-100 leading-relaxed">{trialSubtitle}</p>
+            <span className={cn(payButtonClass, "w-full justify-center pointer-events-none")}>Pay now</span>
+          </>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Link to="/billing" className={payButtonClass}>
+              Pay now
+            </Link>
+            <Link
+              to="/billing"
+              className="text-xs font-semibold text-gray-900 underline-offset-2 hover:underline"
+            >
+              Billing
+            </Link>
+          </div>
+        )}
+      </>
     );
+
+    if (isSidebar) {
+      return <SidebarBannerShell expanded={expanded}>{body}</SidebarBannerShell>;
+    }
+    return <ContentBannerShell>{body}</ContentBannerShell>;
   }
 
   if (plan.requiresPayment || plan.status === "past_due") {
-    return (
+    const body = (
       <>
-        {/* Reserve space on desktop so content is not hidden under the fixed bar */}
-        <div className="hidden lg:block h-[4.25rem] mb-3 shrink-0" aria-hidden="true" />
-        <div
-          className={cn(
-            "mb-4 rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-3",
-            "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm",
-            "lg:fixed lg:top-6 lg:z-50 lg:right-6 lg:px-6",
-            "lg:bg-amber-50/95 lg:backdrop-blur-md lg:mb-0",
+        <div className="flex items-start gap-2.5 min-w-0">
+          {isSidebar ? (
+            <PlusBadge expanded subtitle="Subscribe to Trippo Plus" />
+          ) : (
+            <>
+              <Crown className="h-5 w-5 shrink-0 text-yellow-500 mt-0.5" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">Subscribe to Trippo Plus</p>
+                <p className="text-xs text-gray-900 mt-0.5 leading-relaxed">
+                  Your trial has ended. Pay {amount.toLocaleString()} {currency}/month with mobile money to
+                  keep using Trippo.
+                </p>
+              </div>
+            </>
           )}
-          style={{ left: "var(--banner-left, calc(14.5rem + 0.75rem))" }}
-        >
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-              <Crown className="h-4 w-4 text-amber-800" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-amber-900">Subscribe to Trippo Plus</p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Your trial has ended. Pay {(plan.amount ?? 10000).toLocaleString()} {plan.currency || "RWF"}/month
-              with mobile money to keep using Trippo.
-              </p>
-            </div>
-          </div>
-          <Link
-            to="/billing"
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold shrink-0",
-              "bg-yellow-500 text-gray-900 hover:bg-yellow-600 transition-colors",
-            )}
-          >
+        </div>
+        {isSidebar ? (
+          <>
+            <p className="text-[11px] text-blue-100 leading-relaxed">
+              Pay {amount.toLocaleString()} {currency}/mo with MoMo.
+            </p>
+            <span className={cn(payButtonClass, "w-full justify-center pointer-events-none")}>Pay now</span>
+          </>
+        ) : (
+          <Link to="/billing" className={payButtonClass}>
             Pay now
           </Link>
-        </div>
+        )}
       </>
     );
+
+    if (isSidebar) {
+      return <SidebarBannerShell expanded={expanded}>{body}</SidebarBannerShell>;
+    }
+    return <ContentBannerShell>{body}</ContentBannerShell>;
   }
 
   if (plan.hasPlus) {
+    const body = (
+      <>
+        {isSidebar ? (
+          <PlusBadge expanded subtitle="Trippo Plus active" />
+        ) : (
+          <div className="flex items-center gap-2 min-w-0">
+            <Crown className="h-5 w-5 shrink-0 text-yellow-500" aria-hidden />
+            <p className="text-xs font-semibold text-gray-900 truncate">
+              Trippo <span className="font-bold">Plus</span> active
+            </p>
+          </div>
+        )}
+        {!isSidebar ? (
+          <Link
+            to="/billing"
+            className="text-xs font-semibold text-gray-900 shrink-0 underline-offset-2 hover:underline"
+          >
+            Billing
+          </Link>
+        ) : (
+          <p className="text-[11px] font-semibold text-blue-100 text-center">Billing</p>
+        )}
+      </>
+    );
+
+    if (isSidebar) {
+      return <SidebarBannerShell expanded={expanded}>{body}</SidebarBannerShell>;
+    }
     return (
-      <div className="mb-4 rounded-xl border border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50 px-4 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Crown className="h-4 w-4 text-yellow-700 shrink-0" />
-          <p className="text-xs font-medium text-yellow-900 truncate">
-            Trippo <span className="font-bold">Plus</span> active
-          </p>
-        </div>
-        <Link
-          to="/billing"
-          className="text-xs text-yellow-800 hover:text-yellow-950 shrink-0 underline-offset-2 hover:underline"
-        >
-          Billing
-        </Link>
+      <div className="mb-4 rounded-lg border border-yellow-500 px-4 py-2.5 flex items-center justify-between gap-3 lg:hidden">
+        {body}
       </div>
     );
   }
