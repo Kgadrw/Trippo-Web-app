@@ -130,8 +130,8 @@ const Schedules = () => {
       }
       console.error("Error with schedules:", error);
       toast({
-        title: "Error",
-        description: "Failed to load schedules. Please try again.",
+        title: t("error"),
+        description: t("failedLoadSchedules"),
         variant: "destructive",
       });
     },
@@ -212,8 +212,8 @@ const Schedules = () => {
     } catch (error: any) {
         console.error("Error loading clients:", error);
       toast({
-        title: "Error",
-        description: error?.message || "Failed to load clients from database.",
+        title: t("error"),
+        description: error?.message || t("failedLoadClientsFromDb"),
         variant: "destructive",
       });
       setClients([]);
@@ -338,10 +338,10 @@ const Schedules = () => {
 
 
   const getClientName = (clientId?: string | Client) => {
-    if (!clientId) return "No Client";
+    if (!clientId) return t("noClientLabel");
     if (typeof clientId === "object") return clientId.name;
     const client = clients.find((c) => (c._id || c.id) === clientId);
-    return client?.name || "Unknown Client";
+    return client?.name || t("unknownClient");
   };
 
   const getClientInfo = (clientId?: string | Client): Client | undefined => {
@@ -383,7 +383,7 @@ const Schedules = () => {
         await loadClients();
         
         playUpdateBeep();
-        toast({ title: "Client Updated", description: "Client has been updated successfully." });
+        toast({ title: t("clientUpdatedSuccess"), description: t("clientUpdatedDesc") });
         setIsClientModalOpen(false);
         setEditingClient(null);
         setClientForm({
@@ -397,8 +397,8 @@ const Schedules = () => {
       } catch (e: any) {
         playErrorBeep();
         toast({
-          title: "Update Client Failed",
-          description: e?.response?.error || e?.message || "Failed to update client. Please try again.",
+          title: t("updateClientFailedTitle"),
+          description: e?.response?.error || e?.message || t("updateClientFailed"),
           variant: "destructive",
         });
       } finally {
@@ -409,19 +409,19 @@ const Schedules = () => {
     
     // Handle create (existing code)
     if (!clientForm.name.trim()) {
-      toast({ title: "Validation Error", description: "Client name is required.", variant: "destructive" });
+      toast({ title: t("validationErrorTitle"), description: t("clientNameRequired"), variant: "destructive" });
       return;
     }
     if (!clientForm.email.trim()) {
-      toast({ title: "Validation Error", description: "Client email is required.", variant: "destructive" });
+      toast({ title: t("validationErrorTitle"), description: t("clientEmailRequired"), variant: "destructive" });
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientForm.email.trim())) {
-      toast({ title: "Validation Error", description: "Please enter a valid email address.", variant: "destructive" });
+      toast({ title: t("validationErrorTitle"), description: t("validEmailRequired"), variant: "destructive" });
       return;
     }
     if (!clientForm.businessType.trim()) {
-      toast({ title: "Validation Error", description: "Business type is required.", variant: "destructive" });
+      toast({ title: t("validationErrorTitle"), description: t("businessTypeRequired"), variant: "destructive" });
       return;
     }
 
@@ -451,7 +451,7 @@ const Schedules = () => {
       }
 
       playUpdateBeep();
-      toast({ title: "Client Created", description: "Client has been created and selected." });
+      toast({ title: t("clientAddedSuccess"), description: t("clientCreatedAndSelected") });
       setIsClientModalOpen(false);
       setClientForm({
         name: "",
@@ -464,8 +464,8 @@ const Schedules = () => {
     } catch (e: any) {
       playErrorBeep();
       toast({
-        title: "Create Client Failed",
-        description: e?.response?.error || e?.message || "Failed to create client. Please try again.",
+        title: t("createClientFailedTitle"),
+        description: e?.response?.error || e?.message || t("clientCreationFailed"),
         variant: "destructive",
       });
     } finally {
@@ -519,8 +519,8 @@ const Schedules = () => {
     if (!clientId) {
       playErrorBeep();
       toast({
-        title: "Invalid Schedule",
-        description: "This schedule has no assigned client. Please assign a client to continue.",
+        title: t("invalidScheduleTitle"),
+        description: t("invalidScheduleNoClient"),
         variant: "destructive",
       });
       return;
@@ -571,8 +571,8 @@ const Schedules = () => {
       if (!formData.title.trim()) {
         playErrorBeep();
         toast({
-          title: "Validation Error",
-          description: "Schedule title is required.",
+          title: t("validationErrorTitle"),
+          description: t("scheduleTitleRequired"),
           variant: "destructive",
         });
         return;
@@ -580,8 +580,8 @@ const Schedules = () => {
       if (!formData.dueDate) {
         playErrorBeep();
         toast({
-          title: "Validation Error",
-          description: "Due date is required.",
+          title: t("validationErrorTitle"),
+          description: t("dueDateRequired"),
           variant: "destructive",
         });
         return;
@@ -591,8 +591,8 @@ const Schedules = () => {
       if (!formData.clientName.trim()) {
         playErrorBeep();
         toast({
-          title: "Validation Error",
-          description: "Client name is required.",
+          title: t("validationErrorTitle"),
+          description: t("clientNameRequired"),
           variant: "destructive",
         });
         return;
@@ -600,8 +600,8 @@ const Schedules = () => {
       if (!formData.clientEmail.trim()) {
         playErrorBeep();
         toast({
-          title: "Validation Error",
-          description: "Client email is required.",
+          title: t("validationErrorTitle"),
+          description: t("clientEmailRequired"),
           variant: "destructive",
         });
         return;
@@ -609,8 +609,8 @@ const Schedules = () => {
       if (!formData.clientBusinessType.trim()) {
         playErrorBeep();
         toast({
-          title: "Validation Error",
-          description: "Business type is required.",
+          title: t("validationErrorTitle"),
+          description: t("businessTypeRequired"),
           variant: "destructive",
         });
         return;
@@ -632,8 +632,8 @@ const Schedules = () => {
     if (!formData.title.trim()) {
       playErrorBeep();
       toast({
-        title: "Validation Error",
-        description: "Schedule title is required.",
+        title: t("validationErrorTitle"),
+        description: t("scheduleTitleRequired"),
         variant: "destructive",
       });
       return;
@@ -642,8 +642,8 @@ const Schedules = () => {
     if (!formData.dueDate) {
       playErrorBeep();
       toast({
-        title: "Validation Error",
-        description: "Due date is required.",
+        title: t("validationErrorTitle"),
+        description: t("dueDateRequired"),
         variant: "destructive",
       });
       return;
@@ -653,8 +653,8 @@ const Schedules = () => {
     if (!formData.clientName.trim()) {
       playErrorBeep();
       toast({
-        title: "Validation Error",
-        description: "Client name is required.",
+        title: t("validationErrorTitle"),
+        description: t("clientNameRequired"),
         variant: "destructive",
       });
       return;
@@ -663,8 +663,8 @@ const Schedules = () => {
     if (!formData.clientEmail.trim()) {
       playErrorBeep();
       toast({
-        title: "Validation Error",
-        description: "Client email is required.",
+        title: t("validationErrorTitle"),
+        description: t("clientEmailRequired"),
         variant: "destructive",
       });
       return;
@@ -673,8 +673,8 @@ const Schedules = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail.trim())) {
       playErrorBeep();
       toast({
-        title: "Validation Error",
-        description: "Please enter a valid email address.",
+        title: t("validationErrorTitle"),
+        description: t("validEmailRequired"),
         variant: "destructive",
       });
       return;
@@ -683,8 +683,8 @@ const Schedules = () => {
     if (!formData.clientBusinessType.trim()) {
       playErrorBeep();
       toast({
-        title: "Validation Error",
-        description: "Business type is required.",
+        title: t("validationErrorTitle"),
+        description: t("businessTypeRequired"),
         variant: "destructive",
       });
       return;
@@ -717,8 +717,8 @@ const Schedules = () => {
           } catch (clientError: any) {
             playErrorBeep();
             toast({
-              title: "Client Creation Failed",
-              description: clientError?.response?.error || clientError?.message || "Failed to create client. Please try again.",
+              title: t("clientCreationFailed"),
+              description: clientError?.response?.error || clientError?.message || t("clientCreationFailed"),
               variant: "destructive",
             });
             return;
@@ -785,16 +785,16 @@ const Schedules = () => {
         await refreshSchedules();
         playUpdateBeep();
         toast({
-          title: "Schedule Updated",
-          description: "Schedule and client information have been updated successfully.",
+          title: t("scheduleUpdatedTitle"),
+          description: t("scheduleUpdatedDesc"),
         });
       } else {
         await addSchedule(scheduleData);
         await refreshSchedules();
         playUpdateBeep();
         toast({
-          title: "Schedule Created",
-          description: "Schedule has been created successfully.",
+          title: t("scheduleCreatedTitle"),
+          description: t("scheduleCreatedDesc"),
         });
       }
       setIsModalOpen(false);
@@ -822,8 +822,8 @@ const Schedules = () => {
     } catch (error) {
       playErrorBeep();
       toast({
-        title: editingSchedule ? "Update Failed" : "Create Failed",
-        description: `Failed to ${editingSchedule ? "update" : "create"} schedule. Please try again.`,
+        title: editingSchedule ? t("updateFailed") : t("createFailedTitle"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     }
@@ -854,10 +854,10 @@ const Schedules = () => {
       await refreshSchedules();
       playUpdateBeep();
       toast({
-        title: "Schedule Completed",
+        title: t("scheduleCompletedTitle"),
         description: sendCompletionEmail
-          ? "Schedule has been marked as completed and notification sent." 
-          : "Schedule has been marked as completed.",
+          ? t("scheduleCompletedWithEmail")
+          : t("scheduleCompletedNoEmail"),
       });
       setCompleteDialogOpen(false);
       setScheduleToComplete(null);
@@ -866,8 +866,8 @@ const Schedules = () => {
     } catch (error) {
       playErrorBeep();
       toast({
-        title: "Error",
-        description: "Failed to complete schedule. Please try again.",
+        title: t("error"),
+        description: t("completeScheduleFailed"),
         variant: "destructive",
       });
     }
@@ -886,16 +886,16 @@ const Schedules = () => {
       await refreshSchedules();
       playDeleteBeep();
       toast({
-        title: "Schedule Deleted",
-        description: "Schedule has been deleted successfully.",
+        title: t("scheduleDeletedTitle"),
+        description: t("scheduleDeletedDesc"),
       });
       setDeleteDialogOpen(false);
       setScheduleToDelete(null);
     } catch (error) {
       playErrorBeep();
       toast({
-        title: "Delete Failed",
-        description: "Failed to delete schedule. Please try again.",
+        title: t("error"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     }
@@ -913,8 +913,8 @@ const Schedules = () => {
       if (clientSchedules.length > 0) {
         playErrorBeep();
         toast({
-          title: "Cannot Delete Client",
-          description: `This client has ${clientSchedules.length} schedule(s) assigned. Please delete or reassign the schedules first.`,
+          title: t("cannotDeleteClientTitle"),
+          description: t("cannotDeleteClientSchedules").replace("{count}", String(clientSchedules.length)),
           variant: "destructive",
         });
         setDeleteClientDialogOpen(false);
@@ -926,16 +926,16 @@ const Schedules = () => {
       await loadClients();
       playDeleteBeep();
       toast({
-        title: "Client Deleted",
-        description: "Client has been deleted successfully.",
+        title: t("clientDeletedSuccess"),
+        description: t("clientDeletedDesc"),
       });
       setDeleteClientDialogOpen(false);
       setClientToDelete(null);
     } catch (error: any) {
       playErrorBeep();
       toast({
-        title: "Delete Failed",
-        description: error?.response?.error || error?.message || "Failed to delete client. Please try again.",
+        title: t("deleteClientFailed"),
+        description: error?.response?.error || error?.message || t("deleteClientFailed"),
         variant: "destructive",
       });
     }
@@ -1060,7 +1060,7 @@ const Schedules = () => {
 
   // Skeleton
   const SchedulesSkeleton = () => (
-    <AppLayout title="Email Automations">
+    <AppLayout title={t("emailAutomationsTitle")}>
       <div className="flex flex-col gap-4 pb-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div><Skeleton className="h-7 w-48 mb-1" /><Skeleton className="h-4 w-64" /></div>
@@ -1082,23 +1082,23 @@ const Schedules = () => {
   }
 
   return (
-    <AppLayout title="Email Automations">
+    <AppLayout title={t("emailAutomationsTitle")}>
       <div className="flex flex-col gap-4 pb-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Mail size={22} className="text-blue-600" />
-              Email Automations
+              {t("emailAutomationsTitle")}
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">Schedule automated email reminders for clients and yourself</p>
+            <p className="text-sm text-gray-500 mt-0.5">{t("emailAutomationsSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button onClick={openClientCreateModal} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 gap-2 flex-1 sm:flex-initial">
-              <UserPlus size={16} /> Client
+              <UserPlus size={16} /> {t("clientLabel")}
             </Button>
             <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 gap-2 flex-1 sm:flex-initial">
-              <Plus size={16} /> New Automation
+              <Plus size={16} /> {t("newAutomation")}
             </Button>
           </div>
         </div>
@@ -1106,15 +1106,15 @@ const Schedules = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-3">
           <button onClick={() => setStatusFilter(statusFilter === "pending" ? "all" : "pending")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", statusFilter === "pending" ? "bg-blue-50 border-blue-300 ring-1 ring-blue-300" : "bg-white border-gray-200 hover:border-blue-200")}>
-            <div className="text-xs font-medium text-gray-500 mb-1">Active</div>
+            <div className="text-xs font-medium text-gray-500 mb-1">{t("statusActive")}</div>
             <div className="text-xl sm:text-2xl font-bold text-blue-700">{activeCount}</div>
           </button>
           <button onClick={() => setStatusFilter(statusFilter === "completed" ? "all" : "completed")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", statusFilter === "completed" ? "bg-green-50 border-green-300 ring-1 ring-green-300" : "bg-white border-gray-200 hover:border-green-200")}>
-            <div className="text-xs font-medium text-gray-500 mb-1">Completed</div>
+            <div className="text-xs font-medium text-gray-500 mb-1">{t("statusCompleted")}</div>
             <div className="text-xl sm:text-2xl font-bold text-green-700">{completedCount}</div>
           </button>
           <button onClick={() => setDateFilter(dateFilter === "overdue" ? "all" : "overdue")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", dateFilter === "overdue" ? "bg-red-50 border-red-300 ring-1 ring-red-300" : "bg-white border-gray-200 hover:border-red-200")}>
-            <div className="text-xs font-medium text-gray-500 mb-1">Overdue</div>
+            <div className="text-xs font-medium text-gray-500 mb-1">{t("statusOverdue")}</div>
             <div className={cn("text-xl sm:text-2xl font-bold", overdueCount > 0 ? "text-red-600" : "text-gray-400")}>{overdueCount}</div>
           </button>
         </div>
@@ -1126,7 +1126,7 @@ const Schedules = () => {
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Search automations or clients..."
+                placeholder={t("searchAutomationsPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-400 rounded-lg"
@@ -1146,40 +1146,40 @@ const Schedules = () => {
           {showFilters && (
             <div className="lg:hidden grid grid-cols-2 gap-2 p-3 bg-white border border-gray-200 rounded-lg">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("status")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Active</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="all">{t("allStatus")}</SelectItem>
+                  <SelectItem value="pending">{t("statusActive")}</SelectItem>
+                  <SelectItem value="completed">{t("statusCompleted")}</SelectItem>
+                  <SelectItem value="cancelled">{t("statusCancelled")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Date" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("date")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Dates</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="thisWeek">This Week</SelectItem>
-                  <SelectItem value="thisMonth">This Month</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="all">{t("allDates")}</SelectItem>
+                  <SelectItem value="today">{t("filterToday")}</SelectItem>
+                  <SelectItem value="thisWeek">{t("filterThisWeek")}</SelectItem>
+                  <SelectItem value="thisMonth">{t("filterThisMonth")}</SelectItem>
+                  <SelectItem value="overdue">{t("filterOverdue")}</SelectItem>
+                  <SelectItem value="upcoming">{t("filterUpcoming")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Frequency" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("scheduleFrequencySection")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Frequency</SelectItem>
-                  <SelectItem value="once">Once</SelectItem>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
+                  <SelectItem value="all">{t("allFrequency")}</SelectItem>
+                  <SelectItem value="once">{t("freqOnce")}</SelectItem>
+                  <SelectItem value="daily">{t("freqDaily")}</SelectItem>
+                  <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
+                  <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
+                  <SelectItem value="yearly">{t("freqYearly")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={clientFilter} onValueChange={setClientFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Client" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("clientLabel")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Clients</SelectItem>
+                  <SelectItem value="all">{t("allClientsFilter")}</SelectItem>
                   {clients.map((c) => { const cid = ((c as any)._id || c.id)?.toString(); return <SelectItem key={cid} value={cid}>{c.name}</SelectItem>; })}
                 </SelectContent>
               </Select>
@@ -1189,46 +1189,46 @@ const Schedules = () => {
           {/* Desktop Filters */}
           <div className="hidden lg:flex items-center gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Filter size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Filter size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("status")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Active</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="all">{t("allStatus")}</SelectItem>
+                <SelectItem value="pending">{t("statusActive")}</SelectItem>
+                <SelectItem value="completed">{t("statusCompleted")}</SelectItem>
+                <SelectItem value="cancelled">{t("statusCancelled")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><CalendarIcon size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Date" /></SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><CalendarIcon size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("date")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Dates</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="thisWeek">This Week</SelectItem>
-                <SelectItem value="thisMonth">This Month</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="upcoming">Upcoming</SelectItem>
+                <SelectItem value="all">{t("allDates")}</SelectItem>
+                <SelectItem value="today">{t("filterToday")}</SelectItem>
+                <SelectItem value="thisWeek">{t("filterThisWeek")}</SelectItem>
+                <SelectItem value="thisMonth">{t("filterThisMonth")}</SelectItem>
+                <SelectItem value="overdue">{t("filterOverdue")}</SelectItem>
+                <SelectItem value="upcoming">{t("filterUpcoming")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Repeat size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Frequency" /></SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Repeat size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("scheduleFrequencySection")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Frequency</SelectItem>
-                <SelectItem value="once">Once</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
+                <SelectItem value="all">{t("allFrequency")}</SelectItem>
+                <SelectItem value="once">{t("freqOnce")}</SelectItem>
+                <SelectItem value="daily">{t("freqDaily")}</SelectItem>
+                <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
+                <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
+                <SelectItem value="yearly">{t("freqYearly")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-44 h-9 text-sm"><User size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder="Client" /></SelectTrigger>
+              <SelectTrigger className="border-gray-200 rounded-lg w-44 h-9 text-sm"><User size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("clientLabel")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Clients</SelectItem>
+                <SelectItem value="all">{t("allClientsFilter")}</SelectItem>
                 {clients.map((c) => { const cid = ((c as any)._id || c.id)?.toString(); return <SelectItem key={cid} value={cid}>{c.name}</SelectItem>; })}
               </SelectContent>
             </Select>
             {(statusFilter !== "all" || dateFilter !== "all" || frequencyFilter !== "all" || clientFilter !== "all") && (
               <button onClick={() => { setStatusFilter("all"); setDateFilter("all"); setFrequencyFilter("all"); setClientFilter("all"); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">
-                Clear filters
+                {t("clearFilters")}
               </button>
             )}
           </div>
@@ -1280,14 +1280,14 @@ const Schedules = () => {
                     {/* Actions */}
                     <div className="flex items-center gap-0.5 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
                       {schedule.status === "pending" && (
-                        <button onClick={() => handleCompleteClick(schedule)} className="p-1.5 text-green-600 rounded-lg hover:bg-green-50" title="Complete">
+                        <button onClick={() => handleCompleteClick(schedule)} className="p-1.5 text-green-600 rounded-lg hover:bg-green-50" title={t("completeAction")}>
                           <CheckCircle2 size={15} />
                         </button>
                       )}
-                      <button onClick={() => openEditModal(schedule)} className="p-1.5 text-gray-500 rounded-lg hover:bg-gray-100" title="Edit">
+                      <button onClick={() => openEditModal(schedule)} className="p-1.5 text-gray-500 rounded-lg hover:bg-gray-100" title={t("editAction")}>
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => handleDeleteClick(schedule)} className="p-1.5 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-600" title="Delete">
+                      <button onClick={() => handleDeleteClick(schedule)} className="p-1.5 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-600" title={t("deleteAction")}>
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1308,7 +1308,7 @@ const Schedules = () => {
                       schedule.status === "cancelled" && "bg-gray-100 text-gray-600",
                       overdue && "bg-red-100 text-red-700"
                     )}>
-                      {overdue ? "Overdue" : schedule.status === "pending" ? "Active" : schedule.status}
+                      {overdue ? t("statusOverdue") : schedule.status === "pending" ? t("statusActive") : schedule.status === "completed" ? t("statusCompleted") : t("statusCancelled")}
                     </span>
                     {/* Frequency */}
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-700">
@@ -1318,12 +1318,12 @@ const Schedules = () => {
                     {/* Notification indicators */}
                     {schedule.notifyUser && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700">
-                        <Bell size={10} /> You
+                        <Bell size={10} /> {t("notifyYou")}
                       </span>
                     )}
                     {schedule.notifyClient && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-cyan-50 text-cyan-700">
-                        <Mail size={10} /> Client
+                        <Mail size={10} /> {t("notifyClientBadge")}
                       </span>
                     )}
                   </div>
@@ -1339,14 +1339,14 @@ const Schedules = () => {
                         overdue ? "text-red-600" : isToday ? "text-blue-600" : "text-gray-600"
                       )}>
                         {overdue
-                          ? `${Math.abs(daysUntil)}d overdue`
+                          ? t("daysOverdue").replace("{days}", String(Math.abs(daysUntil)))
                           : isToday
-                          ? "Due today"
+                          ? t("dueToday")
                           : daysUntil === 1
-                          ? "Due tomorrow"
+                          ? t("dueTomorrow")
                           : schedule.status === "completed"
                           ? new Date(schedule.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                          : `${daysUntil}d remaining`}
+                          : t("daysRemaining").replace("{days}", String(daysUntil))}
                       </span>
                       <span className="text-[10px] text-gray-400 hidden sm:inline">
                         {new Date(schedule.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -1363,7 +1363,7 @@ const Schedules = () => {
                   {(schedule as any).lastNotified && (
                     <div className="flex items-center gap-1.5 mt-2 text-[10px] text-green-600">
                       <Mail size={10} />
-                      <span>Last sent: {new Date((schedule as any).lastNotified).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{t("lastSent")} {new Date((schedule as any).lastNotified).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   )}
                 </div>
@@ -1376,16 +1376,16 @@ const Schedules = () => {
               <Mail size={28} className="text-blue-400" />
             </div>
             <p className="text-base font-semibold text-gray-700 mb-1">
-              {searchQuery || statusFilter !== "all" || dateFilter !== "all" ? "No automations found" : "No automations yet"}
+              {searchQuery || statusFilter !== "all" || dateFilter !== "all" ? t("noAutomationsFound") : t("noAutomationsYet")}
             </p>
             <p className="text-sm text-gray-500 mb-5 max-w-xs mx-auto">
               {searchQuery || statusFilter !== "all" || dateFilter !== "all"
-                ? "Try adjusting your filters"
-                : "Create your first email automation to start sending scheduled reminders"}
+                ? t("tryAdjustFilters")
+                : t("createFirstAutomationHint")}
             </p>
             {!(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
               <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 gap-2">
-                <Plus size={16} /> Create Automation
+                <Plus size={16} /> {t("createAutomation")}
               </Button>
             )}
           </div>
@@ -1402,10 +1402,10 @@ const Schedules = () => {
         <DialogContent className="lg:bg-white bg-white/80 backdrop-blur-sm max-w-2xl w-[95vw] sm:w-full max-h-[90vh] sm:max-h-[85vh] overflow-y-auto mx-2 sm:mx-4">
           <DialogHeader className="border-b border-blue-200 pb-3 sm:pb-4">
             <DialogTitle className="text-lg sm:text-xl font-semibold text-blue-700">
-              {editingSchedule ? "Edit Schedule" : "Create New Schedule"}
+              {editingSchedule ? t("editScheduleModal") : t("createScheduleModal")}
             </DialogTitle>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              {editingSchedule ? "Update schedule details and notification settings" : "Set up a payment reminder, worker payment schedule, or any recurring task"}
+              {editingSchedule ? t("editScheduleDesc") : t("createScheduleDesc")}
             </p>
             
             {/* Progress Indicator */}
@@ -1425,10 +1425,10 @@ const Schedules = () => {
                       "text-[10px] sm:text-xs mt-0.5 sm:mt-1 text-center",
                       currentStep >= step ? "text-blue-600 font-medium" : "text-gray-500"
                     )}>
-                      {step === 1 && "Basic"}
-                      {step === 2 && "Client"}
-                      {step === 3 && "Freq"}
-                      {step === 4 && "Notify"}
+                      {step === 1 && t("stepBasic")}
+                      {step === 2 && t("stepClient")}
+                      {step === 3 && t("stepFreq")}
+                      {step === 4 && t("stepNotify")}
                     </span>
                   </div>
                   {step < 4 && (
@@ -1448,26 +1448,26 @@ const Schedules = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
                 <CalendarIcon size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">Basic Information</h3>
+                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("basicInformation")}</h3>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-900">
-                    Schedule Title <span className="text-red-600">*</span>
+                    {t("scheduleTitleLabel")} <span className="text-red-600">*</span>
                   </Label>
                   <Input
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="e.g., Monthly Payment - Client X, Weekly Worker Payment"
+                    placeholder={t("scheduleTitlePh")}
                     className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
                   />
-                  <p className="text-xs text-gray-500">A clear title helps you identify this schedule quickly</p>
+                  <p className="text-xs text-gray-500">{t("scheduleTitleHint")}</p>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-900">
-                    Due Date & Time <span className="text-red-600">*</span>
+                    {t("dueDateTimeLabel")} <span className="text-red-600">*</span>
                   </Label>
                   <Input
                     type="datetime-local"
@@ -1475,20 +1475,20 @@ const Schedules = () => {
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                     className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded h-10"
                   />
-                  <p className="text-xs text-gray-500">When this schedule is due</p>
+                  <p className="text-xs text-gray-500">{t("dueDateHint")}</p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-900">Description</Label>
+                <Label className="text-sm font-medium text-gray-900">{t("note")}</Label>
                 <Textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Add any additional details, notes, or context about this schedule..."
+                  placeholder={t("descriptionOptionalHint")}
                   className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded"
                   rows={3}
                 />
-                <p className="text-xs text-gray-500">Optional: Add context or important notes</p>
+                <p className="text-xs text-gray-500">{t("descriptionOptionalHint")}</p>
               </div>
             </div>
             )}
@@ -1498,25 +1498,25 @@ const Schedules = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
                 <User size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">Client & Payment Details</h3>
+                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("clientPaymentDetails")}</h3>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-900">
-                    Client Name <span className="text-red-600">*</span>
+                    {t("clientNameLabel")} <span className="text-red-600">*</span>
                   </Label>
                   <Input
                     value={formData.clientName}
                     onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                    placeholder="Enter client name"
+                    placeholder={t("enterClientName")}
                     className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
                   />
                   </div>
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-900">
-                    Email <span className="text-red-600">*</span>
+                    {t("emailAddress")} <span className="text-red-600">*</span>
                   </Label>
                   <Input
                     type="email"
@@ -1529,18 +1529,18 @@ const Schedules = () => {
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-900">
-                    Business Type <span className="text-red-600">*</span>
+                    {t("businessTypeWhatTheyDo")} <span className="text-red-600">*</span>
                   </Label>
                   <Input
                     value={formData.clientBusinessType}
                     onChange={(e) => setFormData({ ...formData, clientBusinessType: e.target.value })}
-                    placeholder="e.g., Starlink Internet, Worker Payments"
+                    placeholder={t("businessTypePhShort")}
                     className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-900">Phone</Label>
+                  <Label className="text-sm font-medium text-gray-900">{t("phoneNumber")}</Label>
                   <Input
                     type="tel"
                     value={formData.clientPhone}
@@ -1551,7 +1551,7 @@ const Schedules = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-900">Client Type</Label>
+                  <Label className="text-sm font-medium text-gray-900">{t("clientTypeRelationship")}</Label>
                   <Select
                     value={formData.clientType} 
                     onValueChange={(value: "debtor" | "worker" | "other") => setFormData({ ...formData, clientType: value })}
@@ -1560,15 +1560,15 @@ const Schedules = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="debtor">Debtor (owes money)</SelectItem>
-                      <SelectItem value="worker">Worker (needs to be paid)</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="debtor">{t("clientTypeDebtorShort")}</SelectItem>
+                      <SelectItem value="worker">{t("clientTypeWorkerShort")}</SelectItem>
+                      <SelectItem value="other">{t("clientTypeOther")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-900">Amount (RWF)</Label>
+                  <Label className="text-sm font-medium text-gray-900">{t("amount")} (RWF)</Label>
                   <Input
                     type="number"
                     min="0"
@@ -1578,7 +1578,7 @@ const Schedules = () => {
                     placeholder="0"
                     className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
                   />
-                  <p className="text-xs text-gray-500">Payment amount or reminder value (optional)</p>
+                  <p className="text-xs text-gray-500">{t("amountOptionalHint")}</p>
                 </div>
               </div>
             </div>
@@ -1589,43 +1589,43 @@ const Schedules = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
                 <Repeat size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">Schedule Frequency</h3>
+                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("scheduleFrequencySection")}</h3>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-900">Frequency</Label>
+                  <Label className="text-sm font-medium text-gray-900">{t("scheduleFrequencySection")}</Label>
                   <Select value={formData.frequency} onValueChange={(value: any) => setFormData({ ...formData, frequency: value })}>
                     <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="once">Once (One-time schedule)</SelectItem>
-                      <SelectItem value="daily">Daily (Every day)</SelectItem>
-                      <SelectItem value="weekly">Weekly (Every week)</SelectItem>
-                      <SelectItem value="monthly">Monthly (Every month)</SelectItem>
-                      <SelectItem value="yearly">Yearly (Every year)</SelectItem>
+                      <SelectItem value="once">{t("freqOnceLong")}</SelectItem>
+                      <SelectItem value="daily">{t("freqDailyLong")}</SelectItem>
+                      <SelectItem value="weekly">{t("freqWeeklyLong")}</SelectItem>
+                      <SelectItem value="monthly">{t("freqMonthlyLong")}</SelectItem>
+                      <SelectItem value="yearly">{t("freqYearlyLong")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500">
-                    {formData.frequency === "once" && "This schedule will occur only once"}
-                    {formData.frequency === "daily" && "This schedule will repeat every day"}
-                    {formData.frequency === "weekly" && "This schedule will repeat every week"}
-                    {formData.frequency === "monthly" && "This schedule will repeat every month"}
-                    {formData.frequency === "yearly" && "This schedule will repeat every year"}
+                    {formData.frequency === "once" && t("freqOnceHint")}
+                    {formData.frequency === "daily" && t("freqDailyHint")}
+                    {formData.frequency === "weekly" && t("freqWeeklyHint")}
+                    {formData.frequency === "monthly" && t("freqMonthlyHint")}
+                    {formData.frequency === "yearly" && t("freqYearlyHint")}
                   </p>
                 </div>
 
                 {formData.frequency !== "once" && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-900">Repeat Until</Label>
+                    <Label className="text-sm font-medium text-gray-900">{t("repeatUntilLabel")}</Label>
                     <Input
                       type="date"
                       value={formData.repeatUntil}
                       onChange={(e) => setFormData({ ...formData, repeatUntil: e.target.value })}
                       className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded h-10"
                     />
-                    <p className="text-xs text-gray-500">Stop repeating after this date (optional)</p>
+                    <p className="text-xs text-gray-500">{t("repeatUntilHint")}</p>
                   </div>
                 )}
                 </div>
@@ -1637,7 +1637,7 @@ const Schedules = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
                 <Bell size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">Notification Settings</h3>
+                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("notificationSettings")}</h3>
               </div>
               
               <div className="space-y-3 sm:space-y-4">
@@ -1650,9 +1650,9 @@ const Schedules = () => {
                   />
                   <div className="flex-1">
                     <Label htmlFor="notifyUser" className="cursor-pointer font-medium text-gray-900 text-sm">
-                      Notify me (user)
+                      {t("notifyMeUser")}
                     </Label>
-                    <p className="text-xs text-gray-600 mt-0.5">You will receive email notifications for this schedule</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{t("notifyMeUserDesc")}</p>
                   </div>
                 </div>
 
@@ -1665,18 +1665,18 @@ const Schedules = () => {
                   />
                   <div className="flex-1">
                     <Label htmlFor="notifyClient" className="cursor-pointer font-medium text-gray-900 text-sm">
-                      Notify client
+                      {t("notifyClientLabel")}
                     </Label>
                     <p className="text-xs text-gray-600 mt-0.5">
                       {formData.clientId && formData.clientId !== "none" 
-                        ? "Client will receive email notifications (requires client email)"
-                        : "Select a client first to enable client notifications"}
+                        ? t("notifyClientEnabledDesc")
+                        : t("notifyClientSelectFirst")}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-900">Advance Notification</Label>
+                  <Label className="text-sm font-medium text-gray-900">{t("advanceNotificationLabel")}</Label>
                   <div className="flex items-center gap-3">
                     <Input
                       type="number"
@@ -1686,36 +1686,36 @@ const Schedules = () => {
                       placeholder="0"
                       className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded h-10 w-24"
                     />
-                    <span className="text-sm text-gray-700">days before due date</span>
+                    <span className="text-sm text-gray-700">{t("daysBeforeDue")}</span>
                   </div>
-                  <p className="text-xs text-gray-500">Send notifications this many days before the schedule is due</p>
+                  <p className="text-xs text-gray-500">{t("advanceNotificationHint")}</p>
                 </div>
 
                 {formData.notifyUser && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-900">Custom User Notification Message</Label>
+                    <Label className="text-sm font-medium text-gray-900">{t("customUserNotificationMsg")}</Label>
                     <Textarea
                       value={formData.userNotificationMessage}
                       onChange={(e) => setFormData({ ...formData, userNotificationMessage: e.target.value })}
-                      placeholder="Leave empty to use default message, or customize your notification..."
+                      placeholder={t("customUserNotificationPh")}
                       className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded"
                       rows={3}
                     />
-                    <p className="text-xs text-gray-500">Optional: Customize the message you'll receive</p>
+                    <p className="text-xs text-gray-500">{t("customUserNotificationHint")}</p>
                   </div>
                 )}
 
                 {formData.notifyClient && formData.clientId && formData.clientId !== "none" && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-900">Custom Client Notification Message</Label>
+                    <Label className="text-sm font-medium text-gray-900">{t("customClientNotificationMsg")}</Label>
                     <Textarea
                       value={formData.clientNotificationMessage}
                       onChange={(e) => setFormData({ ...formData, clientNotificationMessage: e.target.value })}
-                      placeholder="Leave empty to use default message, or customize the client notification..."
+                      placeholder={t("customClientNotificationPh")}
                       className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded"
                       rows={3}
                     />
-                    <p className="text-xs text-gray-500">Optional: Customize the message the client will receive</p>
+                    <p className="text-xs text-gray-500">{t("customClientNotificationHint")}</p>
                   </div>
                 )}
               </div>
@@ -1752,7 +1752,7 @@ const Schedules = () => {
               }}
               className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-700 text-sm sm:text-base px-3 sm:px-4"
             >
-              Cancel
+              {t("cancel")}
             </Button>
             
             <div className="flex gap-2 flex-col sm:flex-row">
@@ -1763,7 +1763,7 @@ const Schedules = () => {
                   className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-700 text-sm sm:text-base px-3 sm:px-4 order-2 sm:order-1"
                 >
                   <ChevronLeft size={14} className="sm:w-4 sm:h-4 mr-1" />
-                  Previous
+                  {t("previous")}
                 </Button>
               )}
               
@@ -1772,7 +1772,7 @@ const Schedules = () => {
                   onClick={nextStep} 
                   className="bg-blue-600 text-white hover:bg-blue-700 px-4 sm:px-6 text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
                 >
-                  Next
+                  {t("next")}
                   <ChevronRight size={14} className="sm:w-4 sm:h-4 ml-1" />
                 </Button>
               ) : (
@@ -1781,7 +1781,7 @@ const Schedules = () => {
                   className="bg-blue-600 text-white hover:bg-blue-700 px-4 sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
                   disabled={!formData.clientName.trim() || !formData.clientEmail.trim() || !formData.clientBusinessType.trim()}
             >
-              {editingSchedule ? "Update Schedule" : "Create Schedule"}
+              {editingSchedule ? t("updateScheduleBtn") : t("createScheduleBtn")}
             </Button>
               )}
             </div>
@@ -1794,10 +1794,10 @@ const Schedules = () => {
         <DialogContent className="lg:bg-white bg-white/80 backdrop-blur-sm max-w-3xl max-h-[95vh] overflow-y-auto">
           <DialogHeader className="border-b border-blue-200 pb-4">
             <DialogTitle className="text-xl font-semibold text-blue-700">
-              {editingClient ? "Edit Client" : "Create Client"}
+              {editingClient ? t("editClientFromSchedules") : t("createClientModal")}
             </DialogTitle>
             <p className="text-sm text-gray-600 mt-1">
-              {editingClient ? "Update client information" : "Add a client now, then link schedules to them."}
+              {editingClient ? t("editClientFromSchedulesDesc") : t("createClientFromSchedulesDesc")}
             </p>
           </DialogHeader>
 
@@ -1805,24 +1805,24 @@ const Schedules = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-900">
-                  Client Name <span className="text-red-600">*</span>
+                  {t("clientNameLabel")} <span className="text-red-600">*</span>
                 </Label>
                 <Input
                   value={clientForm.name}
                   onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="Enter client name"
+                  placeholder={t("enterClientName")}
                   className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-900">
-                  Business Type / What They Do <span className="text-red-600">*</span>
+                  {t("businessTypeWhatTheyDo")} <span className="text-red-600">*</span>
                 </Label>
                 <Input
                   value={clientForm.businessType}
                   onChange={(e) => setClientForm((p) => ({ ...p, businessType: e.target.value }))}
-                  placeholder="e.g., Starlink Internet, Worker Payments, Subscription"
+                  placeholder={t("businessTypePhSchedule")}
                   className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
                 />
               </div>
@@ -1855,7 +1855,7 @@ const Schedules = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-900">Client Type</Label>
+              <Label className="text-sm font-medium text-gray-900">{t("clientTypeRelationship")}</Label>
               <Select
                 value={clientForm.clientType}
                 onValueChange={(value: any) => setClientForm((p) => ({ ...p, clientType: value }))}
@@ -1864,19 +1864,19 @@ const Schedules = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="debtor">Debtor (owes money)</SelectItem>
-                  <SelectItem value="worker">Worker (needs to be paid)</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="debtor">{t("clientTypeDebtorShort")}</SelectItem>
+                  <SelectItem value="worker">{t("clientTypeWorkerShort")}</SelectItem>
+                  <SelectItem value="other">{t("clientTypeOther")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-900">Notes</Label>
+              <Label className="text-sm font-medium text-gray-900">{t("note")}</Label>
               <Textarea
                 value={clientForm.notes}
                 onChange={(e) => setClientForm((p) => ({ ...p, notes: e.target.value }))}
-                placeholder="Optional notes about this client..."
+                placeholder={t("optionalNotesClient")}
                 className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded"
                 rows={3}
               />
@@ -1901,7 +1901,7 @@ const Schedules = () => {
               className="border-gray-300 text-gray-700 hover:bg-gray-50"
               disabled={isCreatingClient}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button
               onClick={handleCreateClient}
@@ -1909,8 +1909,8 @@ const Schedules = () => {
               disabled={isCreatingClient}
             >
               {isCreatingClient 
-                ? (editingClient ? "Updating..." : "Creating...") 
-                : (editingClient ? "Update Client" : "Create Client")}
+                ? (editingClient ? t("updating") : t("creating")) 
+                : (editingClient ? t("updateClientBtn") : t("createClientModal"))}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1922,11 +1922,11 @@ const Schedules = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle2 size={20} className="text-green-600" />
-              Complete Schedule
+              {t("completeScheduleTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Mark <strong>{scheduleToComplete?.title}</strong> as completed?
-              {scheduleToComplete?.frequency !== "once" && " A new schedule will be created for the next occurrence."}
+              {t("completeScheduleDesc").replace("{title}", scheduleToComplete?.title ?? "")}
+              {scheduleToComplete?.frequency !== "once" && t("completeScheduleRecurringNote")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           
@@ -1938,25 +1938,25 @@ const Schedules = () => {
                 onCheckedChange={(checked) => setSendCompletionEmail(checked === true)}
               />
               <Label htmlFor="send-completion-email" className="text-sm font-normal cursor-pointer">
-                Send completion notification to client/user
+                {t("sendCompletionNotification")}
               </Label>
             </div>
             
             {sendCompletionEmail && (
               <div className="space-y-2">
                 <Label htmlFor="completion-message" className="text-sm font-medium">
-                  Completion Message (Optional)
+                  {t("completionMessageOptional")}
                 </Label>
                 <Textarea
                   id="completion-message"
                   value={completionMessage}
                   onChange={(e) => setCompletionMessage(e.target.value)}
-                  placeholder="Add a message to notify the client/user about this completion..."
+                  placeholder={t("completionMessagePh")}
                   className="min-h-[100px]"
                   rows={4}
                 />
                 <p className="text-xs text-gray-500">
-                  This message will be sent via email to the client and/or user if notifications are enabled.
+                  {t("completionMessageHint")}
                 </p>
               </div>
             )}
@@ -1968,13 +1968,13 @@ const Schedules = () => {
               setCompletionMessage("");
               setSendCompletionEmail(false);
             }}>
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCompleteConfirm}
               className="bg-green-600 text-white hover:bg-green-700"
             >
-              Mark Complete
+              {t("markComplete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1986,22 +1986,21 @@ const Schedules = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Trash2 size={20} className="text-red-600" />
-              Delete Schedule
+              {t("deleteScheduleTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{scheduleToDelete?.title}</strong>? 
-              This action cannot be undone.
+              {t("deleteScheduleConfirm").replace("{title}", scheduleToDelete?.title ?? "")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setScheduleToDelete(null)}>
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              Delete Schedule
+              {t("deleteScheduleBtn")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2013,22 +2012,21 @@ const Schedules = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Trash2 size={20} className="text-red-600" />
-              Delete Client
+              {t("deleteClientModal")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{clientToDelete?.name}</strong>? 
-              This action cannot be undone. If this client has schedules assigned, you must delete those first.
+              {t("deleteClientFromSchedulesConfirm").replace("{name}", clientToDelete?.name ?? "")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setClientToDelete(null)}>
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteClientConfirm}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              Delete Client
+              {t("deleteClientModal")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

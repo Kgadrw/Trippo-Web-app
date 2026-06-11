@@ -21,13 +21,7 @@ export default function SettingsLanguage() {
       <SettingsSubpageHeader
         icon={Globe}
         title={t("language")}
-        description={
-          language === "rw"
-            ? "Hitamo ururimi wifuza gukoresha"
-            : language === "fr"
-            ? "Choisissez votre langue préférée"
-            : "Choose your preferred language"
-        }
+        description={t("languagePageDesc")}
       />
 
       <Separator className="mb-4 bg-blue-200" />
@@ -35,11 +29,7 @@ export default function SettingsLanguage() {
       <div className="space-y-1.5">
         <Label className="text-xs font-medium flex items-center gap-1.5">
           <Globe size={12} className="text-blue-600" />
-          {language === "rw"
-            ? "Hitamo ururimi"
-            : language === "fr"
-            ? "Choisir la langue"
-            : "Select Language"}
+          {t("language")}
         </Label>
         <Select value={language} onValueChange={(value: "en" | "rw" | "fr") => setLanguage(value)}>
           <SelectTrigger className="h-10 text-sm">
@@ -52,11 +42,7 @@ export default function SettingsLanguage() {
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground mt-1">
-          {language === "rw"
-            ? "Ururimi rwose ruzahinduka mu buryo bwikora"
-            : language === "fr"
-            ? "Toute l'interface se mettra à jour automatiquement"
-            : "The entire interface will update to your selected language"}
+          {t("languageAutoUpdateNote")}
         </p>
       </div>
     </div>

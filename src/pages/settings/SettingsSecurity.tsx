@@ -13,7 +13,7 @@ import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHead
 
 export default function SettingsSecurity() {
   const { toast } = useToast();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { hasPin, setPin, changePin } = usePinAuth();
 
   const [pinMode, setPinMode] = useState<"set" | "change">(hasPin ? "change" : "set");
@@ -26,8 +26,8 @@ export default function SettingsSecurity() {
     if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
       playErrorBeep();
       toast({
-        title: "Invalid PIN",
-        description: "PIN must be exactly 4 digits.",
+        title: t("invalidPinTitle"),
+        description: t("pinFourDigitsRequired"),
         variant: "destructive",
       });
       return;
@@ -35,8 +35,8 @@ export default function SettingsSecurity() {
     if (newPin !== confirmPin) {
       playErrorBeep();
       toast({
-        title: "PIN Mismatch",
-        description: "PIN and confirmation do not match.",
+        title: t("pinMismatchTitle"),
+        description: t("pinMismatchBody"),
         variant: "destructive",
       });
       return;
@@ -46,8 +46,8 @@ export default function SettingsSecurity() {
       if (setPin(newPin)) {
         playUpdateBeep();
         toast({
-          title: "PIN Set",
-          description: "Your PIN has been set successfully.",
+          title: t("pinSetTitle"),
+          description: t("pinSetBody"),
         });
         setNewPin("");
         setConfirmPin("");
@@ -57,8 +57,8 @@ export default function SettingsSecurity() {
     } catch (error: any) {
       playErrorBeep();
       toast({
-        title: "PIN Setup Failed",
-        description: error?.message || "Failed to set PIN. Please try again.",
+        title: t("pinSetupFailedTitle"),
+        description: error?.message || t("pleaseTryAgain"),
         variant: "destructive",
       });
     }
@@ -69,8 +69,8 @@ export default function SettingsSecurity() {
     if (currentPin.length !== 4 || !/^\d{4}$/.test(currentPin)) {
       playErrorBeep();
       toast({
-        title: "Invalid Current PIN",
-        description: "Current PIN must be exactly 4 digits.",
+        title: t("invalidCurrentPinTitle"),
+        description: t("pinFourDigitsRequired"),
         variant: "destructive",
       });
       return;
@@ -78,8 +78,8 @@ export default function SettingsSecurity() {
     if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
       playErrorBeep();
       toast({
-        title: "Invalid PIN",
-        description: "New PIN must be exactly 4 digits.",
+        title: t("invalidPinTitle"),
+        description: t("pinFourDigitsRequired"),
         variant: "destructive",
       });
       return;
@@ -87,8 +87,8 @@ export default function SettingsSecurity() {
     if (newPin !== confirmPin) {
       playErrorBeep();
       toast({
-        title: "PIN Mismatch",
-        description: "New PIN and confirmation do not match.",
+        title: t("pinMismatchTitle"),
+        description: t("newPinMismatchBody"),
         variant: "destructive",
       });
       return;
@@ -99,8 +99,8 @@ export default function SettingsSecurity() {
       if (changePin(currentPin, newPin)) {
         playUpdateBeep();
         toast({
-          title: "PIN Changed",
-          description: "Your PIN has been changed successfully.",
+          title: t("pinChangedTitle"),
+          description: t("pinChangedBody"),
         });
         setNewPin("");
         setConfirmPin("");
@@ -108,27 +108,26 @@ export default function SettingsSecurity() {
       } else {
         playErrorBeep();
         toast({
-          title: "PIN Update Incomplete",
-          description:
-            "PIN was updated on server but local update failed. Please refresh.",
+          title: t("error"),
+          description: t("pinSyncFailedDesc"),
           variant: "destructive",
         });
       }
     } catch (error: any) {
       playErrorBeep();
-      const errorMessage = error?.message || "Failed to change PIN. Please try again.";
+      const errorMessage = error?.message || t("pleaseTryAgain");
       if (
         errorMessage.toLowerCase().includes("incorrect") ||
         errorMessage.toLowerCase().includes("invalid")
       ) {
         toast({
-          title: "Invalid Current PIN",
-          description: "The current PIN you entered is incorrect.",
+          title: t("invalidCurrentPinTitle"),
+          description: t("wrongCurrentPinDesc"),
           variant: "destructive",
         });
       } else {
         toast({
-          title: "PIN Change Failed",
+          title: t("pinChangeFailedTitle"),
           description: errorMessage,
           variant: "destructive",
         });
@@ -141,145 +140,136 @@ export default function SettingsSecurity() {
       <SettingsSubpageHeader
         icon={Shield}
         title={t("security")}
-        description={
-          language === "rw"
-            ? "Shiraho PIN kugirango wongere umutekano"
-            : language === "fr"
-            ? "Définissez un PIN pour sécuriser votre compte"
-            : "Set PIN to keep your account secure"
-        }
+        description={t("securityPageDesc")}
       />
 
       <Separator className="mb-4 bg-blue-200" />
 
       <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Lock size={14} className="text-blue-600" />
-                    Financial Data PIN Protection
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {hasPin
-                      ? "PIN is set. Profits and sensitive financial data are protected."
-                      : "Set a 4-digit PIN to protect profits and sensitive financial information."}
-                  </p>
-                </div>
-                {hasPin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPinMode(pinMode === "set" ? "change" : "set")}
-                    className="text-xs"
-                  >
-                    {pinMode === "set" ? "Change PIN" : "Set New PIN"}
-                  </Button>
-                )}
-              </div>
-
-              {hasPin && pinMode === "change" && (
-                <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-foreground">{t("currentPin")}</Label>
-                    <Input
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={currentPin}
-                      onChange={(e) =>
-                        setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                      }
-                      className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      placeholder="••••"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-foreground">{t("newPin")}</Label>
-                      <Input
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={newPin}
-                        onChange={(e) =>
-                          setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                        }
-                        className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        placeholder="••••"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-foreground">{t("confirmPin")}</Label>
-                      <Input
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={confirmPin}
-                        onChange={(e) =>
-                          setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                        }
-                        className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        placeholder="••••"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleChangePin}
-                    className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
-                    disabled={currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4}
-                  >
-                    <Lock size={14} />
-                    {t("changePin")}
-                  </Button>
-                </div>
-              )}
-
-              {(!hasPin || pinMode === "set") && (
-                <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-foreground">{t("newPin")}</Label>
-                      <Input
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={newPin}
-                        onChange={(e) =>
-                          setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                        }
-                        className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        placeholder="••••"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-foreground">{t("confirmPin")}</Label>
-                      <Input
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={confirmPin}
-                        onChange={(e) =>
-                          setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                        }
-                        className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        placeholder="••••"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleSetPin}
-                    className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
-                    disabled={newPin.length !== 4 || confirmPin.length !== 4}
-                  >
-                    <Lock size={14} />
-                    {hasPin ? (language === "rw" ? "Hindura PIN" : "Update PIN") : t("setPin")}
-                  </Button>
-                </div>
-              )}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Lock size={14} className="text-blue-600" />
+                {t("financialPinTitle")}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                {hasPin ? t("financialPinActiveDesc") : t("financialPinInactiveDesc")}
+              </p>
             </div>
+            {hasPin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPinMode(pinMode === "set" ? "change" : "set")}
+                className="text-xs"
+              >
+                {pinMode === "set" ? t("changePin") : t("setNewPinBtn")}
+              </Button>
+            )}
           </div>
+
+          {hasPin && pinMode === "change" && (
+            <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">{t("currentPin")}</Label>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={currentPin}
+                  onChange={(e) =>
+                    setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                  }
+                  className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="••••"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">{t("newPin")}</Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={newPin}
+                    onChange={(e) =>
+                      setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="••••"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">{t("confirmPin")}</Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={confirmPin}
+                    onChange={(e) =>
+                      setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="••••"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleChangePin}
+                className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                disabled={currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4}
+              >
+                <Lock size={14} />
+                {t("changePin")}
+              </Button>
+            </div>
+          )}
+
+          {(!hasPin || pinMode === "set") && (
+            <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">{t("newPin")}</Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={newPin}
+                    onChange={(e) =>
+                      setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="••••"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">{t("confirmPin")}</Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={confirmPin}
+                    onChange={(e) =>
+                      setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    className="input-field h-10 bg-background text-center text-lg tracking-widest font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="••••"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleSetPin}
+                className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                disabled={newPin.length !== 4 || confirmPin.length !== 4}
+              >
+                <Lock size={14} />
+                {hasPin ? t("updatePin") : t("setPin")}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-

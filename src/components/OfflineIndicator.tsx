@@ -5,19 +5,21 @@ import { Wifi, WifiOff, Cloud, CloudOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 import { playSyncBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib/sound";
 import { getSyncStatus } from '@/lib/syncManager';
 
 export function OfflineIndicator() {
   const { isOnline, pendingSyncs, syncAll } = useOffline();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const handleSync = async () => {
     if (!isOnline) {
       playWarningBeep();
       toast({
-        title: "Offline",
-        description: "Cannot sync while offline. Please check your internet connection.",
+        title: t("offlineTitle"),
+        description: t("offlineCannotSync"),
         variant: "destructive",
       });
       return;
@@ -28,28 +30,24 @@ export function OfflineIndicator() {
       console.log(`[OfflineIndicator] Starting sync for ${currentPending} pending items...`);
       await syncAll();
       
-      // Wait a bit for sync to complete and status to update
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Check sync status after completion
-      /* converted to static import */;
       const status = await getSyncStatus();
       console.log(`[OfflineIndicator] Sync status after completion:`, status);
       
       playSyncBeep();
       if (status.pending === 0) {
         toast({
-          title: "Sync Complete",
-          description: `Successfully synced ${currentPending} pending change${currentPending !== 1 ? "s" : ""}. Please refresh the page to see updated data.`,
+          title: t("syncComplete"),
+          description: t("syncCompleteDesc").replace("{count}", String(currentPending)),
         });
-        // Optionally refresh after a delay
         setTimeout(() => {
           window.location.reload();
         }, 2000);
       } else {
         toast({
-          title: "Sync Partially Complete",
-          description: `Synced some changes, but ${status.pending} still pending. Check console for details.`,
+          title: t("syncPartial"),
+          description: t("syncPartialDesc").replace("{count}", String(status.pending)),
           variant: "destructive",
         });
       }
@@ -57,15 +55,15 @@ export function OfflineIndicator() {
       console.error("[OfflineIndicator] Sync error:", error);
       playErrorBeep();
       toast({
-        title: "Sync Failed",
-        description: "Failed to sync changes. Please check the browser console (F12) for details and try again.",
+        title: t("syncFailed"),
+        description: t("syncFailedDesc"),
         variant: "destructive",
       });
     }
   };
 
   if (isOnline && pendingSyncs === 0) {
-    return null; // Don't show indicator when everything is synced
+    return null;
   }
 
   return (
@@ -85,7 +83,7 @@ export function OfflineIndicator() {
               <>
                 <Cloud size={18} />
                 <span className="text-sm font-medium">
-                  {pendingSyncs} pending sync{pendingSyncs !== 1 ? "s" : ""}
+                  {t("pendingSync").replace("{count}", String(pendingSyncs))}
                 </span>
                 <Button
                   onClick={handleSync}
@@ -93,7 +91,7 @@ export function OfflineIndicator() {
                   size="sm"
                   className="h-7 px-3 text-xs bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground border-primary-foreground/20"
                 >
-                  Sync Now
+                  {t("syncNow")}
                 </Button>
               </>
             )}
@@ -102,7 +100,7 @@ export function OfflineIndicator() {
           <>
             <WifiOff size={18} />
             <CloudOff size={18} />
-            <span className="text-sm font-medium">Offline Mode - Changes will sync when online</span>
+            <span className="text-sm font-medium">{t("offlineModeMessage")}</span>
           </>
         )}
       </div>

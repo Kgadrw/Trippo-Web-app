@@ -107,20 +107,6 @@ interface RecurringExpense {
 
 
 
-const frequencyLabels: Record<RecurringExpense["frequency"], string> = {
-
-  weekly: "Every week",
-
-  monthly: "Every month",
-
-  yearly: "Every year",
-
-  custom: "Custom interval",
-
-};
-
-
-
 const defaultRecurringForm = () => ({
 
   title: "",
@@ -222,9 +208,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Failed to load recurring expenses",
+        title: t("recurringLoadFailed"),
 
-        description: error?.message || "Please try again.",
+        description: error?.message || t("pleaseTryAgain"),
 
         variant: "destructive",
 
@@ -236,7 +222,7 @@ export default function Expenses() {
 
     }
 
-  }, [toast]);
+  }, [toast, t]);
 
 
 
@@ -266,9 +252,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Missing Information",
+        title: t("missingInformation"),
 
-        description: "Please provide expense title and valid amount.",
+        description: t("expenseNameAmountRequired"),
 
         variant: "destructive",
 
@@ -314,7 +300,7 @@ export default function Expenses() {
 
       setNote("");
 
-      toast({ title: "Expense Added", description: "Daily expense recorded." });
+      toast({ title: t("expenseRecorded"), description: t("expenseRecordedDesc") });
 
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
 
@@ -322,9 +308,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Save Failed",
+        title: t("saveFailed"),
 
-        description: error?.message || "Failed to record expense.",
+        description: error?.message || t("saveExpenseFailed"),
 
         variant: "destructive",
 
@@ -352,7 +338,7 @@ export default function Expenses() {
 
       await refresh(true);
 
-      toast({ title: "Deleted", description: "Expense removed." });
+      toast({ title: t("deleted"), description: t("expenseRemovedDesc") });
 
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
 
@@ -360,9 +346,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Delete Failed",
+        title: t("error"),
 
-        description: error?.message || "Failed to delete expense.",
+        description: error?.message || t("deleteExpenseFailed"),
 
         variant: "destructive",
 
@@ -386,9 +372,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Missing Information",
+        title: t("missingInformation"),
 
-        description: "Please provide title and valid amount for the recurring expense.",
+        description: t("recurringValidationDesc"),
 
         variant: "destructive",
 
@@ -404,9 +390,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Missing due date",
+        title: t("missingDueDateTitle"),
 
-        description: "Please choose the next due date.",
+        description: t("chooseDueDateDesc"),
 
         variant: "destructive",
 
@@ -464,7 +450,7 @@ export default function Expenses() {
 
         await recurringExpenseApi.update(editingRecurringId, payload);
 
-        toast({ title: "Updated", description: "Recurring expense updated." });
+        toast({ title: t("updated"), description: t("recurringUpdatedDesc") });
 
       } else {
 
@@ -472,13 +458,13 @@ export default function Expenses() {
 
         toast({
 
-          title: "Recurring expense saved",
+          title: t("recurringSavedTitle"),
 
           description: recurringForm.notifyEmail
 
-            ? "You will receive email reminders before each due date."
+            ? t("recurringEmailRemindDesc")
 
-            : "Recurring schedule created.",
+            : t("recurringCreatedDesc"),
 
         });
 
@@ -494,9 +480,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Save Failed",
+        title: t("saveFailed"),
 
-        description: error?.message || "Failed to save recurring expense.",
+        description: error?.message || t("recurringSaveFailed"),
 
         variant: "destructive",
 
@@ -570,15 +556,15 @@ export default function Expenses() {
 
       await loadRecurring();
 
-      toast({ title: "Deleted", description: "Recurring expense removed." });
+      toast({ title: t("deleted"), description: t("recurringRemovedDesc") });
 
     } catch (error: any) {
 
       toast({
 
-        title: "Delete Failed",
+        title: t("error"),
 
-        description: error?.message || "Failed to delete recurring expense.",
+        description: error?.message || t("recurringDeleteFailed"),
 
         variant: "destructive",
 
@@ -614,9 +600,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Payment recorded",
+        title: t("paymentRecordedTitle"),
 
-        description: `${item.title} was added to expenses and the next due date was scheduled.`,
+        description: `${item.title} ${t("paymentRecordedDesc")}`,
 
       });
 
@@ -626,9 +612,9 @@ export default function Expenses() {
 
       toast({
 
-        title: "Action failed",
+        title: t("recordPaymentFailed"),
 
-        description: error?.message || "Could not record payment.",
+        description: error?.message || t("recordPaymentFailedDesc"),
 
         variant: "destructive",
 
@@ -648,13 +634,29 @@ export default function Expenses() {
 
     if (item.frequency === "custom") {
 
-      return `Every ${item.intervalDays || 30} days`;
+      return t("everyNDays").replace("{days}", String(item.intervalDays || 30));
 
     }
 
-    return frequencyLabels[item.frequency];
+    const labels: Record<RecurringExpense["frequency"], string> = {
+
+      weekly: t("freqEveryWeek"),
+
+      monthly: t("freqEveryMonth"),
+
+      yearly: t("freqEveryYear"),
+
+      custom: t("freqCustomDays"),
+
+    };
+
+    return labels[item.frequency];
 
   };
+
+  const getEmailReminderText = (days: number) =>
+
+    t("emailReminderSummary").replace("{days}", String(days));
 
 
 
@@ -681,7 +683,7 @@ export default function Expenses() {
 
           {expenseMode === "one-time" ? (
           <>
-          <p className="text-xs text-muted-foreground">Record a single expense manually.</p>
+          <p className="text-xs text-muted-foreground">{t("recordSingleExpenseHint")}</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
@@ -689,7 +691,7 @@ export default function Expenses() {
 
               <Label>{t("expenseTitle")}</Label>
 
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Rent, Utilities, Transport" />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("expenseExamplePlaceholder")} />
 
             </div>
 
@@ -705,7 +707,7 @@ export default function Expenses() {
 
               <Label>{t("category")}</Label>
 
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Rent, Supplies, Salaries" />
+              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t("expenseCategoryPlaceholder")} />
 
             </div>
 
@@ -723,7 +725,7 @@ export default function Expenses() {
 
             <Label>{t("noteOptional")}</Label>
 
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional details..." />
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("expenseNotePlaceholder")} />
 
           </div>
 
@@ -745,14 +747,14 @@ export default function Expenses() {
           ) : (
           <>
             <p className="text-xs text-muted-foreground">
-              Set monthly or custom schedules. You receive an email when payment is pending, and can auto-record expenses on the due date.
+              {t("recurringExpenseHint")}
             </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
             <div className="space-y-1">
 
-              <Label>Title</Label>
+              <Label>{t("expenseTitle")}</Label>
 
               <Input
 
@@ -760,7 +762,7 @@ export default function Expenses() {
 
                 onChange={(e) => setRecurringForm((f) => ({ ...f, title: e.target.value }))}
 
-                placeholder="e.g. Shop rent, Internet"
+                placeholder={t("expenseExamplePlaceholder")}
 
               />
 
@@ -768,7 +770,7 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Amount (rwf)</Label>
+              <Label>{t("amount")} (rwf)</Label>
 
               <Input
 
@@ -780,7 +782,7 @@ export default function Expenses() {
 
                 onChange={(e) => setRecurringForm((f) => ({ ...f, amount: e.target.value }))}
 
-                placeholder="Amount"
+                placeholder={t("amount")}
 
               />
 
@@ -788,7 +790,7 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Category</Label>
+              <Label>{t("category")}</Label>
 
               <Input
 
@@ -796,7 +798,7 @@ export default function Expenses() {
 
                 onChange={(e) => setRecurringForm((f) => ({ ...f, category: e.target.value }))}
 
-                placeholder="e.g. Rent"
+                placeholder={t("expenseCategoryPlaceholder")}
 
               />
 
@@ -804,7 +806,7 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Repeat every</Label>
+              <Label>{t("repeatEveryLabel")}</Label>
 
               <Select
 
@@ -826,13 +828,13 @@ export default function Expenses() {
 
                 <SelectContent>
 
-                  <SelectItem value="weekly">Every week</SelectItem>
+                  <SelectItem value="weekly">{t("freqEveryWeek")}</SelectItem>
 
-                  <SelectItem value="monthly">Every month</SelectItem>
+                  <SelectItem value="monthly">{t("freqEveryMonth")}</SelectItem>
 
-                  <SelectItem value="yearly">Every year</SelectItem>
+                  <SelectItem value="yearly">{t("freqEveryYear")}</SelectItem>
 
-                  <SelectItem value="custom">Custom (days)</SelectItem>
+                  <SelectItem value="custom">{t("freqCustomDays")}</SelectItem>
 
                 </SelectContent>
 
@@ -844,7 +846,7 @@ export default function Expenses() {
 
               <div className="space-y-1">
 
-                <Label>Interval (days)</Label>
+                <Label>{t("intervalDaysLabel")}</Label>
 
                 <Input
 
@@ -864,7 +866,7 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Next due date</Label>
+              <Label>{t("nextDueDateLabel")}</Label>
 
               <Input
 
@@ -880,7 +882,7 @@ export default function Expenses() {
 
             <div className="space-y-1">
 
-              <Label>Email reminder (days before)</Label>
+              <Label>{t("emailReminderDaysLabel")}</Label>
 
               <Input
 
@@ -910,7 +912,7 @@ export default function Expenses() {
 
           <div className="space-y-1">
 
-            <Label>Note (Optional)</Label>
+            <Label>{t("noteOptional")}</Label>
 
             <Input
 
@@ -918,7 +920,7 @@ export default function Expenses() {
 
               onChange={(e) => setRecurringForm((f) => ({ ...f, note: e.target.value }))}
 
-              placeholder="Additional details..."
+              placeholder={t("expenseNotePlaceholder")}
 
             />
 
@@ -942,7 +944,7 @@ export default function Expenses() {
 
               />
 
-              <Label className="font-normal">Email me when payment is pending</Label>
+              <Label className="font-normal">{t("emailWhenPendingLabel")}</Label>
 
             </div>
 
@@ -960,7 +962,7 @@ export default function Expenses() {
 
               />
 
-              <Label className="font-normal">Auto-record expense on due date</Label>
+              <Label className="font-normal">{t("autoRecordDueLabel")}</Label>
 
             </div>
 
@@ -984,7 +986,7 @@ export default function Expenses() {
 
               {recurringSaving ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
 
-              {editingRecurringId ? "Update recurring expense" : "Save recurring expense"}
+              {editingRecurringId ? t("updateRecurringBtn") : t("saveRecurringBtn")}
 
             </Button>
 
@@ -992,7 +994,7 @@ export default function Expenses() {
 
               <Button size="sm" variant="outline" onClick={resetRecurringForm}>
 
-                Cancel edit
+                {t("cancelEditBtn")}
 
               </Button>
 
@@ -1016,7 +1018,7 @@ export default function Expenses() {
 
           ) : recurringItems.length === 0 ? (
 
-            <p className="text-sm text-gray-500">No recurring expenses yet.</p>
+            <p className="text-sm text-gray-500">{t("noRecurringYet")}</p>
 
           ) : (
 
@@ -1029,17 +1031,17 @@ export default function Expenses() {
 
                   <tr>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">Title</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("expenseTitle")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">Amount</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("amount")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">Schedule</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("scheduleCol")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">Next due</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("nextDueCol")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">Reminders</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("remindersCol")}</th>
 
-                    <th className="text-right text-sm font-semibold text-gray-700 py-3 px-4">Actions</th>
+                    <th className="text-right text-sm font-semibold text-gray-700 py-3 px-4">{t("actions")}</th>
 
                   </tr>
 
@@ -1091,7 +1093,7 @@ export default function Expenses() {
 
                             {formatDateWithTime(item.nextDueDate)}
 
-                            {isOverdue ? " (pending)" : ""}
+                            {isOverdue ? ` ${t("pendingSuffix")}` : ""}
 
                           </span>
 
@@ -1101,11 +1103,11 @@ export default function Expenses() {
 
                           {item.notifyEmail
 
-                            ? `Email ${item.advanceNotificationDays ?? 1}d before + on due date`
+                            ? getEmailReminderText(item.advanceNotificationDays ?? 1)
 
-                            : "Off"}
+                            : t("offLabel")}
 
-                          {item.autoRecord ? " · Auto-record" : ""}
+                          {item.autoRecord ? ` · ${t("autoRecordLabel")}` : ""}
 
                         </td>
 
@@ -1137,7 +1139,7 @@ export default function Expenses() {
 
                                 <CheckCircle2 size={14} className="mr-2" />
 
-                                Mark paid
+                                {t("markPaidAction")}
 
                               </DropdownMenuItem>
 
@@ -1145,7 +1147,7 @@ export default function Expenses() {
 
                                 <Pencil size={14} className="mr-2" />
 
-                                Edit
+                                {t("edit")}
 
                               </DropdownMenuItem>
 
@@ -1159,7 +1161,7 @@ export default function Expenses() {
 
                                 <Trash2 size={14} className="mr-2" />
 
-                                Delete
+                                {t("delete")}
 
                               </DropdownMenuItem>
 
@@ -1229,13 +1231,13 @@ export default function Expenses() {
                     <div className="mt-2 space-y-1 text-xs text-gray-600">
                       <p>{getFrequencyText(item)}</p>
                       <p className={cn(isOverdue ? "text-red-600 font-medium" : "text-gray-700")}>
-                        Due: {formatDateWithTime(item.nextDueDate)}
+                        {t("duePrefix")} {formatDateWithTime(item.nextDueDate)}
                         {isOverdue ? " (pending)" : ""}
                       </p>
                       <p>
                         {item.notifyEmail
                           ? `Email ${item.advanceNotificationDays ?? 1}d before + on due date`
-                          : "Reminders off"}
+                          : t("remindersOffLabel")}
                         {item.autoRecord ? " · Auto-record" : ""}
                       </p>
                     </div>
@@ -1315,7 +1317,7 @@ export default function Expenses() {
 
           ) : sorted.length === 0 ? (
 
-            <p className="px-4 py-5 text-sm text-gray-500">No expenses recorded yet.</p>
+            <p className="px-4 py-5 text-sm text-gray-500">{t("noExpensesYet")}</p>
 
           ) : (
 
@@ -1328,17 +1330,17 @@ export default function Expenses() {
 
                   <tr>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Title</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("expenseTitle")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Category</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("category")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Amount</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("amount")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Date</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("date")}</th>
 
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Note</th>
+                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("note")}</th>
 
-                    <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">Actions</th>
+                    <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("actions")}</th>
 
                   </tr>
 
@@ -1448,7 +1450,7 @@ export default function Expenses() {
 
                                 <Trash2 size={14} className="mr-2" />
 
-                                Delete
+                                {t("delete")}
 
                               </DropdownMenuItem>
 
@@ -1468,7 +1470,7 @@ export default function Expenses() {
 
                     <td colSpan={2} className="py-4 px-6 text-sm font-semibold text-gray-800">
 
-                      Total
+                      {t("total")}
 
                     </td>
 
@@ -1517,7 +1519,7 @@ export default function Expenses() {
                             className="text-red-600 focus:text-red-600 focus:bg-red-50"
                           >
                             <Trash2 size={14} className="mr-2" />
-                            Delete
+                            {t("delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1536,7 +1538,7 @@ export default function Expenses() {
               })}
               <MobileListCard className="bg-blue-50/70">
                 <div className="flex items-center justify-between text-sm font-semibold">
-                  <span className="text-gray-800">Total</span>
+                  <span className="text-gray-800">{t("total")}</span>
                   <span className="text-red-600 tabular-nums">{total.toLocaleString()} rwf</span>
                 </div>
               </MobileListCard>

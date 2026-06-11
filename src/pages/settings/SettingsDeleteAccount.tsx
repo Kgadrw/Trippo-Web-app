@@ -26,7 +26,7 @@ import { clearAllStores } from '@/lib/indexedDB';
 export default function SettingsDeleteAccount() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { language } = useTranslation();
+  const { t } = useTranslation();
   const { clearAuth } = usePinAuth();
   const { clearUser } = useCurrentUser();
 
@@ -54,7 +54,6 @@ export default function SettingsDeleteAccount() {
       sessionStorage.clear();
 
       try {
-        /* converted to static import */;
         await clearAllStores();
       } catch (error) {
         console.error("Error clearing IndexedDB on account deletion:", error);
@@ -64,47 +63,33 @@ export default function SettingsDeleteAccount() {
 
       playUpdateBeep();
       toast({
-        title: language === "rw" ? "Konti Yarahagijwe" : "Account Deleted",
-        description:
-          language === "rw"
-            ? "Konti yawe n'amakuru yose byarahagijwe neza."
-            : "Your account and all data have been successfully deleted.",
+        title: t("accountDeleted"),
+        description: t("accountDeletedDesc"),
       });
 
       setTimeout(() => {
         window.history.replaceState(null, "", "/");
         navigate("/", { replace: true });
       }, 900);
-    } catch (error: any) {
+    } catch (error: unknown) {
       playErrorBeep();
       toast({
-        title: language === "rw" ? "Ikosa" : "Error",
+        title: t("error"),
         description:
-          error?.message ||
-          (language === "rw"
-            ? "Ntibyashoboye kuraho konti. Nyamuneka gerageza nanone."
-            : "Failed to delete account. Please try again."),
+          error instanceof Error ? error.message : t("deleteAccountFailed"),
         variant: "destructive",
       });
       setIsDeleting(false);
     }
   };
 
-  const title = language === "rw" ? "Kuraho Konti" : language === "fr" ? "Supprimer le compte" : "Delete Account";
-
   return (
     <div className="flex flex-1 flex-col overflow-y-auto p-5">
       <SettingsSubpageHeader
         icon={Trash2}
-        title={title}
+        title={t("deleteAccount")}
         tone="red"
-        description={
-          language === "rw"
-            ? "Iki gikorwa ntigisubirwamo"
-            : language === "fr"
-            ? "Cette action est irréversible"
-            : "This action cannot be undone"
-        }
+        description={t("deleteAccountDesc")}
       />
 
       <Separator className="mb-4 bg-red-200" />
@@ -115,12 +100,10 @@ export default function SettingsDeleteAccount() {
                 <AlertTriangle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-red-900">
-                    {language === "rw" ? "Icyitonderwa" : "Warning"}
+                    {t("warning")}
                   </h3>
                   <p className="text-xs text-red-800">
-                    {language === "rw"
-                      ? "Kuraho konti yawe bizakuraho amakuru yose."
-                      : "Deleting your account will permanently remove all your data."}
+                    {t("deleteAccountWarningDesc")}
                   </p>
                 </div>
               </div>
@@ -132,7 +115,7 @@ export default function SettingsDeleteAccount() {
               className="w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
             >
               <Trash2 size={14} />
-              {language === "rw" ? "Kuraho Konti" : "Delete My Account"}
+              {t("deleteMyAccount")}
             </Button>
           </div>
 
@@ -141,37 +124,25 @@ export default function SettingsDeleteAccount() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle size={20} />
-              {language === "rw" ? "Kuraho Konti" : "Delete Account"}
+              {t("deleteAccount")}
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>
-                {language === "rw"
-                  ? "Urabyemera ko wifuza kuraho konti yawe? Iki gikorwa ntigisubirwamo."
-                  : "Are you sure you want to delete your account? This action cannot be undone."}
-              </p>
+              <p>{t("deleteAccountConfirmDesc")}</p>
               <p className="font-semibold text-red-600">
-                {language === "rw"
-                  ? "Amakuru yose azakurwa gusa."
-                  : "All your data will be permanently deleted."}
+                {t("deleteAccountDataWarning")}
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>
-              {language === "rw" ? "Guhagarika" : "Cancel"}
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAccount}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {isDeleting
-                ? language === "rw"
-                  ? "Kuraho..."
-                  : "Deleting..."
-                : language === "rw"
-                ? "Yego, Kuraho"
-                : "Yes, Delete Account"}
+              {isDeleting ? t("deleting") : t("yesDeleteAccount")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -179,4 +150,3 @@ export default function SettingsDeleteAccount() {
     </div>
   );
 }
-

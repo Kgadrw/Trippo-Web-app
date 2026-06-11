@@ -33,6 +33,7 @@ export function SplashScreen() {
                 // Finally, allow body scrolling (this prevents bounce)
                 requestAnimationFrame(() => {
                   document.body.classList.add('loaded');
+                  window.scrollTo(0, 0);
                 });
               }
             }, 200);
@@ -45,6 +46,7 @@ export function SplashScreen() {
         }
         requestAnimationFrame(() => {
           document.body.classList.add('loaded');
+          window.scrollTo(0, 0);
         });
       }
     };

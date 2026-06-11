@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { initAudio, playErrorBeep, playUpdateBeep } from "@/lib/sound";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useLanguage } from "@/hooks/useLanguage";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
@@ -19,7 +18,6 @@ export function SettingsLayout() {
   const { toast } = useToast();
   const { clearAuth } = usePinAuth();
   const { user, updateUser } = useCurrentUser();
-  const { language } = useLanguage();
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -50,8 +48,8 @@ export function SettingsLayout() {
     if (!ownerName.trim()) {
       playErrorBeep();
       toast({
-        title: "Validation Error",
-        description: "Name is required.",
+        title: t("validationErrorTitle"),
+        description: t("nameRequired"),
         variant: "destructive",
       });
       return;
@@ -60,8 +58,8 @@ export function SettingsLayout() {
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       playErrorBeep();
       toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
+        title: t("invalidEmailTitle"),
+        description: t("invalidEmailDescMsg"),
         variant: "destructive",
       });
       return;
@@ -71,8 +69,8 @@ export function SettingsLayout() {
     if (!currentUserId) {
       playErrorBeep();
       toast({
-        title: "Session Error",
-        description: "User session not found. Please log in again.",
+        title: t("sessionErrorTitle"),
+        description: t("sessionNotFoundDesc"),
         variant: "destructive",
       });
       return;
@@ -94,17 +92,14 @@ export function SettingsLayout() {
 
       playUpdateBeep();
       toast({
-        title: language === "rw" ? "Byabitswe" : "Profile Saved",
-        description:
-          language === "rw"
-            ? "Umwirondoro wawe wavuguruwe."
-            : "Your profile has been updated.",
+        title: t("profileSavedTitle"),
+        description: t("profileSavedDesc"),
       });
     } catch (error: any) {
       playErrorBeep();
       toast({
-        title: "Save Failed",
-        description: error?.message || "Failed to update profile.",
+        title: t("saveFailed"),
+        description: error?.message || t("profileUpdateFailedDesc"),
         variant: "destructive",
       });
     } finally {
@@ -132,11 +127,8 @@ export function SettingsLayout() {
 
     window.dispatchEvent(new Event("pin-auth-changed"));
     toast({
-      title: language === "rw" ? "Wasohotse" : "Logged Out",
-      description:
-        language === "rw"
-          ? "Wasohotse neza. Amakuru yose yarakurwaho."
-          : "You have been successfully logged out.",
+      title: t("loggedOutTitle"),
+      description: t("loggedOutDesc"),
     });
     window.history.replaceState(null, "", "/");
     navigate("/", { replace: true });
@@ -152,14 +144,10 @@ export function SettingsLayout() {
                 {initials}
               </div>
               <h2 className="mt-4 text-sm font-semibold text-gray-900">
-                {language === "rw" ? "Umwirondoro" : language === "fr" ? "Profil" : "Profile"}
+                {t("profileSectionTitle")}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                {language === "rw"
-                  ? "Hindura amakuru yawe"
-                  : language === "fr"
-                  ? "Modifier vos informations"
-                  : "Edit your account details"}
+                {t("editProfileDesc")}
               </p>
             </div>
 

@@ -9,7 +9,7 @@ import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHead
 
 export default function SettingsNotifications() {
   const { toast } = useToast();
-  const { language } = useTranslation();
+  const { t } = useTranslation();
 
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermission>("default");
@@ -18,118 +18,105 @@ export default function SettingsNotifications() {
     setNotificationPermission(Notification.permission);
   }, []);
 
-  const title =
-    language === "rw" ? "Amatangazo" : language === "fr" ? "Notifications" : "Notifications";
-
   return (
     <div className="flex flex-1 flex-col overflow-y-auto p-5">
       <SettingsSubpageHeader
         icon={Bell}
-        title={title}
-        description={
-          language === "rw"
-            ? "Genzura amatangazo yo muri browser"
-            : language === "fr"
-            ? "Gérer les notifications du navigateur"
-            : "Manage browser notifications for important updates"
-        }
+        title={t("notificationsPageTitle")}
+        description={t("notificationsPageDesc")}
       />
 
       <Separator className="mb-4 bg-blue-200" />
 
       <div className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
-                  <Bell size={14} className="text-blue-600" />
-                  Browser Notifications
-                </h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Get notified about low stock and other important updates.
-                </p>
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+              <Bell size={14} className="text-blue-600" />
+              {t("browserNotificationsTitle")}
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              {t("browserNotificationsBody")}
+            </p>
 
-                <div className="p-4 bg-secondary/30 border border-transparent rounded-lg space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Notification Status</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {notificationPermission === "granted" && "Notifications are enabled"}
-                        {notificationPermission === "denied" && "Notifications are blocked by browser"}
-                        {notificationPermission === "default" && "Notification permission not yet requested"}
-                      </p>
+            <div className="p-4 bg-secondary/30 border border-transparent rounded-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{t("notificationStatusLabel")}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {notificationPermission === "granted" && t("notifStatusGranted")}
+                    {notificationPermission === "denied" && t("notifStatusDenied")}
+                    {notificationPermission === "default" && t("notifStatusDefault")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {notificationPermission === "granted" && (
+                    <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                      {t("statusEnabled")}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {notificationPermission === "granted" && (
-                        <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                          Enabled
-                        </div>
-                      )}
-                      {notificationPermission === "denied" && (
-                        <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                          Blocked
-                        </div>
-                      )}
-                      {notificationPermission === "default" && (
-                        <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                          Not Set
-                        </div>
-                      )}
+                  )}
+                  {notificationPermission === "denied" && (
+                    <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                      {t("statusBlocked")}
                     </div>
-                  </div>
-
-                  {notificationPermission !== "granted" && (
-                    <Button
-                      onClick={async () => {
-                        if (notificationPermission === "denied") {
-                          toast({
-                            title: "Notifications Blocked",
-                            description:
-                              "Please enable notifications in your browser settings to receive alerts.",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-
-                        try {
-                          const result = await notificationService.requestPermission();
-                          setNotificationPermission(result);
-
-                          if (result === "granted") {
-                            toast({
-                              title: "Notifications Enabled",
-                              description: "You will now receive important alerts.",
-                            });
-                          } else if (result === "denied") {
-                            toast({
-                              title: "Notifications Blocked",
-                              description:
-                                "You can change this later in your browser settings if you change your mind.",
-                              variant: "destructive",
-                            });
-                          }
-                        } catch (error) {
-                          console.error("Error requesting notification permission:", error);
-                          toast({
-                            title: "Error",
-                            description:
-                              "Failed to request notification permission. Please try again.",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
-                    >
-                      <Bell size={14} />
-                      {notificationPermission === "denied"
-                        ? "Open Browser Settings"
-                        : "Enable Notifications"}
-                    </Button>
+                  )}
+                  {notificationPermission === "default" && (
+                    <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                      {t("statusNotSet")}
+                    </div>
                   )}
                 </div>
               </div>
+
+              {notificationPermission !== "granted" && (
+                <Button
+                  onClick={async () => {
+                    if (notificationPermission === "denied") {
+                      toast({
+                        title: t("notifBlockedTitle"),
+                        description: t("notifBlockedBrowserDesc"),
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    try {
+                      const result = await notificationService.requestPermission();
+                      setNotificationPermission(result);
+
+                      if (result === "granted") {
+                        toast({
+                          title: t("notifEnabledTitle"),
+                          description: t("notifEnabledBody"),
+                        });
+                      } else if (result === "denied") {
+                        toast({
+                          title: t("notifBlockedTitle"),
+                          description: t("notifDeniedBody"),
+                          variant: "destructive",
+                        });
+                      }
+                    } catch (error) {
+                      console.error("Error requesting notification permission:", error);
+                      toast({
+                        title: t("error"),
+                        description: t("notifRequestFailed"),
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                >
+                  <Bell size={14} />
+                  {notificationPermission === "denied"
+                    ? t("openBrowserSettingsBtn")
+                    : t("enableNotificationsBtn")}
+                </Button>
+              )}
             </div>
           </div>
+        </div>
+      </div>
     </div>
   );
 }
-

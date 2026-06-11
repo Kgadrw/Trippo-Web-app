@@ -61,7 +61,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const subdomain = useSubdomain();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [menuItems, setMenuItems] = useState(getMenuItems(t));
@@ -92,7 +92,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   // Update menu items when language changes
   useEffect(() => {
     setMenuItems(getMenuItems(t));
-  }, [language, t]);
+  }, [t]);
 
   const handleNavClick = () => {
     // Close mobile menu when navigating on mobile
@@ -137,8 +137,8 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
     
     // Show logout confirmation
     toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out. All your data has been cleared.",
+      title: t("loggedOutTitle"),
+      description: t("loggedOutDescWithData"),
     });
     
     // Clear browser history and redirect to homepage
@@ -332,7 +332,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
             "sidebar-item w-full hover:bg-red-500 hover:text-white transition-colors text-blue-100",
             !isExpanded && "justify-center px-0"
           )}
-          title={!isExpanded ? "Logout" : undefined}
+          title={!isExpanded ? t("logout") : undefined}
         >
           <LogOut size={20} />
                  {isExpanded && (
@@ -350,18 +350,16 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
           <AlertDialogHeader>
                  <AlertDialogTitle>{t("logout")}</AlertDialogTitle>
                  <AlertDialogDescription>
-                   {language === "rw" 
-                     ? "Urasabye gusohoka? Uzakenera kwinjira nanone kugirango wongere wongere ikibaho." 
-                     : "Are you sure you want to logout? You will need to login again to access your dashboard."}
+                   {t("logoutConfirmDesc")}
                  </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLogoutConfirm}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              Logout
+              {t("logout")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

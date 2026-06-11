@@ -123,7 +123,7 @@ function saleBelongsToWorker(sale: Sale, worker: Barber): boolean {
 
 export default function Barbers() {
   const { toast } = useToast();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { items, isLoading, add, update, remove, refresh } = useApi<Barber>({
     endpoint: "clients",
     defaultValue: [],
@@ -209,7 +209,7 @@ export default function Barbers() {
 
   const handleSave = async () => {
     if (!name.trim() || !category.trim()) {
-      toast({ title: "Missing Information", description: "Name and category are required.", variant: "destructive" });
+      toast({ title: t("missingInformation"), description: t("fillAllRequired"), variant: "destructive" });
       return;
     }
     setIsSaving(true);
@@ -221,14 +221,14 @@ export default function Barbers() {
           businessType: category.trim(),
           clientType: "worker",
         } as any);
-        toast({ title: "Worker Updated", description: "Worker updated successfully." });
+        toast({ title: t("workerUpdatedTitle"), description: t("workerUpdatedDesc") });
       } else {
         await add({
           name: name.trim(),
           businessType: category.trim(),
           clientType: "worker",
         } as any);
-        toast({ title: "Worker Added", description: "Worker created successfully." });
+        toast({ title: t("workerAddedTitle"), description: t("workerAddedDesc") });
       }
       setName("");
       setCategory("");
@@ -236,8 +236,8 @@ export default function Barbers() {
       setOpen(false);
     } catch (error: any) {
       toast({
-        title: "Save Failed",
-        description: error?.message || "Failed to save worker. Please try again.",
+        title: t("saveFailed"),
+        description: error?.message || t("saveWorkerFailed"),
         variant: "destructive",
       });
     } finally {
@@ -256,12 +256,12 @@ export default function Barbers() {
     try {
       await remove(barber as any);
       await refresh(true);
-      toast({ title: "Deleted", description: "Worker removed." });
+      toast({ title: t("deleted"), description: t("workerRemovedDesc") });
       return true;
     } catch (error: any) {
       toast({
-        title: "Delete Failed",
-        description: error?.message || "Failed to delete worker. Please try again.",
+        title: t("error"),
+        description: error?.message || t("deleteWorkerFailed"),
         variant: "destructive",
       });
       return false;
@@ -286,8 +286,8 @@ export default function Barbers() {
     const revenue = parseFloat(saleRevenue);
     if (!saleServiceName.trim() || Number.isNaN(qty) || qty < 1 || Number.isNaN(revenue) || revenue < 0) {
       toast({
-        title: "Invalid sale",
-        description: "Enter a valid service name, quantity, and amount.",
+        title: t("invalidSaleTitle"),
+        description: t("invalidSaleDesc"),
         variant: "destructive",
       });
       return;
@@ -306,13 +306,13 @@ export default function Barbers() {
       } as any);
       await refreshSales(true);
       window.dispatchEvent(new CustomEvent("sales-should-refresh"));
-      toast({ title: "Sale updated", description: "History entry saved." });
+      toast({ title: t("saleUpdatedTitle"), description: t("saleHistorySaved") });
       setSaleDialogOpen(false);
       setEditingSale(null);
     } catch (error: any) {
       toast({
-        title: "Update failed",
-        description: error?.message || "Could not update sale.",
+        title: t("updateSaleFailedTitle"),
+        description: error?.message || t("updateSaleFailedDesc"),
         variant: "destructive",
       });
     } finally {
@@ -330,11 +330,11 @@ export default function Barbers() {
       await removeSale(sale as any);
       await refreshSales(true);
       window.dispatchEvent(new CustomEvent("sales-should-refresh"));
-      toast({ title: "Sale deleted", description: "History entry removed." });
+      toast({ title: t("saleDeletedTitle"), description: t("saleHistoryRemoved") });
     } catch (error: any) {
       toast({
-        title: "Delete failed",
-        description: error?.message || "Could not delete sale.",
+        title: t("deleteSaleFailedTitle"),
+        description: error?.message || t("deleteSaleFailedDesc"),
         variant: "destructive",
       });
     } finally {
@@ -344,16 +344,9 @@ export default function Barbers() {
 
   const barbersTitle = t("workers");
   const barberSingular = t("worker");
-  const salesHistoryEmpty =
-    language === "rw"
-      ? "Nta bucuruzi"
-      : language === "fr"
-        ? "Aucune vente"
-        : "No sales";
-  const historyRowLabel =
-    language === "rw" ? "#" : language === "fr" ? "#" : "#";
-  const totalSalesLabel =
-    language === "rw" ? "Byose" : language === "fr" ? "Total" : "Total";
+  const salesHistoryEmpty = t("noSales");
+  const historyRowLabel = "#";
+  const totalSalesLabel = t("total");
 
   const maxHistoryRows = useMemo(() => {
     let max = 0;
@@ -541,7 +534,7 @@ export default function Barbers() {
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuItem onClick={() => openEditSale(sale)}>
                                         <Pencil size={14} className="mr-2" />
-                                        {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                                        {t("edit")}
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onClick={() => void handleDeleteSale(sale)}
@@ -598,7 +591,7 @@ export default function Barbers() {
                     >
                       <p className="text-sm font-semibold text-gray-900">{b.name}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {b.businessType || "Worker"}
+                        {b.businessType || t("worker")}
                         <span className="text-gray-400"> · </span>
                         <span className="text-blue-600 tabular-nums">{history.length}</span>
                       </p>
@@ -642,7 +635,7 @@ export default function Barbers() {
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => openEditSale(sale)}>
                                     <Pencil size={14} className="mr-2" />
-                                    {language === "rw" ? "Hindura" : language === "fr" ? "Modifier" : "Edit"}
+                                    {t("edit")}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => void handleDeleteSale(sale)}

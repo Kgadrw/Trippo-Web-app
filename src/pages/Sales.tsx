@@ -294,10 +294,8 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 };
 
 const Sales = () => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { toast } = useToast();
-  const isRw = language === "rw";
-  const isFr = language === "fr";
   const {
     items: products,
     isLoading: productsLoading,
@@ -767,20 +765,14 @@ const Sales = () => {
         playErrorBeep();
         if (metrics.code === "invalid_quantity") {
           toast({
-            title: isRw ? "Umubare utari wo" : "Invalid Quantity",
-            description: isRw
-              ? "Andika umubare nyawo urenze 0."
-              : "Please enter a valid quantity greater than 0.",
+            title: t("invalidQuantity"),
+            description: t("invalidQuantityDesc"),
             variant: "destructive",
           });
         } else if (metrics.code === "invalid_price") {
           toast({
-            title: isRw ? "Igiciro kitari cyo" : isFr ? "Prix invalide" : "Invalid price",
-            description: isRw
-              ? "Injiza igiciro cyemewe."
-              : isFr
-                ? "Entrez un prix valide."
-                : "Enter a valid selling price (a number, zero or greater).",
+            title: t("invalidPriceShort"),
+            description: t("invalidPriceDesc"),
             variant: "destructive",
           });
         } else {
@@ -788,18 +780,17 @@ const Sales = () => {
             product.isPackage && product.packageQuantity && packageSaleMode === "wholePackage"
               ? product.packageQuantity
               : null;
+          const itemWord = product.stock === 1 ? t("itemSingular") : t("itemsPlural");
           toast({
-            title: isRw ? "Stoki ntihagije" : "Insufficient Stock",
+            title: t("insufficientStock"),
             description:
               need != null
-                ? isRw
-                  ? `Hakeneye nibura ${need} muri stoki (hari ${product.stock}).`
-                  : isFr
-                    ? `Il faut au moins ${need} en stock (disponible : ${product.stock}).`
-                    : `You need at least ${need} in stock to sell a whole package (${product.stock} available).`
-                : isRw
-                  ? `Hari gusa ${product.stock} muri stoki.`
-                  : `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
+                ? t("needWholePackageStock")
+                    .replace("{need}", String(need))
+                    .replace("{stock}", String(product.stock))
+                : t("onlyItemsInStock")
+                    .replace("{stock}", String(product.stock))
+                    .replace("{items}", itemWord),
             variant: "destructive",
           });
         }
@@ -1594,7 +1585,7 @@ const Sales = () => {
               <div className="relative flex-1">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
-                  placeholder={t("search") + " " + (language === "rw" ? "ku bicuruzwa" : language === "fr" ? "par produit..." : "by product...")}
+                  placeholder={t("search") + " " + t("searchByProduct")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
@@ -1662,23 +1653,23 @@ const Sales = () => {
               <div className="rounded-lg p-4 bg-white/80 backdrop-blur-sm border border-gray-200 space-y-3">
                 <div className="space-y-3">
                   <div className="text-xs font-semibold text-gray-700">
-                    {isRw ? "Shungura ku itariki" : isFr ? "Filtrer par date" : "Filter by date"}
+                    {t("filterByDate")}
                   </div>
 
                   <div className="space-y-1">
                     <div className="text-[11px] font-medium text-gray-600">
-                      {isRw ? "Stoki" : isFr ? "Stock" : "Inventory"}
+                      {t("inventory")}
                     </div>
                     <Select
                       value={selectedInventoryId}
                       onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
                     >
                       <SelectTrigger className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                        <SelectValue placeholder={isRw ? "Byose" : isFr ? "Tous" : "All"} />
+                        <SelectValue placeholder={t("all")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__all__">{isRw ? "Byose" : isFr ? "Tous" : "All"}</SelectItem>
-                        <SelectItem value="__unassigned__">{isRw ? "Nta stoki" : isFr ? "Non assigné" : "Unassigned"}</SelectItem>
+                        <SelectItem value="__all__">{t("all")}</SelectItem>
+                        <SelectItem value="__unassigned__">{t("unassigned")}</SelectItem>
                         {inventories.map((inv) => {
                           const id = String((inv as any)._id ?? (inv as any).id ?? "");
                           if (!id) return null;
@@ -1696,7 +1687,7 @@ const Sales = () => {
                     {/* Start Date */}
                     <div className="space-y-1">
                       <div className="text-[11px] font-medium text-gray-600">
-                        {isRw ? "Kuva" : isFr ? "Du" : "From"}
+                        {t("startDate")}
                       </div>
                       <div className="relative">
                         <Calendar
@@ -1716,7 +1707,7 @@ const Sales = () => {
                     {/* End Date */}
                     <div className="space-y-1">
                       <div className="text-[11px] font-medium text-gray-600">
-                        {isRw ? "Kugeza" : isFr ? "Au" : "To"}
+                        {t("endDate")}
                       </div>
                       <div className="relative">
                         <Calendar
@@ -1746,7 +1737,7 @@ const Sales = () => {
                         setEndDate(today);
                       }}
                     >
-                      {isRw ? "Uyu munsi" : isFr ? "Aujourd'hui" : "Today"}
+                      {t("periodToday")}
                     </Button>
                     <Button
                       type="button"
@@ -1764,7 +1755,7 @@ const Sales = () => {
                         setEndDate(sunday.toISOString().slice(0, 10));
                       }}
                     >
-                      {isRw ? "Iki cyumweru" : isFr ? "Cette semaine" : "This week"}
+                      {t("periodWeek")}
                     </Button>
                     <Button
                       type="button"
@@ -1778,7 +1769,7 @@ const Sales = () => {
                         setEndDate(last.toISOString().slice(0, 10));
                       }}
                     >
-                      {isRw ? "Uku kwezi" : isFr ? "Ce mois" : "This month"}
+                      {t("thisMonth")}
                     </Button>
                     <Button
                       type="button"
@@ -1789,7 +1780,7 @@ const Sales = () => {
                         setEndDate(getTodayDate());
                       }}
                     >
-                      {isRw ? "Uyu mwaka" : isFr ? "Cette année" : "This year"}
+                      {t("thisYear")}
                     </Button>
                   </div>
 
@@ -1804,20 +1795,19 @@ const Sales = () => {
                       }}
                     >
                       <X size={14} className="mr-2" />
-                      {isRw ? "Siba itariki" : isFr ? "Effacer dates" : "Clear dates"}
+                      {t("cancel")}
                     </Button>
                     <Button
                       type="button"
                       className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
                       onClick={() => setShowFilters(false)}
                     >
-                      {isRw ? "Bikore" : isFr ? "Appliquer" : "Apply"}
+                      {t("confirm")}
                     </Button>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500">
-                  {isRw ? "Byerekana" : isFr ? "Affichage" : "Showing"} {filteredSales.length}{" "}
-                  {isRw ? "bya" : isFr ? "sur" : "of"} {sales.length} {t("sales").toLowerCase()}
+                  {filteredSales.length} / {sales.length} {t("sales").toLowerCase()}
                 </div>
               </div>
             )}
@@ -1830,7 +1820,7 @@ const Sales = () => {
               <div className="relative flex-1">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
-                  placeholder={t("search") + " " + (language === "rw" ? "ku bicuruzwa" : language === "fr" ? "par produit..." : "by product...")}
+                  placeholder={t("search") + " " + t("searchByProduct")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
@@ -1904,11 +1894,11 @@ const Sales = () => {
                     onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
                   >
                     <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                      <SelectValue placeholder={isRw ? "Byose" : isFr ? "Tous" : "All"} />
+                      <SelectValue placeholder={t("all")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">{isRw ? "Byose" : isFr ? "Tous" : "All"}</SelectItem>
-                      <SelectItem value="__unassigned__">{isRw ? "Nta stoki" : isFr ? "Non assigné" : "Unassigned"}</SelectItem>
+                      <SelectItem value="__all__">{t("all")}</SelectItem>
+                      <SelectItem value="__unassigned__">{t("unassigned")}</SelectItem>
                       {inventories.map((inv) => {
                         const id = String((inv as any)._id ?? (inv as any).id ?? "");
                         if (!id) return null;
@@ -2000,8 +1990,7 @@ const Sales = () => {
                   )}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {isRw ? "Byerekana" : isFr ? "Affichage" : "Showing"} {filteredSales.length}{" "}
-                  {isRw ? "bya" : isFr ? "sur" : "of"} {sales.length} {t("sales").toLowerCase()}
+                  {filteredSales.length} / {sales.length} {t("sales").toLowerCase()}
                 </div>
               </div>
             )}
@@ -2029,13 +2018,13 @@ const Sales = () => {
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("quantity")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                  {isRw ? "Agaciro" : isFr ? "Coût" : "Cost"}
+                  {t("cost")}
                 </th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("profit")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("paymentMethod")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("date")}</th>
                 <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">
-                  {isRw ? "Ibikorwa" : isFr ? "Actions" : "Actions"}
+                  {t("actions")}
                 </th>
               </tr>
             </thead>
@@ -2103,11 +2092,11 @@ const Sales = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handlePrintTicket(sale)}>
                               <Printer size={14} className="mr-2" />
-                                  {isRw ? "Sohora tike" : isFr ? "Imprimer le ticket" : "Print ticket"}
+                                  {t("export")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleDownloadTicket(sale)}>
                               <Download size={14} className="mr-2" />
-                                  {isRw ? "Kuramo tike" : isFr ? "Télécharger le ticket" : "Download ticket"}
+                                  {t("exportPdf")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -2132,18 +2121,10 @@ const Sales = () => {
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <ShoppingCart size={48} className="mb-4 opacity-50" />
                       <p className="text-base font-medium">
-                        {isRw
-                          ? "Nta makuru abonetse"
-                          : isFr
-                          ? "Aucune vente trouvée selon vos filtres"
-                          : "No sales found matching your filters"}
+                        {t("noSales")}
                       </p>
                       <p className="text-sm mt-1">
-                        {isRw
-                          ? "Gerageza guhindura gushakisha cyangwa igihe"
-                          : isFr
-                          ? "Essayez d'ajuster votre recherche ou la période"
-                          : "Try adjusting your search or date range"}
+                        {t("noProductsSearchHint")}
                       </p>
                     </div>
                   </td>
@@ -2163,19 +2144,19 @@ const Sales = () => {
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2 w-10">
-                        {isRw ? "Siba" : isFr ? "Suppr." : "Del"}
+                        {t("delete")}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2">
-                        {isRw ? "Ubwoko" : isFr ? "Type" : "Type"}
+                        {t("typeLabel")}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2">
-                        {isRw ? "Ibisobanuro" : isFr ? "Détails" : "Details"}
+                        {t("details")}
                       </th>
                       <th className="text-left text-xs font-semibold text-gray-700 py-2 px-2">
-                        {isRw ? "Amafaranga" : isFr ? "Montant" : "Amount"}
+                        {t("amount")}
                       </th>
                       <th className="text-right text-xs font-semibold text-gray-700 py-2 px-2 w-10">
-                        {isRw ? "Tike" : isFr ? "Ticket" : "Ticket"}
+                        {t("exportPdf")}
                       </th>
                     </tr>
                   </thead>
@@ -2207,16 +2188,8 @@ const Sales = () => {
                             <td className="py-2 px-2 align-top">
                               <div className={cn("text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
                                 {row.type === "sale"
-                                  ? isRw
-                                    ? "Ubucuruzi"
-                                    : isFr
-                                    ? "Vente"
-                                    : "Sale"
-                                  : isRw
-                                  ? "Ikiguzi"
-                                  : isFr
-                                  ? "Dépense"
-                                  : "Expense"}
+                                  ? t("activitySaleLabel")
+                                  : t("activityExpenseLabel")}
                               </div>
                             </td>
                             <td className="py-2 px-2">
@@ -2239,7 +2212,7 @@ const Sales = () => {
                                   className="h-7 w-7 p-0 text-gray-700 hover:text-blue-700 hover:bg-blue-50"
                                   onClick={() => void handlePrintTicket((row as any).sale)}
                                   aria-label="Print receipt"
-                                  title={isRw ? "Sohora tike" : isFr ? "Imprimer le ticket" : "Print ticket"}
+                                  title={t("export")}
                                 >
                                   <Printer size={14} />
                                 </Button>
@@ -2256,13 +2229,9 @@ const Sales = () => {
                           <div className="flex flex-col items-center justify-center text-gray-400">
                             <ShoppingCart size={48} className="mb-4 opacity-50" />
                             <p className="text-sm font-medium">
-                              {isRw
-                                ? "Nta makuru abonetse"
-                                : isFr
-                                ? "Aucune activité trouvée selon vos filtres"
-                                : "No activity found matching your filters"}
+                              {t("noActivity")}
                             </p>
-                            <p className="text-xs mt-1">Try adjusting your search or date range</p>
+                            <p className="text-xs mt-1">{t("noProductsSearchHint")}</p>
                           </div>
                         </td>
                       </tr>

@@ -95,8 +95,8 @@ const Clients = () => {
       }
       console.error("Error with clients:", error);
       toast({
-        title: "Error",
-        description: "Failed to load clients. Please try again.",
+        title: t("error"),
+        description: t("failedLoadClients"),
         variant: "destructive",
       });
     },
@@ -224,8 +224,8 @@ const Clients = () => {
   const handleSave = async () => {
     if (!formData.name.trim()) {
       toast({
-        title: "Validation Error",
-        description: "Client name is required.",
+        title: t("validationErrorTitle"),
+        description: t("clientNameRequired"),
         variant: "destructive",
       });
       return;
@@ -233,8 +233,8 @@ const Clients = () => {
 
     if (!formData.email.trim()) {
       toast({
-        title: "Validation Error",
-        description: "Client email is required.",
+        title: t("validationErrorTitle"),
+        description: t("clientEmailRequired"),
         variant: "destructive",
       });
       return;
@@ -242,8 +242,8 @@ const Clients = () => {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       toast({
-        title: "Validation Error",
-        description: "Please enter a valid email address.",
+        title: t("validationErrorTitle"),
+        description: t("validEmailRequired"),
         variant: "destructive",
       });
       return;
@@ -251,8 +251,8 @@ const Clients = () => {
 
     if (!formData.businessType.trim()) {
       toast({
-        title: "Validation Error",
-        description: "Business type is required. Please describe what the client does.",
+        title: t("validationErrorTitle"),
+        description: t("businessTypeRequired"),
         variant: "destructive",
       });
       return;
@@ -273,8 +273,8 @@ const Clients = () => {
         await refreshClients();
         playUpdateBeep();
         toast({
-          title: "Client Updated",
-          description: "Client has been updated successfully.",
+          title: t("clientUpdatedSuccess"),
+          description: t("clientUpdatedDesc"),
         });
         setIsModalOpen(false);
         setEditingClient(null);
@@ -301,8 +301,8 @@ const Clients = () => {
           setShowAddScheduleDialog(true);
         } else {
           toast({
-            title: "Client Added",
-            description: "Client has been added successfully.",
+            title: t("clientAddedSuccess"),
+            description: t("clientAddedDesc"),
           });
           setIsModalOpen(false);
         }
@@ -310,8 +310,8 @@ const Clients = () => {
     } catch (error) {
       playErrorBeep();
       toast({
-        title: editingClient ? "Update Failed" : "Add Failed",
-        description: `Failed to ${editingClient ? "update" : "add"} client. Please try again.`,
+        title: editingClient ? t("updateClientFailedTitle") : t("addClientFailed"),
+        description: editingClient ? t("updateClientFailed") : t("addClientFailed"),
         variant: "destructive",
       });
     }
@@ -330,16 +330,16 @@ const Clients = () => {
       await refreshClients();
       playDeleteBeep();
       toast({
-        title: "Client Deleted",
-        description: "Client has been deleted successfully.",
+        title: t("clientDeletedSuccess"),
+        description: t("clientDeletedDesc"),
       });
       setDeleteDialogOpen(false);
       setClientToDelete(null);
     } catch (error) {
       playErrorBeep();
       toast({
-        title: "Delete Failed",
-        description: "Failed to delete client. Please try again.",
+        title: t("deleteClientFailed"),
+        description: t("deleteClientFailed"),
         variant: "destructive",
       });
     }
@@ -347,7 +347,7 @@ const Clients = () => {
 
   // Clients Page Skeleton
   const ClientsSkeleton = () => (
-    <AppLayout title="Clients">
+    <AppLayout title={t("clientsPageTitle")}>
       <div className="flex flex-col h-[calc(100vh-3rem)]">
         <div className="bg-white shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 px-4 py-4 flex-shrink-0 shadow-sm">
@@ -376,7 +376,7 @@ const Clients = () => {
   }
 
   return (
-    <AppLayout title="Clients">
+    <AppLayout title={t("clientsPageTitle")}>
       <div className="flex flex-col h-[calc(100vh-3rem)]">
         <div className="lg:bg-white bg-white/80 backdrop-blur-sm flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Filter Section */}
@@ -385,12 +385,12 @@ const Clients = () => {
               {quickCreateMode && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
                   {quickCreateMode === "worker"
-                    ? "You are adding a worker for service sales. After saving, go to Record Sale > Service Sale and select this worker."
-                    : "You are adding a client. Fill the details, save, then use the client in schedules or records."}
+                    ? t("quickCreateWorkerHint")
+                    : t("quickCreateClientHint")}
                 </div>
               )}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-gray-800">Manage Clients</h3>
+                <h3 className="text-sm font-semibold text-gray-800">{t("manageClients")}</h3>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                   <Button
                     onClick={() => navigate("/schedules")}
@@ -398,22 +398,24 @@ const Clients = () => {
                     className="border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2 flex items-center"
                   >
                     <Calendar size={18} />
-                    <span className="hidden sm:inline">Go to Schedules</span>
-                    <span className="sm:hidden">Schedules</span>
+                    <span className="hidden sm:inline">{t("goToSchedules")}</span>
+                    <span className="sm:hidden">{t("schedulesLinkedLabel")}</span>
                   </Button>
                 </div>
               </div>
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
-                  placeholder="Search clients by name, email, phone, or business type..."
+                  placeholder={t("searchClientsPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
                 />
               </div>
               <div className="text-xs text-gray-500">
-                Showing {filteredClients.length} of {clients.length} clients
+                {t("showingClientsCount")
+                  .replace("{filtered}", String(filteredClients.length))
+                  .replace("{total}", String(clients.length))}
               </div>
             </div>
           </div>
@@ -452,9 +454,9 @@ const Clients = () => {
                                   client.clientType === "worker" && "bg-blue-100 text-blue-700 border border-blue-200",
                                   client.clientType === "other" && "bg-gray-100 text-gray-700 border border-gray-200"
                                 )}>
-                                  {client.clientType === "debtor" && "Debtor"}
-                                  {client.clientType === "worker" && "Worker"}
-                                  {client.clientType === "other" && "Other"}
+                                  {client.clientType === "debtor" && t("clientTypeDebtor")}
+                                  {client.clientType === "worker" && t("clientTypeWorker")}
+                                  {client.clientType === "other" && t("clientTypeOther")}
                                 </span>
                               </div>
                             )}
@@ -466,21 +468,21 @@ const Clients = () => {
                                 navigate(`/schedules?clientId=${cid}`);
                               }}
                               className="p-2 text-green-600 hover:bg-green-50 hover:text-green-700 transition-all rounded-lg"
-                              title="Add schedule for this client"
+                              title={t("addScheduleForClient")}
                             >
                               <Calendar size={16} />
                             </button>
                             <button
                               onClick={() => openEditModal(client)}
                               className="p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all rounded-lg"
-                              title="Edit client"
+                              title={t("editClientTooltip")}
                             >
                               <Pencil size={16} />
                             </button>
                             <button
                               onClick={() => handleDeleteClick(client)}
                               className="p-2 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all rounded-lg"
-                              title="Delete client"
+                              title={t("deleteClientTooltip")}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -514,9 +516,11 @@ const Clients = () => {
                             <div className="flex items-center justify-between gap-2 mb-2">
                               <div className="text-xs font-semibold text-gray-900 flex items-center gap-2">
                                 <Calendar size={14} className="text-gray-500" />
-                                Schedules
+                                {t("schedulesLinkedLabel")}
                                 <span className="text-gray-600 font-medium">
-                                  ({linkedSchedules.length} total / {activeCount} active)
+                                  {t("schedulesCountLabel")
+                                    .replace("{total}", String(linkedSchedules.length))
+                                    .replace("{active}", String(activeCount))}
                                 </span>
                               </div>
                               {linkedSchedules.length > 0 && (
@@ -525,16 +529,16 @@ const Clients = () => {
                                   className="text-xs font-medium text-gray-700 hover:text-gray-900 underline underline-offset-2"
                                   onClick={() => navigate(`/schedules?clientId=${clientIdStr}`)}
                                 >
-                                  View all
+                                  {t("viewAll")}
                                 </button>
                               )}
                             </div>
 
                             {schedulesLoading ? (
-                              <div className="text-xs text-gray-500">Loading schedules...</div>
+                              <div className="text-xs text-gray-500">{t("loadingSchedules")}</div>
                             ) : linkedSchedules.length === 0 ? (
                               <div className="text-xs text-gray-500">
-                                No schedules for this client yet.
+                                {t("noSchedulesForClient")}
                               </div>
                             ) : (
                               <div className="space-y-2">
@@ -567,7 +571,7 @@ const Clients = () => {
                                           </div>
                                         </div>
                                         <span className={cn("px-2 py-0.5 rounded border text-[11px] font-semibold", getStatusBadge(s.status))}>
-                                          {overdue ? "Overdue" : s.status}
+                                          {overdue ? t("statusOverdue") : s.status === "pending" ? t("statusActive") : s.status === "completed" ? t("statusCompleted") : t("statusCancelled")}
                                         </span>
                                       </div>
                                     </div>
@@ -583,8 +587,8 @@ const Clients = () => {
                                     }
                                   >
                                     {expandedClientId === clientIdStr
-                                      ? "Show less"
-                                      : `Show ${Math.min(7, linkedSchedules.length - 3)} more`}
+                                      ? t("showLess")
+                                      : t("showMoreSchedules").replace("{count}", String(Math.min(7, linkedSchedules.length - 3)))}
                                   </button>
                                 )}
                               </div>
@@ -599,10 +603,10 @@ const Clients = () => {
                 <div className="text-center py-12">
                   <User size={48} className="mx-auto mb-4 text-gray-400 opacity-50" />
                   <p className="text-base font-medium text-gray-400">
-                    {searchQuery ? "No clients found matching your search" : "No clients yet"}
+                    {searchQuery ? t("noClientsSearch") : t("noClientsYet")}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    {searchQuery ? "Try adjusting your search terms" : "Add your first client to get started"}
+                    {searchQuery ? t("tryAdjustSearch") : t("addFirstClient")}
                   </p>
                 </div>
               )}
@@ -617,58 +621,58 @@ const Clients = () => {
           <DialogHeader>
             <DialogTitle>
               {editingClient
-                ? "Edit Client"
+                ? t("editClientModal")
                 : formData.clientType === "worker"
-                  ? "Add New Worker"
-                  : "Add New Client"}
+                  ? t("addNewWorkerModal")
+                  : t("addNewClientModal")}
             </DialogTitle>
           </DialogHeader>
           
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label>Client Name *</Label>
+              <Label>{t("clientNameLabel")} *</Label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter client name"
+                placeholder={t("enterClientName")}
                 className="input-field"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Client Type / Relationship *</Label>
+              <Label>{t("clientTypeRelationship")} *</Label>
               <Select value={formData.clientType} onValueChange={(value: 'debtor' | 'worker' | 'other') => setFormData({ ...formData, clientType: value })}>
                 <SelectTrigger className="input-field">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="debtor">Debtor (Owes money/debt to pay)</SelectItem>
-                  <SelectItem value="worker">Worker (Needs to get paid)</SelectItem>
-                  <SelectItem value="other">Other (General scheduling)</SelectItem>
+                  <SelectItem value="debtor">{t("clientTypeDebtorOption")}</SelectItem>
+                  <SelectItem value="worker">{t("clientTypeWorkerOption")}</SelectItem>
+                  <SelectItem value="other">{t("clientTypeOtherOption")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">Select the type of relationship with this client</p>
+              <p className="text-xs text-gray-500">{t("clientTypeSelectHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label>Business Type / What They Do *</Label>
+              <Label>{t("businessTypeWhatTheyDo")} *</Label>
               <Input
                 value={formData.businessType}
                 onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
                 placeholder={
                   formData.clientType === "worker"
-                    ? "e.g., Barber, Hair Stylist, Nail Technician"
-                    : "e.g., Starlink Internet Service, Construction Company, Retail Store"
+                    ? t("businessTypeWorkerPh")
+                    : t("businessTypeClientPh")
                 }
                 className="input-field"
                 required
               />
-              <p className="text-xs text-gray-500">Describe what business or service this client provides</p>
+              <p className="text-xs text-gray-500">{t("businessTypeDescribeHint")}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Email *</Label>
+                <Label>{t("emailAddress")} *</Label>
                 <Input
                   type="email"
                   value={formData.email}
@@ -680,7 +684,7 @@ const Clients = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Phone</Label>
+                <Label>{t("phoneNumber")}</Label>
                 <Input
                   type="tel"
                   value={formData.phone}
@@ -692,11 +696,11 @@ const Clients = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Notes</Label>
+              <Label>{t("note")}</Label>
               <Textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Additional notes about this client..."
+                placeholder={t("notesAboutClient")}
                 className="input-field"
                 rows={3}
               />
@@ -708,10 +712,10 @@ const Clients = () => {
               setIsModalOpen(false);
               setEditingClient(null);
             }}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button onClick={handleSave} className="bg-green-600 text-white hover:bg-green-700">
-              {editingClient ? "Update Client" : "Add Client"}
+              {editingClient ? t("updateClientBtn") : t("addClientBtn")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -723,12 +727,12 @@ const Clients = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Calendar size={20} className="text-green-600" />
-              Client Created Successfully!
+              {t("clientCreatedSuccess")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Would you like to create a schedule/reminder for <strong>{formData.name}</strong>?
+              {t("clientCreatedSchedulePrompt")} <strong>{formData.name}</strong>?
               <br /><br />
-              You can set up payment reminders, work schedules, or any other important dates.
+              {t("clientCreatedScheduleHint")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -736,11 +740,11 @@ const Clients = () => {
               setShowAddScheduleDialog(false);
               setNewlyCreatedClientId(null);
               toast({
-                title: "Client Added",
-                description: "Client has been added successfully.",
+                title: t("clientAddedSuccess"),
+                description: t("clientAddedDesc"),
               });
             }}>
-              Not Now
+              {t("notNow")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -751,7 +755,7 @@ const Clients = () => {
               }}
               className="bg-green-600 text-white hover:bg-green-700"
             >
-              Add Schedule
+              {t("addScheduleBtn")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -763,22 +767,21 @@ const Clients = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Trash2 size={20} className="text-red-600" />
-              Delete Client
+              {t("deleteClientModal")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{clientToDelete?.name}</strong>? 
-              This action cannot be undone and will permanently remove this client from your records.
+              {t("deleteClientConfirmFull").replace("{name}", clientToDelete?.name ?? "")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setClientToDelete(null)}>
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              Delete Client
+              {t("deleteClientModal")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

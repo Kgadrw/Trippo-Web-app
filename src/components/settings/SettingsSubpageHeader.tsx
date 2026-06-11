@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { ChevronLeft, LucideIcon } from "lucide-react";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface SettingsSubpageHeaderProps {
   icon: LucideIcon;
@@ -15,7 +15,7 @@ export function SettingsSubpageHeader({
   description,
   tone = "blue",
 }: SettingsSubpageHeaderProps) {
-  const { language } = useLanguage();
+  const { t } = useTranslation();
   const isRed = tone === "red";
 
   return (
@@ -25,7 +25,7 @@ export function SettingsSubpageHeader({
         className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-800"
       >
         <ChevronLeft size={14} />
-        {language === "rw" ? "Amagenamiterere" : language === "fr" ? "Paramètres" : "All settings"}
+        {t("allSettings")}
       </NavLink>
       <div className="flex items-center gap-3">
         <div

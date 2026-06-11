@@ -1676,11 +1676,8 @@ const Dashboard = () => {
 
   return (
     <AppLayout title={t("dashboard")}>
-      {/* Desktop: greeting */}
-      <div
-        className="hidden lg:flex fixed top-4 z-40 right-6 items-center justify-between gap-4"
-        style={{ left: "var(--content-left, calc(14.5rem + 0.75rem))" }}
-      >
+      {/* Desktop: greeting + date/time (scrolls with page) */}
+      <div className="hidden lg:flex mb-4 items-center justify-between gap-4">
         <p className="min-w-0 text-[15px] leading-tight">
           <span className="text-muted-foreground">{t("hello")}</span>{" "}
           <span className="font-semibold text-foreground">

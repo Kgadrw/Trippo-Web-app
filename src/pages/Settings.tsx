@@ -1,11 +1,9 @@
 import { NavLink } from "react-router-dom";
 import { Building2, Shield, Globe, Trash2, Bell, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLanguage } from "@/hooks/useLanguage";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const Settings = () => {
-  const { language } = useLanguage();
   const { t } = useTranslation();
 
   const items = [
@@ -15,14 +13,14 @@ const Settings = () => {
     {
       key: "notifications",
       icon: Bell,
-      label: language === "rw" ? "Amatangazo" : language === "fr" ? "Notifications" : "Notifications",
+      label: t("notifications"),
       to: "/settings/notifications",
       tone: "blue" as const,
     },
     {
       key: "delete",
       icon: Trash2,
-      label: language === "rw" ? "Kuraho Konti" : language === "fr" ? "Supprimer le compte" : "Delete Account",
+      label: t("deleteAccount"),
       to: "/settings/delete-account",
       tone: "red" as const,
     },

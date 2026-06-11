@@ -88,8 +88,7 @@ function sanitizeIntField(raw: string): string {
 }
 
 const AddProduct = () => {
-  const { t, language } = useTranslation();
-  const isRw = language === "rw";
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
@@ -296,7 +295,7 @@ const AddProduct = () => {
       
       playProductBeep();
       toast({
-        title: "Product Restocked",
+        title: t("productRestocked"),
         description: `Successfully updated ${outOfStockProduct.name}. Stock increased by ${newStock} to ${currentStock + newStock}.`,
       });
       
@@ -307,8 +306,8 @@ const AddProduct = () => {
         // Product was saved locally, show success message
         playProductBeep();
         toast({
-          title: "Product Restocked",
-          description: "Product has been updated. It will sync when you're back online.",
+          title: t("productRestocked"),
+          description: t("productUpdated"),
         });
         navigate("/products");
         return;
@@ -316,8 +315,8 @@ const AddProduct = () => {
       playErrorBeep();
       console.error("Error updating out-of-stock product:", error);
       toast({
-        title: "Update Failed",
-        description: error?.message || error?.response?.error || "Failed to update product. Please check your connection and try again.",
+        title: t("updateFailed"),
+        description: error?.message || error?.response?.error || t("pleaseTryAgain"),
         variant: "destructive",
       });
     }
@@ -328,8 +327,8 @@ const AddProduct = () => {
     
     if (!hasPin) {
       toast({
-        title: "PIN Required",
-        description: "Please set a PIN in Settings before deleting products.",
+        title: t("pinRequired"),
+        description: t("pinRequired"),
         variant: "destructive",
       });
       return;
@@ -344,8 +343,8 @@ const AddProduct = () => {
     if (!verifyPin(pinInput)) {
       playErrorBeep();
       toast({
-        title: "Incorrect PIN",
-        description: "The PIN you entered is incorrect.",
+        title: t("incorrectPin"),
+        description: t("incorrectPin"),
         variant: "destructive",
       });
       setPinInput("");
@@ -367,8 +366,8 @@ const AddProduct = () => {
       
       playDeleteBeep();
       toast({
-        title: "Product Deleted",
-        description: "Product has been successfully deleted.",
+        title: t("productDeletedMsg"),
+        description: t("deleted"),
       });
       
       setShowPinDialog(false);
@@ -378,8 +377,8 @@ const AddProduct = () => {
       console.error("Error deleting product:", error);
       playErrorBeep();
       toast({
-        title: "Delete Failed",
-        description: error?.message || error?.response?.error || "Failed to delete product. Please try again.",
+        title: t("error"),
+        description: error?.message || error?.response?.error || t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -425,8 +424,8 @@ const AddProduct = () => {
         window.dispatchEvent(new CustomEvent('products-should-refresh'));
         playProductBeep();
         toast({
-          title: "Product Updated",
-          description: "Product has been updated successfully.",
+          title: t("productUpdated"),
+          description: t("changesSaved"),
         });
         navigate("/products");
       } catch (error: any) {
@@ -437,16 +436,16 @@ const AddProduct = () => {
           // Product was saved locally, show success message
           playProductBeep();
           toast({
-            title: "Product Updated",
-            description: "Product has been updated. It will sync when you're back online.",
+            title: t("productUpdated"),
+            description: t("productUpdated"),
           });
           navigate("/products");
           return;
         }
         playErrorBeep();
         toast({
-          title: "Update Failed",
-          description: error?.message || error?.response?.error || "Failed to update product. Please check your connection and try again.",
+          title: t("updateFailed"),
+          description: error?.message || error?.response?.error || t("pleaseTryAgain"),
           variant: "destructive",
         });
       }
@@ -502,7 +501,7 @@ const AddProduct = () => {
         if (regularDuplicates.length > 0) {
           playWarningBeep();
           toast({
-            title: "Duplicate Products Found",
+            title: t("duplicateProductsFound"),
             description: `The following product(s) already exist: ${regularDuplicates.map(p => p.name).join(", ")}`,
             variant: "destructive",
           });
@@ -567,7 +566,7 @@ const AddProduct = () => {
                   // Show error notification for failed product
                   playErrorBeep();
                   toast({
-                    title: "Failed to Add Product",
+                    title: t("failedToAddProduct"),
                     description: `Failed to add "${product.name}": ${error?.message || "Unknown error occurred"}. Please try again.`,
                     variant: "destructive",
                   });
@@ -591,7 +590,7 @@ const AddProduct = () => {
             if (addedCount > 0 || updatedCount > 0) {
               playProductBeep();
               toast({
-                title: "Products Processed",
+                title: t("productsProcessed"),
                 description: `Successfully added ${addedCount} new product(s) and restocked ${updatedCount} out-of-stock product(s).`,
               });
               navigate("/products");
@@ -602,8 +601,8 @@ const AddProduct = () => {
               // Products were saved locally, show success message
               playProductBeep();
               toast({
-                title: "Products Processed",
-                description: "Products have been saved. They will sync when you're back online.",
+                title: t("productsProcessed"),
+                description: t("productSaved"),
               });
               
               // Send notification about offline save
@@ -627,8 +626,8 @@ const AddProduct = () => {
             }
             playErrorBeep();
             toast({
-              title: "Processing Failed",
-              description: error?.message || error?.response?.error || "Failed to process some products. Please check your connection and try again.",
+              title: t("processingFailed"),
+              description: error?.message || error?.response?.error || t("pleaseTryAgain"),
               variant: "destructive",
             });
           }
@@ -665,15 +664,15 @@ const AddProduct = () => {
           if (addedCount > 0) {
             playProductBeep();
             toast({
-              title: "Products Added",
+              title: t("productsAddedMsg"),
               description: `Successfully added ${addedCount} product(s).${skippedCount > 0 ? ` ${skippedCount} duplicate(s) were skipped.` : ""}`,
             });
             navigate("/products");
           } else {
             playWarningBeep();
             toast({
-              title: "No Products Added",
-              description: "All products were duplicates and were skipped.",
+              title: t("noProductsAddedMsg"),
+              description: t("duplicateProductDesc"),
               variant: "destructive",
             });
           }
@@ -685,8 +684,8 @@ const AddProduct = () => {
             // Products were saved locally, show success message
             playProductBeep();
             toast({
-              title: "Products Added",
-              description: "Products have been saved. They will sync when you're back online.",
+              title: t("productsAddedMsg"),
+              description: t("productSaved"),
             });
             
             // Send notification about offline save
@@ -711,16 +710,16 @@ const AddProduct = () => {
           playErrorBeep();
           console.error("Error adding products:", error);
           toast({
-            title: "Add Failed",
-            description: error?.message || error?.response?.error || "Failed to add products. Please check your connection and try again.",
+            title: t("saveFailed"),
+            description: error?.message || error?.response?.error || t("pleaseTryAgain"),
             variant: "destructive",
           });
         }
       } else {
         playWarningBeep();
         toast({
-          title: "No Products Added",
-          description: "Please enter at least one product name.",
+          title: t("noProductsAddedMsg"),
+          description: t("enterProductNameMsg"),
           variant: "destructive",
         });
       }
@@ -729,8 +728,8 @@ const AddProduct = () => {
       if (!formData.name.trim()) {
         playWarningBeep();
         toast({
-          title: "Missing Information",
-          description: "Please enter a product name.",
+          title: t("missingInformation"),
+          description: t("enterProductNameMsg"),
           variant: "destructive",
         });
         return;
@@ -774,8 +773,8 @@ const AddProduct = () => {
         } else {
         playWarningBeep();
         toast({
-          title: "Duplicate Product",
-          description: "A product with the same name, category, and type already exists.",
+          title: t("duplicateProduct"),
+          description: t("duplicateProductDesc"),
           variant: "destructive",
         });
         return;
@@ -792,8 +791,8 @@ const AddProduct = () => {
         }));
         playProductBeep();
         toast({
-          title: "Product Added",
-          description: "Product has been added successfully.",
+          title: t("productAdded"),
+          description: t("productSaved"),
         });
         navigate("/products");
       } catch (error: any) {
@@ -807,8 +806,8 @@ const AddProduct = () => {
           // Product was saved locally, show success message
           playProductBeep();
           toast({
-            title: "Product Added",
-            description: "Product has been saved. It will sync when you're back online.",
+            title: t("productAdded"),
+            description: t("productSaved"),
           });
           
           // Send notification about offline save
@@ -838,14 +837,14 @@ const AddProduct = () => {
           setOutOfStockDialogOpen(true);
         } else if (error?.message?.toLowerCase().includes("duplicate") || error?.response?.duplicate || error?.status === 409) {
           toast({
-            title: "Duplicate Product",
-            description: "A product with the same name, category, and type already exists.",
+            title: t("duplicateProduct"),
+            description: t("duplicateProductDesc"),
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Add Failed",
-            description: error?.message || error?.response?.error || "Failed to add product. Please check your connection and try again.",
+            title: t("saveFailed"),
+            description: error?.message || error?.response?.error || t("pleaseTryAgain"),
             variant: "destructive",
           });
         }
@@ -855,9 +854,9 @@ const AddProduct = () => {
 
   if (isLoading) {
     return (
-      <AppLayout title="Add Product">
+      <AppLayout title={t("addProduct")}>
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t("loading")}</p>
         </div>
       </AppLayout>
     );
@@ -896,7 +895,7 @@ const AddProduct = () => {
                   onClick={() => setMode("single")}
                   className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
                 >
-                  {language === "rw" ? "Icuruzwa kimwe" : "Single Product"}
+                  {t("singleProduct")}
                 </Button>
                 <Button
                   variant={mode === "bulk" ? "default" : "outline"}
@@ -982,7 +981,7 @@ const AddProduct = () => {
                               updateBulkProduct(index, "packageQuantity", sanitizeIntField(e.target.value))
                             }
                             className="h-12 text-base"
-                            placeholder={language === "rw" ? "Bibasha" : "Optional"}
+                            placeholder={t("optional")}
                           />
                         </div>
                       </div>
@@ -1010,10 +1009,10 @@ const AddProduct = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="perQuantity">
-                                  {language === "rw" ? "Igiciro cy'umubare" : "Cost per Quantity"}
+                                  {t("costPerQuantity")}
                                 </SelectItem>
                                 <SelectItem value="perPackage">
-                                  {language === "rw" ? "Igiciro cy'igipaki" : "Cost per Package"}
+                                  {t("costPerPackage")}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -1042,10 +1041,10 @@ const AddProduct = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="perQuantity">
-                                  {language === "rw" ? "Igiciro cy'umubare" : "Price per Quantity"}
+                                  {t("pricePerQuantity")}
                                 </SelectItem>
                                 <SelectItem value="perPackage">
-                                  {language === "rw" ? "Igiciro cy'igipaki" : "Price per Package"}
+                                  {t("pricePerPackage")}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -1069,13 +1068,9 @@ const AddProduct = () => {
                             placeholder="0"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
-                            {product.packageQuantity && product.packageQuantity.trim() !== "" 
-                              ? (language === "rw" 
-                                  ? `Umubare w'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki` 
-                                  : `Number of packages - ${product.packageQuantity} items per package`)
-                              : (language === "rw" 
-                                  ? "Umubare w'ibicuruzwa bisigaye" 
-                                  : "Number of individual products")}
+                            {product.packageQuantity && product.packageQuantity.trim() !== ""
+                              ? `${t("numberOfIndividualProducts")} - ${product.packageQuantity}`
+                              : t("numberOfIndividualProducts")}
                           </p>
                         </div>
                         <div>
@@ -1094,19 +1089,13 @@ const AddProduct = () => {
                             placeholder="5"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
-                            {product.packageQuantity && product.packageQuantity.trim() !== ""
-                              ? (language === "rw"
-                                  ? `Icyitonderwa cy'amapaki - ${product.packageQuantity} ibicuruzwa kuri gipaki`
-                                  : `Alert threshold for packages - ${product.packageQuantity} items per package`)
-                              : (language === "rw" 
-                                  ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" 
-                                  : "Alert when stock reaches this level")}
+                            {t("minStockAlertWhen")}
                           </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Manufactured Date (Optional)</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("date")} ({t("optional")})</Label>
                           <div className="relative">
                             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                             <Input
@@ -1118,7 +1107,7 @@ const AddProduct = () => {
                           </div>
                         </div>
                         <div>
-                          <Label className="text-sm font-medium text-gray-700 mb-1 block">Expiration Date (Optional)</Label>
+                          <Label className="text-sm font-medium text-gray-700 mb-1 block">{t("date")} ({t("optional")})</Label>
                           <div className="relative">
                             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                             <Input
@@ -1140,16 +1129,16 @@ const AddProduct = () => {
                 <table className="w-full">
                   <thead className="lg:bg-white bg-white/80 backdrop-blur-sm border-b border-transparent">
                     <tr>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[180px]">Product Name</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[150px]">Category</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Type</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Package</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[140px]">Cost Price</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[140px]">Selling Price</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Stock</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">Min Stock</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[160px]">MFD (Optional)</th>
-                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[160px]">EXP (Optional)</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[180px]">{t("productName")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[150px]">{t("category")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">{t("productType")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">{t("packageQuantity")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[140px]">{t("costPrice")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[140px]">{t("sellingPrice")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">{t("stock")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[120px]">{t("minimumStock")}</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[160px]">{t("date")} ({t("optional")})</th>
+                      <th className="text-left p-2 text-xs font-medium text-foreground min-w-[160px]">{t("date")} ({t("optional")})</th>
                       <th className="text-left p-2 text-xs font-medium text-foreground w-12"></th>
                     </tr>
                   </thead>
@@ -1161,7 +1150,7 @@ const AddProduct = () => {
                             value={product.name}
                             onChange={(e) => updateBulkProduct(index, "name", e.target.value)}
                             className="input-field h-9 text-sm w-full"
-                            placeholder="Enter product name"
+                            placeholder={t("enterProductName")}
                           />
                         </td>
                         <td className="p-2 min-w-[150px]">
@@ -1169,7 +1158,7 @@ const AddProduct = () => {
                             value={product.category}
                             onChange={(e) => updateBulkProduct(index, "category", e.target.value)}
                             className="input-field h-9 text-sm w-full"
-                            placeholder="Enter category"
+                            placeholder={t("enterCategory")}
                           />
                         </td>
                         <td className="p-2 min-w-[120px]">
@@ -1190,7 +1179,7 @@ const AddProduct = () => {
                               updateBulkProduct(index, "packageQuantity", sanitizeIntField(e.target.value))
                             }
                             className="input-field h-9 text-sm w-full"
-                            placeholder="Optional"
+                            placeholder={t("optional")}
                           />
                         </td>
                         <td className="p-2 min-w-[140px]">
@@ -1286,7 +1275,7 @@ const AddProduct = () => {
               </div>
               
               <div className="text-xs text-muted-foreground">
-                * Products with empty names will be skipped
+                * {t("enterProductNameMsg")}
               </div>
             </div>
           ) : (
@@ -1294,27 +1283,27 @@ const AddProduct = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Product Name</Label>
+                  <Label>{t("productName")}</Label>
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="input-field"
-                    placeholder="Enter product name"
+                    placeholder={t("enterProductName")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Category</Label>
+                  <Label>{t("category")}</Label>
                   <Input
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="input-field"
-                    placeholder="Enter category"
+                    placeholder={t("enterCategory")}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Product Type/Variant (Optional)</Label>
+                  <Label>{t("productTypeVariant")}</Label>
                   <Input
                     value={formData.productType}
                     onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
@@ -1324,7 +1313,7 @@ const AddProduct = () => {
                   <p className="text-xs text-muted-foreground">For products with variants like sizes (Small, Large, etc.)</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Package Quantity (Optional)</Label>
+                  <Label>{t("packageQuantity")} ({t("optional")})</Label>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -1341,7 +1330,7 @@ const AddProduct = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Inventory (optional)</Label>
+                  <Label>{t("inventory")} ({t("optional")})</Label>
                   <Select
                     value={formData.inventoryId}
                     onValueChange={(v) =>
@@ -1349,10 +1338,10 @@ const AddProduct = () => {
                     }
                   >
                     <SelectTrigger className="input-field">
-                      <SelectValue placeholder="Unassigned" />
+                      <SelectValue placeholder={t("unassigned")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                      <SelectItem value="__unassigned__">{t("unassigned")}</SelectItem>
                       {inventories.map((inv) => {
                         const id = String((inv as any)._id ?? (inv as any).id ?? "");
                         if (!id) return null;
@@ -1369,7 +1358,7 @@ const AddProduct = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Manufactured Date (Optional)</Label>
+                  <Label>{t("date")} ({t("optional")})</Label>
                   <div className="relative">
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                     <Input
@@ -1381,7 +1370,7 @@ const AddProduct = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Expiration Date (Optional)</Label>
+                  <Label>{t("date")} ({t("optional")})</Label>
                   <div className="relative">
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                     <Input
@@ -1396,7 +1385,7 @@ const AddProduct = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label>Cost Price (rwf)</Label>
+                  <Label>{t("costPrice")} (rwf)</Label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -1419,31 +1408,23 @@ const AddProduct = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="perQuantity">
-                            {language === "rw"
-                              ? "Igiciro cy'umubare w'ibicuruzwa"
-                              : "Cost per Quantity (per item)"}
+                            {t("costPerQuantity")}
                           </SelectItem>
                           <SelectItem value="perPackage">
-                            {language === "rw"
-                              ? "Igiciro cy'igipaki cyose"
-                              : "Cost per Package (whole box)"}
+                            {t("costPerPackage")}
                           </SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
                         {formData.costPriceType === "perQuantity"
-                          ? (language === "rw"
-                              ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 80 rwf kuri buri gicuruzwa)"
-                              : "Cost per individual item (e.g., 80 rwf per item)")
-                          : (language === "rw"
-                              ? "Igiciro cy'igipaki cyose (urugero: 1500 rwf kuri gipaki cyose)"
-                              : "Cost for whole package (e.g., 1500 rwf for whole box)")}
+                          ? t("pricePerItem")
+                          : t("priceForWholePackageLabel")}
                       </p>
                     </>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Selling Price (rwf)</Label>
+                  <Label>{t("sellingPrice")} (rwf)</Label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -1466,34 +1447,26 @@ const AddProduct = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="perQuantity">
-                            {language === "rw"
-                              ? "Igiciro cy'umubare w'ibicuruzwa"
-                              : "Price per Quantity (per item)"}
+                            {t("pricePerQuantity")}
                           </SelectItem>
                           <SelectItem value="perPackage">
-                            {language === "rw"
-                              ? "Igiciro cy'igipaki cyose"
-                              : "Price per Package (whole box)"}
+                            {t("pricePerPackage")}
                           </SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
                         {formData.priceType === "perQuantity"
-                          ? (language === "rw"
-                              ? "Igiciro cy'umubare w'ibicuruzwa (urugero: 100 rwf kuri buri gicuruzwa)"
-                              : "Price per individual item (e.g., 100 rwf per item)")
-                          : (language === "rw"
-                              ? "Igiciro cy'igipaki cyose (urugero: 1200 rwf kuri gipaki cyose)"
-                              : "Price for whole package (e.g., 1200 rwf for whole box)")}
+                          ? t("pricePerItem")
+                          : t("priceForWholePackageLabel")}
                       </p>
                     </>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label>
-                    Initial Stock Quantity {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
-                      ? "(per package)" 
-                      : "(per product)"}
+                    {t("stockQuantity")} {formData.packageQuantity && formData.packageQuantity.trim() !== ""
+                      ? `(${t("packageQuantity")})`
+                      : `(${t("productName")})`}
                   </Label>
                   <Input
                     type="text"
@@ -1505,21 +1478,13 @@ const AddProduct = () => {
                     placeholder="0"
                   />
                   <p className="text-xs text-muted-foreground">
-                    {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
-                      ? (language === "rw"
-                          ? `Umubare w'amapaki - ${formData.packageQuantity} ibicuruzwa kuri gipaki. Bikurwaho igihe ubucuruzi bukorerwa.` 
-                          : `Number of packages - ${formData.packageQuantity} items per package. Automatically reduced when sales are made.`)
-                      : (language === "rw"
-                          ? "Umubare w'ibicuruzwa bisigaye mu stoki (bikurwaho igihe ubucuruzi bukorerwa)" 
-                          : "Number of individual products in stock (automatically reduced when sales are made)")}
+                    {formData.packageQuantity && formData.packageQuantity.trim() !== ""
+                      ? `${t("numberOfIndividualProducts")} - ${formData.packageQuantity}`
+                      : t("numberOfIndividualProducts")}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label>
-                    Minimum Stock Alert {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
-                      ? "(per package)" 
-                      : "(per product)"}
-                  </Label>
+                  <Label>{t("minStockAlert")}</Label>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -1530,13 +1495,7 @@ const AddProduct = () => {
                     placeholder="5"
                   />
                   <p className="text-xs text-muted-foreground">
-                    {formData.packageQuantity && formData.packageQuantity.trim() !== "" 
-                      ? (language === "rw"
-                          ? `Icyitonderwa cy'amapaki - ${formData.packageQuantity} ibicuruzwa kuri gipaki` 
-                          : `Alert threshold for packages - ${formData.packageQuantity} items per package`)
-                      : (language === "rw"
-                          ? "Icyitonderwa igihe ubwiyubwibwe bugera kuri ubu buryo" 
-                          : "Alert when stock reaches this level")}
+                    {t("minStockAlertWhen")}
                   </p>
                 </div>
               </div>
@@ -1551,13 +1510,13 @@ const AddProduct = () => {
                 onClick={() => navigate("/products")} 
                 className="btn-secondary flex-1 lg:flex-initial min-w-[100px]"
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button 
                 onClick={handleSave} 
                 className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold rounded-lg flex-1 lg:flex-initial min-w-[120px]"
               >
-                {isEditMode ? "Save Changes" : (mode === "bulk" ? "Add Products" : "Add Product")}
+                {isEditMode ? t("saveChanges") : (mode === "bulk" ? t("addProductsBtn") : t("addProduct"))}
               </Button>
             </div>
           </div>
@@ -1568,7 +1527,7 @@ const AddProduct = () => {
       <AlertDialog open={outOfStockDialogOpen} onOpenChange={setOutOfStockDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Product Already Exists (Out of Stock)</AlertDialogTitle>
+            <AlertDialogTitle>{t("outOfStockProductTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
               A product named "{outOfStockProduct?.name}" already exists in category "{outOfStockProduct?.category}" 
               {outOfStockProduct?.productType && ` (Type: ${outOfStockProduct.productType})`} but is currently out of stock.
@@ -1588,10 +1547,10 @@ const AddProduct = () => {
               setOutOfStockProduct(null);
               setPendingProductData(null);
             }}>
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleUpdateOutOfStockProduct} className="bg-green-600 hover:bg-green-700">
-              Yes, Update & Restock
+              {t("yes")}, {t("update")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1603,21 +1562,21 @@ const AddProduct = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock size={20} className="text-red-600" />
-              Delete Product
+              {t("deleteProduct")}
             </DialogTitle>
             <DialogDescription>
               {editingProduct && (
                 <>
                   This action will permanently delete <strong>{editingProduct.name}</strong>. This cannot be undone.
                   <br />
-                  <span className="font-semibold text-red-600 mt-2 block">Please enter your PIN to confirm.</span>
+                  <span className="font-semibold text-red-600 mt-2 block">{t("enterPinToConfirm")}</span>
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="pin">Enter PIN</Label>
+              <Label htmlFor="pin">{t("enterYourPin")}</Label>
               <Input
                 id="pin"
                 type="password"
@@ -1647,14 +1606,14 @@ const AddProduct = () => {
               }}
               disabled={isDeleting}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button
               onClick={handleDeleteConfirm}
               disabled={pinInput.length !== 4 || isDeleting}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              {isDeleting ? "Deleting..." : "Delete Product"}
+              {isDeleting ? t("deleting") : t("deleteProduct")}
             </Button>
           </DialogFooter>
         </DialogContent>

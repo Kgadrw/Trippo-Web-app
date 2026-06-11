@@ -5,12 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { LoginModal } from "@/components/LoginModal";
 import { User, Instagram, Phone } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useLanguage } from "@/hooks/useLanguage";
 import { getSubdomainUrl } from "@/hooks/useSubdomain";
 
 const Home = () => {
   const { t } = useTranslation();
-  const { language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
@@ -41,13 +39,6 @@ const Home = () => {
       navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
-
-  // Force English language on homepage
-  useEffect(() => {
-    if (language === "rw") {
-      setLanguage("en");
-    }
-  }, [language, setLanguage]);
 
   // Handle responsive detection
   useEffect(() => {

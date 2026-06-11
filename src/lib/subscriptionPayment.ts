@@ -63,7 +63,7 @@ export function isPaymentSettled(payload: PaymentStatusPayload): boolean {
 
 export function getPaymentUserMessage(
   issue: PaymentSyncIssue | null | undefined,
-  isRw: boolean,
+  language: "en" | "rw" | "fr",
 ): string | null {
   if (!issue?.code) return null;
   const messages: Record<string, { en: string; rw: string }> = {
@@ -101,7 +101,7 @@ export function getPaymentUserMessage(
     },
   };
   const entry = messages[issue.code];
-  if (entry) return isRw ? entry.rw : entry.en;
+  if (entry) return language === "rw" ? entry.rw : entry.en;
   if (issue.message) return issue.message;
   return null;
 }

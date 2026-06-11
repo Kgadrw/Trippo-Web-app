@@ -105,40 +105,14 @@ const Products = () => {
     return list;
   }, [items, query, sortBy]);
 
-  const sortTriggerLabel =
-    language === "rw"
-      ? "Tunganya"
-      : language === "fr"
-        ? "Trier"
-        : "Sort";
-  const sortOptionLabels: Record<ServiceSort, { rw: string; fr: string; en: string }> = {
-    default: {
-      rw: "Uko byari",
-      fr: "Ordre d'origine",
-      en: "Default order",
-    },
-    "name-asc": {
-      rw: "Izina (A → Z)",
-      fr: "Nom (A → Z)",
-      en: "Name (A–Z)",
-    },
-    "name-desc": {
-      rw: "Izina (Z → A)",
-      fr: "Nom (Z → A)",
-      en: "Name (Z–A)",
-    },
-    "price-asc": {
-      rw: "Igiciro (kirekire → kinini)",
-      fr: "Prix (croissant)",
-      en: "Price (low → high)",
-    },
-    "price-desc": {
-      rw: "Igiciro (kinini → kirekire)",
-      fr: "Prix (décroissant)",
-      en: "Price (high → low)",
-    },
+  const sortTriggerLabel = t("sortBy");
+  const sortOptionLabels: Record<ServiceSort, string> = {
+    default: t("defaultSortOrder"),
+    "name-asc": t("nameAsc"),
+    "name-desc": t("nameDesc"),
+    "price-asc": t("priceAsc"),
+    "price-desc": t("priceDesc"),
   };
-  const sortLang = language === "rw" ? "rw" : language === "fr" ? "fr" : "en";
 
   const openCreate = () => {
     setEditing(null);
@@ -210,11 +184,11 @@ const Products = () => {
 
   const servicesTitle = t("services");
   const serviceSingular = t("services");
-  const priceLabel = language === "fr" ? "Prix" : t("cost");
-  const nameLabel = language === "fr" ? "Nom" : t("services");
+  const priceLabel = t("price");
+  const nameLabel = t("name");
   const actionsLabel = t("actions");
   const recordColumnLabel = t("record");
-  const totalLabel = language === "rw" ? "Byose" : language === "fr" ? "Total" : "Total";
+  const totalLabel = t("total");
 
   const totalPrice = useMemo(
     () => services.reduce((sum, s) => sum + (Number(s.sellingPrice) || 0), 0),
@@ -245,7 +219,7 @@ const Products = () => {
           <SelectContent>
             {(Object.keys(sortOptionLabels) as ServiceSort[]).map((key) => (
               <SelectItem key={key} value={key}>
-                {sortOptionLabels[key][sortLang]}
+                {sortOptionLabels[key]}
               </SelectItem>
             ))}
           </SelectContent>

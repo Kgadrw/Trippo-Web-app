@@ -74,6 +74,12 @@ export function AppLayout({ children, title }: AppLayoutProps) {
     }
   }, [sidebarCollapsed, isMobile]);
 
+  // React Router does not reset scroll on navigation; without this, opening Dashboard
+  // can land mid-page (e.g. at Record New Sale) from a preserved scroll position.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   // Minimum swipe distance
   const minSwipeDistance = 50;
 

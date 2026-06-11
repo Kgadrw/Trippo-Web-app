@@ -1,3 +1,6 @@
+import { frMissing } from "./translationsFrMissing";
+import { extendedTranslations } from "./translationsExtended";
+
 export type Language = "en" | "rw" | "fr";
 
 export interface Translations {
@@ -428,6 +431,518 @@ export interface Translations {
   stockLabel: string;
   boxOf: string;
   noProductsSearchHint: string;
+
+  // Extended UI
+  close: string;
+  confirm: string;
+  back: string;
+  next: string;
+  yes: string;
+  no: string;
+  all: string;
+  none: string;
+  subtotal: string;
+  warning: string;
+
+  // NotFound
+  pageNotFoundMessage: string;
+  returnToHome: string;
+
+  // Billing
+  billingSummary: string;
+  billingSummarySubtitle: string;
+  billingPackage: string;
+  billingStarts: string;
+  billingEnds: string;
+  billingPay: string;
+  billingTapMethod: string;
+  billingPhone: string;
+  billingPinHint: string;
+  billingNoPromptMtn: string;
+  billingNoPromptAirtel: string;
+  billingProcessing: string;
+  billingTrialEndedBanner: string;
+  billingPayAmount: string;
+  billingCancelPlan: string;
+  billingCancelTitle: string;
+  billingCancelTrialDesc: string;
+  billingCancelPaidDesc: string;
+  billingCancelConfirm: string;
+  billingCancelledTitle: string;
+  billingCancelledUntil: string;
+  billingPaymentSuccess: string;
+  billingPaymentSuccessDesc: string;
+  billingPaymentIssue: string;
+  billingPaymentFailed: string;
+  billingStillConfirming: string;
+  billingSelectNetwork: string;
+  billingSelectNetworkDesc: string;
+  billingPhoneRequired: string;
+  billingPhoneRequiredDesc: string;
+  billingInvalidMtn: string;
+  billingInvalidAirtel: string;
+  billingPaymentInProgress: string;
+  billingApproveOnPhone: string;
+  billingPaymentError: string;
+  billingPaymentRequired: string;
+  billingSendNewPrompt: string;
+  billingSubscriptionActive: string;
+  billingPlusActiveUntil: string;
+  billingLastPaid: string;
+  billingPaymentsUnavailable: string;
+  billingRetry: string;
+  billingKeepPlan: string;
+  billingCancelling: string;
+  billingNotBilledMonthly: string;
+  plusPack: string;
+
+  // Delete account
+  deleteAccount: string;
+  deleteAccountDesc: string;
+  deleteAccountWarningDesc: string;
+  deleteMyAccount: string;
+  deleteAccountConfirmDesc: string;
+  deleteAccountDataWarning: string;
+  accountDeleted: string;
+  accountDeletedDesc: string;
+  deleteAccountFailed: string;
+  deleting: string;
+  yesDeleteAccount: string;
+
+  // Offline sync
+  offlineTitle: string;
+  offlineCannotSync: string;
+  syncComplete: string;
+  syncCompleteDesc: string;
+  syncPartial: string;
+  syncPartialDesc: string;
+  syncFailed: string;
+  syncFailedDesc: string;
+  pendingSync: string;
+  syncNow: string;
+  offlineModeMessage: string;
+
+  // Plus banner
+  plusTrial: string;
+  plusTrialDaysLeft: string;
+  plusTrialEnds: string;
+  plusThenPrice: string;
+  payNow: string;
+  subscribeToPlus: string;
+  trialEndedPay: string;
+  payWithMomo: string;
+  plusActive: string;
+  daySingular: string;
+  daysPlural: string;
+
+  // Reports extras
+  total: string;
+  period: string;
+  day: string;
+  week: string;
+  month: string;
+  year: string;
+  salesExpensesSummary: string;
+  net: string;
+  profitExpensesChart: string;
+  noSalesData: string;
+  servicePerformance: string;
+  topServices: string;
+  exportComplete: string;
+  exportFailed: string;
+
+  // Sales extras
+  filterByDate: string;
+  searchByProduct: string;
+  inventory: string;
+
+  // AddProduct
+  singleProduct: string;
+  costPerQuantity: string;
+  costPerPackage: string;
+  pricePerQuantity: string;
+  pricePerPackage: string;
+  numberOfIndividualProducts: string;
+  minStockAlertWhen: string;
+  unassigned: string;
+  addProductsBtn: string;
+  productRestocked: string;
+  pinRequired: string;
+  incorrectPin: string;
+  productDeletedMsg: string;
+  duplicateProductsFound: string;
+  failedToAddProduct: string;
+  productsProcessed: string;
+  processingFailed: string;
+  productsAddedMsg: string;
+  noProductsAddedMsg: string;
+  updatePin: string;
+  optional: string;
+
+  // Settings pages
+  languagePageDesc: string;
+  languageAutoUpdateNote: string;
+  businessInfoPageDesc: string;
+  businessNameRequiredMsg: string;
+  businessNameExample: string;
+  businessNameOnReceipts: string;
+  businessPhoneLabel: string;
+  settingsSavedTitle: string;
+  settingsSavedBusinessDesc: string;
+  sessionNotFoundDesc: string;
+  securityPageDesc: string;
+  financialPinTitle: string;
+  financialPinActiveDesc: string;
+  financialPinInactiveDesc: string;
+  setNewPinBtn: string;
+  invalidPinTitle: string;
+  pinFourDigitsRequired: string;
+  pinMismatchTitle: string;
+  pinMismatchBody: string;
+  pinSetTitle: string;
+  pinSetBody: string;
+  pinChangedTitle: string;
+  pinChangedBody: string;
+  pinSetupFailedTitle: string;
+  pinChangeFailedTitle: string;
+  pinSyncFailedDesc: string;
+  invalidCurrentPinTitle: string;
+  wrongCurrentPinDesc: string;
+  newPinMismatchBody: string;
+  notificationsPageTitle: string;
+  notificationsPageDesc: string;
+  browserNotificationsTitle: string;
+  browserNotificationsBody: string;
+  notificationStatusLabel: string;
+  notifStatusGranted: string;
+  notifStatusDenied: string;
+  notifStatusDefault: string;
+  statusEnabled: string;
+  statusBlocked: string;
+  statusNotSet: string;
+  notifBlockedTitle: string;
+  notifBlockedBrowserDesc: string;
+  notifEnabledTitle: string;
+  notifEnabledBody: string;
+  notifDeniedBody: string;
+  notifRequestFailed: string;
+  openBrowserSettingsBtn: string;
+  enableNotificationsBtn: string;
+
+  // Workers / expenses extras
+  workerUpdatedTitle: string;
+  workerUpdatedDesc: string;
+  workerAddedTitle: string;
+  workerAddedDesc: string;
+  workerRemovedDesc: string;
+  saveWorkerFailed: string;
+  deleteWorkerFailed: string;
+  invalidSaleTitle: string;
+  invalidSaleDesc: string;
+  saleUpdatedTitle: string;
+  saleHistorySaved: string;
+  updateSaleFailedTitle: string;
+  updateSaleFailedDesc: string;
+  saleDeletedTitle: string;
+  saleHistoryRemoved: string;
+  deleteSaleFailedTitle: string;
+  deleteSaleFailedDesc: string;
+  recordSingleExpenseHint: string;
+  recurringExpenseHint: string;
+  repeatEveryLabel: string;
+  freqEveryWeek: string;
+  freqEveryMonth: string;
+  freqEveryYear: string;
+  freqCustomDays: string;
+  intervalDaysLabel: string;
+  nextDueDateLabel: string;
+  emailReminderDaysLabel: string;
+  emailWhenPendingLabel: string;
+  autoRecordDueLabel: string;
+  saveRecurringBtn: string;
+  updateRecurringBtn: string;
+  cancelEditBtn: string;
+  noRecurringYet: string;
+  scheduleCol: string;
+  nextDueCol: string;
+  remindersCol: string;
+  markPaidAction: string;
+  pendingSuffix: string;
+  duePrefix: string;
+  remindersOffLabel: string;
+  autoRecordLabel: string;
+  offLabel: string;
+  noExpensesYet: string;
+  expenseRemovedDesc: string;
+  deleteExpenseFailed: string;
+  recurringLoadFailed: string;
+  recurringSaveFailed: string;
+  recurringDeleteFailed: string;
+  recurringRemovedDesc: string;
+  recurringUpdatedDesc: string;
+  recurringSavedTitle: string;
+  recurringEmailRemindDesc: string;
+  recurringCreatedDesc: string;
+  missingDueDateTitle: string;
+  chooseDueDateDesc: string;
+  recurringValidationDesc: string;
+  paymentRecordedTitle: string;
+  paymentRecordedDesc: string;
+  recordPaymentFailed: string;
+  recordPaymentFailedDesc: string;
+  everyNDays: string;
+  emailReminderSummary: string;
+  outOfStockProductTitle: string;
+  enterPinToConfirm: string;
+
+  // Billing (extra)
+  billingStillConfirmingDesc: string;
+  billingMoMoDeclined: string;
+  billingCheckPhoneApprove: string;
+  billingCancelNoPlusAccess: string;
+  billingPayInProgressDesc: string;
+  billingApproveOnPhoneDesc: string;
+  billingHaveMoMoBalance: string;
+  billingPayFailHint: string;
+  billingBackendError: string;
+  billingPaypackHint: string;
+  billingInvalidNumber: string;
+  notifications: string;
+  allSettings: string;
+  defaultSortOrder: string;
+
+  // Profile / logout / market analysis
+  fillServiceWorkerAmount: string;
+  errorRecordingService: string;
+  recordServiceFailedDesc: string;
+  profileSavedTitle: string;
+  profileSavedDesc: string;
+  loggedOutTitle: string;
+  loggedOutDesc: string;
+  loggedOutDescWithData: string;
+  logoutConfirmDesc: string;
+  profileSectionTitle: string;
+  editProfileDesc: string;
+  validationErrorTitle: string;
+  invalidEmailTitle: string;
+  invalidEmailDescMsg: string;
+  sessionErrorTitle: string;
+  profileUpdateFailedDesc: string;
+  marketAnalysisTitle: string;
+  marketAnalysisSubtitle: string;
+  noSalesDataAnalysis: string;
+  weekComparisonTitle: string;
+  lastWeekThisWeekTitle: string;
+  lastWeekLabel: string;
+  thisWeekLabel: string;
+  topProductsByRevenue: string;
+  revenueDistribution: string;
+  profitMarginByProduct: string;
+  profitMarginLabel: string;
+  profitMarginPercentLabel: string;
+  weeklyTrendsTitle: string;
+  weekNumberLabel: string;
+  dailyTrendsTitle: string;
+  monthlyTrendsTitle: string;
+
+  // Clients page
+  clientsPageTitle: string;
+  manageClients: string;
+  goToSchedules: string;
+  searchClientsPlaceholder: string;
+  showingClientsCount: string;
+  quickCreateWorkerHint: string;
+  quickCreateClientHint: string;
+  clientTypeDebtor: string;
+  clientTypeWorker: string;
+  clientTypeOther: string;
+  addScheduleForClient: string;
+  editClientTooltip: string;
+  deleteClientTooltip: string;
+  noClientsSearch: string;
+  noClientsYet: string;
+  tryAdjustSearch: string;
+  addFirstClient: string;
+  editClientModal: string;
+  addNewWorkerModal: string;
+  addNewClientModal: string;
+  clientNameLabel: string;
+  clientTypeRelationship: string;
+  clientTypeDebtorOption: string;
+  clientTypeWorkerOption: string;
+  clientTypeOtherOption: string;
+  clientTypeSelectHint: string;
+  businessTypeWhatTheyDo: string;
+  businessTypeWorkerPh: string;
+  businessTypeClientPh: string;
+  businessTypeDescribeHint: string;
+  notesAboutClient: string;
+  updateClientBtn: string;
+  addClientBtn: string;
+  clientCreatedSuccess: string;
+  clientCreatedSchedulePrompt: string;
+  clientCreatedScheduleHint: string;
+  notNow: string;
+  addScheduleBtn: string;
+  clientAddedSuccess: string;
+  clientAddedDesc: string;
+  clientUpdatedSuccess: string;
+  clientUpdatedDesc: string;
+  clientDeletedSuccess: string;
+  clientDeletedDesc: string;
+  deleteClientModal: string;
+  deleteClientConfirmFull: string;
+  deleteClientFailed: string;
+  updateClientFailed: string;
+  addClientFailed: string;
+  clientNameRequired: string;
+  clientEmailRequired: string;
+  businessTypeRequired: string;
+  validEmailRequired: string;
+  failedLoadClients: string;
+  schedulesLinkedLabel: string;
+  schedulesCountLabel: string;
+  viewAll: string;
+  loadingSchedules: string;
+  noSchedulesForClient: string;
+  showLess: string;
+  showMoreSchedules: string;
+  statusOverdue: string;
+  statusActive: string;
+  statusCompleted: string;
+  statusCancelled: string;
+
+  // Schedules / email automations
+  emailAutomationsTitle: string;
+  emailAutomationsSubtitle: string;
+  newAutomation: string;
+  searchAutomationsPlaceholder: string;
+  clearFilters: string;
+  allDates: string;
+  allFrequency: string;
+  allClientsFilter: string;
+  filterToday: string;
+  filterThisWeek: string;
+  filterThisMonth: string;
+  filterOverdue: string;
+  filterUpcoming: string;
+  freqOnce: string;
+  freqDaily: string;
+  freqWeekly: string;
+  freqMonthly: string;
+  freqYearly: string;
+  freqOnceLong: string;
+  freqDailyLong: string;
+  freqWeeklyLong: string;
+  freqMonthlyLong: string;
+  freqYearlyLong: string;
+  freqOnceHint: string;
+  freqDailyHint: string;
+  freqWeeklyHint: string;
+  freqMonthlyHint: string;
+  freqYearlyHint: string;
+  notifyYou: string;
+  notifyClientBadge: string;
+  dueToday: string;
+  dueTomorrow: string;
+  daysOverdue: string;
+  daysRemaining: string;
+  lastSent: string;
+  noAutomationsFound: string;
+  noAutomationsYet: string;
+  tryAdjustFilters: string;
+  createAutomation: string;
+  createFirstAutomationHint: string;
+  editScheduleModal: string;
+  createScheduleModal: string;
+  editScheduleDesc: string;
+  createScheduleDesc: string;
+  stepBasic: string;
+  stepClient: string;
+  stepFreq: string;
+  stepNotify: string;
+  basicInformation: string;
+  scheduleTitleLabel: string;
+  scheduleTitlePh: string;
+  scheduleTitleHint: string;
+  dueDateTimeLabel: string;
+  dueDateHint: string;
+  descriptionOptionalHint: string;
+  clientPaymentDetails: string;
+  enterClientName: string;
+  businessTypePhShort: string;
+  clientTypeDebtorShort: string;
+  clientTypeWorkerShort: string;
+  amountOptionalHint: string;
+  scheduleFrequencySection: string;
+  repeatUntilLabel: string;
+  repeatUntilHint: string;
+  notificationSettings: string;
+  notifyMeUser: string;
+  notifyMeUserDesc: string;
+  notifyClientLabel: string;
+  notifyClientSelectFirst: string;
+  notifyClientEnabledDesc: string;
+  advanceNotificationLabel: string;
+  daysBeforeDue: string;
+  advanceNotificationHint: string;
+  customUserNotificationMsg: string;
+  customUserNotificationPh: string;
+  customUserNotificationHint: string;
+  customClientNotificationMsg: string;
+  customClientNotificationPh: string;
+  customClientNotificationHint: string;
+  previous: string;
+  updateScheduleBtn: string;
+  createScheduleBtn: string;
+  createClientModal: string;
+  editClientFromSchedules: string;
+  createClientFromSchedulesDesc: string;
+  editClientFromSchedulesDesc: string;
+  businessTypePhSchedule: string;
+  optionalNotesClient: string;
+  creating: string;
+  completeScheduleTitle: string;
+  completeScheduleDesc: string;
+  completeScheduleRecurringNote: string;
+  sendCompletionNotification: string;
+  completionMessageOptional: string;
+  completionMessagePh: string;
+  completionMessageHint: string;
+  markComplete: string;
+  deleteScheduleTitle: string;
+  deleteScheduleConfirm: string;
+  deleteScheduleBtn: string;
+  scheduleUpdatedTitle: string;
+  scheduleUpdatedDesc: string;
+  scheduleCreatedTitle: string;
+  scheduleCreatedDesc: string;
+  scheduleCompletedTitle: string;
+  scheduleCompletedWithEmail: string;
+  scheduleCompletedNoEmail: string;
+  completeScheduleFailed: string;
+  scheduleDeletedTitle: string;
+  scheduleDeletedDesc: string;
+  invalidScheduleTitle: string;
+  invalidScheduleNoClient: string;
+  scheduleTitleRequired: string;
+  dueDateRequired: string;
+  clientCreationFailed: string;
+  cannotDeleteClientTitle: string;
+  cannotDeleteClientSchedules: string;
+  clientCreatedAndSelected: string;
+  createClientFailedTitle: string;
+  updateClientFailedTitle: string;
+  failedLoadSchedules: string;
+  failedLoadClientsFromDb: string;
+  createFailedTitle: string;
+  noClientLabel: string;
+  unknownClient: string;
+  completeAction: string;
+  editAction: string;
+  deleteAction: string;
+  clientLabel: string;
+  deleteClientFromSchedulesConfirm: string;
 }
 
 export const translations: Partial<Record<Language, Partial<Translations>>> = {
@@ -876,6 +1391,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     delete: "Siba",
     edit: "Hindura",
     add: "Ongeraho",
+    name: "Izina",
+    price: "Igiciro",
     search: "Shakisha",
     filter: "Akayunguruzo",
     loading: "Buri mu nzira...",
@@ -1522,5 +2039,12 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
 };
 
 export const getTranslation = (key: keyof Translations, language: Language = "en"): string => {
-  return translations[language]?.[key] || translations.en?.[key] || key;
+  return (
+    extendedTranslations[language]?.[key] ??
+    translations[language]?.[key] ??
+    (language === "fr" ? frMissing[key] : undefined) ??
+    extendedTranslations.en?.[key] ??
+    translations.en?.[key] ??
+    key
+  );
 };

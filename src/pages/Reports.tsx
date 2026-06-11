@@ -67,9 +67,7 @@ interface Expense {
 }
 
 const Reports = () => {
-  const { t, language } = useTranslation();
-  const isRw = language === "rw";
-  const isFr = language === "fr";
+  const { t } = useTranslation();
   const { toast } = useToast();
   const {
     isLoading: productsLoading,
@@ -481,7 +479,7 @@ const Reports = () => {
     [barberServiceBreakdown],
   );
 
-  const totalLabel = isRw ? "Byose" : isFr ? "Total" : "Total";
+  const totalLabel = t("total");
 
   const addHeader = (doc: jsPDF, pageWidth: number, margin: number, reportTypeLabel?: string, dateRangeLabel?: string) => {
     let logoX = margin;
@@ -562,22 +560,14 @@ const Reports = () => {
       }
 
       toast({
-        title: isRw ? "Kohereza byarangiye" : isFr ? "Export terminé" : "Export complete",
-        description: isRw
-          ? `Raporo yoherejwe nka ${format.toUpperCase()}.`
-          : isFr
-          ? `Rapport exporté en ${format.toUpperCase()}.`
-          : `Report downloaded as ${format.toUpperCase()}.`,
+        title: t("exportComplete"),
+        description: `${t("export")} (${format.toUpperCase()})`,
       });
     } catch (error) {
       console.error("Export failed:", error);
       toast({
-        title: isRw ? "Kohereza byanze" : isFr ? "Échec de l'export" : "Export failed",
-        description: isRw
-          ? "Ntibyashoboye kohereza raporo. Ongera ugerageze."
-          : isFr
-          ? "Impossible d'exporter le rapport. Veuillez réessayer."
-          : "Could not download the report. Please try again.",
+        title: t("exportFailed"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     }
@@ -876,22 +866,10 @@ const Reports = () => {
 
   const reportTypeLabel =
     reportType === "daily"
-      ? isRw
-        ? "Buri munsi"
-        : isFr
-        ? "Quotidien"
-        : "Daily"
+      ? t("day")
       : reportType === "weekly"
-      ? isRw
-        ? "Buri cyumweru"
-        : isFr
-        ? "Hebdomadaire"
-        : "Weekly"
-      : isRw
-      ? "Buri kwezi"
-      : isFr
-      ? "Mensuel"
-      : "Monthly";
+      ? t("week")
+      : t("month");
   const topBarber = salesByBarber[0];
 
   return (
@@ -903,7 +881,7 @@ const Reports = () => {
             <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                 <Label className="text-xs font-normal text-muted-foreground">
-                  {isRw ? "Igihe" : isFr ? "Période" : "Period"}
+                  {t("period")}
                 </Label>
                 <ToggleGroup
                   type="single"
@@ -914,13 +892,13 @@ const Reports = () => {
                   size="sm"
                 >
                   <ToggleGroupItem value="daily" className="h-9 text-xs">
-                    {isRw ? "Umunsi" : isFr ? "Jour" : "Day"}
+                    {t("day")}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="weekly" className="h-9 text-xs">
-                    {isRw ? "Icyumweru" : isFr ? "Semaine" : "Week"}
+                    {t("week")}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="monthly" className="h-9 text-xs">
-                    {isRw ? "Ukwezi" : isFr ? "Mois" : "Month"}
+                    {t("month")}
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
@@ -942,14 +920,10 @@ const Reports = () => {
         <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
           <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3">
           <h3 className="mb-1 text-sm font-semibold text-gray-900">
-            {isRw ? "Incamake y'amafaranga" : isFr ? "Ventes & dépenses" : "Sales & Expenses"}
+            {t("salesExpensesSummary")}
           </h3>
           <p className="mb-3 text-xs text-muted-foreground">
-            {isRw
-              ? "Ibyinjijwe, ibyakoreshejwe, n'inyungu ku gihe wahisemo"
-              : isFr
-              ? "Revenus, dépenses et bénéfice net par période"
-              : "Revenue, expenses, and net profit by period"}
+            {t("revenue")}, {t("expenses")}, {t("net")} · {t("period")}
           </p>
 
           {salesExpensesByPeriod.length > 0 ? (
@@ -959,16 +933,16 @@ const Reports = () => {
                 <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                   <tr>
                     <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {isRw ? "Igihe" : isFr ? "Période" : "Period"}
+                      {t("period")}
                     </th>
                     <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
                       {t("revenue")}
                     </th>
                     <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"}
+                      {t("expenses")}
                     </th>
                     <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {isRw ? "Inyungu" : isFr ? "Bénéfice net" : "Net"}
+                      {t("net")}
                     </th>
                   </tr>
                 </thead>
@@ -1037,11 +1011,11 @@ const Reports = () => {
                         <span className="font-medium text-gray-700 tabular-nums">{row.salesRevenue.toLocaleString()}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">{isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"}</span>
+                        <span className="text-gray-500 block">{t("expenses")}</span>
                         <span className="font-medium text-red-600 tabular-nums">{row.expenses.toLocaleString()}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">{isRw ? "Inyungu" : isFr ? "Net" : "Net"}</span>
+                        <span className="text-gray-500 block">{t("net")}</span>
                         <span className={cn("font-semibold tabular-nums", net >= 0 ? "text-emerald-700" : "text-red-700")}>
                           {net >= 0 ? "+" : ""}{net.toLocaleString()}
                         </span>
@@ -1065,11 +1039,7 @@ const Reports = () => {
             </>
           ) : (
             <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
-              {isRw
-                ? "Nta makuru aboneka muri iki gihe."
-                : isFr
-                ? "Aucune donnée pour cette période."
-                : "No data for the selected period."}
+              {t("noSalesData")}
             </p>
           )}
           </div>
@@ -1078,10 +1048,10 @@ const Reports = () => {
         {/* Overview chart: profit vs expenses */}
         <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5">
           <h3 className="mb-1 text-sm font-semibold text-gray-900">
-            {isRw ? "Incamake y'inyungu n'ibikiguzi" : isFr ? "Profit & dépenses" : "Profit & expenses"}
+            {t("profitExpensesChart")}
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
-            {t("profit")} · {isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"} · {reportTypeLabel}
+            {t("profit")} · {t("expenses")} · {reportTypeLabel}
           </p>
           {profitExpensesChartData.length > 0 ? (
             <div className="w-full overflow-x-auto">
@@ -1132,7 +1102,7 @@ const Reports = () => {
                       if (name === "expenses")
                         return [
                           `rwf ${value.toLocaleString()}`,
-                          isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses",
+                          t("expenses"),
                         ];
                       return [value, name];
                     }}
@@ -1150,7 +1120,7 @@ const Reports = () => {
                     yAxisId="left"
                     dataKey="expenses"
                     fill="#ef4444"
-                    name={isRw ? "Ibikiguzi" : isFr ? "Dépenses" : "Expenses"}
+                    name={t("expenses")}
                     radius={[2, 2, 0, 0]}
                     maxBarSize={48}
                   />
@@ -1159,7 +1129,7 @@ const Reports = () => {
             </div>
           ) : (
             <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              {isRw ? "Nta makuru y'ubucuruzi aboneka" : isFr ? "Aucune donnée de ventes disponible" : "No sales data available"}
+              {t("noSalesData")}
             </div>
           )}
         </div>
@@ -1168,14 +1138,10 @@ const Reports = () => {
           <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
             <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3">
             <h3 className="mb-1 text-sm font-semibold text-gray-900">
-              {isRw ? "Raporo ya serivisi" : isFr ? "Performance des services" : "Service performance"}
+              {t("servicePerformance")}
             </h3>
             <p className="mb-3 text-xs text-muted-foreground">
-              {isRw
-                ? "Serivisi zagurishijwe cyane ukurikije amafaranga yinjiye"
-                : isFr
-                ? "Services les plus populaires selon le chiffre d'affaires"
-                : "Top services ranked by revenue"}
+              {t("topServices")} · {t("revenue")}
             </p>
             {salesByProduct.length > 0 ? (
               <>
@@ -1184,7 +1150,7 @@ const Reports = () => {
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Serivisi" : isFr ? "Service" : "Service"}
+                        {t("services")}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("quantity")}</th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
@@ -1239,11 +1205,7 @@ const Reports = () => {
               </>
             ) : (
               <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
-                {isRw
-                  ? "Nta makuru ya serivisi aboneka."
-                  : isFr
-                  ? "Aucun enregistrement de service trouvé."
-                  : "No service records found."}
+                {t("noServicesFound")}
               </p>
             )}
             </div>
@@ -1254,11 +1216,7 @@ const Reports = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h3 className="mb-1 text-sm font-semibold text-gray-900">
-                  {isRw
-                    ? "Imikorere y'abakozi"
-                    : isFr
-                    ? "Performance des travailleurs"
-                    : "Worker performance"}
+                  {t("workers")}
                 </h3>
               </div>
               <ToggleGroup
@@ -1270,31 +1228,23 @@ const Reports = () => {
                 size="sm"
               >
                 <ToggleGroupItem value="today" className="h-8 px-2 text-[11px]">
-                  {isRw ? "Uyu munsi" : isFr ? "Aujourd'hui" : "Today"}
+                  {t("periodToday")}
                 </ToggleGroupItem>
                 <ToggleGroupItem value="week" className="h-8 px-2 text-[11px]">
-                  {isRw ? "Icyumweru" : isFr ? "Semaine" : "Week"}
+                  {t("periodWeek")}
                 </ToggleGroupItem>
                 <ToggleGroupItem value="month" className="h-8 px-2 text-[11px]">
-                  {isRw ? "Ukwezi" : isFr ? "Mois" : "Month"}
+                  {t("periodMonth")}
                 </ToggleGroupItem>
                 <ToggleGroupItem value="year" className="h-8 px-2 text-[11px]">
-                  {isRw ? "Umwaka" : isFr ? "Année" : "Year"}
+                  {t("periodYear")}
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
             <p className="mb-3 text-xs text-muted-foreground">
               {topBarber
-                ? isRw
-                  ? `Uyoboye ni ${topBarber.barber} na rwf ${topBarber.revenue.toLocaleString()}`
-                  : isFr
-                  ? `Meilleur travailleur : ${topBarber.barber} avec ${topBarber.revenue.toLocaleString()} rwf`
-                  : `Top performer: ${topBarber.barber} with rwf ${topBarber.revenue.toLocaleString()}`
-                : isRw
-                ? "Nta makuru y'abakozi muri iki gihe."
-                : isFr
-                ? "Aucun enregistrement de travailleur pour cette période."
-                : "No worker records for this period."}
+                ? `${topBarber.barber} · rwf ${topBarber.revenue.toLocaleString()}`
+                : t("noWorkersFound")}
             </p>
             {barberServiceBreakdown.length > 0 ? (
               <>
@@ -1303,13 +1253,13 @@ const Reports = () => {
                   <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Umukozi" : isFr ? "Travailleur" : "Worker"}
+                        {t("worker")}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Serivisi" : isFr ? "Services" : "Services"}
+                        {t("services")}
                       </th>
                       <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {isRw ? "Serivisi zakunzwe" : isFr ? "Services les plus servis" : "Top services"}
+                        {t("topServices")}
                       </th>
                       <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
                     </tr>
@@ -1376,7 +1326,7 @@ const Reports = () => {
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
-                      {isRw ? "Serivisi" : isFr ? "Services" : "Services"}:{" "}
+                      {t("services")}:{" "}
                       <span className="font-medium text-gray-700 tabular-nums">{row.services}</span>
                     </p>
                     {row.topServices.length > 0 ? (
@@ -1397,11 +1347,7 @@ const Reports = () => {
               </>
             ) : (
               <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
-                {isRw
-                  ? "Nta makuru y'umukozi aboneka muri iki gihe."
-                  : isFr
-                  ? "Aucun enregistrement de services par travailleur pour la période sélectionnée."
-                  : "No worker service records found for the selected period."}
+                {t("noWorkersFound")}
               </p>
             )}
             </div>

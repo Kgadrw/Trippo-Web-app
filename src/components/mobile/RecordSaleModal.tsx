@@ -240,9 +240,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 };
 
 export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialServiceName }: RecordSaleModalProps) {
-  const { t, language } = useTranslation();
-  const isRw = language === "rw";
-  const isFr = language === "fr";
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { isOnline } = useOffline();
   const {
@@ -379,8 +377,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
       if (!serviceName.trim() || !selectedWorkerId || !serviceAmount) {
         playErrorBeep();
         toast({
-          title: isRw ? "Amakuru abura" : "Missing Information",
-          description: isRw ? "Uzuza serivisi, umwogoshi n'amafaranga." : "Please fill service name, worker, and amount.",
+          title: t("missingInformation"),
+          description: t("fillServiceWorkerAmount"),
           variant: "destructive",
         });
         return;
@@ -390,8 +388,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
       if (isNaN(amount) || amount <= 0) {
         playErrorBeep();
         toast({
-          title: isRw ? "Amafaranga atari yo" : "Invalid Amount",
-          description: isRw ? "Amafaranga ya serivisi agomba kurenza 0." : "Service amount must be greater than 0.",
+          title: t("invalidAmount"),
+          description: t("serviceAmountMustBePositive"),
           variant: "destructive",
         });
         return;
@@ -401,8 +399,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
       if (!worker) {
         playErrorBeep();
         toast({
-          title: isRw ? "Umukozi ntaboneka" : "Worker Not Found",
-          description: isRw ? "Hitamo umukozi wawe." : "Please select a valid worker.",
+          title: t("workerNotFound"),
+          description: t("selectValidWorker"),
           variant: "destructive",
         });
         return;
@@ -439,10 +437,11 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
         await new Promise((resolve) => setTimeout(resolve, 50));
         playSaleBeep();
         toast({
-          title: isRw ? "Serivisi yanditswe!" : "Service Recorded!",
-          description: isRw
-            ? `${serviceName.trim()} yakozwe na ${worker.name} ku RWF ${amount.toLocaleString()}`
-            : `${serviceName.trim()} by ${worker.name} for RWF ${amount.toLocaleString()}`,
+          title: t("serviceRecorded"),
+          description: t("serviceRecordedDesc")
+            .replace("{product}", serviceName.trim())
+            .replace("{worker}", worker.name)
+            .replace("{amount}", amount.toLocaleString()),
         });
 
         setServiceName("");
@@ -461,8 +460,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
       } catch (error: any) {
         playErrorBeep();
         toast({
-          title: isRw ? "Kwandika serivisi byanze" : "Error Recording Service",
-          description: error?.message || error?.response?.error || (isRw ? "Kwandika serivisi byanze." : "Failed to record service sale."),
+          title: t("errorRecordingService"),
+          description: error?.message || error?.response?.error || t("recordServiceFailedDesc"),
           variant: "destructive",
         });
       } finally {
@@ -688,8 +687,8 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
     if (product && product.stock <= 0) {
       playErrorBeep();
       toast({
-        title: isRw ? "Serivisi ntiboneka muri stoki" : "Product Out of Stock",
-        description: isRw ? `${product.name} ntiboneka muri stoki kandi ntishobora kugurishwa.` : `${product.name} is currently out of stock and cannot be sold.`,
+        title: t("productOutOfStock"),
+        description: `${product.name} ${t("productOutOfStockCannotSellSuffix")}`,
         variant: "destructive",
       });
       setSelectedProduct("");
@@ -792,7 +791,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                       value={serviceAmount}
                       onChange={(e) => setServiceAmount(e.target.value)}
                       className="h-10 text-base bg-gray-50 border-gray-200"
-                      placeholder={isRw ? "Amafaranga" : "Amount"}
+                      placeholder={t("amount")}
                     />
                   </div>
                 </div>

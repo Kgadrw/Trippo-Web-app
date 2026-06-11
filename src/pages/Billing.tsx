@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { subscriptionApi, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
+import type { Language } from "@/lib/translations";
 import {
   clearPendingPaymentRef,
   getPaymentUserMessage,
@@ -32,11 +33,12 @@ import {
 
 type MobileNetwork = "mtn" | "airtel";
 
-function formatBillingDate(value: string | Date | null | undefined, isRw: boolean) {
+function formatBillingDate(value: string | Date | null | undefined, language: Language) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(isRw ? "rw-RW" : "en-GB", {
+  const locale = language === "fr" ? "fr-FR" : language === "rw" ? "rw-RW" : "en-GB";
+  return date.toLocaleDateString(locale, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -83,8 +85,7 @@ function NetworkOption({
 
 export default function Billing() {
   const { toast } = useToast();
-  const { language } = useTranslation();
-  const isRw = language === "rw";
+  const { t, language } = useTranslation();
 
   const {
     loading,
@@ -103,49 +104,6 @@ export default function Billing() {
   const [phone, setPhone] = useState("");
   const [network, setNetwork] = useState<MobileNetwork | null>(null);
   const pollStartedRef = useRef(false);
-
-  const txt = useMemo(
-    () => ({
-      title: isRw ? "Incamake" : "Summary",
-      subtitle: isRw ? "Kurikiza amabwiriza yose yuko bishyura" : "Follow all payment instructions",
-      package: isRw ? "Ifatabuguzi" : "Package",
-      price: isRw ? "Ayo Rigura" : "Price",
-      starts: isRw ? "Rizatangira" : "Starts",
-      ends: isRw ? "Rizarangira" : "Ends",
-      total: isRw ? "Totali" : "Total",
-      pay: isRw ? "Kwishyura" : "Pay",
-      tapMethod: isRw ? "Kanda kuburyo uri bukoreshe wishyura" : "Tap your payment method to pay",
-      phone: isRw ? "Nomero ya telefone" : "Phone number",
-      pinHint: isRw
-        ? "Shyiramo PIN wemeze muri telefone yanyu"
-        : "Enter your PIN to confirm on your phone",
-      noPromptMtn: isRw
-        ? "Ntimutabonye ubutumwa kanda: *182*7*1#"
-        : "If you don't receive a prompt, dial: *182*7*1#",
-      noPromptAirtel: isRw
-        ? "Ntimutabonye ubutumwa kanda: *185*7*1#"
-        : "If you don't receive a prompt, dial: *185*7*1#",
-      processing: isRw ? "Tegereza wishyura..." : "Processing payment...",
-      loading: isRw ? "Gukura..." : "Loading...",
-      trialEndedBanner: isRw
-        ? "Igerageza ryawe ryarangiye. Wishyura kugira ngo ukomeze ukoreshe Trippo."
-        : "Your trial has ended. Pay below to unlock Trippo again.",
-      payAmount: (n: number) =>
-        isRw ? `Kwishyura ${n.toLocaleString()} RWF` : `Pay ${n.toLocaleString()} RWF`,
-      cancelPlan: isRw ? "Hagarika gahunda" : "Cancel plan",
-      cancelTitle: isRw ? "Hagarika Trippo Plus?" : "Cancel Trippo Plus?",
-      cancelTrialDesc: isRw
-        ? "Igerageza rirangira ako kanya kandi ntuzongera gukenera kwishyura ubu."
-        : "Your trial will end immediately and you will lose Plus access.",
-      cancelPaidDesc: isRw
-        ? "Ntuzongera kwishyurwa. Uzakomeza ukoreshe Plus kugeza itariki yanyuma yishyuwe."
-        : "You will not be charged again. Plus stays active until your current paid period ends.",
-      cancelConfirm: isRw ? "Hagarika gahunda" : "Cancel plan",
-      cancelledTitle: isRw ? "Gahunda yahagaritswe" : "Plan cancelled",
-      cancelledUntil: isRw ? "Plus irakomeza kugeza" : "Plus remains active until",
-    }),
-    [isRw],
-  );
 
   useEffect(() => {
     const storedPhone = localStorage.getItem("profit-pilot-user-phone");
@@ -170,7 +128,7 @@ export default function Billing() {
 
   const periodEnd = plan?.isOnTrial ? plan.trialEndsAt : plan?.nextDueDate;
 
-  const packageName = plan?.planName ? `${plan.planName} Pack` : "Plus Pack";
+  const packageName = plan?.planName ? `${plan.planName} Pack` : t("plusPack");
   const amount = plan?.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
   const currency = plan?.currency || "RWF";
 
@@ -199,11 +157,11 @@ export default function Billing() {
     clearPendingPaymentRef();
     stopProcessing();
     toast({
-      title: isRw ? "Wishyura byagenze neza" : "Payment successful",
-      description: isRw ? "Trippo Plus irakora." : "Trippo Plus is active for another month.",
+      title: t("billingPaymentSuccess"),
+      description: t("billingPaymentSuccessDesc"),
     });
     window.dispatchEvent(new Event("subscription-updated"));
-  }, [isRw, stopProcessing, toast]);
+  }, [t, stopProcessing, toast]);
 
   const pollPayment = useCallback(
     async (referenceId: string) => {
@@ -226,7 +184,7 @@ export default function Billing() {
           const payload = await checkStatus();
           const status = payload.payment.status;
           const syncIssue = payload.payment.sync?.latestIssue;
-          const issueMessage = getPaymentUserMessage(syncIssue, isRw);
+          const issueMessage = getPaymentUserMessage(syncIssue, language);
 
           if (isPaymentSettled(payload)) {
             await refresh(true);
@@ -237,7 +195,7 @@ export default function Billing() {
           if (syncIssue?.code === "REF_OWNED_BY_OTHER_USER") {
             clearPendingPaymentRef();
             toast({
-              title: isRw ? "Ikosa ryo kwishyura" : "Payment issue",
+              title: t("billingPaymentIssue"),
               description: issueMessage || syncIssue.message,
               variant: "destructive",
             });
@@ -253,11 +211,9 @@ export default function Billing() {
               issueMessage ||
               payload.payment.providerStatus ||
               payload.payment.mtnStatus ||
-              (isRw
-                ? "MTN/Airtel yanze kwishyura. Reba niba MoMo ikora, ufite amafaranga, cyangwa kanda *182*7*1# (MTN)."
-                : "MoMo declined the request. Ensure the wallet is active, you have enough balance, or dial *182*7*1# (MTN) / *185*7*1# (Airtel).");
+              t("billingMoMoDeclined");
             toast({
-              title: isRw ? "Wishyura byanze" : "Payment failed",
+              title: t("billingPaymentFailed"),
               description: reason,
               variant: "destructive",
             });
@@ -291,13 +247,11 @@ export default function Billing() {
       await refresh(true);
       stopProcessing();
       toast({
-        title: isRw ? "Iracyategereje" : "Still confirming",
-        description: isRw
-          ? "Niba wishyura byagenze neza, subiza urupapuro — tuzabimenya."
-          : "If money was deducted, refresh this page — we will sync your payment.",
+        title: t("billingStillConfirming"),
+        description: t("billingStillConfirmingDesc"),
       });
     },
-    [isRw, refresh, showPaymentSuccess, stopProcessing, toast, updatePlan],
+    [language, refresh, showPaymentSuccess, stopProcessing, t, toast, updatePlan],
   );
 
   // Resume polling only for a live server-side PENDING payment after sync
@@ -329,18 +283,16 @@ export default function Billing() {
       await refresh(true);
       setCancelDialogOpen(false);
       toast({
-        title: txt.cancelledTitle,
+        title: t("billingCancelledTitle"),
         description:
           updatedPlan?.hasPlus && updatedPlan.nextDueDate
-            ? `${txt.cancelledUntil} ${formatBillingDate(updatedPlan.nextDueDate, isRw)}.`
-            : isRw
-              ? "Ntuzongera kubona ibiranga Plus."
-              : "You no longer have Plus access.",
+            ? `${t("billingCancelledUntil")} ${formatBillingDate(updatedPlan.nextDueDate, language)}.`
+            : t("billingCancelNoPlusAccess"),
       });
       window.dispatchEvent(new Event("subscription-updated"));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Could not cancel plan.";
-      toast({ title: isRw ? "Ikosa" : "Error", description: message, variant: "destructive" });
+      toast({ title: t("error"), description: message, variant: "destructive" });
     } finally {
       setCancelling(false);
     }
@@ -349,8 +301,8 @@ export default function Billing() {
   const handlePay = async (options?: { forceRetry?: boolean }) => {
     if (!network) {
       toast({
-        title: isRw ? "Hitamo uburyo" : "Select network",
-        description: isRw ? "Hitamo MTN cyangwa Airtel." : "Choose MTN or Airtel.",
+        title: t("billingSelectNetwork"),
+        description: t("billingSelectNetworkDesc"),
         variant: "destructive",
       });
       return;
@@ -358,8 +310,8 @@ export default function Billing() {
 
     if (!phone.trim()) {
       toast({
-        title: isRw ? "Nomero irakenewe" : "Phone required",
-        description: isRw ? "Andika nomero ya telefone." : "Enter your mobile money number.",
+        title: t("billingPhoneRequired"),
+        description: t("billingPhoneRequiredDesc"),
         variant: "destructive",
       });
       return;
@@ -379,16 +331,16 @@ export default function Billing() {
 
     if (network === "mtn" && !isMtn) {
       toast({
-        title: isRw ? "Nomero siyo" : "Invalid number",
-        description: isRw ? "Koresha nomero ya MTN (078 cyangwa 079)." : "Use an MTN number (078 or 079).",
+        title: t("billingInvalidNumber"),
+        description: t("billingInvalidMtn"),
         variant: "destructive",
       });
       return;
     }
     if (network === "airtel" && !isAirtel) {
       toast({
-        title: isRw ? "Nomero siyo" : "Invalid number",
-        description: isRw ? "Koresha nomero ya Airtel (072 cyangwa 073)." : "Use an Airtel number (072 or 073).",
+        title: t("billingInvalidNumber"),
+        description: t("billingInvalidAirtel"),
         variant: "destructive",
       });
       return;
@@ -420,17 +372,13 @@ export default function Billing() {
 
       if (data.inProgress) {
         toast({
-          title: isRw ? "Wishyura iracyakora" : "Payment in progress",
-          description: isRw
-            ? "Reba telefone yawe kugira ngo wemeze. Niba utabonye ubutumwa, kanda Payongera uhereze undi mucyo."
-            : "Check your phone to approve. If no prompt appeared, tap Pay again to send a new one.",
+          title: t("billingPaymentInProgress"),
+          description: t("billingPayInProgressDesc"),
         });
       } else {
         toast({
-          title: isRw ? "Emeza kuri telefone" : "Approve on your phone",
-          description: isRw
-            ? "Reba ubutumwa kuri telefone yawe. Niba utabonye, kanda *182*7*1# (MTN) cyangwa *185*7*1# (Airtel)."
-            : "Check your phone for the MoMo prompt. If nothing appears within 30 seconds, dial *182*7*1# (MTN) or *185*7*1# (Airtel).",
+          title: t("billingApproveOnPhone"),
+          description: t("billingApproveOnPhoneDesc"),
         });
       }
       void pollPayment(data.referenceId);
@@ -440,50 +388,50 @@ export default function Billing() {
       let message = error instanceof Error ? error.message : "Could not start payment.";
       if (error instanceof ApiError) {
         const code = typeof error.response?.code === "string" ? error.response.code : undefined;
-        const mapped = getPaymentUserMessage({ code: code || "", message }, isRw);
+        const mapped = getPaymentUserMessage({ code: code || "", message }, language);
         if (mapped) message = mapped;
       }
       await refresh(true);
-      toast({ title: isRw ? "Ikosa" : "Payment error", description: message, variant: "destructive" });
+      toast({ title: t("billingPaymentError"), description: message, variant: "destructive" });
     } finally {
       setPaying(false);
     }
   };
 
   return (
-    <AppLayout title={isRw ? "Kwishyura" : "Billing"}>
+    <AppLayout title={t("billing")}>
       <div className="flex flex-col min-h-0 w-full space-y-4 pb-4">
         {loading ? (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-20 lg:bg-white lg:rounded-lg">
             <Loader2 className="h-4 w-4 animate-spin" />
-            {txt.loading}
+            {t("loading")}
           </div>
         ) : (
           <div className="space-y-4 w-full">
             {isTrialEnded ? (
               <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-semibold">{isRw ? "Kwishyura bisabwa" : "Payment required"}</p>
-                <p className="text-xs text-amber-800 mt-1">{txt.trialEndedBanner}</p>
+                <p className="font-semibold">{t("billingPaymentRequired")}</p>
+                <p className="text-xs text-amber-800 mt-1">{t("billingTrialEndedBanner")}</p>
               </div>
             ) : null}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
             {/* Summary */}
             <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-1">
-              <h1 className="text-lg font-semibold text-foreground">{txt.title}</h1>
-              <p className="text-sm text-muted-foreground pb-4">{txt.subtitle}</p>
+              <h1 className="text-lg font-semibold text-foreground">{t("billingSummary")}</h1>
+              <p className="text-sm text-muted-foreground pb-4">{t("billingSummarySubtitle")}</p>
 
               <div className="divide-y divide-border/60">
-                <SummaryRow label={`${txt.package}:`} value={packageName} />
+                <SummaryRow label={`${t("billingPackage")}:`} value={packageName} />
                 <SummaryRow
-                  label={`${txt.price}:`}
+                  label={`${t("price")}:`}
                   value={`${amount.toLocaleString()} ${currency}`}
                 />
-                <SummaryRow label={`${txt.starts}:`} value={formatBillingDate(periodStart, isRw)} />
-                <SummaryRow label={`${txt.ends}:`} value={formatBillingDate(periodEnd, isRw)} />
+                <SummaryRow label={`${t("billingStarts")}:`} value={formatBillingDate(periodStart, language)} />
+                <SummaryRow label={`${t("billingEnds")}:`} value={formatBillingDate(periodEnd, language)} />
               </div>
 
               <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
-                <span className="text-sm font-semibold text-foreground">{txt.total}:</span>
+                <span className="text-sm font-semibold text-foreground">{t("total")}:</span>
                 <span className="text-lg font-bold text-foreground tabular-nums">
                   {amount.toLocaleString()} {currency}
                 </span>
@@ -491,14 +439,14 @@ export default function Billing() {
 
               {isCancelled ? (
                 <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1">
-                  <p className="text-sm font-semibold text-foreground">{txt.cancelledTitle}</p>
+                  <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
                   {plan?.hasPlus && plan.nextDueDate ? (
                     <p className="text-xs text-muted-foreground">
-                      {txt.cancelledUntil} {formatBillingDate(plan.nextDueDate, isRw)}.
+                      {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate, language)}.
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      {isRw ? "Ntuzongera kwishyurwa buri kwezi." : "You will not be billed monthly."}
+                      {t("billingNotBilledMonthly")}
                     </p>
                   )}
                 </div>
@@ -513,7 +461,7 @@ export default function Billing() {
                     onClick={() => setCancelDialogOpen(true)}
                     disabled={paying || polling || cancelling}
                   >
-                    {txt.cancelPlan}
+                    {t("billingCancelPlan")}
                   </Button>
                 </div>
               ) : null}
@@ -524,11 +472,9 @@ export default function Billing() {
               {(paying || polling) && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[2px] px-4">
                   <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
-                  <p className="text-sm font-medium text-foreground text-center">{txt.processing}</p>
+                  <p className="text-sm font-medium text-foreground text-center">{t("billingProcessing")}</p>
                   <p className="text-xs text-muted-foreground text-center">
-                    {isRw
-                      ? "Reba telefone yawe kugira ngo wemeze wishyura."
-                      : "Check your phone and approve the MoMo prompt."}
+                    {t("billingCheckPhoneApprove")}
                   </p>
                   {polling ? (
                     <Button
@@ -538,20 +484,18 @@ export default function Billing() {
                       className="mt-1"
                       onClick={() => void handlePay({ forceRetry: true })}
                     >
-                      {isRw ? "Ohereza undi mucyo" : "Send new prompt"}
+                      {t("billingSendNewPrompt")}
                     </Button>
                   ) : null}
                 </div>
               )}
 
               <div>
-                <h2 className="text-lg font-semibold text-foreground">{txt.pay}</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("billingPay")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isPaidActive
-                    ? isRw
-                      ? "Wishyura wawe urakora"
-                      : "Your subscription is active"
-                    : txt.tapMethod}
+                    ? t("billingSubscriptionActive")
+                    : t("billingTapMethod")}
                 </p>
               </div>
 
@@ -560,16 +504,16 @@ export default function Billing() {
                   <div className="flex items-center gap-2 text-green-900">
                     <CheckCircle2 className="h-5 w-5 shrink-0" />
                     <p className="text-sm font-semibold">
-                      {isRw ? "Wishyura byagenze neza" : "Payment successful"}
+                      {t("billingPaymentSuccess")}
                     </p>
                   </div>
                   <p className="text-xs text-green-800">
-                    {isRw ? "Trippo Plus irakora kugeza" : "Trippo Plus is active until"}{" "}
-                    {formatBillingDate(plan.nextDueDate, isRw)}.
+                    {t("billingPlusActiveUntil")}{" "}
+                    {formatBillingDate(plan.nextDueDate, language)}.
                   </p>
                   {plan.lastPaidAt ? (
                     <p className="text-xs text-green-800">
-                      {isRw ? "Byishyuwe" : "Last paid"}: {formatBillingDate(plan.lastPaidAt, isRw)}
+                      {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt, language)}
                     </p>
                   ) : null}
                 </div>
@@ -599,7 +543,7 @@ export default function Billing() {
 
                   <div className="space-y-1.5">
                     <Label htmlFor="billing-phone" className="text-sm text-muted-foreground">
-                      {txt.phone}
+                      {t("billingPhone")}
                     </Label>
                     <Input
                       id="billing-phone"
@@ -613,18 +557,14 @@ export default function Billing() {
 
                   {network && (
                     <div className="space-y-1 text-xs text-muted-foreground leading-relaxed">
-                      <p>{txt.pinHint}</p>
+                      <p>{t("billingPinHint")}</p>
                       <p>
-                        {isRw
-                          ? `Ukeneye nibura ${Math.ceil(amount * 1.023).toLocaleString()} RWF kuri MoMo (${amount.toLocaleString()} + amafaranga ya serivisi).`
-                          : `Have at least ${Math.ceil(amount * 1.023).toLocaleString()} RWF on MoMo (${amount.toLocaleString()} + fees).`}
+                        {t("billingHaveMoMoBalance")
+                          .replace("{amount}", Math.ceil(amount * 1.023).toLocaleString())
+                          .replace("{base}", amount.toLocaleString())}
                       </p>
-                      <p>{network === "mtn" ? txt.noPromptMtn : txt.noPromptAirtel}</p>
-                      <p>
-                        {isRw
-                          ? "Niba wishyura byanze, kanda *182*7*1# usibe ibyo wemereje, tegereza iminota 5–10, hanyuma ugerageze rimwe."
-                          : "If payment fails, dial *182*7*1#, cancel pending approvals, wait 5–10 min, then try once only."}
-                      </p>
+                      <p>{network === "mtn" ? t("billingNoPromptMtn") : t("billingNoPromptAirtel")}</p>
+                      <p>{t("billingPayFailHint")}</p>
                     </div>
                   )}
 
@@ -636,25 +576,21 @@ export default function Billing() {
                       "bg-yellow-500 hover:bg-yellow-600 text-gray-900",
                     )}
                   >
-                    {txt.payAmount(amount)}
+                    {t("billingPayAmount").replace("{amount}", amount.toLocaleString())}
                   </Button>
                 </>
               ) : !paymentReady ? (
                 <div className="space-y-3 text-sm text-muted-foreground">
                   <p>
-                    {isRw ? "Kwishyura ntibishoboka ubu." : "Payments are not available right now."}
+                    {t("billingPaymentsUnavailable")}
                   </p>
                   {statusError || configError ? (
                     <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                      {isRw
-                        ? "Ntitwashoboye kuvugana na seriveri. Reba ko backend ikora kuri port 3000, hanyuma ongera ugerageze."
-                        : `${statusError || configError} Make sure the backend is running on port 3000.`}
+                      {statusError || configError} {t("billingBackendError")}
                     </p>
                   ) : (
                     <p className="text-xs">
-                      {isRw
-                        ? "Reba niba Paypack yashyizweho muri backend .env (PAYPACK_CLIENT_ID na PAYPACK_CLIENT_SECRET)."
-                        : "Check that Paypack is configured in backend .env (PAYPACK_CLIENT_ID and PAYPACK_CLIENT_SECRET)."}
+                      {t("billingPaypackHint")}
                     </p>
                   )}
                   <Button
@@ -663,7 +599,7 @@ export default function Billing() {
                     className="w-full"
                     onClick={() => void refresh()}
                   >
-                    {isRw ? "Ongera ugerageze" : "Retry"}
+                    {t("billingRetry")}
                   </Button>
                 </div>
               ) : null}
@@ -676,16 +612,16 @@ export default function Billing() {
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{txt.cancelTitle}</AlertDialogTitle>
+            <AlertDialogTitle>{t("billingCancelTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
               {isPaidActive || (plan?.lastPaidAt && !plan?.isOnTrial)
-                ? txt.cancelPaidDesc
-                : txt.cancelTrialDesc}
+                ? t("billingCancelPaidDesc")
+                : t("billingCancelTrialDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelling}>
-              {isRw ? "Subiza inyuma" : "Keep plan"}
+              {t("billingKeepPlan")}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -698,10 +634,10 @@ export default function Billing() {
               {cancelling ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  {isRw ? "Birategereje..." : "Cancelling..."}
+                  {t("billingCancelling")}
                 </>
               ) : (
-                txt.cancelConfirm
+                t("billingCancelConfirm")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
