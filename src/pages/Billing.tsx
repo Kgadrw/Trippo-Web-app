@@ -8,7 +8,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
-import { subscriptionApi } from "@/lib/api";
+import { subscriptionApi, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
 import {
@@ -128,6 +128,10 @@ export default function Billing() {
     const storedPhone = localStorage.getItem("profit-pilot-user-phone");
     if (storedPhone) setPhone(storedPhone);
   }, []);
+
+  useEffect(() => {
+    void refresh(true);
+  }, [refresh]);
 
   // Drop stale client-side refs unless the server still has a pending payment
   useEffect(() => {
@@ -371,7 +375,15 @@ export default function Billing() {
       }
       void pollPayment(data.referenceId);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Could not start payment.";
+      stopProcessing();
+      clearPendingPaymentRef();
+      let message = error instanceof Error ? error.message : "Could not start payment.";
+      if (error instanceof ApiError) {
+        const code = typeof error.response?.code === "string" ? error.response.code : undefined;
+        const mapped = getPaymentUserMessage({ code: code || "", message }, isRw);
+        if (mapped) message = mapped;
+      }
+      await refresh(true);
       toast({ title: isRw ? "Ikosa" : "Payment error", description: message, variant: "destructive" });
     } finally {
       setPaying(false);

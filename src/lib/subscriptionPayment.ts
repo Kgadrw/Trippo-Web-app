@@ -91,6 +91,10 @@ export function getPaymentUserMessage(
       en: "Too many pending MoMo requests on this phone. Dial *182*7*1# (MTN), cancel all pending approvals, wait 5–10 minutes, then pay once.",
       rw: "Hari ubutumwa bwinshi bwo kwishyura butegereje kuri iyi telefone. Kanda *182*7*1#, siba byose bitegereje, tegereza iminota 5–10, hanyuma wishyure rimwe.",
     },
+    PAYMENT_EXPIRED: {
+      en: "The previous payment prompt expired. You can pay again now.",
+      rw: "Ubutumwa bwo kwishyura bwa kera bwarangiye. Ushobora kongera kwishyura ubu.",
+    },
     MOMO_IMMEDIATE_REJECT: {
       en: "MTN rejected the payment immediately — usually too many pending prompts or not enough balance (10,000 RWF needs about 10,230 RWF including fees). Clear pending via *182*7*1#, wait, then try once.",
       rw: "MTN yanze ako kanya — akenshi ni ubutumwa bwinshi butegereje cyangwa amafaranga ahagije (10,000 RWF bisaba hafi 10,230 RWF). Kanda *182*7*1#, siba bitegereje, tegereza, ugerageze rimwe.",
