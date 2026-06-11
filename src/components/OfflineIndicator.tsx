@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { playSyncBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib/sound";
+import { getSyncStatus } from '@/lib/syncManager';
 
 export function OfflineIndicator() {
   const { isOnline, pendingSyncs, syncAll } = useOffline();
@@ -31,7 +32,7 @@ export function OfflineIndicator() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Check sync status after completion
-      const { getSyncStatus } = await import("@/lib/syncManager");
+      /* converted to static import */;
       const status = await getSyncStatus();
       console.log(`[OfflineIndicator] Sync status after completion:`, status);
       

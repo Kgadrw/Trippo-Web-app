@@ -37,6 +37,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { usePinAuth } from "@/hooks/usePinAuth";
+import { notificationService } from '@/lib/notifications';
+import { notificationService } from '@/lib/notifications';
+import { notificationService } from '@/lib/notifications';
 
 interface Product {
   id?: number;
@@ -606,7 +609,7 @@ const AddProduct = () => {
               });
               
               // Send notification about offline save
-              const { notificationService } = await import("@/lib/notifications");
+              /* converted to static import */;
               if (notificationService.isAllowed()) {
                 await notificationService.showNotification('general', {
                   title: 'Products Saved Offline',
@@ -689,7 +692,7 @@ const AddProduct = () => {
             });
             
             // Send notification about offline save
-            const { notificationService } = await import("@/lib/notifications");
+            /* converted to static import */;
             if (notificationService.isAllowed()) {
               await notificationService.showNotification('general', {
                 title: 'Products Saved Offline',
@@ -811,7 +814,7 @@ const AddProduct = () => {
           });
           
           // Send notification about offline save
-          const { notificationService } = await import("@/lib/notifications");
+          /* converted to static import */;
           if (notificationService.isAllowed()) {
             await notificationService.showNotification('general', {
               title: 'Product Saved Offline',

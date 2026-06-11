@@ -2,6 +2,7 @@
 import { clearAllStores } from './indexedDB';
 import { apiCache } from './apiCache';
 import { notificationStore } from './notificationStore';
+import { clearStore } from './indexedDB';
 
 /**
  * Clear all caches, IndexedDB, and stale data
@@ -15,7 +16,7 @@ export async function clearAllCachesAndData(): Promise<void> {
     try {
       // Only clear products store to ensure fresh product data
       // Don't clear all stores as it might block app startup
-      const { clearStore } = await import('./indexedDB');
+      /* converted to static import */;
       await clearStore('products');
       console.log('[CacheManager] ✓ Cleared products store');
     } catch (error: any) {

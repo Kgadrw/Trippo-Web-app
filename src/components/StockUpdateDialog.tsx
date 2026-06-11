@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { useTranslation } from "@/hooks/useTranslation";
 import { playUpdateBeep, playErrorBeep, initAudio } from "@/lib/sound";
+import { backgroundSyncManager } from '@/lib/backgroundSync';
 
 interface Product {
   id?: number;
@@ -93,7 +94,7 @@ export function StockUpdateDialog({
 
       if ("serviceWorker" in navigator) {
         try {
-          const { backgroundSyncManager } = await import("@/lib/backgroundSync");
+          /* converted to static import */;
           await backgroundSyncManager.requestNotificationCheck();
         } catch {
           // non-critical

@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
+import { clearAllStores } from '@/lib/indexedDB';
 
 export default function SettingsDeleteAccount() {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ export default function SettingsDeleteAccount() {
       sessionStorage.clear();
 
       try {
-        const { clearAllStores } = await import("@/lib/indexedDB");
+        /* converted to static import */;
         await clearAllStores();
       } catch (error) {
         console.error("Error clearing IndexedDB on account deletion:", error);

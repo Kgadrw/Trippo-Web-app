@@ -31,6 +31,7 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubdomain } from "@/hooks/useSubdomain";
 import { PlusBanner } from "@/components/dashboard/PlusBanner";
+import { clearAllStores } from '@/lib/indexedDB';
 
 const getMenuItems = (t: (key: string) => string) => {
   return [
@@ -125,7 +126,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
     
     // Clear IndexedDB data (for complete data isolation)
     try {
-      const { clearAllStores } = await import("@/lib/indexedDB");
+      /* converted to static import */;
       await clearAllStores();
     } catch (error) {
       console.error("Error clearing IndexedDB on logout:", error);

@@ -13,6 +13,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
+import { clearAllStores } from '@/lib/indexedDB';
 
 export function SettingsLayout() {
   const { toast } = useToast();
@@ -123,7 +124,7 @@ export function SettingsLayout() {
     sessionStorage.clear();
 
     try {
-      const { clearAllStores } = await import("@/lib/indexedDB");
+      /* converted to static import */;
       await clearAllStores();
     } catch (error) {
       console.error("Error clearing IndexedDB on logout:", error);
