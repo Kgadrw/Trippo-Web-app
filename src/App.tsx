@@ -31,7 +31,7 @@ const SubdomainRedirect = ({ subdomain }: { subdomain: 'admin' | 'dashboard' }) 
     // Only redirect if authenticated
     if (userId && authenticated) {
       // For admin subdomain, check if user is admin
-      if (subdomain === 'admin' && isAdmin && userId === "admin") {
+      if (subdomain === 'admin' && isAdmin) {
         const url = getSubdomainUrl(subdomain);
         window.location.href = url;
         return;

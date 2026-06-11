@@ -23,7 +23,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
       // For admin routes, check admin status instead of regular userId
       if (requireAdmin) {
-        if (adminStatus && authenticated && userId === "admin") {
+        if (adminStatus && authenticated) {
           setIsAuthenticated(true);
           setIsAdmin(true);
           setIsChecking(false);

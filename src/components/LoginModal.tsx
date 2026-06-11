@@ -233,11 +233,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
         onOpenChange(false);
         // Desktop on main domain: stay on same origin so localStorage persists across visits
-        if (subdomain === null && isDesktopViewport()) {
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-        // Mobile / already on subdomain: dashboard subdomain + hash restores storage on that host
+        // Always redirect to dashboard subdomain
         const authToken = btoa(JSON.stringify({
           userId: response.user._id || response.user.id,
           isAdmin: false,

@@ -37,11 +37,9 @@ const Home = () => {
     if (!userId || !authenticated) return;
 
     const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
-    if (isAdmin && userId === "admin") {
-      window.location.replace(getSubdomainUrl("admin"));
-      return;
+    if (!isAdmin) {
+      navigate("/dashboard", { replace: true });
     }
-    navigate("/dashboard", { replace: true });
   }, [navigate]);
 
   // Force English language on homepage
