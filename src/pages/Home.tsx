@@ -1,18 +1,150 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { LoginModal } from "@/components/LoginModal";
 import { User, Instagram, Phone } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { getSubdomainUrl } from "@/hooks/useSubdomain";
+import { contentApi } from "@/lib/api";
+import {
+  FEATURE_COLOR_CLASSES,
+  type ResolvedHomepageContent,
+} from "@/lib/homepageContent";
+
+function buildFallbackHomepageContent(t: (key: string) => string): ResolvedHomepageContent {
+  return {
+    testimonialBackgroundUrl: "/testmonial.webp",
+    features: [
+      {
+        id: "fallback-1",
+        badge: t("productManagement"),
+        description: t("addEditManageInventory"),
+        color: "blue",
+      },
+      {
+        id: "fallback-2",
+        badge: t("salesTracking"),
+        description: t("recordSalesTransactions"),
+        color: "green",
+      },
+      {
+        id: "fallback-3",
+        badge: t("reportsAnalytics"),
+        description: t("viewDetailedReports"),
+        color: "purple",
+      },
+      {
+        id: "fallback-4",
+        badge: t("offlineSupport"),
+        description: t("workOfflineAutoSync"),
+        color: "orange",
+      },
+    ],
+    testimonials: [
+      {
+        id: "fallback-t1",
+        quote: t("trippoTransformedInventory"),
+        attribution: t("homeTestimonial1Attribution"),
+      },
+      {
+        id: "fallback-t2",
+        quote: t("mostUsefulInventoryTool"),
+        attribution: t("homeTestimonial2Attribution"),
+      },
+      {
+        id: "fallback-t3",
+        quote: t("bestInventoryManagementFlexibility"),
+        attribution: t("homeTestimonial3Attribution"),
+      },
+    ],
+    partners: [
+      {
+        id: "fallback-p1",
+        name: "Lindocare",
+        logoUrl: "/lindo.png",
+        websiteUrl: "",
+      },
+    ],
+    pricingPlans: [
+      {
+        id: "fallback-basic",
+        name: t("basicPlan"),
+        price: "$0",
+        priceSuffix: t("perMonth"),
+        features: [
+          t("productInventoryManagement"),
+          t("salesTrackingRecording"),
+          t("basicReportsAnalytics"),
+          t("offlineSupportSync"),
+          t("upTo100Products"),
+        ],
+        ctaLabel: t("getStarted"),
+        isPlaceholder: false,
+      },
+      {
+        id: "fallback-pro",
+        name: t("proPlan"),
+        price: "",
+        priceSuffix: t("perMonth"),
+        features: [],
+        ctaLabel: t("subscribe"),
+        isPlaceholder: true,
+      },
+      {
+        id: "fallback-enterprise",
+        name: t("enterprisePlan"),
+        price: "",
+        priceSuffix: t("perMonth"),
+        features: [],
+        ctaLabel: t("subscribe"),
+        isPlaceholder: true,
+      },
+      {
+        id: "fallback-custom",
+        name: t("customPlan"),
+        price: "",
+        priceSuffix: t("perMonth"),
+        features: [],
+        ctaLabel: t("subscribe"),
+        isPlaceholder: true,
+      },
+    ],
+  };
+}
 
 const Home = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
-  const [isMobile, setIsMobile] = useState(false);
+  const [homepageContent, setHomepageContent] = useState<ResolvedHomepageContent | null>(null);
+
+  const fallbackContent = useMemo(() => buildFallbackHomepageContent(t), [t]);
+  const content = homepageContent ?? fallbackContent;
+
+  const loadHomepageContent = useCallback(async () => {
+    try {
+      const res = await contentApi.getHomepage(language);
+      if (res.data) {
+        setHomepageContent(res.data as ResolvedHomepageContent);
+      }
+    } catch {
+      setHomepageContent(null);
+    }
+  }, [language]);
+
+  useEffect(() => {
+    void loadHomepageContent();
+  }, [loadHomepageContent]);
+
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      void loadHomepageContent();
+    };
+    window.addEventListener("language-changed", handleLanguageChange);
+    return () => window.removeEventListener("language-changed", handleLanguageChange);
+  }, [loadHomepageContent]);
 
   // Only allow Home page on main domain; send returning users straight to the app
   useEffect(() => {
@@ -35,20 +167,12 @@ const Home = () => {
     if (!userId || !authenticated) return;
 
     const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
-    if (!isAdmin) {
-      navigate("/dashboard", { replace: true });
+    if (isAdmin) {
+      window.location.replace(getSubdomainUrl("admin"));
+      return;
     }
+    navigate("/dashboard", { replace: true });
   }, [navigate]);
-
-  // Handle responsive detection
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   // Reset login modal state when user logs out (listen for auth changes)
   useEffect(() => {
@@ -89,8 +213,13 @@ const Home = () => {
     };
   }, []);
 
+  const openSignup = () => {
+    setLoginModalTab("create");
+    setLoginModalOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-white lg:bg-white">
+    <div className="homepage min-h-screen bg-white lg:bg-white">
       <Navbar />
       
       {/* Hero Section */}
@@ -98,15 +227,12 @@ const Home = () => {
         <div className="w-full flex flex-col gap-12">
           {/* Text Content */}
           <header className="text-left max-w-2xl lg:max-w-none lg:w-full px-6 lg:px-12 xl:px-20">
-            <h1 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-8 leading-tight">
+            <h1 className="text-2xl lg:text-3xl font-serif text-gray-900 mb-8 leading-tight">
               {t("runBusinessSmarter")}
             </h1>
             <Button
               className="bg-gray-500 text-white hover:bg-gray-600 px-5 py-2.5 text-sm font-medium rounded-full"
-              onClick={() => {
-                setLoginModalTab("create");
-                setLoginModalOpen(true);
-              }}
+              onClick={openSignup}
             >
               {t("getStarted")}
             </Button>
@@ -114,168 +240,64 @@ const Home = () => {
           
           {/* Hero Images — full bleed to viewport edges */}
           <div className="w-full flex gap-0 overflow-hidden">
-            {/* Card 1 */}
-            <div className="w-1/5 relative group h-32 md:h-80">
-              <img 
-                src="/card1.jpg" 
-                alt="Woman managing inventory with Trippo" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/20"></div>
-            </div>
-
-            {/* Card 2 */}
-            <div className="w-1/5 relative group h-32 md:h-80">
-              <img 
-                src="/card2.png" 
-                alt="Man struggling with business" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/20"></div>
-            </div>
-
-            {/* Card 3 */}
-            <div className="w-1/5 relative group h-32 md:h-80">
-              <img 
-                src="/card3.jpg" 
-                alt="Woman using Trippo system" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/20"></div>
-            </div>
-
-            {/* Card 4 */}
-            <div className="w-1/5 relative group h-32 md:h-80">
-              <img 
-                src="/card4.jpg" 
-                alt="Happy team managing stock" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/20"></div>
-            </div>
-
-            {/* Card 5 */}
-            <div className="w-1/5 relative group h-32 md:h-80">
-              <img 
-                src="/card5.jpg" 
-                alt="Successful business owners" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/20"></div>
-            </div>
+            {["/card1.jpg", "/card2.png", "/card3.jpg", "/card4.jpg", "/card5.jpg"].map((src) => (
+              <div key={src} className="w-1/5 relative group h-32 md:h-80">
+                <img src={src} alt="" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/20" />
+              </div>
+            ))}
           </div>
 
           {/* Feature Cards */}
           <section className="w-full px-6 lg:px-12 xl:px-20" aria-label="Features">
-            <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6">{t("features")}</h2>
+            <h2 className="text-2xl lg:text-3xl font-serif text-gray-900 mb-6">{t("features")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Product Management Card */}
-              <div className="border border-gray-200 bg-gray-100 p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                    {t("productManagement")}
-                  </span>
+              {content.features.map((feature) => (
+                <div key={feature.id} className="border border-gray-200 bg-gray-100 p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <span
+                      className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                        FEATURE_COLOR_CLASSES[feature.color] || FEATURE_COLOR_CLASSES.blue
+                      }`}
+                    >
+                      {feature.badge}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed">{feature.description}</p>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {t("addEditManageInventory")}
-                </p>
-              </div>
-
-              {/* Sales Tracking Card */}
-              <div className="border border-gray-200 bg-gray-100 p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                    {t("salesTracking")}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {t("recordSalesTransactions")}
-                </p>
-              </div>
-
-              {/* Reports & Analytics Card */}
-              <div className="border border-gray-200 bg-gray-100 p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                    {t("reportsAnalytics")}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {t("viewDetailedReports")}
-                </p>
-              </div>
-
-              {/* Offline Support Card */}
-              <div className="border border-gray-200 bg-gray-100 p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="px-2.5 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                    {t("offlineSupport")}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {t("workOfflineAutoSync")}
-                </p>
-              </div>
+              ))}
             </div>
           </section>
 
           {/* Testimonials */}
-          <section className="w-full relative bg-cover bg-center bg-no-repeat lg:min-h-0" style={{ backgroundImage: 'url(/testmonial.webp)' }} aria-label="Testimonials">
-            <div className="absolute inset-0 bg-white/70"></div>
+          <section
+            className="w-full relative bg-cover bg-center bg-no-repeat lg:min-h-0"
+            style={{ backgroundImage: `url(${content.testimonialBackgroundUrl || "/testmonial.webp"})` }}
+            aria-label="Testimonials"
+          >
+            <div className="absolute inset-0 bg-white/70" />
             <div className="relative z-10 py-12 px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20">
               <div className="text-center mb-6">
-                       <h2 className="text-base lg:text-lg font-serif font-normal text-white inline-block px-4 py-1.5 bg-gray-600 rounded-full">
-                         {t("whatOurUsersSay")}
-                       </h2>
+                <h2 className="text-base lg:text-lg font-serif text-white inline-block px-4 py-1.5 bg-gray-600 rounded-full">
+                  {t("whatOurUsersSay")}
+                </h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Testimonial 1 - Ange Uwase */}
-              <div className="bg-gray-50 p-6">
-                <p className="text-sm text-gray-700 leading-relaxed mb-4">
-                  "This platform has helped my quincaillerie business to leverage and shift from books and analogue sales and stock recording to digital. It's transformed how I manage my inventory and track sales."
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0 flex items-center justify-center">
-                    <User size={20} className="text-gray-600" />
+                {content.testimonials.map((testimonial) => (
+                  <div key={testimonial.id} className="bg-gray-50 p-6">
+                    <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                      &ldquo;{testimonial.quote}&rdquo;
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0 flex items-center justify-center">
+                        <User size={20} className="text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-900">{testimonial.attribution}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Ange Uwase</p>
-                    <p className="text-xs text-gray-500">Bugesera</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Testimonial 2 - NIYITEGEKA Gracien */}
-              <div className="bg-gray-50 p-6">
-                <p className="text-sm text-gray-700 leading-relaxed mb-4">
-                  "This platform helps me increase sales for my diapers and baby pamper business. The sales tracking and inventory management features are exactly what I needed to grow my business."
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0 flex items-center justify-center">
-                    <User size={20} className="text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">NIYITEGEKA Gracien</p>
-                    <p className="text-xs text-gray-500">Lindocare</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Testimonial 3 - Ishimwe Emmanuel */}
-              <div className="bg-gray-50 p-6">
-                <p className="text-sm text-gray-700 leading-relaxed mb-4">
-                  "This business platform helps me increase sales and save time for my construction material business. The digital system has made managing my inventory so much easier and more efficient."
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0 flex items-center justify-center">
-                    <User size={20} className="text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Ishimwe Emmanuel</p>
-                    <p className="text-xs text-gray-500">Rukira</p>
-                  </div>
-                </div>
-              </div>
+                ))}
               </div>
             </div>
           </section>
@@ -283,65 +305,87 @@ const Home = () => {
           {/* Partners Section */}
           <section className="w-full lg:px-10 xl:px-16 2xl:px-20" aria-label="Partners">
             <div className="text-left mb-6">
-              <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900">
-                Our Partners
+              <h2 className="text-2xl lg:text-3xl font-serif text-gray-900">
+                {t("ourPartners")}
               </h2>
             </div>
-            <div className="flex items-center justify-start">
-              <div className="p-8">
-                <img 
-                  src="/lindo.png" 
-                  alt="Lindocare Partner Logo" 
-                  className="h-16 w-auto object-contain"
-                />
-              </div>
+            <div className="flex flex-wrap items-center justify-start gap-4">
+              {content.partners.map((partner) => {
+                const logo = (
+                  <img
+                    src={partner.logoUrl}
+                    alt={partner.name}
+                    className="h-16 w-auto object-contain"
+                  />
+                );
+
+                return (
+                  <div key={partner.id} className="p-8">
+                    {partner.websiteUrl ? (
+                      <a
+                        href={partner.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block"
+                      >
+                        {logo}
+                      </a>
+                    ) : (
+                      logo
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
 
           {/* Pricing Cards */}
           <section className="w-full lg:px-10 xl:px-16 2xl:px-20" aria-label="Pricing">
-            <h2 className="text-2xl lg:text-3xl font-serif font-normal text-gray-900 mb-6 text-center">{t("pricing")}</h2>
+            <h2 className="text-2xl lg:text-3xl font-serif text-gray-900 mb-6 text-center">{t("pricing")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Basic Plan */}
-              <div className="border border-gray-200 bg-gray-100 p-4 flex flex-col">
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                    {t("basicPlan")}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700 mb-3">
-                  <span className="font-semibold text-lg">$0</span>
-                  <span className="text-xs text-gray-500 ml-1">{t("perMonth")}</span>
-                </p>
-                <ul className="text-sm text-gray-700 space-y-2 leading-relaxed mb-4 flex-grow">
-                  <li>• {t("productInventoryManagement")}</li>
-                  <li>• {t("salesTrackingRecording")}</li>
-                  <li>• {t("basicReportsAnalytics")}</li>
-                  <li>• {t("offlineSupportSync")}</li>
-                  <li>• {t("upTo100Products")}</li>
-                </ul>
-                <Button
-                  className="bg-gray-500 text-white hover:bg-gray-600 rounded-full px-4 py-2 text-sm w-full"
-                  onClick={() => {
-                    setLoginModalTab("create");
-                    setLoginModalOpen(true);
-                  }}
+              {content.pricingPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`border border-gray-200 bg-gray-100 p-4 flex flex-col ${
+                    plan.isPlaceholder ? "opacity-30" : ""
+                  }`}
                 >
-                  {t("getStarted")}
-                </Button>
-              </div>
-
-              {/* Pro Plan - Empty */}
-              <div className="border border-gray-200 bg-gray-100 p-4 flex flex-col opacity-30">
-              </div>
-
-              {/* Enterprise Plan - Empty */}
-              <div className="border border-gray-200 bg-gray-100 p-4 flex flex-col opacity-30">
-              </div>
-
-              {/* Custom Plan - Empty */}
-              <div className="border border-gray-200 bg-gray-100 p-4 flex flex-col opacity-30">
-              </div>
+                  {!plan.isPlaceholder ? (
+                    <>
+                      <div className="flex items-start gap-3 mb-3">
+                        <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                          {plan.name}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-3">
+                        {plan.price ? (
+                          <>
+                            <span className="font-semibold text-lg">{plan.price}</span>
+                            {plan.priceSuffix ? (
+                              <span className="text-xs text-gray-500 ml-1">{plan.priceSuffix}</span>
+                            ) : null}
+                          </>
+                        ) : null}
+                      </p>
+                      {plan.features.length > 0 ? (
+                        <ul className="text-sm text-gray-700 space-y-2 leading-relaxed mb-4 flex-grow">
+                          {plan.features.map((feature, index) => (
+                            <li key={`${plan.id}-f-${index}`}>• {feature}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="flex-grow" />
+                      )}
+                      <Button
+                        className="bg-gray-500 text-white hover:bg-gray-600 rounded-full px-4 py-2 text-sm w-full"
+                        onClick={openSignup}
+                      >
+                        {plan.ctaLabel || t("getStarted")}
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              ))}
             </div>
           </section>
         </div>
@@ -357,11 +401,8 @@ const Home = () => {
       {/* Footer */}
       <footer className="bg-stone-50 border-t border-gray-200" role="contentinfo">
         <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20 py-12">
-          {/* Bottom Section */}
           <div className="flex flex-col items-center gap-4">
-            {/* Contact & Social */}
             <div className="flex items-center gap-6">
-              {/* Contact Info */}
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-gray-600" />
                 <a href="tel:+250791998365" className="text-sm text-gray-900 hover:text-gray-600 transition-colors">
@@ -369,7 +410,6 @@ const Home = () => {
                 </a>
               </div>
 
-              {/* Instagram Icon */}
               <a
                 href="https://instagram.com/trippoltd"
                 target="_blank"
@@ -381,7 +421,6 @@ const Home = () => {
               </a>
             </div>
             
-            {/* Copyright */}
             <p className="text-sm text-gray-600">© 2025 Trippo. All rights reserved.</p>
           </div>
         </div>

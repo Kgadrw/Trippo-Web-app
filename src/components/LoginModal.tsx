@@ -142,54 +142,29 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     try {
       const normalizedEmail = loginEmail.trim().toLowerCase();
       const adminAliases = new Set(["admin", "admin@trippo.rw", "admin@trippo.com"]);
-      const loginIdentifier = adminAliases.has(normalizedEmail) ? "admin" : normalizedEmail;
+      if (adminAliases.has(normalizedEmail)) {
+        setIsLoading(false);
+        toast({
+          title: "Use the admin portal",
+          description: "Administrators must sign in at the admin site, not here.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const response = await authApi.login({ 
         pin: loginPin,
-        email: loginIdentifier
+        email: normalizedEmail
       });
 
       if (response.user) {
-        // Check if admin login
         if (response.isAdmin || response.user.email === 'admin') {
-          // Store admin info
-          localStorage.setItem("profit-pilot-user-name", response.user.name || "Admin");
-          localStorage.setItem("profit-pilot-user-email", "admin");
-          localStorage.setItem("profit-pilot-business-name", "System Administrator");
-          localStorage.setItem("profit-pilot-is-admin", "true");
-          
-          // Store a special admin userId (required for ProtectedRoute)
-          // Use a special identifier for admin since backend doesn't return _id for admin
-          localStorage.setItem("profit-pilot-user-id", "admin");
-          
-          // Set authentication flag in localStorage for persistence
-          localStorage.setItem("profit-pilot-authenticated", "true");
-          
-          // Dispatch authentication event
-          window.dispatchEvent(new Event("pin-auth-changed"));
-          
-          // Dispatch event
-          window.dispatchEvent(new Event("user-data-changed"));
-          
+          setIsLoading(false);
           toast({
-            title: "Admin Login Successful",
-            description: "Welcome, Administrator!",
+            title: "Use the admin portal",
+            description: "Administrators must sign in at the admin site, not here.",
+            variant: "destructive",
           });
-
-          setLoginPrefs(loginEmail.trim().toLowerCase(), rememberMe);
-
-          onOpenChange(false);
-          // Redirect to admin subdomain with auth token in URL
-          // Pass auth info via URL hash so subdomain can restore localStorage
-          const authToken = btoa(JSON.stringify({
-            userId: 'admin',
-            isAdmin: true,
-            authenticated: true,
-            name: response.user.name || "Admin",
-            email: "admin",
-            businessName: "System Administrator"
-          }));
-          const adminUrl = getSubdomainUrl('admin', `#auth=${authToken}`);
-          window.location.href = adminUrl;
           return;
         }
 

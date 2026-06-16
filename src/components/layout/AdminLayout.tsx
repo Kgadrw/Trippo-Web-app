@@ -178,7 +178,7 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
         onTouchEnd={onTouchEnd}
         style={{ touchAction: 'pan-y' }}
       >
-        <main className="p-6 animate-fade-in lg:pt-6 pt-6">{children}</main>
+        <main className="admin-panel p-6 animate-fade-in lg:pt-6 pt-6">{children}</main>
       </div>
     </div>
   );

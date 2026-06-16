@@ -32,6 +32,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ADMIN_CARD_CLASS, ADMIN_INNER_SURFACE_CLASS, ADMIN_TABLE_WRAP_CLASS, ADMIN_TITLE_CLASS } from "@/components/admin/adminStyles";
 
 type PaymentStats = {
   pending: number;
@@ -78,7 +79,7 @@ function statusBadge(status: string) {
   const normalized = status.toUpperCase();
   if (normalized === "SUCCESSFUL") {
     return (
-      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
+      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-0">
         <CheckCircle2 className="h-3 w-3 mr-1" />
         Successful
       </Badge>
@@ -86,14 +87,14 @@ function statusBadge(status: string) {
   }
   if (normalized === "FAILED") {
     return (
-      <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-100 border-red-200">
+      <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-100 border-0">
         <XCircle className="h-3 w-3 mr-1" />
         Failed
       </Badge>
     );
   }
   return (
-    <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 border-amber-200">
+    <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 border-0">
       <Clock className="h-3 w-3 mr-1" />
       Pending
     </Badge>
@@ -237,7 +238,7 @@ export function AdminPaymentsPanel() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
+          <h2 className="text-lg font-normal flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
             Subscription payments
           </h2>
@@ -262,27 +263,27 @@ export function AdminPaymentsPanel() {
           Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24" />)
         ) : (
           <>
-            <Card className="lg:bg-white bg-white/80">
+            <Card className={ADMIN_CARD_CLASS}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Pending</CardTitle>
+                <CardTitle className={cn("text-xs text-muted-foreground", ADMIN_TITLE_CLASS)}>Pending</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold text-amber-700">{stats?.pending ?? 0}</div>
                 <p className="text-xs text-muted-foreground">{stats?.stuckCount ?? 0} stuck (&gt;2 min)</p>
               </CardContent>
             </Card>
-            <Card className="lg:bg-white bg-white/80">
+            <Card className={ADMIN_CARD_CLASS}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Failed</CardTitle>
+                <CardTitle className={cn("text-xs text-muted-foreground", ADMIN_TITLE_CLASS)}>Failed</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold text-red-700">{stats?.failed ?? 0}</div>
                 <p className="text-xs text-muted-foreground">Last {stats?.days ?? 30} days</p>
               </CardContent>
             </Card>
-            <Card className="lg:bg-white bg-white/80">
+            <Card className={ADMIN_CARD_CLASS}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Successful</CardTitle>
+                <CardTitle className={cn("text-xs text-muted-foreground", ADMIN_TITLE_CLASS)}>Successful</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold text-green-700">{stats?.successful ?? 0}</div>
@@ -291,18 +292,18 @@ export function AdminPaymentsPanel() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="lg:bg-white bg-white/80">
+            <Card className={ADMIN_CARD_CLASS}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">With issues</CardTitle>
+                <CardTitle className={cn("text-xs text-muted-foreground", ADMIN_TITLE_CLASS)}>With issues</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold text-orange-700">{stats?.withIssues ?? 0}</div>
                 <p className="text-xs text-muted-foreground">Logged sync problems</p>
               </CardContent>
             </Card>
-            <Card className="lg:bg-white bg-white/80 col-span-2 lg:col-span-1">
+            <Card className={cn(ADMIN_CARD_CLASS, "col-span-2 lg:col-span-1")}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Last 24h</CardTitle>
+                <CardTitle className={cn("text-xs text-muted-foreground", ADMIN_TITLE_CLASS)}>Last 24h</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold">{stats?.recent24h ?? 0}</div>
@@ -313,9 +314,9 @@ export function AdminPaymentsPanel() {
         )}
       </div>
 
-      <Card className="lg:bg-white bg-white/80">
+      <Card className={ADMIN_CARD_CLASS}>
         <CardHeader>
-          <CardTitle className="font-normal">Payment attempts</CardTitle>
+          <CardTitle className={ADMIN_TITLE_CLASS}>Payment attempts</CardTitle>
           <CardDescription>
             {total} record{total === 1 ? "" : "s"} matching filters
           </CardDescription>
@@ -383,7 +384,7 @@ export function AdminPaymentsPanel() {
           ) : payments.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">No payments found.</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
+            <div className={ADMIN_TABLE_WRAP_CLASS}>
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr className="text-left">
@@ -402,7 +403,7 @@ export function AdminPaymentsPanel() {
                       row.sync?.latestIssue ||
                       (row.syncIssues?.length ? row.syncIssues[row.syncIssues.length - 1] : null);
                     return (
-                      <tr key={row._id} className="border-t hover:bg-muted/30">
+                      <tr key={row._id} className="hover:bg-muted/20">
                         <td className="p-3">
                           <button
                             type="button"
@@ -424,7 +425,7 @@ export function AdminPaymentsPanel() {
                         <td className="p-3">
                           {latestIssue ? (
                             <span
-                              className="text-xs text-orange-800 bg-orange-50 border border-orange-200 rounded px-2 py-0.5 inline-block max-w-[160px] truncate"
+                              className="text-xs text-orange-800 bg-orange-50 rounded px-2 py-0.5 inline-block max-w-[160px] truncate"
                               title={latestIssue.message || latestIssue.code}
                             >
                               {latestIssue.code}
@@ -516,9 +517,9 @@ export function AdminPaymentsPanel() {
                     <AlertTriangle className="h-4 w-4 text-orange-600" />
                     Sync issues
                   </p>
-                  <ul className="space-y-2 max-h-40 overflow-y-auto rounded border p-2 bg-muted/30">
+                  <ul className={cn("space-y-2 max-h-40 overflow-y-auto p-2", ADMIN_INNER_SURFACE_CLASS)}>
                     {detailPayment.syncIssues!.map((issue, i) => (
-                      <li key={`${issue.code}-${i}`} className="text-xs border-b last:border-0 pb-2">
+                      <li key={`${issue.code}-${i}`} className="text-xs pb-2 last:pb-0">
                         <span className="font-semibold text-orange-800">{issue.code}</span>
                         {issue.message ? <span className="text-muted-foreground"> — {issue.message}</span> : null}
                         <div className="text-muted-foreground">{formatDateTime(issue.at)}</div>

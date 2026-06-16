@@ -112,7 +112,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (!isAuthenticated) {
-    // Always redirect to main domain home page for login
+    if (requireAdmin && subdomain === "admin") {
+      return <Navigate to="/login" replace />;
+    }
+
     const homeUrl = getSubdomainUrl(null);
     const currentHost = window.location.hostname;
     const homeHost = new URL(homeUrl).hostname;
@@ -129,7 +132,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (requireAdmin && !isAdmin) {
-    // User is not admin, redirect to main domain home page
+    if (subdomain === "admin") {
+      return <Navigate to="/login" replace />;
+    }
+
     const homeUrl = getSubdomainUrl(null);
     const currentHost = window.location.hostname;
     const homeHost = new URL(homeUrl).hostname;
@@ -146,8 +152,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   // Check if user is on wrong subdomain
   if (requireAdmin && subdomain !== 'admin') {
-    // Admin should be on admin subdomain
-    const adminUrl = getSubdomainUrl('admin');
+    const adminUrl = getSubdomainUrl('admin', isAdmin && isAuthenticated ? '/' : '/login');
     window.location.href = adminUrl;
     return null;
   }

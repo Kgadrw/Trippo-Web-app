@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -7,15 +6,17 @@ import {
   UserCog,
   Bell,
   CreditCard,
+  Globe,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
-import { logoutAndGoHome } from "@/lib/session";
+import { clearAppSession } from "@/lib/session";
+import { getSubdomainUrl } from "@/hooks/useSubdomain";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,13 +28,45 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const adminMenuItems = [
-  { icon: LayoutDashboard, label: "Overview", section: "overview" },
-  { icon: Users, label: "Users", section: "users" },
-  { icon: Activity, label: "Activity", section: "activity" },
-  { icon: UserCog, label: "Accounts", section: "accounts" },
-  { icon: Bell, label: "Notifications", section: "notifications" },
-  { icon: CreditCard, label: "Payments", section: "payments" },
+type AdminNavItem = {
+  icon: typeof LayoutDashboard;
+  label: string;
+  section: string;
+};
+
+type AdminNavGroup = {
+  label: string;
+  items: AdminNavItem[];
+};
+
+const adminMenuGroups: AdminNavGroup[] = [
+  {
+    label: "Dashboard",
+    items: [{ icon: LayoutDashboard, label: "Overview", section: "overview" }],
+  },
+  {
+    label: "Users & access",
+    items: [
+      { icon: Users, label: "Users", section: "users" },
+      { icon: UserCog, label: "Accounts", section: "accounts" },
+      { icon: Activity, label: "Activity", section: "activity" },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { icon: Bell, label: "Notifications", section: "notifications" },
+      { icon: CreditCard, label: "Payments", section: "payments" },
+    ],
+  },
+  {
+    label: "Content",
+    items: [{ icon: Globe, label: "Homepage", section: "homepage" }],
+  },
+  {
+    label: "System",
+    items: [{ icon: Settings, label: "Settings", section: "settings" }],
+  },
 ];
 
 interface AdminSidebarProps {
@@ -47,17 +80,16 @@ interface AdminSidebarProps {
   mobileExpanded?: boolean;
 }
 
-export function AdminSidebar({ 
-  collapsed, 
-  onToggle, 
+export function AdminSidebar({
+  collapsed,
+  onToggle,
   onMobileClose,
   onMobileToggle,
   onHoverChange,
   activeSection,
   onSectionChange,
-  mobileExpanded = false
+  mobileExpanded = false,
 }: AdminSidebarProps) {
-  const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -65,10 +97,8 @@ export function AdminSidebar({
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Minimum swipe distance
   const minSwipeDistance = 50;
 
-  // Detect mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
@@ -78,36 +108,23 @@ export function AdminSidebar({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const handleNavClick = (section: string) => {
-    onSectionChange(section);
-  };
-
-  const handleLogoutClick = () => {
-    setLogoutDialogOpen(true);
-  };
-
   const handleLogoutConfirm = () => {
-    clearAuth();
+    clearAppSession();
     setLogoutDialogOpen(false);
 
     toast({
       title: "Logged Out",
-      description: "You have been successfully logged out.",
+      description: "You have been signed out of the admin portal.",
     });
 
-    // Full navigation to main domain — clears cross-origin session via ?logout=1
-    logoutAndGoHome();
+    window.location.replace(getSubdomainUrl("admin", "/login"));
   };
 
-  // Determine if sidebar should appear expanded (hover overrides collapsed state on desktop)
-  // On mobile, use mobileExpanded state
-  const isExpanded = isMobile ? mobileExpanded : (isHovered || !collapsed);
+  const isExpanded = isMobile ? mobileExpanded : isHovered || !collapsed;
 
-  // Handle touch start for swipe detection
   const onTouchStart = (e: React.TouchEvent) => {
-    // Only handle on mobile
     if (window.innerWidth >= 1024) return;
-    
+
     setTouchEnd(null);
     setTouchStart({
       x: e.targetTouches[0].clientX,
@@ -115,22 +132,17 @@ export function AdminSidebar({
     });
   };
 
-  // Handle touch move for swipe detection
   const onTouchMove = (e: React.TouchEvent) => {
-    // Only handle on mobile
     if (window.innerWidth >= 1024) return;
-    
+
     setTouchEnd({
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
     });
   };
 
-  // Handle touch end and detect swipe to close
   const onTouchEnd = () => {
-    // Only handle on mobile
     if (window.innerWidth >= 1024) return;
-    
     if (!touchStart || !touchEnd) return;
 
     const distanceX = touchStart.x - touchEnd.x;
@@ -138,11 +150,9 @@ export function AdminSidebar({
     const isLeftSwipe = distanceX > minSwipeDistance;
     const isVerticalSwipe = Math.abs(distanceY) > Math.abs(distanceX);
 
-    // Only handle horizontal swipes
     if (isVerticalSwipe) return;
 
-    // Swipe from right edge of sidebar (within 30px from right) to left to close
-    const sidebarWidth = 224; // 56 * 4 = 224px (w-56)
+    const sidebarWidth = 224;
     if (isLeftSwipe && touchStart.x > sidebarWidth - 30 && onMobileClose) {
       onMobileClose();
     }
@@ -151,21 +161,17 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "hidden lg:flex fixed z-50 bg-white transition-all duration-300 flex-col shadow-lg",
+        "hidden lg:flex fixed z-50 bg-sidebar transition-all duration-300 flex-col",
         "left-0 top-0 h-screen",
-        // Desktop: based on expanded state
         isExpanded ? "w-56" : "w-16",
-        "lg:shadow-none"
       )}
       onMouseEnter={() => {
-        // Only auto-expand on desktop when collapsed (not on mobile)
         if (window.innerWidth >= 1024 && collapsed && !isMobile) {
           setIsHovered(true);
           onHoverChange?.(true);
         }
       }}
       onMouseLeave={() => {
-        // Only auto-collapse on desktop if it was auto-expanded (not on mobile)
         if (window.innerWidth >= 1024 && !isMobile) {
           setIsHovered(false);
           onHoverChange?.(false);
@@ -174,20 +180,22 @@ export function AdminSidebar({
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      style={{ touchAction: 'pan-y' }}
+      style={{ touchAction: "pan-y" }}
     >
-      {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 bg-white">
+      <div
+        className={cn(
+          "flex items-center justify-between h-16 px-4 bg-sidebar",
+          !isExpanded && "justify-start px-2",
+        )}
+      >
         {isExpanded && (
-          <span className="text-lg font-bold text-gray-900">
-            Admin
-          </span>
+          <span className="text-lg font-normal text-white lowercase truncate">Admin</span>
         )}
         <div className="flex items-center gap-2">
           {onMobileToggle && (
             <button
               onClick={onMobileToggle}
-              className="p-2 hover:bg-gray-100 text-gray-600 transition-colors rounded lg:hidden"
+              className="p-2 hover:bg-white/15 text-white/90 hover:text-white transition-colors rounded lg:hidden"
             >
               <Menu size={20} />
             </button>
@@ -195,101 +203,111 @@ export function AdminSidebar({
           <button
             onClick={onToggle}
             className={cn(
-              "p-2 hover:bg-gray-100 text-gray-600 transition-colors rounded",
-              isMobile ? "block" : "hidden lg:block"
+              "p-2 hover:bg-white/15 text-white/90 hover:text-white transition-colors rounded",
+              isMobile ? "block" : "hidden lg:block",
             )}
-            title={isMobile 
-              ? (mobileExpanded ? "Collapse sidebar" : "Expand sidebar")
-              : (collapsed ? "Expand sidebar" : "Collapse sidebar")
+            title={
+              isMobile
+                ? mobileExpanded
+                  ? "Collapse sidebar"
+                  : "Expand sidebar"
+                : collapsed
+                  ? "Expand sidebar"
+                  : "Collapse sidebar"
             }
           >
             {isMobile ? (
-              <ChevronLeft 
-                size={18} 
-                className={cn(
-                  "transition-transform duration-300",
-                  mobileExpanded ? "rotate-180" : "rotate-0"
-                )}
+              <ChevronLeft
+                size={18}
+                className={cn("transition-transform duration-300", mobileExpanded ? "rotate-180" : "rotate-0")}
               />
+            ) : collapsed ? (
+              <ChevronRight size={18} />
             ) : (
-              collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />
+              <ChevronLeft size={18} />
             )}
           </button>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-        {adminMenuItems.map((item) => {
-          const isActive = activeSection === item.section;
-          return (
-            <button
-              key={item.section}
-              onClick={() => handleNavClick(item.section)}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 w-full text-left text-gray-600 font-bold hover:bg-gray-100 transition-colors cursor-pointer rounded-md",
-                isActive && "text-blue-600 font-bold hover:bg-transparent",
-                !isExpanded && "justify-center px-0"
-              )}
-              title={!isExpanded ? item.label : undefined}
-            >
-              <item.icon
-                size={20}
-                strokeWidth={2.5}
-                className={isActive ? "text-blue-600" : "text-gray-600"}
-              />
-              {isExpanded && (
-                <span className={cn(
-                  isActive ? "text-blue-600" : "text-gray-600",
-                  isMobile ? "text-xs font-bold" : "text-sm font-bold"
-                )}>{item.label}</span>
-              )}
-            </button>
-          );
-        })}
+      <nav className="flex-1 px-2 py-4 space-y-4 overflow-y-auto scrollbar-thin">
+        {adminMenuGroups.map((group) => (
+          <div key={group.label} className="space-y-1">
+            {isExpanded ? (
+              <p className="px-3 pt-1 pb-1 text-[10px] font-normal uppercase tracking-wider text-white/45">
+                {group.label}
+              </p>
+            ) : (
+              <div className="h-px bg-white/10 mx-2 my-2 first:hidden" aria-hidden />
+            )}
+            {group.items.map((item) => {
+              const isActive = activeSection === item.section;
+              return (
+                <button
+                  key={item.section}
+                  onClick={() => onSectionChange(item.section)}
+                  className={cn(
+                    "sidebar-item w-full",
+                    isActive && "sidebar-item-active",
+                    !isExpanded && "justify-start px-2",
+                  )}
+                  title={!isExpanded ? item.label : undefined}
+                >
+                  <item.icon
+                    size={20}
+                    strokeWidth={2.5}
+                    className={isActive ? "text-white" : "text-white/85"}
+                  />
+                  {isExpanded && (
+                    <span
+                      className={cn(
+                        "flex-1 text-left",
+                        isActive ? "text-white" : "text-white/90",
+                        isMobile ? "text-xs font-normal" : "text-sm font-normal",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
-      {/* Logout */}
-      <div className="p-2 border-t border-gray-200">
+      <div className="p-2 border-t border-white/10">
         <button
-          onClick={handleLogoutClick}
+          onClick={() => setLogoutDialogOpen(true)}
           className={cn(
-            "sidebar-item w-full hover:bg-red-50 hover:text-red-600 transition-colors text-gray-600",
-            !isExpanded && "justify-center px-0"
+            "sidebar-item w-full hover:bg-red-500/20 hover:text-red-200 transition-colors",
+            !isExpanded && "justify-start px-2",
           )}
           title={!isExpanded ? "Logout" : undefined}
         >
-          <LogOut size={20} />
+          <LogOut size={20} className="text-white/85" />
           {isExpanded && (
-            <span className={cn(
-              // Mobile: smaller text with medium font weight (like bottom nav bars)
-              isMobile ? "text-xs font-bold" : "text-sm font-bold"
-            )}>Logout</span>
+            <span className={cn(isMobile ? "text-xs font-normal" : "text-sm font-normal", "text-left")}>
+              Logout
+            </span>
           )}
         </button>
       </div>
 
-      <div
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-px bg-gray-200"
-        aria-hidden
-      />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-px bg-white/15" aria-hidden />
 
-      {/* Logout Confirmation Dialog */}
       <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+            <AlertDialogTitle>Sign out of admin?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to logout? You will need to login again to access the admin dashboard.
+              You will need to sign in again to access the admin dashboard.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleLogoutConfirm}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Logout
+            <AlertDialogAction onClick={handleLogoutConfirm} className="bg-red-600 hover:bg-red-700 text-white">
+              Sign out
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

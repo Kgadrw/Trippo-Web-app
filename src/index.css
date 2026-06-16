@@ -250,6 +250,35 @@
     font-weight: 700 !important;
   }
 
+  .homepage h1,
+  .homepage h2,
+  .homepage h3 {
+    font-weight: 400 !important;
+  }
+
+  .homepage h1,
+  .homepage h2,
+  .homepage h3,
+  .homepage h4,
+  .homepage h5,
+  .homepage h6 {
+    font-weight: 400 !important;
+  }
+
+  .admin-panel h1,
+  .admin-panel h2,
+  .admin-panel h3,
+  .admin-panel h4,
+  .admin-panel h5,
+  .admin-panel h6 {
+    font-weight: 400 !important;
+  }
+
+  .admin-panel .bg-card {
+    border-width: 0 !important;
+    box-shadow: none !important;
+  }
+
   .kpi-card {
     @apply bg-white p-3 sm:p-6 border-0 shadow-none rounded-lg sm:rounded-xl text-foreground;
   }
@@ -330,7 +359,7 @@
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2.5 text-white/90 font-normal hover:bg-white/15 hover:text-white transition-colors cursor-pointer rounded-md;
+    @apply flex items-center justify-start text-left gap-3 px-3 py-2.5 text-white/90 font-normal hover:bg-white/15 hover:text-white transition-colors cursor-pointer rounded-md;
   }
 
   @media (min-width: 1024px) and (max-width: 1279px), (min-width: 1024px) and (max-height: 820px) {

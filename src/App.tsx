@@ -29,18 +29,20 @@ const SubdomainRedirect = ({ subdomain }: { subdomain: 'admin' | 'dashboard' }) 
     
     // Only redirect if authenticated
     if (userId && authenticated) {
-      // For admin subdomain, check if user is admin
       if (subdomain === 'admin' && isAdmin) {
-        const url = getSubdomainUrl(subdomain);
-        window.location.href = url;
+        window.location.href = getSubdomainUrl('admin', '/');
         return;
       }
-      // For dashboard subdomain, allow any authenticated user
       if (subdomain === 'dashboard') {
         const url = getSubdomainUrl(subdomain);
         window.location.href = url;
         return;
       }
+    }
+
+    if (subdomain === 'admin') {
+      window.location.href = getSubdomainUrl('admin', '/login');
+      return;
     }
     
     // If not authenticated or wrong role, redirect to home
@@ -69,6 +71,7 @@ import SettingsNotifications from "./pages/settings/SettingsNotifications";
 import SettingsDeleteAccount from "./pages/settings/SettingsDeleteAccount";
 import Billing from "./pages/Billing";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
 import VerifyTicket from "./pages/VerifyTicket";
 import Bookings from "./pages/Bookings";
@@ -84,112 +87,16 @@ const SubdomainRouter = () => {
   if (subdomain === 'admin') {
     return (
       <Routes>
-        <Route 
-          path="/" 
+        <Route path="/login" element={<AdminLogin />} />
+        <Route
+          path="/"
           element={
             <ProtectedRoute requireAdmin={true}>
               <AdminDashboard />
             </ProtectedRoute>
-          } 
-        />
-        {/* Allow other routes to work on admin subdomain too */}
-        <Route 
-          path="/products" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Products />
-            </ProtectedRoute>
-          } 
-        />
-        <Route
-          path="/inventories"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Inventories />
-            </ProtectedRoute>
           }
         />
-        <Route
-          path="/inventories/:id"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <InventoryDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route 
-          path="/products/add" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <AddProduct />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/sales" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Sales />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/barbers" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Barbers />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/clients" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Barbers />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/reports" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Reports />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/expenses" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Expenses />
-            </ProtectedRoute>
-          } 
-        />
-        <Route
-          path="/billing"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <Billing />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <SettingsLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Settings />} />
-          <Route path="business" element={<SettingsBusiness />} />
-          <Route path="subscription" element={<Navigate to="/billing" replace />} />
-          <Route path="language" element={<SettingsLanguage />} />
-          <Route path="security" element={<SettingsSecurity />} />
-          <Route path="notifications" element={<SettingsNotifications />} />
-          <Route path="delete-account" element={<SettingsDeleteAccount />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }

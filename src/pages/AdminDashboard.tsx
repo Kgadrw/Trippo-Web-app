@@ -46,11 +46,6 @@ import {
   DollarSign,
   TrendingUp,
   Activity,
-  Server,
-  Database,
-  Clock,
-  Radio,
-  BarChart3,
   Trash2,
   Mail,
   Bell,
@@ -58,16 +53,10 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import {
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 import { adminApi } from "@/lib/api";
@@ -75,6 +64,11 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { UptimeTimeline } from "@/components/admin/UptimeTimeline";
 import { AdminPaymentsPanel } from "@/components/admin/AdminPaymentsPanel";
+import { AdminHomepagePanel } from "@/components/admin/AdminHomepagePanel";
+import { AdminSettingsPanel } from "@/components/admin/AdminSettingsPanel";
+import { AdminPlatformHealthPanel } from "@/components/admin/AdminPlatformHealthPanel";
+import { AdminPlatformTrafficChart } from "@/components/admin/AdminPlatformTrafficChart";
+import { ADMIN_CARD_CLASS, ADMIN_INNER_SURFACE_CLASS, ADMIN_TITLE_CLASS } from "@/components/admin/adminStyles";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 
 interface SystemStats {
@@ -189,6 +183,29 @@ interface SystemHealth {
     status: 'up' | 'down';
     timestamp: string;
   }>;
+  platform?: {
+    status: 'healthy' | 'degraded' | 'critical';
+    environment: string;
+    nodeVersion: string;
+    checks: Array<{
+      id: string;
+      label: string;
+      status: 'ok' | 'warning' | 'error';
+      detail: string;
+    }>;
+    payments: {
+      failed24h: number;
+      withSyncIssues: number;
+      stuckPending: number;
+    };
+    api: {
+      totalErrors24h: number;
+      clientErrors24h: number;
+      serverErrors24h: number;
+      failingEndpoints: number;
+      slowEndpoints: number;
+    };
+  };
 }
 
 interface ApiStats {
@@ -204,10 +221,38 @@ interface ApiStats {
   hourlyRequests: Array<{
     hour: number;
     count: number;
+    errors?: number;
+    success?: number;
     timestamp: string;
+    label: string;
   }>;
   statusCodeDistribution: Record<string, number>;
   avgResponseTime: number;
+  errorSummary?: {
+    totalErrors24h: number;
+    clientErrors24h: number;
+    serverErrors24h: number;
+    failingEndpoints: number;
+    slowEndpoints: number;
+  };
+  recentErrors?: Array<{
+    id: string;
+    method: string;
+    path: string;
+    endpoint: string;
+    timestamp: string;
+    statusCode: number;
+    responseTime: number;
+  }>;
+  endpointHealth?: Array<{
+    endpoint: string;
+    count: number;
+    avgResponseTime: number;
+    errors: number;
+    errorRate: number;
+    isSlow: boolean;
+    status: 'healthy' | 'degraded' | 'critical';
+  }>;
   liveRequests: Array<{
     id: string;
     method: string;
@@ -229,8 +274,9 @@ const AdminDashboard = () => {
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [apiStats, setApiStats] = useState<ApiStats | null>(null);
+  const [healthRefreshing, setHealthRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "users" | "activity" | "accounts" | "notifications" | "payments"
+    "overview" | "users" | "activity" | "accounts" | "notifications" | "payments" | "homepage" | "settings"
   >("overview");
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -363,6 +409,22 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadHealthMonitoring = async () => {
+    try {
+      setHealthRefreshing(true);
+      const [healthRes, apiStatsRes] = await Promise.all([
+        adminApi.getSystemHealth(),
+        adminApi.getApiStats(),
+      ]);
+      if (healthRes.data) setHealth(healthRes.data);
+      if (apiStatsRes.data) setApiStats(apiStatsRes.data);
+    } catch (error) {
+      console.error("Error loading health monitoring:", error);
+    } finally {
+      setHealthRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     loadDashboardData();
     // Refresh every 5 minutes (reduced frequency to avoid rate limits and unnecessary calls)
@@ -381,6 +443,12 @@ const AdminDashboard = () => {
     if (activeTab === "notifications") {
       loadNotificationHistory();
     }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "overview") return;
+    const interval = setInterval(loadHealthMonitoring, 30 * 1000);
+    return () => clearInterval(interval);
   }, [activeTab]);
 
   // Track last load time to prevent excessive API calls
@@ -627,13 +695,6 @@ const AdminDashboard = () => {
     </DropdownMenu>
   );
 
-  const formatUptime = (seconds: number) => {
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${days}d ${hours}h ${minutes}m`;
-  };
-
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
     setDeleteDialogOpen(true);
@@ -855,9 +916,9 @@ const AdminDashboard = () => {
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+              <Card className={ADMIN_CARD_CLASS}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-normal">Total Users</CardTitle>
+                  <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Total Users</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -868,9 +929,9 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+              <Card className={ADMIN_CARD_CLASS}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-normal">Total Products</CardTitle>
+                  <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Total Products</CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -881,9 +942,9 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+              <Card className={ADMIN_CARD_CLASS}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-normal">Total Sales</CardTitle>
+                  <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Total Sales</CardTitle>
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -894,9 +955,9 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+              <Card className={ADMIN_CARD_CLASS}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-normal">Total Revenue</CardTitle>
+                  <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Total Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -910,138 +971,24 @@ const AdminDashboard = () => {
               </Card>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+            <AdminPlatformTrafficChart
+              hourlyRequests={apiStats?.hourlyRequests}
+              dailyRequests={apiStats?.dailyRequests}
+              recentRequests={apiStats?.recentRequests}
+              avgResponseTime={apiStats?.avgResponseTime}
+            />
+
+            <AdminPlatformHealthPanel
+              health={health}
+              apiStats={apiStats}
+              onRefresh={loadHealthMonitoring}
+              refreshing={healthRefreshing}
+            />
+
+            <div className="pt-2 space-y-4">
+              <Card className={ADMIN_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle className="font-normal">System Summary</CardTitle>
-                  <CardDescription>Overall system statistics</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Users</span>
-                    <span>{stats?.totalUsers || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Products</span>
-                    <span>{stats?.totalProducts || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Sales</span>
-                    <span>{stats?.totalSales || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Revenue</span>
-                    <span>
-                      {stats?.totalRevenue ? formatCurrency(stats.totalRevenue) : formatCurrency(0)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Profit</span>
-                    <span className="text-green-600">
-                      {stats?.totalProfit ? formatCurrency(stats.totalProfit) : formatCurrency(0)}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal">Recent Activity (7 Days)</CardTitle>
-                  <CardDescription>New items in the last week</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">New Users</span>
-                    <span>{stats?.recentUsers || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">New Products</span>
-                    <span>{stats?.recentProducts || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">New Sales</span>
-                    <span>{stats?.recentSales || 0}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="pt-6 border-t border-border/60 space-y-4">
-              <h2 className="text-base font-semibold tracking-tight px-1">System health</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal flex items-center gap-2">
-                      <Server className="h-4 w-4" />
-                      System status
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "h-2 w-2 rounded-full",
-                          health?.database === "connected" ? "bg-green-500" : "bg-red-500"
-                        )}
-                      />
-                      <span className="text-sm capitalize">{health?.database || "Unknown"}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Uptime: {health ? formatUptime(health.uptime) : "N/A"}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal flex items-center gap-2">
-                      <Radio className="h-4 w-4" />
-                      API requests
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl">{apiStats?.recentRequests || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Last hour • {apiStats?.dailyRequests || 0} today
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Avg response
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl">{apiStats?.avgResponseTime || 0}ms</div>
-                    <p className="text-xs text-muted-foreground">
-                      {apiStats?.totalRequests || 0} total requests
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      Memory
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl">{health?.memory.used || 0} MB</div>
-                    <p className="text-xs text-muted-foreground">
-                      {health ? Math.round((health.memory.used / health.memory.total) * 100) : 0}% used
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="font-normal flex items-center gap-2">
+                  <CardTitle className={cn("flex items-center gap-2", ADMIN_TITLE_CLASS)}>
                     <Activity className="h-5 w-5" />
                     Uptime timeline
                   </CardTitle>
@@ -1058,45 +1005,10 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
+                <Card className={ADMIN_CARD_CLASS}>
                   <CardHeader>
-                    <CardTitle className="font-normal flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5" />
-                      API requests (24h)
-                    </CardTitle>
-                    <CardDescription>Hourly request distribution</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {apiStats?.hourlyRequests && apiStats.hourlyRequests.length > 0 ? (
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={apiStats.hourlyRequests}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis
-                              dataKey="label"
-                              tick={{ fontSize: 11 }}
-                              angle={-45}
-                              textAnchor="end"
-                              height={60}
-                            />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip />
-                            <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-64 flex items-center justify-center text-muted-foreground">
-                        No API request data available
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle className="font-normal flex items-center gap-2">
+                    <CardTitle className={cn("flex items-center gap-2", ADMIN_TITLE_CLASS)}>
                       <TrendingUp className="h-5 w-5" />
                       Endpoint distribution
                     </CardTitle>
@@ -1146,12 +1058,12 @@ const AdminDashboard = () => {
 
         {/* Users Tab */}
         {activeTab === "users" && (
-          <Card className="bg-white">
+          <Card className={ADMIN_CARD_CLASS}>
             <CardHeader>
               <div className="flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle className="font-normal">All Users</CardTitle>
+                    <CardTitle className={ADMIN_TITLE_CLASS}>All Users</CardTitle>
                     <CardDescription>
                       Registered users, subscription status, and Paypack payment attempts
                     </CardDescription>
@@ -1193,7 +1105,7 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1200px]">
                   <thead>
-                    <tr className="border-b bg-muted/40">
+                    <tr className="bg-muted/30">
                       <th className="text-left p-2 text-sm font-medium">Name</th>
                       <th className="text-left p-2 text-sm font-medium">Email</th>
                       <th className="text-left p-2 text-sm font-medium">Phone</th>
@@ -1217,7 +1129,7 @@ const AdminDashboard = () => {
                       </tr>
                     ) : (
                       filteredUsers.map((user) => (
-                        <tr key={user._id} className="border-b hover:bg-gray-50 align-top">
+                        <tr key={user._id} className="hover:bg-gray-50/80 align-top">
                           <td className="p-2 text-sm font-medium">{user.name}</td>
                           <td className="p-2 text-sm text-muted-foreground">{user.email || "—"}</td>
                           <td className="p-2 text-sm text-muted-foreground">{user.phone || "—"}</td>
@@ -1281,9 +1193,9 @@ const AdminDashboard = () => {
             {/* Usage Summary */}
             {usageSummary && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                <Card className={ADMIN_CARD_CLASS}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal">Total Users</CardTitle>
+                    <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Total Users</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl">{usageSummary.totalUsers}</div>
@@ -1292,9 +1204,9 @@ const AdminDashboard = () => {
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                <Card className={ADMIN_CARD_CLASS}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal">Total Products</CardTitle>
+                    <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Total Products</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl">{usageSummary.totalProductsCreated}</div>
@@ -1303,9 +1215,9 @@ const AdminDashboard = () => {
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                <Card className={ADMIN_CARD_CLASS}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal">Total Sales</CardTitle>
+                    <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Total Sales</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl">{usageSummary.totalSalesMade}</div>
@@ -1314,9 +1226,9 @@ const AdminDashboard = () => {
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+                <Card className={ADMIN_CARD_CLASS}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-normal">Active Users</CardTitle>
+                    <CardTitle className={cn("text-sm", ADMIN_TITLE_CLASS)}>Active Users</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl text-green-600">{usageSummary.activeUsers}</div>
@@ -1331,16 +1243,16 @@ const AdminDashboard = () => {
             )}
 
             {/* User Usage Statistics */}
-            <Card className="bg-white">
+            <Card className={ADMIN_CARD_CLASS}>
               <CardHeader>
-                <CardTitle className="font-normal">User System Usage (Last 30 Days)</CardTitle>
+                <CardTitle className={ADMIN_TITLE_CLASS}>User System Usage (Last 30 Days)</CardTitle>
                 <CardDescription>How users are utilizing the system</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b">
+                      <tr className="bg-muted/20">
                         <th className="text-left p-2 text-sm">User</th>
                         <th className="text-left p-2 text-sm">Activity Score</th>
                         <th className="text-left p-2 text-sm">Products</th>
@@ -1355,7 +1267,7 @@ const AdminDashboard = () => {
                     <tbody>
                       {userUsage.length > 0 ? (
                         userUsage.map((usage) => (
-                          <tr key={usage.userId} className="border-b hover:bg-gray-50">
+                          <tr key={usage.userId} className="hover:bg-gray-50/80">
                             <td className="p-2">
                               <div>
                                 <p className="text-sm">{usage.name}</p>
@@ -1443,9 +1355,9 @@ const AdminDashboard = () => {
 
             {/* Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+              <Card className={ADMIN_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle className="font-normal">Recent Product Creations</CardTitle>
+                  <CardTitle className={ADMIN_TITLE_CLASS}>Recent Product Creations</CardTitle>
                   <CardDescription>Products created in the last 7 days</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1471,9 +1383,9 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+              <Card className={ADMIN_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle className="font-normal">Recent Sales</CardTitle>
+                  <CardTitle className={ADMIN_TITLE_CLASS}>Recent Sales</CardTitle>
                   <CardDescription>Sales made in the last 7 days</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1505,9 +1417,9 @@ const AdminDashboard = () => {
 
         {/* Accounts — activate / deactivate sign-in (replaces former Schedules admin page) */}
         {activeTab === "accounts" && (
-          <Card className="bg-white">
+          <Card className={ADMIN_CARD_CLASS}>
             <CardHeader>
-              <CardTitle className="font-normal">User accounts</CardTitle>
+              <CardTitle className={ADMIN_TITLE_CLASS}>User accounts</CardTitle>
               <CardDescription>
                 Turn sign-in on or off per user. Disabled accounts cannot log in until you activate them again.
               </CardDescription>
@@ -1516,7 +1428,7 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b">
+                    <tr className="bg-muted/20">
                       <th className="text-left p-2 text-sm">Name</th>
                       <th className="text-left p-2 text-sm">Email</th>
                       <th className="text-left p-2 text-sm">Business</th>
@@ -1526,7 +1438,7 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {users.map((user) => (
-                      <tr key={user._id} className="border-b hover:bg-gray-50">
+                      <tr key={user._id} className="hover:bg-gray-50/80">
                         <td className="p-2 text-sm font-medium">{user.name}</td>
                         <td className="p-2 text-sm text-muted-foreground">{user.email || "—"}</td>
                         <td className="p-2 text-sm text-muted-foreground">{user.businessName || "—"}</td>
@@ -1573,11 +1485,11 @@ const AdminDashboard = () => {
 
         {/* Notifications Tab */}
         {activeTab === "notifications" && (
-          <Card className="lg:bg-white bg-white/80 backdrop-blur-sm">
+          <Card className={ADMIN_CARD_CLASS}>
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="font-normal">Notification History</CardTitle>
+                  <CardTitle className={ADMIN_TITLE_CLASS}>Notification History</CardTitle>
                   <CardDescription>History of notifications sent by admin</CardDescription>
                 </div>
                 <Button variant="outline" onClick={loadNotificationHistory} disabled={notificationHistoryLoading}>
@@ -1596,7 +1508,7 @@ const AdminDashboard = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b">
+                      <tr className="bg-muted/20">
                         <th className="text-left p-2 text-sm">When</th>
                         <th className="text-left p-2 text-sm">To</th>
                         <th className="text-left p-2 text-sm">Type</th>
@@ -1607,7 +1519,7 @@ const AdminDashboard = () => {
                     </thead>
                     <tbody>
                       {notificationHistory.map((n: any) => (
-                        <tr key={n._id} className="border-b hover:bg-gray-50">
+                        <tr key={n._id} className="hover:bg-gray-50/80">
                           <td className="p-2 text-sm text-muted-foreground whitespace-nowrap">
                             {new Date(n.createdAt || Date.now()).toLocaleString()}
                           </td>
@@ -1643,8 +1555,12 @@ const AdminDashboard = () => {
 
         {activeTab === "payments" && <AdminPaymentsPanel />}
 
+        {activeTab === "homepage" && <AdminHomepagePanel />}
+
+        {activeTab === "settings" && <AdminSettingsPanel />}
+
         {/* Refresh Button */}
-        {activeTab !== "payments" && (
+        {activeTab !== "payments" && activeTab !== "homepage" && activeTab !== "settings" && (
         <div className="flex justify-end">
           <Button onClick={loadDashboardData} variant="outline">
             Refresh Data
@@ -1703,7 +1619,7 @@ const AdminDashboard = () => {
               <div className="space-y-4">
                 <div>
                   <Label>Select Users ({selectedUsers.size} selected)</Label>
-                  <div className="mt-2 max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
+                  <div className={cn("mt-2 max-h-60 overflow-y-auto p-2 space-y-2", ADMIN_INNER_SURFACE_CLASS)}>
                     {users.filter(u => u.email).map((user) => (
                       <div key={user._id} className="flex items-center space-x-2">
                         <Checkbox
@@ -1799,7 +1715,7 @@ const AdminDashboard = () => {
               {isBulkNotificationMode && (
                 <div className="space-y-2">
                   <Label>Select Users ({selectedUsers.size} selected)</Label>
-                  <div className="mt-2 max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
+                  <div className={cn("mt-2 max-h-60 overflow-y-auto p-2 space-y-2", ADMIN_INNER_SURFACE_CLASS)}>
                     {users.map((user) => (
                       <div key={user._id} className="flex items-center space-x-2">
                         <Checkbox

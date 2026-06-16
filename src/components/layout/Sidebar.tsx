@@ -237,7 +237,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
             "flex bg-sidebar shrink-0",
             isExpanded
               ? "items-center justify-between h-14 px-3"
-              : "flex-col items-center gap-1.5 py-2 px-1",
+              : "flex-col items-start gap-1.5 py-2 px-2",
           )}
         >
         {isExpanded ? (
@@ -307,7 +307,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
                 className={cn(
                   "sidebar-item w-full",
                   isActive && "sidebar-item-active",
-                  !isExpanded && "justify-center px-0",
+                  !isExpanded && "justify-start px-2",
                 )}
                 title={!isExpanded ? item.label : undefined}
               >
@@ -318,7 +318,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
                 {isExpanded && (
                   <span
                     className={cn(
-                      "flex-1",
+                      "flex-1 text-left",
                       isActive ? "text-white" : "text-white/90",
                       isMobile
                         ? "text-sm font-normal"
@@ -342,7 +342,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
           onClick={handleLogoutClick}
           className={cn(
             "sidebar-item w-full font-normal hover:bg-red-500/20 hover:text-red-200 transition-colors text-white/90",
-            !isExpanded && "justify-center px-0"
+            !isExpanded && "justify-start px-2"
           )}
           title={!isExpanded ? t("logout") : undefined}
         >

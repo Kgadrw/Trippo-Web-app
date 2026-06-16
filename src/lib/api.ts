@@ -75,10 +75,13 @@ async function request<T>(
                          endpoint.startsWith('/auth/reset-pin') ||
                          endpoint.startsWith('/auth/me');
   
+  // Public content endpoints (homepage CMS)
+  const isPublicEndpoint = endpoint.startsWith('/content/');
+  
   // Admin endpoints don't require regular userId (admin has special userId)
   const isAdminEndpoint = endpoint.startsWith('/admin/');
   
-  if (!isAuthEndpoint && !isAdminEndpoint && !userId) {
+  if (!isAuthEndpoint && !isAdminEndpoint && !isPublicEndpoint && !userId) {
     throw new ApiError(
       'User not authenticated. Please login to access your data.',
       401,
@@ -158,7 +161,8 @@ async function request<T>(
     const disableGetCache =
       endpoint.startsWith('/notifications') ||
       endpoint.startsWith('/auth/me') ||
-      endpoint.startsWith('/subscription');
+      endpoint.startsWith('/subscription') ||
+      endpoint.startsWith('/content/');
     // Get userId for cache key (use the value from defaultHeaders if set, otherwise 'anonymous')
     const userIdForCache = defaultHeaders['X-User-Id'] || userId || 'anonymous';
     const cacheKey = `${options.method || 'GET'}:${endpoint}:${userIdForCache}`;
@@ -824,6 +828,47 @@ export const adminApi = {
     return request('/admin/subscription-payments/reconcile', {
       method: 'POST',
       body: JSON.stringify({ limit }),
+    });
+  },
+
+  async getHomepageContent(): Promise<ApiResponse> {
+    return request('/admin/homepage', { method: 'GET' });
+  },
+
+  async updateHomepageContent(payload: Record<string, unknown>): Promise<ApiResponse> {
+    return request('/admin/homepage', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getPlatformSettings(): Promise<ApiResponse> {
+    return request('/admin/platform-settings', { method: 'GET' });
+  },
+
+  async updatePlatformSettings(payload: {
+    currentPin: string;
+    adminEmail?: string;
+    newPin?: string;
+    confirmNewPin?: string;
+    subscriptionAmount?: number;
+    trialDays?: number;
+    supportEmail?: string;
+    companyName?: string;
+    maintenanceMode?: boolean;
+  }): Promise<ApiResponse> {
+    return request('/admin/platform-settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+// Public homepage content (no auth required)
+export const contentApi = {
+  async getHomepage(lang: string = 'en'): Promise<ApiResponse> {
+    return request(`/content/homepage?lang=${encodeURIComponent(lang)}`, {
+      method: 'GET',
     });
   },
 };
