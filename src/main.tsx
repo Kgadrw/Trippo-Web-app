@@ -24,7 +24,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./styles/globals.css";
 import { registerServiceWorker } from "./lib/serviceWorker";
-import { initDB } from "./lib/indexedDB";
+import { tryInitDB } from "./lib/indexedDB";
 import { logger } from "./lib/logger";
 
 // Disable all console methods in production for privacy and security
@@ -48,11 +48,12 @@ if (import.meta.env.PROD) {
 // Initialize IndexedDB and register service worker
 // Don't block rendering - initialize in parallel
 Promise.all([
-  initDB().catch((error) => {
-    logger.warn(
-      "IndexedDB unavailable — app will use the API only. Try clearing site data or closing other Trippo tabs if this persists:",
-      error,
-    );
+  tryInitDB().then((database) => {
+    if (!database && import.meta.env.DEV) {
+      logger.warn(
+        "IndexedDB unavailable — offline cache disabled. The app will use the API only.",
+      );
+    }
   }),
   registerServiceWorker().catch((error) => {
     logger.error("Failed to register service worker:", error);

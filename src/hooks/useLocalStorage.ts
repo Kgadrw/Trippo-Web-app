@@ -8,7 +8,7 @@ import {
   updateItem,
   deleteItem,
   clearStore,
-  initDB,
+  tryInitDB,
 } from "@/lib/indexedDB";
 import { getNextId } from "@/lib/idGenerator";
 
@@ -33,7 +33,7 @@ export function useLocalStorage<T extends { id: number }>({
   useEffect(() => {
     const loadData = async () => {
       try {
-        await initDB();
+        await tryInitDB();
         const stored = await getAllItems<T>(storeName);
 
         if (stored.length > 0) {

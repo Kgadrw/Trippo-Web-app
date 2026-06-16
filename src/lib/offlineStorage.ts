@@ -2,7 +2,7 @@
 // IndexedDB for large data (products, sales, clients, schedules)
 // localStorage for small data (user settings, preferences, auth tokens)
 
-import { initDB, getAllItems, addItem, updateItem, deleteItem, clearStore, clearAllStores } from "./indexedDB";
+import { tryInitDB, getAllItems, addItem, updateItem, deleteItem, clearStore, clearAllStores } from "./indexedDB";
 
 // localStorage keys
 const STORAGE_KEYS = {
@@ -85,7 +85,7 @@ export class OfflineStorage {
     items: T[]
   ): Promise<void> {
     try {
-      await initDB();
+      await tryInitDB();
       // Clear existing data for this store
       await clearStore(storeName);
       // Add all items
@@ -105,7 +105,7 @@ export class OfflineStorage {
 
   static async loadFromIndexedDB<T>(storeName: string): Promise<T[]> {
     try {
-      await initDB();
+      await tryInitDB();
       return await getAllItems<T>(storeName);
     } catch (error) {
       // logger.error(`Error loading from IndexedDB (${storeName}):`, error);
@@ -118,7 +118,7 @@ export class OfflineStorage {
     item: T
   ): Promise<T> {
     try {
-      await initDB();
+      await tryInitDB();
       // Ensure item has an id
       const itemWithId = { ...item };
       if (!itemWithId.id && itemWithId._id) {
@@ -136,7 +136,7 @@ export class OfflineStorage {
     item: T
   ): Promise<void> {
     try {
-      await initDB();
+      await tryInitDB();
       // Ensure item has an id
       const itemWithId = { ...item };
       if (!itemWithId.id && itemWithId._id) {
@@ -154,7 +154,7 @@ export class OfflineStorage {
     id: number | string
   ): Promise<void> {
     try {
-      await initDB();
+      await tryInitDB();
       const numericId = typeof id === "string" ? parseInt(id, 10) : id;
       if (!isNaN(numericId)) {
         await deleteItem(storeName, numericId);
@@ -258,7 +258,7 @@ export class OfflineStorage {
 
     // Check IndexedDB
     try {
-      await initDB();
+      await tryInitDB();
       health.indexedDB = true;
     } catch (error) {
       // logger.error("IndexedDB health check failed:", error);

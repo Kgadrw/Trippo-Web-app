@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 
@@ -150,6 +150,30 @@ export default function Expenses() {
     defaultValue: [],
 
   });
+
+
+
+  const lastVisibilityRefreshRef = useRef(0);
+  const VISIBILITY_REFRESH_MS = 30_000;
+
+  useEffect(() => {
+    const handleExpensesRefresh = () => {
+      void refresh(true);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastVisibilityRefreshRef.current < VISIBILITY_REFRESH_MS) return;
+      lastVisibilityRefreshRef.current = now;
+      void refresh(true);
+    };
+    window.addEventListener("expenses-should-refresh", handleExpensesRefresh);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("expenses-should-refresh", handleExpensesRefresh);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [refresh]);
 
 
 

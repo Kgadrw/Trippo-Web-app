@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { productApi, saleApi, clientApi, scheduleApi, bookingApi, expenseApi } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
-import { initDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
+import { tryInitDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
 import { apiCache } from "@/lib/apiCache";
 import { logger } from "@/lib/logger";
@@ -47,7 +47,7 @@ function isMongoServerId(id: unknown): boolean {
 function mirrorProductStockInIndexedDB(productId: string, delta: number): void {
   void (async () => {
     try {
-      await initDB();
+      await tryInitDB();
       const products = await getAllItems<{ _id?: string; id?: string | number; stock?: number }>("products");
       const product = products.find((p) => (p._id ?? p.id)?.toString() === productId);
       if (!product) return;
@@ -172,6 +172,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const [error, setError] = useState<Error | null>(null);
   const hasErrorShownRef = useRef(false);
   const isLoadingDataRef = useRef(false);
+  const pendingLoadRef = useRef<{ silent?: boolean; force?: boolean } | null>(null);
   const syncManager = SyncManager.getInstance();
   /** Sales deleted locally; stale in-flight GETs may still include these rows — filter until server catches up */
   const pendingDeletedSaleIdsRef = useRef<Set<string>>(new Set());
@@ -205,11 +206,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
   // Load data from IndexedDB first, then try to sync with API
   // silent: if true, skip setting isLoading (keeps existing data visible during background refresh)
-  const loadData = useCallback(async (options?: { silent?: boolean }) => {
+  const loadData = useCallback(async (options?: { silent?: boolean; force?: boolean }) => {
     const silent = options?.silent || false;
+    const force = options?.force || false;
     
-    // Prevent multiple simultaneous requests
+    // Prevent multiple simultaneous requests (queue forced refresh if one is already running)
     if (isLoadingDataRef.current) {
+      if (force) {
+        pendingLoadRef.current = { silent: true, force: true };
+      }
       return;
     }
 
@@ -236,11 +241,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     
     try {
       // Initialize IndexedDB (optional — app falls back to API if unavailable)
-      try {
-        await initDB();
-      } catch (dbError) {
-        console.warn("[useApi] IndexedDB unavailable, continuing with API only:", dbError);
-      }
+      await tryInitDB();
       
       const storeName = endpoint;
       const isSalesEndpoint = endpoint === 'sales';
@@ -264,10 +265,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
       
       // ✅ Smart caching strategy: Load from IndexedDB first (fast), then refresh from API in background
       // This gives instant UI while ensuring fresh data
-      // For sales and products, always fetch fresh from API to ensure real data (no stale cache)
-      const shouldUseOfflineFirst = endpoint === 'products' || endpoint === 'sales';
+      // Sales, products, and expenses always fetch fresh from API (no stale cache)
+      const isExpensesEndpoint = endpoint === 'expenses';
+      const shouldUseOfflineFirst = endpoint === 'products' || endpoint === 'sales' || isExpensesEndpoint;
       const isProductsEndpoint = endpoint === 'products';
-      const shouldAlwaysFetchFresh = isSalesEndpoint || isProductsEndpoint; // Always fetch fresh sales and products data from API
+      const shouldAlwaysFetchFresh = isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint;
       
       // For all endpoints, try to load from IndexedDB first for instant UI
       if (!isSalesEndpoint && !shouldUseOfflineFirst) {
@@ -330,6 +332,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
                   mappedItems.sort((a, b) => {
                     const aTime = (a as any).timestamp || (a as any).date;
                     const bTime = (b as any).timestamp || (b as any).date;
+                    return new Date(bTime).getTime() - new Date(aTime).getTime();
+                  });
+                } else if (isExpensesEndpoint) {
+                  mappedItems.sort((a, b) => {
+                    const aTime = (a as any).date;
+                    const bTime = (b as any).date;
                     return new Date(bTime).getTime() - new Date(aTime).getTime();
                   });
                 }
@@ -485,7 +493,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
               }
             }
             
-            // Sort by timestamp (newest first) for sales
+            // Sort by timestamp (newest first) for sales; by date for expenses
             let sortedItems = reconciledItems;
             if (isSalesEndpoint) {
               sortedItems = [...reconciledItems].sort((a, b) => {
@@ -493,24 +501,49 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 const bTime = (b as any).timestamp || (b as any).date;
                 return new Date(bTime).getTime() - new Date(aTime).getTime();
               });
+            } else if (isExpensesEndpoint) {
+              sortedItems = [...reconciledItems].sort((a, b) => {
+                const aTime = (a as any).date;
+                const bTime = (b as any).date;
+                return new Date(bTime).getTime() - new Date(aTime).getTime();
+              });
             }
             
-            // Update UI — merge so a just-created sale isn't wiped by a stale GET
+            // Update UI — merge so a just-created row isn't wiped by a stale GET
             setItems((prevItems) => {
-              if (!isSalesEndpoint) {
-                return sortedItems.length > 0 ? sortedItems : defaultValue;
+              if (isSalesEndpoint) {
+                const serverIds = new Set(
+                  sortedItems
+                    .map((i: any) => String(i._id ?? i.id ?? ""))
+                    .filter(Boolean),
+                );
+                const missingFromServer = prevItems.filter((i: any) => {
+                  const id = String(i._id ?? i.id ?? "");
+                  return id && isMongoServerId(id) && !serverIds.has(id);
+                });
+                const merged = deduplicateSales([...sortedItems, ...missingFromServer]);
+                return merged.length > 0 ? merged : defaultValue;
               }
-              const serverIds = new Set(
-                sortedItems
-                  .map((i: any) => String(i._id ?? i.id ?? ""))
-                  .filter(Boolean),
-              );
-              const missingFromServer = prevItems.filter((i: any) => {
-                const id = String(i._id ?? i.id ?? "");
-                return id && isMongoServerId(id) && !serverIds.has(id);
-              });
-              const merged = deduplicateSales([...sortedItems, ...missingFromServer]);
-              return merged.length > 0 ? merged : defaultValue;
+
+              if (isExpensesEndpoint) {
+                const serverIds = new Set(
+                  sortedItems
+                    .map((i: any) => String(i._id ?? i.id ?? ""))
+                    .filter(Boolean),
+                );
+                const missingFromServer = prevItems.filter((i: any) => {
+                  const id = String(i._id ?? i.id ?? "");
+                  return id && !serverIds.has(id);
+                });
+                const merged = [...sortedItems, ...missingFromServer].sort((a, b) => {
+                  const aTime = (a as any).date;
+                  const bTime = (b as any).date;
+                  return new Date(bTime).getTime() - new Date(aTime).getTime();
+                });
+                return merged.length > 0 ? merged : defaultValue;
+              }
+
+              return sortedItems.length > 0 ? sortedItems : defaultValue;
             });
             
             // Cache the response for future use
@@ -678,8 +711,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
         const isConnectionFailure =
           apiError?.response?.connectionError || apiError?.response?.silent;
 
-        // Sales/products always fetch fresh from API first — fall back to IndexedDB when offline
-        if (isSalesEndpoint || isProductsEndpoint) {
+        // Sales/products/expenses always fetch fresh from API first — fall back to IndexedDB when offline
+        if (isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint) {
           if (isConnectionFailure) {
             const localItems = await getAllItems<T>(storeName);
             if (localItems.length > 0) {
@@ -689,6 +722,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 mappedItems.sort((a, b) => {
                   const aTime = (a as any).timestamp || (a as any).date;
                   const bTime = (b as any).timestamp || (b as any).date;
+                  return new Date(bTime).getTime() - new Date(aTime).getTime();
+                });
+              } else if (isExpensesEndpoint) {
+                mappedItems.sort((a, b) => {
+                  const aTime = (a as any).date;
+                  const bTime = (b as any).date;
                   return new Date(bTime).getTime() - new Date(aTime).getTime();
                 });
               }
@@ -752,6 +791,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
       setIsLoading(false);
     } finally {
       isLoadingDataRef.current = false;
+      const pending = pendingLoadRef.current;
+      if (pending) {
+        pendingLoadRef.current = null;
+        void loadData(pending);
+      }
     }
   }, [endpoint, defaultValue, mapItem, onError, syncManager, reconcileSalesListWithPendingDeletions]);
 
@@ -978,7 +1022,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     // We'll try to sync to server, and if it fails, the item will remain in IndexedDB for later sync
     
     try {
-      await initDB();
+      await tryInitDB();
       const storeName = endpoint;
       
       // For all endpoints (including sales), save to IndexedDB first for immediate UI update
@@ -1378,7 +1422,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     
     try {
-      await initDB();
+      await tryInitDB();
       const storeName = endpoint;
       const itemId = (item as any)._id || (item as any).id;
       if (!itemId) {
@@ -1512,7 +1556,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     
     try {
-      await initDB();
+      await tryInitDB();
       const storeName = endpoint;
       const itemId = (item as any)._id || (item as any).id;
       if (!itemId) {
@@ -1658,7 +1702,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
 
     try {
-      await initDB();
+      await tryInitDB();
       const storeName = endpoint;
       
       // Don't save to IndexedDB first - only save after successful server response
@@ -1810,7 +1854,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       // Refresh immediately (loadData already checks isLoadingDataRef)
       // Use silent mode for forced refreshes so existing data stays visible (no skeleton flash)
       lastRefreshTimeRef.current = Date.now();
-      return Promise.resolve(loadData({ silent: shouldForce })).then(() => undefined);
+      return Promise.resolve(loadData({ silent: shouldForce, force: shouldForce })).then(() => undefined);
     }
     // Schedule refresh after cooldown period
     const remainingTime = REFRESH_COOLDOWN - timeSinceLastRefresh;
@@ -1841,7 +1885,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
 
     try {
-      await initDB();
+      await tryInitDB();
       const storeName = endpoint;
       const localItems = await getAllItems<T>(storeName);
       

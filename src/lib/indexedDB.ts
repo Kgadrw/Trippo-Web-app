@@ -22,10 +22,15 @@ const stores: StoreConfig[] = [
 
 let db: IDBDatabase | null = null;
 let initPromise: Promise<IDBDatabase> | null = null;
-let indexedDBDisabled = false;
+let lastInitFailureAt = 0;
+const INIT_RETRY_COOLDOWN_MS = 3000;
+
+export function isIndexedDBSupported(): boolean {
+  return typeof indexedDB !== "undefined";
+}
 
 export function isIndexedDBAvailable(): boolean {
-  return !indexedDBDisabled && typeof indexedDB !== "undefined";
+  return isIndexedDBSupported() && db !== null;
 }
 
 function isRecoverableIndexedDBError(error: unknown): boolean {
@@ -36,20 +41,24 @@ function isRecoverableIndexedDBError(error: unknown): boolean {
     name === "UnknownError" ||
     name === "InvalidStateError" ||
     name === "AbortError" ||
+    name === "QuotaExceededError" ||
     message.includes("Internal error") ||
     message.includes("backing store")
   );
 }
 
+function resetConnection(): void {
+  db = null;
+  initPromise = null;
+}
+
 function attachDatabaseLifecycle(database: IDBDatabase): void {
   database.onclose = () => {
-    db = null;
-    initPromise = null;
+    resetConnection();
   };
   database.onversionchange = () => {
     database.close();
-    db = null;
-    initPromise = null;
+    resetConnection();
   };
 }
 
@@ -58,11 +67,10 @@ function runUpgrade(event: IDBVersionChangeEvent): void {
 
   stores.forEach((store) => {
     if (!database.objectStoreNames.contains(store.name)) {
-      const objectStore = database.createObjectStore(store.name, {
+      database.createObjectStore(store.name, {
         keyPath: store.keyPath,
         autoIncrement: store.autoIncrement,
       });
-      objectStore.createIndex("id", "id", { unique: true });
     }
   });
 }
@@ -76,7 +84,7 @@ function openDatabaseOnce(): Promise<IDBDatabase> {
     };
 
     request.onblocked = () => {
-      // Another tab may be upgrading; the open will complete when that tab closes.
+      // Another tab may be upgrading; open completes when that tab closes.
     };
 
     request.onupgradeneeded = (event) => {
@@ -104,8 +112,7 @@ function deleteDatabase(): Promise<void> {
 }
 
 async function initDBInternal(): Promise<IDBDatabase> {
-  if (typeof indexedDB === "undefined") {
-    indexedDBDisabled = true;
+  if (!isIndexedDBSupported()) {
     throw new Error("IndexedDB is not available in this browser");
   }
 
@@ -116,39 +123,37 @@ async function initDBInternal(): Promise<IDBDatabase> {
       throw error;
     }
 
-    // Corrupted or locked DB — delete and recreate once.
-    db = null;
-    try {
-      await deleteDatabase();
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      return await openDatabaseOnce();
-    } catch (retryError) {
-      indexedDBDisabled = true;
-      throw retryError;
-    }
+    resetConnection();
+    await deleteDatabase();
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return await openDatabaseOnce();
   }
 }
 
 export const initDB = (): Promise<IDBDatabase> => {
-  if (indexedDBDisabled) {
-    return Promise.reject(new Error("IndexedDB is unavailable"));
+  if (!isIndexedDBSupported()) {
+    return Promise.reject(new Error("IndexedDB is not available in this browser"));
   }
 
   if (db) {
     return Promise.resolve(db);
   }
 
+  const now = Date.now();
+  if (lastInitFailureAt && now - lastInitFailureAt < INIT_RETRY_COOLDOWN_MS && !initPromise) {
+    return Promise.reject(new Error("IndexedDB temporarily unavailable"));
+  }
+
   if (!initPromise) {
     initPromise = initDBInternal()
       .then((database) => {
         db = database;
+        lastInitFailureAt = 0;
         return database;
       })
       .catch((error) => {
-        initPromise = null;
-        if (isRecoverableIndexedDBError(error)) {
-          indexedDBDisabled = true;
-        }
+        resetConnection();
+        lastInitFailureAt = Date.now();
         throw error;
       });
   }
@@ -156,154 +161,200 @@ export const initDB = (): Promise<IDBDatabase> => {
   return initPromise;
 };
 
+/** Open IndexedDB if possible; returns null instead of throwing (API-only fallback). */
+export async function tryInitDB(): Promise<IDBDatabase | null> {
+  if (!isIndexedDBSupported()) return null;
+  try {
+    return await initDB();
+  } catch {
+    return null;
+  }
+}
+
 export const getDB = async (): Promise<IDBDatabase> => {
-  if (indexedDBDisabled) {
+  const database = await tryInitDB();
+  if (!database) {
     throw new Error("IndexedDB is unavailable");
   }
-  if (!db) {
-    db = await initDB();
+  return database;
+};
+
+async function withStore<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+  fallback: T,
+): Promise<T> {
+  if (!isIndexedDBSupported()) return fallback;
+  try {
+    const database = await tryInitDB();
+    if (!database) return fallback;
+    return await new Promise<T>((resolve, reject) => {
+      const transaction = database.transaction([storeName], mode);
+      const store = transaction.objectStore(storeName);
+      const request = run(store);
+      request.onsuccess = () => resolve(request.result as T);
+      request.onerror = () => reject(request.error);
+    });
+  } catch {
+    return fallback;
   }
-  return db;
-};
+}
 
-// Generic CRUD operations
-export const addItem = async <T extends { id?: number; _id?: string }>(storeName: string, item: T): Promise<T> => {
-  if (!isIndexedDBAvailable()) return item;
-
-  const database = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], "readwrite");
-    const store = transaction.objectStore(storeName);
-
-    // Ensure item has an id (use _id if id doesn't exist, or generate one)
-    // Deep clone and remove any non-serializable values (Promises, functions, etc.)
-    const itemWithId = JSON.parse(JSON.stringify(item));
-    if (!itemWithId.id) {
-      if (itemWithId._id) {
-        // Convert _id to numeric id if possible, otherwise use a hash
-        const idStr = String(itemWithId._id);
-        itemWithId.id = idStr.length > 10 ? parseInt(idStr.slice(-10), 36) : parseInt(idStr, 36) || Date.now();
-      } else if (storeName !== "syncQueue") {
-        // Generate a temporary ID for non-syncQueue stores
-        itemWithId.id = Date.now() + Math.random();
-      }
-    }
-
-    const request = store.add(itemWithId);
-
-    request.onsuccess = () => {
-      // For autoIncrement stores (like syncQueue), get the generated ID
-      if (storeName === "syncQueue") {
-        const id = request.result as number;
-        const itemWithGeneratedId = { ...itemWithId, id } as T;
-        resolve(itemWithGeneratedId);
-      } else {
-        // For stores without autoIncrement, item already has ID
-        resolve(itemWithId as T);
-      }
-    };
-    request.onerror = () => reject(request.error);
-  });
-};
-
-export const updateItem = async <T extends { id?: number; _id?: string }>(storeName: string, item: T): Promise<void> => {
-  if (!isIndexedDBAvailable()) return;
-
-  const database = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], "readwrite");
-    const store = transaction.objectStore(storeName);
-
-    // Ensure item has an id
-    // Deep clone and remove any non-serializable values (Promises, functions, etc.)
-    const itemWithId = JSON.parse(JSON.stringify(item));
-    if (!itemWithId.id && itemWithId._id) {
+function prepareItemWithId<T extends { id?: number; _id?: string }>(
+  storeName: string,
+  item: T,
+): T {
+  const itemWithId = JSON.parse(JSON.stringify(item)) as T;
+  if (!itemWithId.id) {
+    if (itemWithId._id) {
       const idStr = String(itemWithId._id);
-      itemWithId.id = idStr.length > 10 ? parseInt(idStr.slice(-10), 36) : parseInt(idStr, 36) || Date.now();
+      itemWithId.id =
+        idStr.length > 10
+          ? parseInt(idStr.slice(-10), 36)
+          : parseInt(idStr, 36) || Date.now();
+    } else if (storeName !== "syncQueue") {
+      itemWithId.id = Date.now() + Math.random();
     }
+  }
+  return itemWithId;
+}
 
-    const request = store.put(itemWithId);
+// Generic CRUD operations — never throw; no-op when IndexedDB is unavailable
+export const addItem = async <T extends { id?: number; _id?: string }>(
+  storeName: string,
+  item: T,
+): Promise<T> => {
+  const itemWithId = prepareItemWithId(storeName, item);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  if (!isIndexedDBSupported()) return itemWithId;
+
+  try {
+    const database = await tryInitDB();
+    if (!database) return itemWithId;
+
+    return await new Promise<T>((resolve, reject) => {
+      const transaction = database.transaction([storeName], "readwrite");
+      const store = transaction.objectStore(storeName);
+      const request = store.add(itemWithId);
+
+      request.onsuccess = () => {
+        if (storeName === "syncQueue") {
+          const id = request.result as number;
+          resolve({ ...itemWithId, id } as T);
+        } else {
+          resolve(itemWithId);
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch {
+    return itemWithId;
+  }
+};
+
+export const updateItem = async <T extends { id?: number; _id?: string }>(
+  storeName: string,
+  item: T,
+): Promise<void> => {
+  if (!isIndexedDBSupported()) return;
+
+  const itemWithId = prepareItemWithId(storeName, item);
+  if (!itemWithId.id && itemWithId._id) {
+    const idStr = String(itemWithId._id);
+    itemWithId.id =
+      idStr.length > 10
+        ? parseInt(idStr.slice(-10), 36)
+        : parseInt(idStr, 36) || Date.now();
+  }
+
+  try {
+    const database = await tryInitDB();
+    if (!database) return;
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction([storeName], "readwrite");
+      const store = transaction.objectStore(storeName);
+      const request = store.put(itemWithId);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch {
+    // API-only mode
+  }
 };
 
 export const deleteItem = async (storeName: string, id: number): Promise<void> => {
-  if (!isIndexedDBAvailable()) return;
+  if (!isIndexedDBSupported()) return;
 
-  const database = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], "readwrite");
-    const store = transaction.objectStore(storeName);
-    const request = store.delete(id);
+  try {
+    const database = await tryInitDB();
+    if (!database) return;
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction([storeName], "readwrite");
+      const store = transaction.objectStore(storeName);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch {
+    // API-only mode
+  }
 };
 
 export const getItem = async <T>(storeName: string, id: number): Promise<T | undefined> => {
-  if (!isIndexedDBAvailable()) return undefined;
-
-  const database = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], "readonly");
-    const store = transaction.objectStore(storeName);
-    const request = store.get(id);
-
-    request.onsuccess = () => resolve(request.result as T | undefined);
-    request.onerror = () => reject(request.error);
-  });
+  return withStore<T | undefined>(
+    storeName,
+    "readonly",
+    (store) => store.get(id),
+    undefined,
+  );
 };
 
 export const getAllItems = async <T>(storeName: string): Promise<T[]> => {
-  if (!isIndexedDBAvailable()) return [];
-
-  const database = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], "readonly");
-    const store = transaction.objectStore(storeName);
-    const request = store.getAll();
-
-    request.onsuccess = () => resolve(request.result as T[]);
-    request.onerror = () => reject(request.error);
-  });
+  return withStore<T[]>(storeName, "readonly", (store) => store.getAll(), []);
 };
 
 export const clearStore = async (storeName: string): Promise<void> => {
-  if (!isIndexedDBAvailable()) return;
-
-  const database = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], "readwrite");
-    const store = transaction.objectStore(storeName);
-    const request = store.clear();
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-};
-
-// Clear all stores (for logout/data isolation)
-export const clearAllStores = async (): Promise<void> => {
-  if (!isIndexedDBAvailable()) return;
+  if (!isIndexedDBSupported()) return;
 
   try {
-    const database = await getDB();
-    const clearPromises = stores.map((store) => {
-      return new Promise<void>((resolve, reject) => {
-        const transaction = database.transaction([store.name], "readwrite");
-        const storeObj = transaction.objectStore(store.name);
-        const request = storeObj.clear();
+    const database = await tryInitDB();
+    if (!database) return;
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction([storeName], "readwrite");
+      const store = transaction.objectStore(storeName);
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
     });
+  } catch {
+    // API-only mode
+  }
+};
 
-    await Promise.all(clearPromises);
-  } catch (error) {
-    throw error;
+export const clearAllStores = async (): Promise<void> => {
+  if (!isIndexedDBSupported()) return;
+
+  try {
+    const database = await tryInitDB();
+    if (!database) return;
+
+    await Promise.all(
+      stores.map(
+        (store) =>
+          new Promise<void>((resolve, reject) => {
+            const transaction = database.transaction([store.name], "readwrite");
+            const storeObj = transaction.objectStore(store.name);
+            const request = storeObj.clear();
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          }),
+      ),
+    );
+  } catch {
+    // API-only mode
   }
 };

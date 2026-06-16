@@ -40,59 +40,26 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return;
-          // React + Radix (and other React UI primitives) must share one chunk.
-          // Splitting Radix out breaks runtime: React.forwardRef is undefined in vendor-radix.
+          if (!id.includes("node_modules")) return;
+
+          // Only split large libraries that do not depend on React.
+          // Other packages (Radix, next-themes, recharts, etc.) must stay with React
+          // in one chunk — splitting them caused "useLayoutEffect of undefined" at runtime.
+          if (id.includes("html2canvas")) {
+            return "vendor-html2canvas";
+          }
           if (
-            id.includes('/react/') ||
-            id.includes('/react-dom/') ||
-            id.includes('/scheduler/') ||
-            id.includes('@radix-ui') ||
-            id.includes('cmdk') ||
-            id.includes('vaul') ||
-            id.includes('react-aria') ||
-            id.includes('@react-aria') ||
-            id.includes('@react-stately') ||
-            id.includes('react-day-picker') ||
-            id.includes('input-otp') ||
-            id.includes('embla-carousel-react')
+            id.includes("/xlsx/") ||
+            id.includes("/codepage/") ||
+            id.includes("/cfb/")
           ) {
-            return 'vendor-react';
+            return "vendor-xlsx";
           }
-          if (id.includes('react-router') || id.includes('@remix-run')) {
-            return 'vendor-router';
+          if (id.includes("jspdf") || id.includes("html2pdf")) {
+            return "vendor-pdf";
           }
-          if (id.includes('html2canvas')) {
-            return 'vendor-html2canvas';
-          }
-          if (id.includes('recharts') || id.includes('/d3-')) {
-            return 'vendor-charts';
-          }
-          if (id.includes('lucide-react')) {
-            return 'vendor-icons';
-          }
-          if (id.includes('@tanstack')) {
-            return 'vendor-tanstack';
-          }
-          if (id.includes('date-fns')) {
-            return 'vendor-datefns';
-          }
-          if (id.includes('jspdf') || id.includes('html2pdf')) {
-            return 'vendor-pdf';
-          }
-          if (id.includes('/xlsx/') || id.includes('/codepage/') || id.includes('/cfb/')) {
-            return 'vendor-xlsx';
-          }
-          if (id.includes('/zod/')) {
-            return 'vendor-zod';
-          }
-          if (id.includes('/lodash/')) {
-            return 'vendor-lodash';
-          }
-          if (id.includes('dompurify') || id.includes('embla-carousel')) {
-            return 'vendor-ui-misc';
-          }
-          return 'vendor-misc';
+
+          return "vendor";
         },
       },
     },

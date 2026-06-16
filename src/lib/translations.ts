@@ -230,7 +230,6 @@ export interface Translations {
   saleMode: string;
   sellByQuantity: string;
   sellWholePackage: string;
-  cost: string;
   revenueMinusCost: string;
   expenseExamplePlaceholder: string;
   expenseCategoryPlaceholder: string;
@@ -1285,7 +1284,6 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     saleMode: "Sale Mode",
     sellByQuantity: "Sell by Quantity",
     sellWholePackage: "Sell Whole Package",
-    cost: "Cost",
     revenueMinusCost: "(Revenue − cost)",
     expenseExamplePlaceholder: "e.g. Utilities, Rent...",
     expenseCategoryPlaceholder: "e.g. Supplies",
@@ -1778,7 +1776,6 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     saleMode: "Uburyo bwo kugurisha",
     sellByQuantity: "Kugurisha ku mubare",
     sellWholePackage: "Kugurisha igipaki cyose",
-    cost: "Igiciro cy'inguzanyo",
     revenueMinusCost: "(Amafaranga − inguzanyo)",
     expenseExamplePlaceholder: "nka: Umuriro, Ubukode...",
     expenseCategoryPlaceholder: "nka: Ibikoresho",
@@ -2154,7 +2151,6 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     saleMode: "Mode de vente",
     sellByQuantity: "Vendre à l'unité",
     sellWholePackage: "Vendre le paquet entier",
-    cost: "Coût",
     revenueMinusCost: "(Revenu − coût)",
     expenseExamplePlaceholder: "ex. : Services, Loyer...",
     expenseCategoryPlaceholder: "ex. : Fournitures",
