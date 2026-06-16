@@ -473,15 +473,23 @@ const Dashboard = () => {
 
   // Refresh products and sales every time dashboard is opened (only once on mount)
   useEffect(() => {
-    console.log('[Dashboard] Page opened, forcing refresh of products and sales data');
-    // Force refresh products and sales to get real data from API (bypass cache)
-    refreshProducts(true);
-    refreshSales(true);
-    refreshExpenses(true);
-    window.dispatchEvent(new CustomEvent('page-opened'));
-    // Note: useApi hook will handle the actual refresh via the event listener
+    const refreshAll = () => {
+      void refreshProducts(true);
+      void refreshSales(true);
+      void refreshExpenses(true);
+    };
+
+    refreshAll();
+    window.dispatchEvent(new CustomEvent("page-opened"));
+
+    // Retry when the API was down on first load
+    window.addEventListener("online", refreshAll);
+
+    return () => {
+      window.removeEventListener("online", refreshAll);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount, not when refresh functions change
+  }, []);
 
   // Keep gauge in sync when expenses change on other pages
   useEffect(() => {

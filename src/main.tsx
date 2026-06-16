@@ -61,18 +61,9 @@ Promise.all([
   createRoot(document.getElementById("root")!).render(<App />);
   });
   
-  // ✅ Clear stale caches in background (non-blocking)
-  // This prevents showing old/deleted products and wrong stock numbers
-  // Do this AFTER rendering so app opens immediately
-  import('./lib/cacheManager').then(({ clearAllCachesAndData }) => {
-    clearAllCachesAndData().catch((error) => {
-      console.error('[App] Error clearing caches:', error);
-      // Don't block - continue anyway
-    });
-  }).catch((error) => {
-    console.error('[App] Error importing cacheManager:', error);
-    // Don't block - continue anyway
-  });
+  // ✅ Do not wipe IndexedDB on every app open — that caused empty dashboards when the API
+  // was briefly unavailable. Use forceRefreshFromBackend() when a full cache reset is needed.
+  // (Previously called clearAllCachesAndData() here on every startup.)
 });
 
 // Unregister any service workers cached from www.trippo.rw

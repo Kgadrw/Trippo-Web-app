@@ -273,13 +273,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
         
         // Filter items by userId if they have a userId field
         const filteredItems = localItems.filter((item: any) => {
-          // If item has userId field, only include if it matches current userId
           if (item.userId !== undefined) {
             return item.userId === userId;
           }
-          // If no userId field, include it (backward compatibility)
-          // But prefer to fetch from API to ensure data isolation
-          return false; // Don't use items without userId for security
+          return true;
         });
         
         if (filteredItems.length > 0) {
@@ -309,73 +306,66 @@ export function useApi<T extends { _id?: string; id?: number }>({
         }
         }
         } else {
-          // For sales and products, use offline-first: load from IndexedDB, then refresh from API
-          // BUT for sales and products, always fetch fresh from API to ensure real data (no stale cache)
+          // Products/sales: show IndexedDB first for instant UI, then sync from API
           if (shouldUseOfflineFirst) {
-            // For sales and products, skip IndexedDB and always fetch fresh from API
-            if (shouldAlwaysFetchFresh) {
-              console.log(`[useApi] ${endpoint}: Always fetching fresh data from API (bypassing IndexedDB cache)...`);
-              // Don't load from IndexedDB - go straight to API fetch
-            } else {
-              // For products, load from IndexedDB first for instant UI
-              try {
-                const localItems = await getAllItems<T>(storeName);
-                
-                // Filter items by userId if they have a userId field
-                const filteredItems = localItems.filter((item: any) => {
-                  if (item.userId !== undefined) {
-                    return item.userId === userId;
-                  }
-                  // Include items without userId for backward compatibility
-                  return true;
-                });
-                
-                if (filteredItems.length > 0) {
-                  const mappedItems = filteredItems.map(mapItem);
-                  
-                  // Show IndexedDB data immediately (instant UI)
-                  setItems(mappedItems);
-                  setIsLoading(false);
-                  console.log(`[useApi] ${endpoint}: Loaded ${mappedItems.length} items from IndexedDB (showing immediately, refreshing from API in background)...`);
-                  
-                  // Now fetch from API in background to update IndexedDB and UI
-                  // Don't block - this happens asynchronously
-                  setTimeout(async () => {
-                    try {
-                      // Check if we should refresh (not too soon after last refresh)
-                      const lastSyncTime = localStorage.getItem(`profit-pilot-${endpoint}-last-refresh`);
-                      const now = Date.now();
-                      const timeSinceLastRefresh = lastSyncTime ? now - parseInt(lastSyncTime) : Infinity;
-                      
-                      // Only refresh if it's been at least 30 seconds since last refresh
-                      // This prevents excessive API calls while still keeping data fresh
-                      if (timeSinceLastRefresh >= 30 * 1000) {
-                        await fetchAndUpdateFromAPI();
-                        localStorage.setItem(`profit-pilot-${endpoint}-last-refresh`, String(now));
-                      } else {
-                        console.log(`[useApi] ${endpoint}: Skipping background refresh (only ${Math.round(timeSinceLastRefresh / 1000)}s since last refresh)`);
-                      }
-                    } catch (error) {
-                      // Silently fail - we already have IndexedDB data showing
-                      console.log(`[useApi] ${endpoint}: Background refresh failed, using IndexedDB data:`, error);
-                    }
-                  }, 100); // Small delay to let UI render first
-                  
-                  // Return early - we'll update from API in background
-                  isLoadingDataRef.current = false;
-                  return;
+            let hadLocalData = false;
+            try {
+              const localItems = await getAllItems<T>(storeName);
+
+              const filteredItems = localItems.filter((item: any) => {
+                if (item.userId !== undefined) {
+                  return item.userId === userId;
                 }
-              } catch (error) {
-                console.warn(`[useApi] ${endpoint}: Error loading from IndexedDB, will fetch from API:`, error);
-                // Continue to API fetch below
+                return true;
+              });
+
+              if (filteredItems.length > 0) {
+                let mappedItems = filteredItems.map(mapItem);
+                if (isSalesEndpoint) {
+                  mappedItems = reconcileSalesListWithPendingDeletions(mappedItems);
+                  mappedItems.sort((a, b) => {
+                    const aTime = (a as any).timestamp || (a as any).date;
+                    const bTime = (b as any).timestamp || (b as any).date;
+                    return new Date(bTime).getTime() - new Date(aTime).getTime();
+                  });
+                }
+
+                setItems(mappedItems);
+                setIsLoading(false);
+                hadLocalData = true;
+                console.log(
+                  `[useApi] ${endpoint}: Loaded ${mappedItems.length} items from IndexedDB (showing immediately, refreshing from API...)`,
+                );
               }
+            } catch (error) {
+              console.warn(`[useApi] ${endpoint}: Error loading from IndexedDB, will fetch from API:`, error);
             }
-            
-            // If IndexedDB is empty or failed, or if sales (always fetch fresh), fetch from API
+
+            // Non-critical endpoints can stop after scheduling a background refresh
+            if (!shouldAlwaysFetchFresh && hadLocalData) {
+              setTimeout(async () => {
+                try {
+                  const lastSyncTime = localStorage.getItem(`profit-pilot-${endpoint}-last-refresh`);
+                  const now = Date.now();
+                  const timeSinceLastRefresh = lastSyncTime ? now - parseInt(lastSyncTime) : Infinity;
+
+                  if (timeSinceLastRefresh >= 30 * 1000) {
+                    await fetchAndUpdateFromAPI();
+                    localStorage.setItem(`profit-pilot-${endpoint}-last-refresh`, String(now));
+                  }
+                } catch (error) {
+                  console.log(`[useApi] ${endpoint}: Background refresh failed, using IndexedDB data:`, error);
+                }
+              }, 100);
+
+              isLoadingDataRef.current = false;
+              return;
+            }
+
             if (shouldAlwaysFetchFresh) {
-              console.log(`[useApi] ${endpoint}: Fetching fresh data from API (bypassing IndexedDB)...`);
-            } else {
-              console.log(`[useApi] ${endpoint}: IndexedDB empty or failed, fetching from API...`);
+              console.log(`[useApi] ${endpoint}: Fetching fresh data from API...`);
+            } else if (!hadLocalData) {
+              console.log(`[useApi] ${endpoint}: IndexedDB empty, fetching from API...`);
             }
           } else {
           // For other endpoints, check cache first to reduce API calls
@@ -681,50 +671,48 @@ export function useApi<T extends { _id?: string; id?: number }>({
           localStorage.setItem("profit-pilot-last-sync", String(Date.now()));
         }
       } catch (apiError: any) {
-        // For sales, show error if API fails (don't use stale IndexedDB data)
-        if (isSalesEndpoint) {
-          // logger.error(`[useApi] ✗ Failed to fetch sales from API:`, apiError);
-          // logger.error(`[useApi] Error details:`, {
-          //   message: apiError?.message,
-          //   status: apiError?.status,
-          //   response: apiError?.response,
-          //   name: apiError?.name,
-          // });
-          
-          // Show empty state or error state, don't use stale data
-          if (apiError?.response?.connectionError || apiError?.response?.silent) {
-            // logger.log("Sales: Connection error - cannot fetch from API");
-            // Load from IndexedDB as fallback only if API completely fails
+        const isConnectionFailure =
+          apiError?.response?.connectionError || apiError?.response?.silent;
+
+        // Sales/products always fetch fresh from API first — fall back to IndexedDB when offline
+        if (isSalesEndpoint || isProductsEndpoint) {
+          if (isConnectionFailure) {
             const localItems = await getAllItems<T>(storeName);
             if (localItems.length > 0) {
               let mappedItems = localItems.map(mapItem);
-              mappedItems = reconcileSalesListWithPendingDeletions(mappedItems);
-              // Sort by timestamp (newest first)
-              mappedItems.sort((a, b) => {
-                const aTime = (a as any).timestamp || (a as any).date;
-                const bTime = (b as any).timestamp || (b as any).date;
-                return new Date(bTime).getTime() - new Date(aTime).getTime();
-              });
+              if (isSalesEndpoint) {
+                mappedItems = reconcileSalesListWithPendingDeletions(mappedItems);
+                mappedItems.sort((a, b) => {
+                  const aTime = (a as any).timestamp || (a as any).date;
+                  const bTime = (b as any).timestamp || (b as any).date;
+                  return new Date(bTime).getTime() - new Date(aTime).getTime();
+                });
+              }
               setItems(mappedItems);
             } else {
               setItems(defaultValue);
             }
           } else if (apiError?.status === 401) {
-            // logger.error("Sales: Authentication error - user needs to login");
             setItems(defaultValue);
           } else {
-            // Other errors - show empty state but log the error
-            // logger.error("Sales: API error - showing empty state:", apiError);
             setItems(defaultValue);
           }
         } else {
-          // For other endpoints, silently fail if offline - data is already loaded from IndexedDB
-          if (apiError?.response?.silent || apiError?.response?.connectionError) {
-            // Connection error - use local data, don't show error
-            // logger.log("Offline mode: using local data");
-          } else {
-            // Other errors - still use local data but log
-            // logger.log("API error, using local data:", apiError);
+          if (isConnectionFailure) {
+            try {
+              const localItems = await getAllItems<T>(storeName);
+              const filteredItems = localItems.filter((item: any) => {
+                if (item.userId !== undefined) {
+                  return item.userId === userId;
+                }
+                return true;
+              });
+              if (filteredItems.length > 0) {
+                setItems(filteredItems.map(mapItem));
+              }
+            } catch {
+              // keep existing items
+            }
           }
         }
       }
@@ -755,8 +743,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
         hasErrorShownRef.current = true;
       }
       
-      // Fallback to default value on error
-      setItems(defaultValue);
+      // Fallback to default value on error — keep any data already shown from IndexedDB
+      setItems((prev) => (prev.length > 0 ? prev : defaultValue));
       setIsLoading(false);
     } finally {
       isLoadingDataRef.current = false;
@@ -923,11 +911,22 @@ export function useApi<T extends { _id?: string; id?: number }>({
     
     window.addEventListener('force-refresh-data', handleForceRefresh);
     window.addEventListener('page-opened', handlePageOpen);
-    // REMOVED: visibilitychange and focus listeners - using WebSocket instead of polling
-    
+
+    const handleOnline = () => {
+      if (itemsLengthRef.current > 0) return;
+      const now = Date.now();
+      if (!isLoadingDataRef.current && now - lastLoadTimeRef.current >= 2000) {
+        console.log(`[useApi] Back online with empty ${endpoint}, reloading...`);
+        lastLoadTimeRef.current = now;
+        loadData();
+      }
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
       window.removeEventListener('force-refresh-data', handleForceRefresh);
       window.removeEventListener('page-opened', handlePageOpen);
+      window.removeEventListener('online', handleOnline);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount

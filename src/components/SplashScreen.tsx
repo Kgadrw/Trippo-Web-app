@@ -56,8 +56,16 @@ export function SplashScreen() {
       removeSplash();
     }, 200);
 
+    // Failsafe: never leave the app invisible if splash removal fails
+    const failsafe = setTimeout(() => {
+      document.getElementById("root")?.classList.add("loaded");
+      document.body.classList.add("loaded");
+      document.getElementById("splash-screen")?.remove();
+    }, 5000);
+
     return () => {
       clearTimeout(timer);
+      clearTimeout(failsafe);
     };
   }, [isRemoved]);
 
