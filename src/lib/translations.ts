@@ -564,6 +564,8 @@ export interface Translations {
   billingNoPromptAirtel: string;
   billingProcessing: string;
   billingTrialEndedBanner: string;
+  billingPromptsUnavailable: string;
+  billingPromptsUnavailableDesc: string;
   billingPayAmount: string;
   billingCancelPlan: string;
   billingCancelTitle: string;

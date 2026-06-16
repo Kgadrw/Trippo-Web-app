@@ -273,10 +273,16 @@ async function executeRequest<T>(
         }
         
         // logger.error(`[API] Request failed: ${response.status}`, data);
+        const details = Array.isArray(data?.details) ? data.details : [];
+        const message =
+          details[0]?.message ||
+          data.error ||
+          data.message ||
+          'An error occurred';
         throw new ApiError(
-          data.error || data.message || 'An error occurred',
+          message,
           response.status,
-          { ...data, retryAfter: response.headers.get('Retry-After') }
+          { ...data, details }
         );
       }
 

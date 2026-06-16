@@ -34,6 +34,8 @@ export type SubscriptionPaymentConfig = {
   provider?: string;
   currency: string;
   amount: number;
+  livePrompts?: boolean;
+  webhookMode?: string;
 };
 
 export type PendingSubscriptionPayment = {

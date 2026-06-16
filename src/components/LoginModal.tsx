@@ -18,6 +18,7 @@ import { Lock, User, Mail, Phone } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getSavedLoginEmail, isRememberLoginEnabled, setLoginPrefs } from "@/lib/loginPrefs";
 import { useTranslation } from "@/hooks/useTranslation";
+import { ApiError } from "@/lib/api";
 
 interface LoginModalProps {
   open: boolean;
@@ -27,6 +28,52 @@ interface LoginModalProps {
 
 function isDesktopViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+}
+
+function normalizeAccountPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("250") && digits.length >= 12) return `0${digits.slice(3, 12)}`;
+  if (digits.length === 9) return `0${digits}`;
+  if (digits.startsWith("0")) return digits.slice(0, 10);
+  return digits.slice(0, 15);
+}
+
+function isValidAccountPhone(phone: string): boolean {
+  return /^0\d{9}$/.test(normalizeAccountPhone(phone));
+}
+
+type RegistrationErrors = {
+  loginPin?: string;
+  createPin?: string;
+  confirmPin?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  resetEmail?: string;
+  otp?: string;
+  registerOtp?: string;
+  newPin?: string;
+  confirmNewPin?: string;
+};
+
+function mapRegistrationApiErrors(error: unknown): RegistrationErrors {
+  if (!(error instanceof ApiError) || !Array.isArray(error.response?.details)) {
+    return {};
+  }
+
+  const mapped: RegistrationErrors = {};
+  for (const detail of error.response.details) {
+    const field = typeof detail.field === "string" ? detail.field : "";
+    const message = typeof detail.message === "string" ? detail.message : "";
+    if (!message) continue;
+    if (field === "name") mapped.name = message;
+    else if (field === "email") mapped.email = message;
+    else if (field === "phone") mapped.phone = message;
+    else if (field === "pin") mapped.createPin = message;
+    else if (field === "otp") mapped.registerOtp = message;
+  }
+  return mapped;
 }
 
 export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginModalProps) {
@@ -54,19 +101,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   const [registerOtp, setRegisterOtp] = useState("");
   const [registerOtpSent, setRegisterOtpSent] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [errors, setErrors] = useState<{
-    loginPin?: string;
-    createPin?: string;
-    confirmPin?: string;
-    name?: string;
-    email?: string;
-    phone?: string;
-    resetEmail?: string;
-    otp?: string;
-    registerOtp?: string;
-    newPin?: string;
-    confirmNewPin?: string;
-  }>({});
+  const [errors, setErrors] = useState<RegistrationErrors>({});
   
   const loginPinRef = useRef<HTMLInputElement>(null);
   const createPinRef = useRef<HTMLInputElement>(null);
@@ -263,8 +298,8 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
     if (!phone.trim()) {
       newErrors.phone = "Phone number is required";
-    } else if (phone.trim().length < 10) {
-      newErrors.phone = "Phone number must be at least 10 digits";
+    } else if (!isValidAccountPhone(phone.trim())) {
+      newErrors.phone = "Enter a valid phone number (e.g. 0781234567)";
     }
 
     if (createPin.length !== 4) {
@@ -298,10 +333,17 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         description: `Check ${email.trim().toLowerCase()} for your 6-digit code.`,
       });
       setTimeout(() => registerOtpRef.current?.focus(), 100);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const fieldErrors = mapRegistrationApiErrors(error);
       const errorMessage =
-        error.response?.error || error.message || "Failed to send verification code.";
-      if (errorMessage.toLowerCase().includes("email")) {
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to send verification code.";
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors(fieldErrors);
+      } else if (errorMessage.toLowerCase().includes("email")) {
         setErrors((prev) => ({ ...prev, email: errorMessage }));
       } else {
         setErrors((prev) => ({ ...prev, email: errorMessage }));
@@ -334,7 +376,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       const response = await authApi.register({
         name: name.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone.trim(),
+        phone: normalizeAccountPhone(phone.trim()),
         pin: createPin,
         otp: registerOtp.trim(),
       });
@@ -394,14 +436,28 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         const dashboardUrl = getSubdomainUrl('dashboard', `#auth=${authToken}`);
         window.location.href = dashboardUrl;
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.error || error.message || "Failed to create account. Please try again.";
-      
-      // Set appropriate error field
+    } catch (error: unknown) {
+      const fieldErrors = mapRegistrationApiErrors(error);
+      const errorMessage =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to create account. Please try again.";
+
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+        return;
+      }
+
       if (errorMessage.toLowerCase().includes("verification") || errorMessage.toLowerCase().includes("otp")) {
         setErrors((prev) => ({ ...prev, registerOtp: errorMessage }));
-      } else if (errorMessage.includes("email")) {
+      } else if (errorMessage.toLowerCase().includes("email")) {
         setErrors((prev) => ({ ...prev, email: errorMessage }));
+      } else if (errorMessage.toLowerCase().includes("phone")) {
+        setErrors((prev) => ({ ...prev, phone: errorMessage }));
+      } else if (errorMessage.toLowerCase().includes("name")) {
+        setErrors((prev) => ({ ...prev, name: errorMessage }));
       } else if (errorMessage.includes("PIN")) {
         setErrors((prev) => ({ ...prev, createPin: errorMessage }));
       } else {

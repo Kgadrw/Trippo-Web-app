@@ -26,6 +26,9 @@ const en: Partial<Translations> = {
   billingNoPromptAirtel: "If you don't receive a prompt, dial: *185*7*1#",
   billingProcessing: "Processing payment...",
   billingTrialEndedBanner: "Your trial has ended. Pay below to unlock Trippo again.",
+  billingPromptsUnavailable: "Live payment prompts are temporarily unavailable",
+  billingPromptsUnavailableDesc:
+    "Our payment provider is not in production mode. Real MoMo prompts cannot be sent right now. Please try again later or contact support.",
   billingPayAmount: "Pay {amount} RWF",
   billingCancelPlan: "Cancel plan",
   billingCancelTitle: "Cancel Trippo Plus?",
@@ -546,6 +549,9 @@ const rw: Partial<Translations> = {
   billingNoPromptAirtel: "Ntimutabonye ubutumwa kanda: *185*7*1#",
   billingProcessing: "Tegereza wishyura...",
   billingTrialEndedBanner: "Igerageza ryawe ryarangiye. Wishyura kugira ngo ukomeze ukoreshe Trippo.",
+  billingPromptsUnavailable: "Ubutumwa bwo kwishyura ntibuboneka ubu",
+  billingPromptsUnavailableDesc:
+    "Sisitemu yo kwishyura ntari mu buryo bwo kohereza ubutumwa kuri telefone. Ongera ugerageze nyuma cyangwa uhamagare abafasha.",
   billingPayAmount: "Kwishyura {amount} RWF",
   billingCancelPlan: "Hagarika gahunda",
   billingCancelTitle: "Hagarika Trippo Plus?",
@@ -1091,6 +1097,9 @@ const fr: Partial<Translations> = {
   billingNoPromptAirtel: "Si vous ne recevez pas de message, composez : *185*7*1#",
   billingProcessing: "Traitement du paiement...",
   billingTrialEndedBanner: "Votre essai est terminé. Payez ci-dessous pour débloquer Trippo.",
+  billingPromptsUnavailable: "Les demandes de paiement en direct sont indisponibles",
+  billingPromptsUnavailableDesc:
+    "Notre fournisseur de paiement n'est pas en mode production. Les demandes MoMo réelles ne peuvent pas être envoyées pour le moment.",
   billingPayAmount: "Payer {amount} RWF",
   billingCancelPlan: "Annuler l'abonnement",
   billingCancelTitle: "Annuler Trippo Plus ?",
