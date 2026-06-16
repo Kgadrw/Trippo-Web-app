@@ -485,7 +485,12 @@ export default function Billing() {
             {paymentConfig?.configured && paymentConfig.livePrompts === false && !paymentConfig.mock ? (
               <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <p className="font-semibold">{t("billingPromptsUnavailable")}</p>
-                <p className="text-xs text-amber-800 mt-1">{t("billingPromptsUnavailableDesc")}</p>
+                <p className="text-xs text-amber-800 mt-1">
+                  {t("billingPromptsUnavailableDesc")}
+                  {paymentConfig.webhookMode
+                    ? ` (${t("billingWebhookMode")}: ${paymentConfig.webhookMode})`
+                    : null}
+                </p>
               </div>
             ) : null}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">

@@ -28,7 +28,8 @@ const en: Partial<Translations> = {
   billingTrialEndedBanner: "Your trial has ended. Pay below to unlock Trippo again.",
   billingPromptsUnavailable: "Live payment prompts are temporarily unavailable",
   billingPromptsUnavailableDesc:
-    "Our payment provider is not in production mode. Real MoMo prompts cannot be sent right now. Please try again later or contact support.",
+    "The backend is not set to production Paypack mode, so real MoMo prompts are blocked. Set PAYPACK_WEBHOOK_MODE=production on the hosted backend and restart the server.",
+  billingWebhookMode: "server mode",
   billingPayAmount: "Pay {amount} RWF",
   billingCancelPlan: "Cancel plan",
   billingCancelTitle: "Cancel Trippo Plus?",
@@ -551,7 +552,8 @@ const rw: Partial<Translations> = {
   billingTrialEndedBanner: "Igerageza ryawe ryarangiye. Wishyura kugira ngo ukomeze ukoreshe Trippo.",
   billingPromptsUnavailable: "Ubutumwa bwo kwishyura ntibuboneka ubu",
   billingPromptsUnavailableDesc:
-    "Sisitemu yo kwishyura ntari mu buryo bwo kohereza ubutumwa kuri telefone. Ongera ugerageze nyuma cyangwa uhamagare abafasha.",
+    "Seriveri ntishyizwe kuri production ya Paypack, bityo ubutumwa bwo kwishyura ntiboherezwa. Shyiraho PAYPACK_WEBHOOK_MODE=production kuri backend yatangajwe hanyuma usubize seriveri.",
+  billingWebhookMode: "uburyo bwa seriveri",
   billingPayAmount: "Kwishyura {amount} RWF",
   billingCancelPlan: "Hagarika gahunda",
   billingCancelTitle: "Hagarika Trippo Plus?",
@@ -1099,7 +1101,8 @@ const fr: Partial<Translations> = {
   billingTrialEndedBanner: "Votre essai est terminé. Payez ci-dessous pour débloquer Trippo.",
   billingPromptsUnavailable: "Les demandes de paiement en direct sont indisponibles",
   billingPromptsUnavailableDesc:
-    "Notre fournisseur de paiement n'est pas en mode production. Les demandes MoMo réelles ne peuvent pas être envoyées pour le moment.",
+    "Le backend n'est pas en mode Paypack production, donc les demandes MoMo réelles sont bloquées. Définissez PAYPACK_WEBHOOK_MODE=production sur le backend hébergé, puis redémarrez le serveur.",
+  billingWebhookMode: "mode serveur",
   billingPayAmount: "Payer {amount} RWF",
   billingCancelPlan: "Annuler l'abonnement",
   billingCancelTitle: "Annuler Trippo Plus ?",

@@ -566,6 +566,7 @@ export interface Translations {
   billingTrialEndedBanner: string;
   billingPromptsUnavailable: string;
   billingPromptsUnavailableDesc: string;
+  billingWebhookMode: string;
   billingPayAmount: string;
   billingCancelPlan: string;
   billingCancelTitle: string;
