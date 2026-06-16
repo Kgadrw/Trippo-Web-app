@@ -495,15 +495,21 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         setOtpSent(true);
         toast({
           title: "OTP Sent",
-          description: "If an account exists with this email, an OTP has been sent. Please check your email.",
+          description: `If an account exists for ${resetEmail.trim().toLowerCase()}, check your inbox and spam folder for the 6-digit code.`,
         });
         setTimeout(() => {
           otpRef.current?.focus();
         }, 100);
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.error || error.message || "Failed to send OTP. Please try again.";
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to send OTP. Please try again.";
       setErrors((prev) => ({ ...prev, resetEmail: errorMessage }));
+      setOtpSent(false);
     } finally {
       setIsLoading(false);
     }
@@ -540,7 +546,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
     try {
       const response = await authApi.resetPin({
-        email: resetEmail.trim(),
+        email: resetEmail.trim().toLowerCase(),
         otp: otp.trim(),
         newPin: newPin.trim(),
       });
@@ -559,10 +565,17 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         setActiveTab("login");
         setLoginEmail(resetEmail.trim());
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.error || error.message || "Failed to reset PIN. Please try again.";
-      if (errorMessage.includes("OTP")) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to reset PIN. Please try again.";
+      if (errorMessage.toLowerCase().includes("otp") || errorMessage.toLowerCase().includes("expired")) {
         setErrors((prev) => ({ ...prev, otp: errorMessage }));
+      } else if (errorMessage.toLowerCase().includes("email")) {
+        setErrors((prev) => ({ ...prev, resetEmail: errorMessage }));
       } else {
         setErrors((prev) => ({ ...prev, newPin: errorMessage }));
       }
