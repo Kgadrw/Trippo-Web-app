@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useConfirmAlert } from "@/hooks/useConfirmAlert";
 import { useIsDesktopLg } from "@/hooks/use-mobile";
 import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import { SpreadsheetEditor } from "@/components/ui/spreadsheet-editor";
@@ -107,6 +108,7 @@ const Inventories = () => {
 
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { requestConfirm, confirmDialog } = useConfirmAlert();
 
   const [addModalOpen, setAddModalOpen] = useState(false);
 
@@ -463,59 +465,58 @@ const Inventories = () => {
 
 
 
-  const handleDelete = async (product: InventoryProduct): Promise<boolean> => {
-
-    if (!window.confirm(`Delete product "${product.name}"?`)) return false;
-
+  const performDelete = async (product: InventoryProduct): Promise<boolean> => {
     const id = getIdString(product);
-
     if (!id) return false;
-
     setDeletingId(id);
-
     try {
-
       await remove(product);
-
       await refresh(true);
-
       window.dispatchEvent(new CustomEvent("products-should-refresh"));
-
-      toast({ title: "Product deleted", description: "Product removed successfully." });
+      toast({ title: t("deleted") });
       return true;
-
     } catch (error: unknown) {
-
       const message = error instanceof Error ? error.message : "Failed to delete product.";
-
-      toast({ title: "Delete failed", description: message, variant: "destructive" });
+      toast({ title: t("error"), description: message, variant: "destructive" });
       return false;
-
     } finally {
-
       setDeletingId(null);
-
     }
+  };
 
+  const promptDelete = (product: InventoryProduct, onSuccess?: () => void) => {
+    requestConfirm({
+      title: t("confirmDelete"),
+      description: t("deleteNamedItemConfirm").replace("{name}", product.name),
+      confirmLabel: t("yesDelete"),
+      cancelLabel: t("noCancel"),
+      onConfirm: async () => {
+        const ok = await performDelete(product);
+        if (ok) onSuccess?.();
+      },
+    });
+  };
+
+  const handleDelete = (product: InventoryProduct) => {
+    promptDelete(product);
   };
 
   const handleSheetRowDelete = useCallback(
-    async (rowId: string) => {
+    (rowId: string) => {
       const row = sheetRows.find((r) => r._rowId === rowId);
       if (!row?._entityId) return;
       const product = stockProducts.find((p) => getIdString(p) === row._entityId);
       if (!product) return;
-      const ok = await handleDelete(product);
-      if (ok) {
+      promptDelete(product, () => {
         setSheetRows((prev) =>
           ensureTrailingEmptyRows(
             prev.filter((r) => r._rowId !== rowId),
             [...INVENTORY_SHEET_KEYS],
           ),
         );
-      }
+      });
     },
-    [sheetRows, stockProducts],
+    [sheetRows, stockProducts, requestConfirm, t],
   );
 
 
@@ -1046,6 +1047,7 @@ const Inventories = () => {
 
       />
 
+      {confirmDialog}
     </AppLayout>
 
   );

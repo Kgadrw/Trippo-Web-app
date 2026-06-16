@@ -9,6 +9,7 @@ import { Plus, Search, Pencil, Trash2, Loader2, ArrowUpDown, MoreVertical, Shopp
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useConfirmAlert } from "@/hooks/useConfirmAlert";
 import { cn } from "@/lib/utils";
 import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
 import {
@@ -86,6 +87,7 @@ function compareServices(a: ServiceItem, b: ServiceItem, sort: ServiceSort): num
 const Products = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { requestConfirm, confirmDialog } = useConfirmAlert();
   const { items, isLoading, add, update, remove, refresh } = useApi<ServiceItem>({
     endpoint: "products",
     defaultValue: [],
@@ -252,8 +254,7 @@ const Products = () => {
     }
   };
 
-  const handleDelete = async (item: ServiceItem) => {
-    if (!window.confirm(`${t("deleteServiceConfirm")} "${item.name}"?`)) return;
+  const performDelete = async (item: ServiceItem) => {
     const id = String((item as { _id?: string; id?: number })._id ?? item.id ?? "");
     if (!id) return;
     setDeletingId(id);
@@ -268,6 +269,16 @@ const Products = () => {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleDelete = (item: ServiceItem) => {
+    requestConfirm({
+      title: t("confirmDelete"),
+      description: t("deleteNamedItemConfirm").replace("{name}", item.name),
+      confirmLabel: t("yesDelete"),
+      cancelLabel: t("noCancel"),
+      onConfirm: () => performDelete(item),
+    });
   };
 
   const servicesTitle = t("services");
@@ -677,6 +688,7 @@ const Products = () => {
         onOpenChange={setRecordModalOpen}
         initialServiceName={prefillServiceName}
       />
+      {confirmDialog}
     </AppLayout>
   );
 };

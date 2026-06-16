@@ -8,16 +8,7 @@ import { playUpdateBeep, playWarningBeep, playDeleteBeep, playErrorBeep, initAud
 import { useApi } from "@/hooks/useApi";
 import { formatStockDisplay } from "@/lib/stockFormatter";
 import { useTranslation } from "@/hooks/useTranslation";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useConfirmAlert } from "@/hooks/useConfirmAlert";
 
 interface Product {
   id?: number;
@@ -43,6 +34,7 @@ interface LowStockItem {
 export function LowStockAlert() {
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { requestConfirm, confirmDialog } = useConfirmAlert();
   const {
     items: products,
     update: updateProduct,
@@ -116,8 +108,6 @@ export function LowStockAlert() {
 
   const [editingId, setEditingId] = useState<string | number | null>(null);
   const [editStock, setEditStock] = useState<string>("");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<LowStockItem | null>(null);
 
   // Automatically refresh when products are added/edited (not on every stock tick)
   useEffect(() => {
@@ -183,39 +173,33 @@ export function LowStockAlert() {
   };
 
   const handleDeleteClick = (item: LowStockItem) => {
-    setProductToDelete(item);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!productToDelete) return;
-
-    initAudio();
-    const product = products.find((p) => {
-      const productId = (p as any)._id || p.id;
-      return productId?.toString() === productToDelete.id.toString();
+    requestConfirm({
+      title: t("confirmDelete"),
+      description: t("deleteNamedItemConfirm").replace("{name}", item.name),
+      confirmLabel: t("yesDelete"),
+      cancelLabel: t("noCancel"),
+      onConfirm: async () => {
+        initAudio();
+        const product = products.find((p) => {
+          const productId = (p as any)._id || p.id;
+          return productId?.toString() === item.id.toString();
+        });
+        if (!product) return;
+        try {
+          await removeProduct(product);
+          await refreshProducts();
+          playDeleteBeep();
+          toast({ title: t("deleted") });
+        } catch (error) {
+          playErrorBeep();
+          toast({
+            title: t("error"),
+            description: t("pleaseTryAgain"),
+            variant: "destructive",
+          });
+        }
+      },
     });
-
-    if (product) {
-      try {
-        await removeProduct(product);
-        await refreshProducts();
-        playDeleteBeep();
-        toast({
-          title: "Product Deleted",
-          description: "Product has been deleted successfully.",
-        });
-        setDeleteDialogOpen(false);
-        setProductToDelete(null);
-      } catch (error) {
-        playErrorBeep();
-        toast({
-          title: "Delete Failed",
-          description: "Failed to delete product. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
   };
 
   return (
@@ -342,32 +326,7 @@ export function LowStockAlert() {
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Product?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete <strong>{productToDelete?.name}</strong>? 
-              This action cannot be undone and will permanently remove this product from your inventory.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setDeleteDialogOpen(false);
-              setProductToDelete(null);
-            }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              Delete Product
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {confirmDialog}
     </div>
   );
 }
