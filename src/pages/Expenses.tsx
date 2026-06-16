@@ -980,12 +980,12 @@ export default function Expenses() {
       >
         <DialogContent
           className={cn(
-            "sm:max-w-md max-h-[90vh] overflow-y-auto",
+            "w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-md max-h-[70vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6",
             !editing && addMode === "bulk" && "sm:max-w-2xl",
           )}
         >
-          <DialogHeader>
-            <DialogTitle>
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-base sm:text-lg">
               {editing ? t("edit") : addMode === "bulk" ? t("bulkAdd") : t("saveExpense")}
             </DialogTitle>
           </DialogHeader>
@@ -1013,21 +1013,22 @@ export default function Expenses() {
             </div>
           )}
 
-          <div className="space-y-3 py-2">
+          <div className="space-y-2 sm:space-y-3 py-1 sm:py-2">
             {editing || addMode === "single" ? (
               <>
                 <div className="space-y-1">
-                  <Label>{t("expenseTitle")}</Label>
+                  <Label className="text-[11px] sm:text-xs">{t("expenseTitle")}</Label>
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={t("expenseExamplePlaceholder")}
                     disabled={isSaving}
+                    className="h-9 sm:h-10 text-sm sm:text-base"
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="space-y-1">
-                    <Label>{t("amount")} (rwf)</Label>
+                    <Label className="text-[11px] sm:text-xs">{t("amount")} (rwf)</Label>
                     <Input
                       type="number"
                       min="0"
@@ -1035,35 +1036,39 @@ export default function Expenses() {
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder={t("amount")}
                       disabled={isSaving}
+                      className="h-9 sm:h-10 text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>{t("category")}</Label>
+                    <Label className="text-[11px] sm:text-xs">{t("category")}</Label>
                     <Input
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       placeholder={t("expenseCategoryPlaceholder")}
                       disabled={isSaving}
+                      className="h-9 sm:h-10 text-sm sm:text-base"
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="space-y-1">
-                    <Label>{t("date")}</Label>
+                    <Label className="text-[11px] sm:text-xs">{t("date")}</Label>
                     <Input
                       type="date"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
                       disabled={isSaving}
+                      className="h-9 sm:h-10 text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>{t("noteOptional")}</Label>
+                    <Label className="text-[11px] sm:text-xs">{t("noteOptional")}</Label>
                     <Input
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
                       placeholder={t("expenseNotePlaceholder")}
                       disabled={isSaving}
+                      className="h-9 sm:h-10 text-sm sm:text-base"
                     />
                   </div>
                 </div>

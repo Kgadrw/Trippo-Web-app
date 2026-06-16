@@ -120,10 +120,10 @@ function NetworkOption({
           "[&_svg]:h-2.5 [&_svg]:w-2.5 data-[state=checked]:[&_svg]:fill-white",
         )}
       />
-      <img src={logoSrc} alt={logoAlt} className="h-14 w-14 sm:h-16 sm:w-16 object-contain shrink-0" />
+      <img src={logoSrc} alt="" className="h-14 w-14 sm:h-16 sm:w-16 object-contain shrink-0" />
       <span
         className={cn(
-          "text-sm font-semibold",
+          "text-sm font-semibold sr-only sm:not-sr-only",
           selected ? "text-gray-900" : "text-muted-foreground",
         )}
       >
@@ -554,15 +554,6 @@ export default function Billing() {
                 </div>
               )}
 
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">{t("billingPay")}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isPaidActive
-                    ? t("billingSubscriptionActive")
-                    : t("billingTapMethod")}
-                </p>
-              </div>
-
               {isPaidActive ? (
                 <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden">
                   <div className="p-4">
@@ -626,11 +617,9 @@ export default function Billing() {
                 </div>
               ) : canPay && paymentReady ? (
                 <>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground">
-                      {t("billingSelectNetwork")}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">{t("billingSelectNetworkDesc")}</p>
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">{t("billingSelectNetwork")}</h2>
+                    <p className="text-sm text-muted-foreground mt-1">{t("billingSelectNetworkDesc")}</p>
                   </div>
 
                   <RadioGroup
@@ -671,7 +660,7 @@ export default function Billing() {
                     />
                   </div>
 
-                  {network && (
+                  {network ? (
                     <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
                       <p>{t("billingPinHint")}</p>
                       <p>
@@ -680,18 +669,10 @@ export default function Billing() {
                           .replace("{base}", amount.toLocaleString())}
                       </p>
                       <p>
-                        <TextWithUssdCodes
-                          text={network === "mtn" ? t("billingNoPromptMtn") : t("billingNoPromptAirtel")}
-                        />
-                      </p>
-                      <p>
                         <TextWithUssdCodes text={getBillingNoPromptHint(language, network, contact)} />
                       </p>
-                      <p>
-                        <TextWithUssdCodes text={t("billingPayFailHint")} />
-                      </p>
                     </div>
-                  )}
+                  ) : null}
 
                   <Button
                     onClick={() => void handlePay(polling ? { forceRetry: true } : undefined)}
@@ -708,7 +689,6 @@ export default function Billing() {
                     contact={contact}
                     compact
                     title={t("callSupport")}
-                    description={getBillingNoPromptHint(language, network, contact)}
                     className="lg:bg-gray-50"
                   />
                 </>

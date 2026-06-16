@@ -1195,14 +1195,14 @@ const Dashboard = () => {
       <AddToHomeScreen />
 
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:w-full max-w-[560px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-2xl shadow-xl">
-          <div className="p-4">
-          <DialogHeader>
-            <DialogTitle>{t("recordExpense")}</DialogTitle>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[560px] max-h-[70vh] sm:max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-xl sm:rounded-2xl shadow-xl">
+          <div className="p-3 sm:p-4">
+          <DialogHeader className="pb-2 sm:pb-0">
+            <DialogTitle className="text-base sm:text-lg font-semibold">{t("recordExpense")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <div className="space-y-1">
-              <Label>{t("expenseTitle")}</Label>
+              <Label className="text-[11px] sm:text-xs">{t("expenseTitle")}</Label>
               <Input
                 value={expenseTitle}
                 onChange={(e) => {
@@ -1214,12 +1214,13 @@ const Dashboard = () => {
                   }
                 }}
                 placeholder={t("expenseExamplePlaceholder")}
+                className="h-9 sm:h-10 text-sm sm:text-base"
               />
 
               {(expenseSuggestions.presetTitles.length > 0 ||
                 expenseSuggestions.mostUsed.length > 0 ||
                 expenseSuggestions.recent.length > 0) && (
-                <div className="pt-2 space-y-2">
+                <div className="pt-1.5 sm:pt-2 space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-none overflow-y-auto">
                   {expenseSuggestions.presetTitles.length > 0 && (
                     <div>
                       <div className="text-[11px] font-semibold text-gray-600">
@@ -1233,7 +1234,7 @@ const Dashboard = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-8 rounded-full"
+                            className="h-7 sm:h-8 rounded-full text-xs"
                             onClick={() => applyExpenseSuggestion(t)}
                           >
                             {t}
@@ -1257,7 +1258,7 @@ const Dashboard = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-8 rounded-full"
+                            className="h-7 sm:h-8 rounded-full text-xs"
                             onClick={() => applyExpenseSuggestion(x.title)}
                           >
                             {x.title}
@@ -1281,7 +1282,7 @@ const Dashboard = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-8 rounded-full"
+                            className="h-7 sm:h-8 rounded-full text-xs"
                             onClick={() => applyExpenseSuggestion(t)}
                           >
                             {t}
@@ -1308,12 +1309,12 @@ const Dashboard = () => {
               )}
             </div>
             <div className="space-y-1">
-              <Label>{t("amount")} (rwf)</Label>
+              <Label className="text-[11px] sm:text-xs">{t("amount")} (rwf)</Label>
               {isMobile ? (
                 <button
                   type="button"
                   onClick={() => setShowExpenseAmountPad(true)}
-                  className="w-full h-12 rounded-xl border border-gray-300 bg-white px-4 text-left text-lg font-semibold text-gray-900 tabular-nums"
+                  className="w-full h-10 sm:h-12 rounded-xl border border-gray-300 bg-white px-3 sm:px-4 text-left text-base sm:text-lg font-semibold text-gray-900 tabular-nums"
                 >
                   {expenseAmount ? Number(expenseAmount).toLocaleString() : "0"} rwf
                 </button>
@@ -1334,41 +1335,44 @@ const Dashboard = () => {
                 onDone={() => setShowExpenseAmountPad(false)}
               />
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div className="space-y-1">
-                <Label>{t("category")}</Label>
+                <Label className="text-[11px] sm:text-xs">{t("category")}</Label>
                 <Input
                   value={expenseCategory}
                   onChange={(e) => setExpenseCategory(e.target.value)}
                   placeholder={t("expenseCategoryPlaceholder")}
+                  className="h-9 sm:h-10 text-sm sm:text-base"
                 />
               </div>
               <div className="space-y-1">
-                <Label>{t("date")}</Label>
+                <Label className="text-[11px] sm:text-xs">{t("date")}</Label>
                 <Input
                   type="date"
                   value={expenseDate}
                   onChange={(e) => setExpenseDate(e.target.value)}
+                  className="h-9 sm:h-10 text-sm sm:text-base"
                 />
               </div>
             </div>
             <div className="space-y-1">
-              <Label>{t("noteOptional")}</Label>
+              <Label className="text-[11px] sm:text-xs">{t("noteOptional")}</Label>
               <Textarea
                 value={expenseNote}
                 onChange={(e) => setExpenseNote(e.target.value)}
                 placeholder={t("expenseNotePlaceholder")}
-                rows={3}
+                rows={isMobile ? 2 : 3}
+                className="text-sm sm:text-base min-h-[4.5rem] sm:min-h-0"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setExpenseModalOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button variant="outline" onClick={() => setExpenseModalOpen(false)} className="h-9 sm:h-10 text-sm">
               {t("cancel")}
             </Button>
             <Button
               onClick={handleRecordExpense}
-              className="bg-primary text-white hover:bg-blue-700 hover:text-white"
+              className="h-9 sm:h-10 text-sm bg-primary text-white hover:bg-blue-700 hover:text-white"
               disabled={isSavingExpense}
             >
               {isSavingExpense ? t("saving") : t("saveExpense")}

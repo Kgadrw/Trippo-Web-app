@@ -1157,10 +1157,18 @@ export const subscriptionApi = {
     return request(`/subscription/status${qs}`, { method: 'GET' });
   },
 
-  async pay(phone: string, network?: 'mtn' | 'airtel'): Promise<ApiResponse> {
+  async pay(
+    phone: string,
+    network?: 'mtn' | 'airtel',
+    options?: { forceRetry?: boolean },
+  ): Promise<ApiResponse> {
     return request('/subscription/pay', {
       method: 'POST',
-      body: JSON.stringify({ phone, network }),
+      body: JSON.stringify({
+        phone,
+        network,
+        ...(options?.forceRetry ? { forceRetry: true } : {}),
+      }),
     });
   },
 

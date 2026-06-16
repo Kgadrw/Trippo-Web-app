@@ -628,6 +628,9 @@ export interface Translations {
   plusTrial: string;
   plusTrialDaysLeft: string;
   plusTrialEnds: string;
+  freeTrialOneDayLeft: string;
+  freeTrialDaysLeft: string;
+  plusTrialEnded: string;
   plusThenPrice: string;
   payNow: string;
   subscribeToPlus: string;

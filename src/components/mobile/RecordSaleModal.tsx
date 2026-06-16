@@ -353,35 +353,36 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[480px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-300 rounded-2xl shadow-xl">
-        <div className="p-4">
-          <DialogHeader className="mb-3 pb-3 border-b border-gray-100">
-            <DialogTitle className="flex items-center justify-between text-gray-900 text-lg font-semibold">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[480px] max-h-[70vh] sm:max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-300 rounded-xl sm:rounded-2xl shadow-xl">
+        <div className="p-3 sm:p-4">
+          <DialogHeader className="mb-2 sm:mb-3 pb-2 sm:pb-3 border-b border-gray-100">
+            <DialogTitle className="flex items-center justify-between text-gray-900 text-base sm:text-lg font-semibold">
               <span className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                  <Plus size={18} className="text-white" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <Plus size={16} className="text-white sm:hidden" />
+                  <Plus size={18} className="text-white hidden sm:block" />
                 </div>
                 <span>{t("recordNewSale")}</span>
               </span>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-gray-600">{t("serviceName")}</Label>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="space-y-1 sm:space-y-1.5">
+              <Label className="text-[11px] sm:text-xs font-medium text-gray-600">{t("serviceName")}</Label>
               <ServiceCombobox
                 value={serviceName}
                 onValueChange={handleServiceChange}
                 services={availableServices}
                 placeholder={t("selectService")}
-                className="h-10 text-base"
+                className="h-9 sm:h-10 text-sm sm:text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-gray-600">{t("worker")}</Label>
+            <div className="space-y-1 sm:space-y-1.5">
+              <Label className="text-[11px] sm:text-xs font-medium text-gray-600">{t("worker")}</Label>
               <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
-                <SelectTrigger className="h-10 text-base">
+                <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
                   <SelectValue placeholder={t("selectWorker")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -404,25 +405,25 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">{t("amount")} (rwf)</Label>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="space-y-1 sm:space-y-1.5">
+                <Label className="text-[11px] sm:text-xs font-medium text-gray-600">{t("amount")} (rwf)</Label>
                 <Input
                   type="number"
                   min="0"
                   value={serviceAmount}
                   onChange={(e) => setServiceAmount(e.target.value)}
-                  className="h-10 text-base"
+                  className="h-9 sm:h-10 text-sm sm:text-base"
                   placeholder={t("amount")}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">{t("paymentMethod")}</Label>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="space-y-1 sm:space-y-1.5">
+                <Label className="text-[11px] sm:text-xs font-medium text-gray-600">{t("paymentMethod")}</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="h-10 text-base">
+                  <SelectTrigger className="h-9 sm:h-10 text-sm sm:text-base">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -434,13 +435,13 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">{t("date")}</Label>
+              <div className="space-y-1 sm:space-y-1.5">
+                <Label className="text-[11px] sm:text-xs font-medium text-gray-600">{t("date")}</Label>
                 <Input
                   type="date"
                   value={saleDate}
                   onChange={(e) => setSaleDate(e.target.value)}
-                  className="h-10 text-base"
+                  className="h-9 sm:h-10 text-sm sm:text-base"
                 />
               </div>
             </div>
@@ -448,9 +449,10 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
             <Button
               onClick={handleRecordSale}
               disabled={isRecordingSale || !serviceName.trim() || !selectedWorkerId || !serviceAmount}
-              className="w-full h-11 bg-primary hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all rounded-lg gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-10 sm:h-11 bg-primary hover:bg-blue-700 text-white text-sm sm:text-base font-semibold shadow-md hover:shadow-lg transition-all rounded-lg gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ShoppingCart size={18} />
+              <ShoppingCart size={16} className="sm:hidden" />
+              <ShoppingCart size={18} className="hidden sm:block" />
               {isRecordingSale ? t("recording") : t("recordSale")}
             </Button>
           </div>

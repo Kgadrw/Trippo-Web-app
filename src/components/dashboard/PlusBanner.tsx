@@ -5,6 +5,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { cn, formatDateWithTime } from "@/lib/utils";
 import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
 import { hasPaidSubscription } from "@/lib/subscriptionPayment";
+import { formatTrialDaysLeft, getTrialRemainingFromPlan } from "@/lib/trialDisplay";
 
 const payButtonClass = cn(
   "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold shrink-0",
@@ -71,6 +72,7 @@ export function PlusBanner({ variant = "content", expanded = true }: PlusBannerP
   const amount = plan.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
   const currency = plan.currency || "RWF";
   const isPaid = hasPaidSubscription(plan);
+  const trialRemaining = getTrialRemainingFromPlan(plan);
 
   if (isSidebar) {
     if (isPaid) {
@@ -91,21 +93,34 @@ export function PlusBanner({ variant = "content", expanded = true }: PlusBannerP
 
     return (
       <SidebarBannerShell expanded={expanded} linkToBilling={false}>
-        <Link
-          to="/billing"
-          className={cn(
-            payButtonClass,
-            expanded ? "w-full" : "h-11 w-11 px-0 text-[10px] leading-tight",
-          )}
-        >
-          {expanded ? t("payNow") : "Pay"}
-        </Link>
+        <div className={cn("flex flex-col gap-2", expanded ? "w-full" : "items-center")}>
+          {trialRemaining && trialRemaining.days > 0 ? (
+            <p
+              className={cn(
+                "text-center font-normal text-white/90",
+                expanded ? "text-xs leading-snug px-1" : "text-[10px] leading-tight max-w-[52px]",
+              )}
+            >
+              {formatTrialDaysLeft(t, trialRemaining.days)}
+            </p>
+          ) : null}
+          <Link
+            to="/billing"
+            className={cn(
+              payButtonClass,
+              expanded ? "w-full" : "h-11 w-11 px-0 text-[10px] leading-tight",
+            )}
+          >
+            {expanded ? t("payNow") : "Pay"}
+          </Link>
+        </div>
       </SidebarBannerShell>
     );
   }
 
   if (plan.isOnTrial) {
-    const days = plan.trialDaysLeft ?? 0;
+    const trial = trialRemaining ?? getTrialRemainingFromPlan(plan);
+    const days = trial?.days ?? plan.trialDaysLeft ?? 0;
 
     return (
       <ContentBannerShell>
@@ -114,7 +129,7 @@ export function PlusBanner({ variant = "content", expanded = true }: PlusBannerP
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900">{t("plusTrial")}</p>
             <p className="text-xs text-gray-900 mt-0.5 leading-relaxed">
-              {t("plusTrialDaysLeft").replace("{days}", String(days))}
+              {formatTrialDaysLeft(t, days)}
               {plan.trialEndsAt
                 ? ` · ${t("plusTrialEnds").replace("{date}", formatDateWithTime(plan.trialEndsAt))}`
                 : ""}

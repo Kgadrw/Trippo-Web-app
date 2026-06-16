@@ -12,6 +12,7 @@ export type SubscriptionPlan = {
   planName: string;
   active?: boolean;
   isOnTrial?: boolean;
+  trialHoursLeft?: number;
   trialDaysLeft?: number;
   trialEndsAt?: string;
   requiresPayment?: boolean;
