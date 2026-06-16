@@ -22,7 +22,7 @@ if ("scrollRestoration" in history) {
 
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
-import "./index.css";
+import "./styles/globals.css";
 import { registerServiceWorker } from "./lib/serviceWorker";
 import { initDB } from "./lib/indexedDB";
 import { logger } from "./lib/logger";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ export interface InventoryProduct {
   name: string;
   category?: string;
   stock?: number;
+  minStock?: number;
   sellingPrice?: number;
   costPrice?: number;
   productType?: string;
@@ -53,7 +54,10 @@ const emptyForm = {
   costPrice: "",
   sellingPrice: "",
   stock: "",
+  minStock: "5",
 };
+
+const DEFAULT_MIN_STOCK = 5;
 
 export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddProductModalProps) {
   const isEdit = !!product;
@@ -80,6 +84,7 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
         costPrice: String(product.costPrice ?? ""),
         sellingPrice: String(product.sellingPrice ?? ""),
         stock: String(product.stock ?? ""),
+        minStock: String(product.minStock ?? DEFAULT_MIN_STOCK),
       });
     } else {
       setForm(emptyForm);
@@ -108,12 +113,16 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
       return;
     }
 
+    const stock = parseInt(form.stock, 10) || 0;
+    const minStock = form.minStock.trim() === "" ? DEFAULT_MIN_STOCK : parseInt(form.minStock, 10) || 0;
+
     const payload = {
       name: form.name.trim(),
       category: form.category.trim(),
       costPrice: parseFloat(form.costPrice) || 0,
       sellingPrice: parseFloat(form.sellingPrice) || 0,
-      stock: parseInt(form.stock, 10) || 0,
+      stock,
+      minStock,
     };
 
     setIsSaving(true);
@@ -195,7 +204,7 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
             </div>
           </div>
           <div className="space-y-1">
-            <Label>{t("stockQuantity")}</Label>
+            <Label>{isEdit ? t("stockQuantity") : t("initialStock")}</Label>
             <Input
               type="text"
               inputMode="numeric"
@@ -206,13 +215,26 @@ export function AddProductModal({ open, onOpenChange, product, onSuccess }: AddP
               disabled={isSaving}
             />
           </div>
+          <div className="space-y-1">
+            <Label>{t("minStockAlert")}</Label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={form.minStock}
+              onChange={(e) => setForm({ ...form, minStock: sanitizeIntField(e.target.value) })}
+              placeholder={String(DEFAULT_MIN_STOCK)}
+              disabled={isSaving}
+            />
+            <p className="text-xs text-muted-foreground">{t("minStockAlertWhen")}</p>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
             {t("cancel")}
           </Button>
           <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[7rem]"
+            className="bg-primary text-white hover:bg-blue-700 hover:text-white min-w-[7rem]"
             onClick={() => void handleSave()}
             disabled={isSaving}
           >

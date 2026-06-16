@@ -16,7 +16,13 @@ export interface Translations {
   sales: string;
   reports: string;
   settings: string;
+  bookings: string;
   logout: string;
+  sidebarSectionOverview: string;
+  sidebarSectionOperations: string;
+  sidebarSectionFinance: string;
+  sidebarSectionInsights: string;
+  sidebarSectionAccount: string;
   
   // Common
   save: string;
@@ -63,6 +69,7 @@ export interface Translations {
   editProduct: string;
   deleteProduct: string;
   stockQuantity: string;
+  initialStock: string;
   minimumStock: string;
   
   // Sales
@@ -176,6 +183,10 @@ export interface Translations {
   periodWeek: string;
   periodMonth: string;
   periodYear: string;
+  vsYesterday: string;
+  vsLastWeek: string;
+  vsLastMonth: string;
+  vsLastYear: string;
   todaysItems: string;
   currentStockValue: string;
   items: string;
@@ -187,6 +198,9 @@ export interface Translations {
   youCanChangeThis: string;
   availableStock: string;
   addRow: string;
+  spreadsheetMode: string;
+  spreadsheetHint: string;
+  saveAll: string;
   hello: string;
   greetingFallback: string;
   quickActions: string;
@@ -198,6 +212,9 @@ export interface Translations {
   recentActivity: string;
   salesAndExpenses: string;
   recentSalesAndExpenses: string;
+  recentSales: string;
+  salesExpenseBalance: string;
+  netFlow: string;
   latestActivity: string;
   noActivity: string;
   noRecentActivity: string;
@@ -220,6 +237,33 @@ export interface Translations {
   addMultipleSalesHint: string;
   serviceBadge: string;
   typeLabel: string;
+
+  // Bookings
+  todaysBookings: string;
+  bookingsSubtitle: string;
+  addBooking: string;
+  noBookingsToday: string;
+  bookingClientName: string;
+  bookingPhone: string;
+  bookingService: string;
+  bookingWorker: string;
+  bookingDate: string;
+  bookingTime: string;
+  bookingDuration: string;
+  bookingNotes: string;
+  bookingStatusPending: string;
+  bookingStatusConfirmed: string;
+  bookingStatusInProgress: string;
+  bookingStatusCompleted: string;
+  bookingStatusCancelled: string;
+  bookingStatusNoShow: string;
+  bookingConfirm: string;
+  bookingStart: string;
+  bookingComplete: string;
+  bookingCancel: string;
+  bookingCreated: string;
+  bookingUpdated: string;
+  bookingFailed: string;
   
   // Products Page
   allProducts: string;
@@ -252,6 +296,26 @@ export interface Translations {
   addMultipleProducts: string;
   selectProductFirst: string;
   item: string;
+  allPrices: string;
+  filterPriceUnder5k: string;
+  filterPrice5kTo20k: string;
+  filterPriceOver20k: string;
+  allRoles: string;
+  allDisciplines: string;
+  allAttendance: string;
+  allPaymentMethods: string;
+  allSaleTypes: string;
+  saleTypeProduct: string;
+  saleTypeService: string;
+  allBusinessTypes: string;
+  allClientTypes: string;
+  filterHasSchedules: string;
+  filterHasActiveSchedules: string;
+  filterHasOverdueSchedules: string;
+  stockAsc: string;
+  stockDesc: string;
+  filterLast30Days: string;
+  allWorkers: string;
   
   // Sales Page
   allSales: string;
@@ -308,10 +372,14 @@ export interface Translations {
   note: string;
   noteOptional: string;
   saveExpense: string;
+  addMultipleExpenses: string;
+  addExpensesBtn: string;
   recentExpenses: string;
 
   // Modals — services & products
   addService: string;
+  addMultipleServices: string;
+  addServicesBtn: string;
   editService: string;
   serviceName: string;
   noServicesFound: string;
@@ -336,9 +404,39 @@ export interface Translations {
 
   // Modals — workers
   addWorker: string;
+  addMultipleWorkers: string;
+  addWorkersBtn: string;
   editWorker: string;
   noWorkersFound: string;
   noWorkersAddFirst: string;
+  workerStatus: string;
+  workerStatusActive: string;
+  workerStatusInactive: string;
+  workerCheckIn: string;
+  workerCheckOut: string;
+  workerDiscipline: string;
+  disciplineExcellent: string;
+  disciplineGood: string;
+  disciplineFair: string;
+  disciplinePoor: string;
+  disciplineWarning: string;
+  workerRole: string;
+  workerContact: string;
+  checkInNow: string;
+  checkOutNow: string;
+  workerCheckedInTitle: string;
+  workerCheckedInDesc: string;
+  workerCheckedOutTitle: string;
+  workerCheckedOutDesc: string;
+  notCheckedInYet: string;
+  notCheckedOutYet: string;
+  attendanceStatusCheckedIn: string;
+  attendanceStatusCheckedOut: string;
+  attendanceStatusNotCheckedIn: string;
+  workerAttendance: string;
+  alreadyCheckedInDesc: string;
+  mustCheckInFirstDesc: string;
+  workerNotes: string;
   editSale: string;
 
   // Modals — stock
@@ -959,7 +1057,13 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     sales: "Sales",
     reports: "Reports",
     settings: "Settings",
+    bookings: "Bookings",
     logout: "Logout",
+    sidebarSectionOverview: "Overview",
+    sidebarSectionOperations: "Operations",
+    sidebarSectionFinance: "Finance",
+    sidebarSectionInsights: "Insights",
+    sidebarSectionAccount: "Account",
     
     // Common
     save: "Save",
@@ -1006,6 +1110,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     editProduct: "Edit Product",
     deleteProduct: "Delete Product",
     stockQuantity: "Stock Quantity",
+    initialStock: "Initial Stock",
     minimumStock: "Minimum Stock",
     
     // Sales
@@ -1119,6 +1224,10 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     periodWeek: "Week",
     periodMonth: "Month",
     periodYear: "Year",
+    vsYesterday: "vs yesterday",
+    vsLastWeek: "vs last week",
+    vsLastMonth: "vs last month",
+    vsLastYear: "vs last year",
     todaysItems: "Today's Items",
     currentStockValue: "Current Stock Value",
     items: "items",
@@ -1130,6 +1239,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     youCanChangeThis: "You can change this",
     availableStock: "Available stock",
     addRow: "Add Row",
+    spreadsheetMode: "Spreadsheet",
+    spreadsheetHint: "Type in any row — changes save automatically. New rows stay where you enter them.",
+    saveAll: "Save all",
     hello: "Hello",
     greetingFallback: "User",
     quickActions: "Quick Actions",
@@ -1141,7 +1253,10 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     recentActivity: "Recent",
     salesAndExpenses: "Sales & expenses",
     recentSalesAndExpenses: "Recent Sales & Expenses",
-    latestActivity: "Latest activity",
+    recentSales: "Recent Sales",
+    salesExpenseBalance: "Sales vs Expenses",
+    netFlow: "Net flow",
+    latestActivity: "Recent Activities",
     noActivity: "No activity",
     noRecentActivity: "No recent activity",
     details: "Details",
@@ -1163,6 +1278,31 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     addMultipleSalesHint: "Add multiple sales at once",
     serviceBadge: "Service",
     typeLabel: "Type",
+    todaysBookings: "Today's Bookings",
+    bookingsSubtitle: "Appointments scheduled for today",
+    addBooking: "Add booking",
+    noBookingsToday: "No bookings for today yet",
+    bookingClientName: "Client name",
+    bookingPhone: "Phone",
+    bookingService: "Service",
+    bookingWorker: "Worker",
+    bookingDate: "Date",
+    bookingTime: "Time",
+    bookingDuration: "Duration",
+    bookingNotes: "Notes",
+    bookingStatusPending: "Pending",
+    bookingStatusConfirmed: "Confirmed",
+    bookingStatusInProgress: "In progress",
+    bookingStatusCompleted: "Completed",
+    bookingStatusCancelled: "Cancelled",
+    bookingStatusNoShow: "No show",
+    bookingConfirm: "Done",
+    bookingStart: "Start",
+    bookingComplete: "Complete",
+    bookingCancel: "Cancel",
+    bookingCreated: "Booking created",
+    bookingUpdated: "Booking updated",
+    bookingFailed: "Could not save booking",
     
     // Products Page
     allProducts: "All Products",
@@ -1195,6 +1335,26 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     addMultipleProducts: "Add multiple products at once",
     selectProductFirst: "Select product first",
     item: "item",
+    allPrices: "All Prices",
+    filterPriceUnder5k: "Under 5,000 RWF",
+    filterPrice5kTo20k: "5,000 – 20,000 RWF",
+    filterPriceOver20k: "Over 20,000 RWF",
+    allRoles: "All Roles",
+    allDisciplines: "All Discipline",
+    allAttendance: "All Attendance",
+    allPaymentMethods: "All Payments",
+    allSaleTypes: "All Types",
+    saleTypeProduct: "Products",
+    saleTypeService: "Services",
+    allBusinessTypes: "All Business Types",
+    allClientTypes: "All Client Types",
+    filterHasSchedules: "With Schedules",
+    filterHasActiveSchedules: "Active Schedules",
+    filterHasOverdueSchedules: "Overdue Schedules",
+    stockAsc: "Stock (Low-High)",
+    stockDesc: "Stock (High-Low)",
+    filterLast30Days: "Last 30 Days",
+    allWorkers: "All Workers",
     
     // Sales Page
     allSales: "All Sales",
@@ -1251,9 +1411,13 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     note: "Note",
     noteOptional: "Note (Optional)",
     saveExpense: "Save Expense",
+    addMultipleExpenses: "Add multiple expenses at once",
+    addExpensesBtn: "Add Expenses",
     recentExpenses: "Recent Expenses",
 
     addService: "Add Service",
+    addMultipleServices: "Add multiple services at once",
+    addServicesBtn: "Add Services",
     editService: "Edit Service",
     serviceName: "Service Name",
     noServicesFound: "No services found.",
@@ -1276,6 +1440,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     changesSaved: "Changes saved successfully.",
     productSaved: "Product saved successfully.",
     addWorker: "Add Worker",
+    addMultipleWorkers: "Add multiple workers at once",
+    addWorkersBtn: "Add Workers",
     editWorker: "Edit Worker",
     noWorkersFound: "No workers found.",
     noWorkersAddFirst: "No workers found. Click Add Worker to create one.",
@@ -1380,7 +1546,13 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     sales: "Ibyakozwe",
     reports: "Raporo",
     settings: "Igenamiterere",
+    bookings: "Gahunda",
     logout: "Sohoka",
+    sidebarSectionOverview: "Incamake",
+    sidebarSectionOperations: "Ibikorwa",
+    sidebarSectionFinance: "Imari",
+    sidebarSectionInsights: "Isesengura",
+    sidebarSectionAccount: "Konti",
     
     // Common
     save: "Bika",
@@ -1427,6 +1599,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     editProduct: "Hindura icuruzwa",
     deleteProduct: "Siba icuruzwa",
     stockQuantity: "Umubare w'stoki",
+    initialStock: "Stoki y'ibanze",
     minimumStock: "Stoki buke",
     
     // Sales
@@ -1540,6 +1713,10 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     periodWeek: "Icyumweru",
     periodMonth: "Ukwezi",
     periodYear: "Umwaka",
+    vsYesterday: "ugereranyije n'ejo",
+    vsLastWeek: "ugereranyije n'icyumweru gishize",
+    vsLastMonth: "ugereranyije n'ukwe gushize",
+    vsLastYear: "ugereranyije n'umwaka ushize",
     todaysItems: "Ibintu by'u munsi",
     currentStockValue: "Agaciro k'stoki",
     items: "ibintu",
@@ -1551,6 +1728,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     youCanChangeThis: "Urashobora guhindura",
     availableStock: "Stoki buhari",
     addRow: "Ongeraho umurongo",
+    spreadsheetMode: "Imbonerahamwe",
+    spreadsheetHint: "Uzuza imirongo nk'uburyo bwa Excel, hanyuma ubike byose icyarimwe. Urashobora guhindura n'ibisanzwe.",
+    saveAll: "Bika byose",
     hello: "Muraho",
     greetingFallback: "Inshuti",
     quickActions: "Ibyibanze",
@@ -1562,6 +1742,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     recentActivity: "Biheruka",
     salesAndExpenses: "Serivisi n'ibyakoreshejwe",
     recentSalesAndExpenses: "Serivisi n'ibyakoreshejwe",
+    recentSales: "Serivisi za vuba",
+    salesExpenseBalance: "Serivisi n'ibyakoreshejwe",
+    netFlow: "Inyungu rusange",
     latestActivity: "Ibikorwa biheruka",
     noActivity: "Nta bikorwa",
     noRecentActivity: "Nta bikorwa biheruka",
@@ -1616,6 +1799,26 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     addMultipleProducts: "Ongeraho ibicuruzwa byinshi hamwe",
     selectProductFirst: "Hitamo icuruzwa mbere",
     item: "kintu",
+    allPrices: "Ibiciro byose",
+    filterPriceUnder5k: "Munsi ya 5,000 RWF",
+    filterPrice5kTo20k: "5,000 – 20,000 RWF",
+    filterPriceOver20k: "Hejuru ya 20,000 RWF",
+    allRoles: "Inshingano zose",
+    allDisciplines: "Imyitwarire yose",
+    allAttendance: "Kwitabira kwose",
+    allPaymentMethods: "Uburyo bwose bwo kwishyura",
+    allSaleTypes: "Ubwoko bwose",
+    saleTypeProduct: "Ibicuruzwa",
+    saleTypeService: "Serivisi",
+    allBusinessTypes: "Ubwoko bwose bw'ubucuruzi",
+    allClientTypes: "Ubwoko bwose bw'abakiriya",
+    filterHasSchedules: "Bafite gahunda",
+    filterHasActiveSchedules: "Gahunda zikora",
+    filterHasOverdueSchedules: "Gahunda zarenze igihe",
+    stockAsc: "Stoki (Nke-Nini)",
+    stockDesc: "Stoki (Nini-Nke)",
+    filterLast30Days: "Iminsi 30 ishize",
+    allWorkers: "Abakozi bose",
     
     // Sales Page
     allSales: "Ubucuruzi bwose",
@@ -1672,9 +1875,13 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     note: "Detaye",
     noteOptional: "Detaye (si ngombwa)",
     saveExpense: "Bika ibyakozwe",
+    addMultipleExpenses: "Ongeraho ibyasohotse byinshi hamwe",
+    addExpensesBtn: "Ongeraho ibyasohotse",
     recentExpenses: "Ibiheruka gusohoka",
 
     addService: "Ongeraho serivisi",
+    addMultipleServices: "Ongeraho serivisi nyinshi hamwe",
+    addServicesBtn: "Ongeraho serivisi",
     editService: "Hindura serivisi",
     serviceName: "Izina rya serivisi",
     noServicesFound: "Nta serivisi ziboneka.",
@@ -1697,6 +1904,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     changesSaved: "Impinduka zabitswe neza.",
     productSaved: "Igicuruzwa cyabitswe neza.",
     addWorker: "Ongeraho umukozi",
+    addMultipleWorkers: "Ongeraho abakozi benshi hamwe",
+    addWorkersBtn: "Ongeraho abakozi",
     editWorker: "Hindura umukozi",
     noWorkersFound: "Nta bakozi babonetse.",
     noWorkersAddFirst: "Nta bakozi babonetse. Kanda Ongeraho umukozi utangire.",
@@ -1802,6 +2011,11 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     reports: "Rapports",
     settings: "Paramètres",
     logout: "Déconnexion",
+    sidebarSectionOverview: "Aperçu",
+    sidebarSectionOperations: "Opérations",
+    sidebarSectionFinance: "Finances",
+    sidebarSectionInsights: "Analyses",
+    sidebarSectionAccount: "Compte",
     
     // Common
     save: "Enregistrer",
@@ -1875,6 +2089,10 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     periodWeek: "Semaine",
     periodMonth: "Mois",
     periodYear: "Année",
+    vsYesterday: "vs hier",
+    vsLastWeek: "vs semaine dernière",
+    vsLastMonth: "vs mois dernier",
+    vsLastYear: "vs année dernière",
     todaysItems: "Services d'aujourd'hui",
     currentStockValue: "Valeur du stock actuel",
     items: "articles",
@@ -1886,6 +2104,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     youCanChangeThis: "Vous pouvez modifier",
     availableStock: "Stock disponible",
     addRow: "Ajouter une ligne",
+    spreadsheetMode: "Tableur",
+    spreadsheetHint: "Remplissez les lignes comme dans Excel, puis enregistrez tout d'un coup. Les lignes existantes sont modifiables.",
+    saveAll: "Tout enregistrer",
     hello: "Bonjour",
     greetingFallback: "Utilisateur",
     quickActions: "Actions rapides",
@@ -1897,6 +2118,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     recentActivity: "Récent",
     salesAndExpenses: "Ventes et dépenses",
     recentSalesAndExpenses: "Ventes récentes et dépenses",
+    recentSales: "Ventes récentes",
+    salesExpenseBalance: "Ventes vs dépenses",
+    netFlow: "Flux net",
     latestActivity: "Activité récente",
     noActivity: "Aucune activité",
     noRecentActivity: "Aucune activité récente",
@@ -1937,12 +2161,16 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     note: "Note",
     noteOptional: "Note (optionnel)",
     saveExpense: "Enregistrer la dépense",
+    addMultipleExpenses: "Ajouter plusieurs dépenses à la fois",
+    addExpensesBtn: "Ajouter les dépenses",
     recentExpenses: "Dépenses récentes",
     recordExpense: "Enregistrer une dépense",
     record: "Enregistrer",
 
     // Modals
     addService: "Ajouter un service",
+    addMultipleServices: "Ajouter plusieurs services à la fois",
+    addServicesBtn: "Ajouter les services",
     editService: "Modifier le service",
     serviceName: "Nom du service",
     noServicesFound: "Aucun service trouvé.",
@@ -1953,6 +2181,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     noWorkersFound: "Aucun travailleur trouvé.",
     noWorkersAddFirst: "Aucun travailleur trouvé. Cliquez sur Ajouter un travailleur.",
     addWorker: "Ajouter un travailleur",
+    addMultipleWorkers: "Ajouter plusieurs travailleurs à la fois",
+    addWorkersBtn: "Ajouter les travailleurs",
     editWorker: "Modifier le travailleur",
     editSale: "Modifier la vente",
     

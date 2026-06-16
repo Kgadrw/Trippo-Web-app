@@ -893,14 +893,14 @@ const AddProduct = () => {
                 <Button
                   variant={mode === "single" ? "default" : "outline"}
                   onClick={() => setMode("single")}
-                  className={mode === "single" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+                  className={mode === "single" ? "bg-primary text-white hover:bg-blue-700" : ""}
                 >
                   {t("singleProduct")}
                 </Button>
                 <Button
                   variant={mode === "bulk" ? "default" : "outline"}
                   onClick={() => setMode("bulk")}
-                  className={mode === "bulk" ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+                  className={mode === "bulk" ? "bg-primary text-white hover:bg-blue-700" : ""}
                 >
                   {t("bulkAdd")}
                 </Button>
@@ -918,7 +918,7 @@ const AddProduct = () => {
                 <p className="text-sm text-muted-foreground">{t("addMultipleProducts")}</p>
                 <Button 
                   onClick={addBulkRow} 
-                  className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-3 h-12 text-base w-full sm:w-auto"
+                  className="bg-primary text-white hover:bg-blue-700 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-3 h-12 text-base w-full sm:w-auto"
                 >
                   <Plus size={18} />
                   <span className="ml-2">{t("addProduct")}</span>

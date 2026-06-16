@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Package,
-  Boxes,
-  ShoppingCart,
-  FileText,
-  Wallet,
-  CreditCard,
-  Settings,
   LogOut,
-  Pin,
-  PinOff,
-  ChevronLeft,
-  UserRound,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
+import {
+  SidebarDashboardIcon,
+  SidebarServicesIcon,
+  SidebarWorkersIcon,
+  SidebarSalesIcon,
+  SidebarExpensesIcon,
+  SidebarReportsIcon,
+  SidebarBillingIcon,
+  SidebarSettingsIcon,
+} from "./sidebar-nav-icons";
 import { cn } from "@/lib/utils";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -33,19 +33,22 @@ import { useSubdomain } from "@/hooks/useSubdomain";
 import { PlusBanner } from "@/components/dashboard/PlusBanner";
 import { clearAllStores } from '@/lib/indexedDB';
 
-const getMenuItems = (t: (key: string) => string) => {
-  return [
-    { icon: LayoutDashboard, label: t("dashboard"), path: "/dashboard" },
-    { icon: Package, label: t("services"), path: "/products" },
-    { icon: Boxes, label: t("inventories"), path: "/inventories" },
-    { icon: UserRound, label: t("workers"), path: "/barbers" },
-    { icon: ShoppingCart, label: t("sales"), path: "/sales" },
-    { icon: Wallet, label: t("expenses"), path: "/expenses" },
-    { icon: FileText, label: t("reports"), path: "/reports" },
-    { icon: CreditCard, label: t("billing"), path: "/billing" },
-    { icon: Settings, label: t("settings"), path: "/settings" },
-  ];
+type SidebarMenuItem = {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  path: string;
 };
+
+const getMenuItems = (t: (key: string) => string): SidebarMenuItem[] => [
+  { icon: SidebarDashboardIcon, label: t("dashboard"), path: "/dashboard" },
+  { icon: SidebarServicesIcon, label: t("services"), path: "/products" },
+  { icon: SidebarWorkersIcon, label: t("workers"), path: "/barbers" },
+  { icon: SidebarSalesIcon, label: t("sales"), path: "/sales" },
+  { icon: SidebarExpensesIcon, label: t("expenses"), path: "/expenses" },
+  { icon: SidebarReportsIcon, label: t("reports"), path: "/reports" },
+  { icon: SidebarBillingIcon, label: t("billing"), path: "/billing" },
+  { icon: SidebarSettingsIcon, label: t("settings"), path: "/settings" },
+];
 
 interface SidebarProps {
   collapsed: boolean;
@@ -194,7 +197,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
     if (isVerticalSwipe) return;
 
     // Swipe from right edge of sidebar (within 30px from right) to left to close
-    const sidebarWidth = 224; // 56 * 4 = 224px (w-56)
+    const sidebarWidth = 208; // w-52
     if (isLeftSwipe && touchStart.x > sidebarWidth - 30 && onMobileClose) {
       onMobileClose();
     }
@@ -203,11 +206,11 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
   return (
     <aside
       className={cn(
-        "hidden lg:flex fixed z-50 bg-blue-600 transition-all duration-300 flex-col overflow-hidden shadow-lg rounded-lg",
-        "left-2 top-2 h-[calc(100vh-1rem)]",
+        "hidden lg:flex fixed z-50 bg-sidebar transition-all duration-300 flex-col shadow-lg",
+        "left-0 top-0 h-screen",
         // Desktop: based on expanded state
-        isExpanded ? "w-56" : "w-16",
-        "lg:border-r lg:border-blue-700 lg:shadow-none lg:rounded-lg"
+        isExpanded ? "w-52" : "w-14",
+        "lg:shadow-none"
       )}
       onMouseEnter={() => {
         // Only auto-expand on desktop when collapsed (not on mobile)
@@ -229,120 +232,133 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, onMobileToggle, on
       style={{ touchAction: 'pan-y' }}
     >
       {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 bg-blue-600">
-        {isExpanded && (
-          <div className="flex items-center gap-2">
-            <img 
-              src="/logo.png" 
-              alt="Trippo Logo" 
-              className="h-8 w-8 object-contain"
+        <div
+          className={cn(
+            "flex bg-sidebar shrink-0",
+            isExpanded
+              ? "items-center justify-between h-14 px-3"
+              : "flex-col items-center gap-1.5 py-2 px-1",
+          )}
+        >
+        {isExpanded ? (
+          <div className="flex items-center gap-1.5 min-w-0">
+            <img
+              src="/logo.png"
+              alt="Trippo Logo"
+              className="h-8 w-8 object-contain shrink-0"
             />
-            <span className="text-xl font-normal text-white lowercase">trippo</span>
+            <span className="text-xl font-normal text-white lowercase truncate">trippo</span>
           </div>
+        ) : (
+          <img
+            src="/logo.png"
+            alt="Trippo Logo"
+            className="h-8 w-8 object-contain"
+          />
         )}
-        {!isExpanded && (
-          <div className="flex items-center justify-center">
-            <img 
-              src="/logo.png" 
-              alt="Trippo Logo" 
-              className="h-8 w-8 object-contain"
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onToggle}
-            className={cn(
-              "p-2 hover:bg-blue-700 text-white transition-colors rounded",
-              isMobile ? "block" : "hidden lg:block"
-            )}
-            title={isMobile 
-              ? (mobileExpanded ? "Collapse sidebar" : "Expand sidebar")
-              : (collapsed ? "Pin sidebar" : "Unpin sidebar")
-            }
-          >
-            {isMobile ? (
-              <ChevronLeft 
-                size={18} 
-                className={cn(
-                  "transition-transform duration-300",
-                  mobileExpanded ? "rotate-180" : "rotate-0"
-                )}
-              />
+        <button
+          onClick={onToggle}
+          className={cn(
+            "p-1.5 hover:bg-white/20 text-white/90 hover:text-white transition-colors rounded",
+            isMobile ? "block" : "hidden lg:block",
+          )}
+          title={
+            isMobile
+              ? mobileExpanded
+                ? "Collapse sidebar"
+                : "Expand sidebar"
+              : collapsed
+                ? "Expand sidebar"
+                : "Collapse sidebar"
+          }
+        >
+          {isMobile ? (
+            mobileExpanded ? (
+              <ChevronsLeft size={18} />
             ) : (
-              <Pin 
-                size={18} 
-                className={cn(
-                  "transition-transform duration-300",
-                  collapsed ? "rotate-0" : "rotate-180"
-                )}
-              />
-            )}
-          </button>
-        </div>
+              <ChevronsRight size={18} />
+            )
+          ) : collapsed ? (
+            <ChevronsRight size={18} />
+          ) : (
+            <ChevronsLeft size={18} />
+          )}
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-2.5 overflow-y-auto scrollbar-thin">
-        {menuItems.map((item) => {
-          // For dashboard item: active if path matches OR if on dashboard subdomain root
-          const isDashboardItem = item.path === "/dashboard";
-          const isDashboardSubdomainRoot = subdomain === 'dashboard' && location.pathname === "/";
-          const isActive = location.pathname === item.path || (isDashboardItem && isDashboardSubdomainRoot);
-          
-          // For dashboard item on dashboard subdomain, navigate to "/" (homepage)
-          // Otherwise, use the normal path
-          const dashboardPath = isDashboardItem && subdomain === 'dashboard' ? "/" : item.path;
-          
-          return (
-            <Link
-              key={item.path}
-              to={dashboardPath}
-              onClick={handleNavClick}
-              className={cn(
-                "sidebar-item w-full",
-                isActive && "sidebar-item-active",
-                !isExpanded && "justify-center px-0"
-              )}
-              title={!isExpanded ? item.label : undefined}
-            >
-              <item.icon size={20} className={isActive ? "text-white" : "text-blue-100"} />
-              {isExpanded && (
-                <>
-                  <span className={cn(
-                    "flex-1",
-                    isActive ? "text-white" : "text-blue-100",
-                    // Mobile: smaller text with medium font weight (like bottom nav bars)
-                    isMobile ? "text-xs font-medium" : "text-sm"
-                  )}>{item.label}</span>
-                </>
-              )}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-1.5 py-2 xl:py-4 overflow-y-auto scrollbar-thin min-h-0">
+        <div className="space-y-1.5 xl:space-y-2">
+          {menuItems.map((item) => {
+            const isDashboardItem = item.path === "/dashboard";
+            const isDashboardSubdomainRoot =
+              subdomain === "dashboard" && location.pathname === "/";
+            const isActive =
+              location.pathname === item.path ||
+              (isDashboardItem && isDashboardSubdomainRoot);
+            const dashboardPath =
+              isDashboardItem && subdomain === "dashboard" ? "/" : item.path;
+
+            return (
+              <Link
+                key={item.path}
+                to={dashboardPath}
+                onClick={handleNavClick}
+                className={cn(
+                  "sidebar-item w-full",
+                  isActive && "sidebar-item-active",
+                  !isExpanded && "justify-center px-0",
+                )}
+                title={!isExpanded ? item.label : undefined}
+              >
+                <item.icon
+                  size={20}
+                  className={isActive ? "text-white" : "text-white/85"}
+                />
+                {isExpanded && (
+                  <span
+                    className={cn(
+                      "flex-1",
+                      isActive ? "text-white" : "text-white/90",
+                      isMobile
+                        ? "text-sm font-normal"
+                        : "text-base font-normal max-xl:text-sm max-xl:leading-snug",
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       <PlusBanner variant="sidebar" expanded={isExpanded} />
 
       {/* Logout */}
-        <div className="p-2">
+        <div className="p-1.5 xl:p-2 shrink-0">
         <button
           onClick={handleLogoutClick}
           className={cn(
-            "sidebar-item w-full hover:bg-red-500 hover:text-white transition-colors text-blue-100",
+            "sidebar-item w-full font-normal hover:bg-red-500/20 hover:text-red-200 transition-colors text-white/90",
             !isExpanded && "justify-center px-0"
           )}
           title={!isExpanded ? t("logout") : undefined}
         >
-          <LogOut size={20} />
+          <LogOut size={20} className="shrink-0 max-xl:h-[18px] max-xl:w-[18px]" />
                  {isExpanded && (
                    <span className={cn(
-                     // Mobile: smaller text with medium font weight (like bottom nav bars)
-                     isMobile ? "text-xs font-medium" : "text-sm"
+                     isMobile ? "text-sm font-normal" : "text-base font-normal max-xl:text-sm max-xl:leading-snug"
                    )}>{t("logout")}</span>
                  )}
         </button>
       </div>
+
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-px bg-white/25"
+        aria-hidden
+      />
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>

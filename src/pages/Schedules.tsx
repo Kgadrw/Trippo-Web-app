@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, searchBarInputClass } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,7 @@ import {
   ChevronLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playUpdateBeep, playDeleteBeep, playErrorBeep } from "@/lib/sound";
@@ -54,6 +55,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  filterSelectClass,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { scheduleApi, clientApi } from "@/lib/api";
@@ -1097,7 +1099,7 @@ const Schedules = () => {
             <Button onClick={openClientCreateModal} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 gap-2 flex-1 sm:flex-initial">
               <UserPlus size={16} /> {t("clientLabel")}
             </Button>
-            <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 gap-2 flex-1 sm:flex-initial">
+            <Button onClick={openAddModal} className="bg-primary text-white hover:bg-blue-700 gap-2 flex-1 sm:flex-initial">
               <Plus size={16} /> {t("newAutomation")}
             </Button>
           </div>
@@ -1121,75 +1123,111 @@ const Schedules = () => {
 
         {/* Search & Filters */}
         <div className="flex flex-col gap-3">
-          {/* Search Bar */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <MobileListSearchFilters
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder={t("searchAutomationsPlaceholder")}
+            showFilters={showFilters}
+            onToggleFilters={() => setShowFilters((v) => !v)}
+            searchName="search-schedules"
+            filters={
+              <div className="space-y-3">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                    <SelectValue placeholder={t("status")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allStatus")}</SelectItem>
+                    <SelectItem value="pending">{t("statusActive")}</SelectItem>
+                    <SelectItem value="completed">{t("statusCompleted")}</SelectItem>
+                    <SelectItem value="cancelled">{t("statusCancelled")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                    <SelectValue placeholder={t("date")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allDates")}</SelectItem>
+                    <SelectItem value="today">{t("filterToday")}</SelectItem>
+                    <SelectItem value="thisWeek">{t("filterThisWeek")}</SelectItem>
+                    <SelectItem value="thisMonth">{t("filterThisMonth")}</SelectItem>
+                    <SelectItem value="overdue">{t("filterOverdue")}</SelectItem>
+                    <SelectItem value="upcoming">{t("filterUpcoming")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                    <SelectValue placeholder={t("scheduleFrequencySection")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allFrequency")}</SelectItem>
+                    <SelectItem value="once">{t("freqOnce")}</SelectItem>
+                    <SelectItem value="daily">{t("freqDaily")}</SelectItem>
+                    <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
+                    <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
+                    <SelectItem value="yearly">{t("freqYearly")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={clientFilter} onValueChange={setClientFilter}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                    <SelectValue placeholder={t("clientLabel")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allClientsFilter")}</SelectItem>
+                    {clients.map((c) => {
+                      const cid = ((c as any)._id || c.id)?.toString();
+                      return (
+                        <SelectItem key={cid} value={cid}>
+                          {c.name}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {(statusFilter !== "all" || dateFilter !== "all" || frequencyFilter !== "all" || clientFilter !== "all") && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setDateFilter("all");
+                      setFrequencyFilter("all");
+                      setClientFilter("all");
+                    }}
+                    className="h-10 rounded-lg w-full"
+                  >
+                    <X size={14} className="mr-1.5" />
+                    {t("clearFilters")}
+                  </Button>
+                )}
+              </div>
+            }
+          />
+          <div className="hidden lg:flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
               <Input
                 placeholder={t("searchAutomationsPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-400 rounded-lg"
+                className={searchBarInputClass}
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
                   <X size={16} />
                 </button>
               )}
             </div>
-            <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className={cn("lg:hidden border-gray-200 px-3", showFilters && "bg-blue-50 border-blue-300 text-blue-700")}>
-              <Filter size={16} />
-            </Button>
-          </div>
-
-          {/* Mobile Filters */}
-          {showFilters && (
-            <div className="lg:hidden grid grid-cols-2 gap-2 p-3 bg-white border border-gray-200 rounded-lg">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("status")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allStatus")}</SelectItem>
-                  <SelectItem value="pending">{t("statusActive")}</SelectItem>
-                  <SelectItem value="completed">{t("statusCompleted")}</SelectItem>
-                  <SelectItem value="cancelled">{t("statusCancelled")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("date")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allDates")}</SelectItem>
-                  <SelectItem value="today">{t("filterToday")}</SelectItem>
-                  <SelectItem value="thisWeek">{t("filterThisWeek")}</SelectItem>
-                  <SelectItem value="thisMonth">{t("filterThisMonth")}</SelectItem>
-                  <SelectItem value="overdue">{t("filterOverdue")}</SelectItem>
-                  <SelectItem value="upcoming">{t("filterUpcoming")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("scheduleFrequencySection")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allFrequency")}</SelectItem>
-                  <SelectItem value="once">{t("freqOnce")}</SelectItem>
-                  <SelectItem value="daily">{t("freqDaily")}</SelectItem>
-                  <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
-                  <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
-                  <SelectItem value="yearly">{t("freqYearly")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={clientFilter} onValueChange={setClientFilter}>
-                <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder={t("clientLabel")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allClientsFilter")}</SelectItem>
-                  {clients.map((c) => { const cid = ((c as any)._id || c.id)?.toString(); return <SelectItem key={cid} value={cid}>{c.name}</SelectItem>; })}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Desktop Filters */}
-          <div className="hidden lg:flex items-center gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Filter size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("status")} /></SelectTrigger>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-40 h-9 text-sm shrink-0")}>
+                <Filter size={14} className="mr-1.5 text-gray-400" />
+                <SelectValue placeholder={t("status")} />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("allStatus")}</SelectItem>
                 <SelectItem value="pending">{t("statusActive")}</SelectItem>
@@ -1198,7 +1236,10 @@ const Schedules = () => {
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><CalendarIcon size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("date")} /></SelectTrigger>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-40 h-9 text-sm shrink-0")}>
+                <CalendarIcon size={14} className="mr-1.5 text-gray-400" />
+                <SelectValue placeholder={t("date")} />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("allDates")}</SelectItem>
                 <SelectItem value="today">{t("filterToday")}</SelectItem>
@@ -1209,7 +1250,10 @@ const Schedules = () => {
               </SelectContent>
             </Select>
             <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-40 h-9 text-sm"><Repeat size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("scheduleFrequencySection")} /></SelectTrigger>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-40 h-9 text-sm shrink-0")}>
+                <Repeat size={14} className="mr-1.5 text-gray-400" />
+                <SelectValue placeholder={t("scheduleFrequencySection")} />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("allFrequency")}</SelectItem>
                 <SelectItem value="once">{t("freqOnce")}</SelectItem>
@@ -1220,14 +1264,33 @@ const Schedules = () => {
               </SelectContent>
             </Select>
             <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="border-gray-200 rounded-lg w-44 h-9 text-sm"><User size={14} className="mr-1.5 text-gray-400" /><SelectValue placeholder={t("clientLabel")} /></SelectTrigger>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-44 h-9 text-sm shrink-0")}>
+                <User size={14} className="mr-1.5 text-gray-400" />
+                <SelectValue placeholder={t("clientLabel")} />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("allClientsFilter")}</SelectItem>
-                {clients.map((c) => { const cid = ((c as any)._id || c.id)?.toString(); return <SelectItem key={cid} value={cid}>{c.name}</SelectItem>; })}
+                {clients.map((c) => {
+                  const cid = ((c as any)._id || c.id)?.toString();
+                  return (
+                    <SelectItem key={cid} value={cid}>
+                      {c.name}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {(statusFilter !== "all" || dateFilter !== "all" || frequencyFilter !== "all" || clientFilter !== "all") && (
-              <button onClick={() => { setStatusFilter("all"); setDateFilter("all"); setFrequencyFilter("all"); setClientFilter("all"); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setDateFilter("all");
+                  setFrequencyFilter("all");
+                  setClientFilter("all");
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap shrink-0 self-center"
+              >
                 {t("clearFilters")}
               </button>
             )}
@@ -1384,7 +1447,7 @@ const Schedules = () => {
                 : t("createFirstAutomationHint")}
             </p>
             {!(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
-              <Button onClick={openAddModal} className="bg-blue-600 text-white hover:bg-blue-700 gap-2">
+              <Button onClick={openAddModal} className="bg-primary text-white hover:bg-blue-700 gap-2">
                 <Plus size={16} /> {t("createAutomation")}
               </Button>
             )}
@@ -1416,7 +1479,7 @@ const Schedules = () => {
                     <div className={cn(
                       "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold",
                       currentStep >= step 
-                        ? "bg-blue-600 text-white" 
+                        ? "bg-primary text-white" 
                         : "bg-gray-200 text-gray-600"
                     )}>
                       {step}
@@ -1770,7 +1833,7 @@ const Schedules = () => {
               {currentStep < totalSteps ? (
                 <Button 
                   onClick={nextStep} 
-                  className="bg-blue-600 text-white hover:bg-blue-700 px-4 sm:px-6 text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
+                  className="bg-primary text-white hover:bg-blue-700 px-4 sm:px-6 text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
                 >
                   {t("next")}
                   <ChevronRight size={14} className="sm:w-4 sm:h-4 ml-1" />
@@ -1778,7 +1841,7 @@ const Schedules = () => {
               ) : (
             <Button 
               onClick={handleSave} 
-                  className="bg-blue-600 text-white hover:bg-blue-700 px-4 sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
+                  className="bg-primary text-white hover:bg-blue-700 px-4 sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
                   disabled={!formData.clientName.trim() || !formData.clientEmail.trim() || !formData.clientBusinessType.trim()}
             >
               {editingSchedule ? t("updateScheduleBtn") : t("createScheduleBtn")}
@@ -1905,7 +1968,7 @@ const Schedules = () => {
             </Button>
             <Button
               onClick={handleCreateClient}
-              className="bg-blue-600 text-white hover:bg-blue-700 px-6"
+              className="bg-primary text-white hover:bg-blue-700 px-6"
               disabled={isCreatingClient}
             >
               {isCreatingClient 

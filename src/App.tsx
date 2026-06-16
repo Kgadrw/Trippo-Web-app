@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -72,6 +71,7 @@ import Billing from "./pages/Billing";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import VerifyTicket from "./pages/VerifyTicket";
+import Bookings from "./pages/Bookings";
 
 const queryClient = new QueryClient();
 
@@ -247,6 +247,14 @@ const SubdomainRouter = () => {
             </ProtectedRoute>
           } 
         />
+        <Route
+          path="/bookings"
+          element={
+            <ProtectedRoute>
+              <Bookings />
+            </ProtectedRoute>
+          }
+        />
         <Route 
           path="/barbers" 
           element={
@@ -367,6 +375,14 @@ const SubdomainRouter = () => {
             <Sales />
           </ProtectedRoute>
         } 
+      />
+      <Route
+        path="/bookings"
+        element={
+          <ProtectedRoute>
+            <Bookings />
+          </ProtectedRoute>
+        }
       />
       <Route 
         path="/barbers" 
@@ -543,7 +559,6 @@ const App = () => {
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
       <BrowserRouter>
         <ThemeProvider>
           <LanguageProvider>

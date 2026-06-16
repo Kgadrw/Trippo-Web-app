@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
@@ -43,6 +43,32 @@ function formatBillingDate(value: string | Date | null | undefined, language: La
     month: "2-digit",
     year: "numeric",
   });
+}
+
+function getDaysRemaining(value: string | Date | null | undefined): number | null {
+  if (!value) return null;
+  const end = typeof value === "string" ? new Date(value) : value;
+  const endMs = end.getTime();
+  if (Number.isNaN(endMs)) return null;
+  const now = new Date();
+  const diffMs = endMs - now.getTime();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return Math.max(0, days);
+}
+
+function getPeriodTotalDays(
+  startValue: string | Date | null | undefined,
+  endValue: string | Date | null | undefined,
+): number | null {
+  if (!startValue || !endValue) return null;
+  const start = typeof startValue === "string" ? new Date(startValue) : startValue;
+  const end = typeof endValue === "string" ? new Date(endValue) : endValue;
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null;
+  const diffMs = endMs - startMs;
+  if (diffMs <= 0) return null;
+  return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
@@ -127,6 +153,10 @@ export default function Billing() {
     : plan?.lastPaidAt || plan?.startDate;
 
   const periodEnd = plan?.isOnTrial ? plan.trialEndsAt : plan?.nextDueDate;
+  const daysRemaining = getDaysRemaining(periodEnd);
+  const totalDays = getPeriodTotalDays(periodStart, periodEnd);
+  const usedPct =
+    daysRemaining == null || totalDays == null ? null : Math.min(100, Math.max(0, Math.round(((totalDays - daysRemaining) / totalDays) * 100)));
 
   const packageName = plan?.planName ? `${plan.planName} Pack` : t("plusPack");
   const amount = plan?.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
@@ -355,6 +385,11 @@ export default function Billing() {
 
     setPaying(true);
     try {
+      try {
+        localStorage.setItem("profit-pilot-user-phone", phone.trim());
+      } catch {
+        // ignore storage errors
+      }
       const res = await subscriptionApi.pay(phone.trim(), network ?? undefined, {
         forceRetry: options?.forceRetry,
       });
@@ -500,22 +535,65 @@ export default function Billing() {
               </div>
 
               {isPaidActive ? (
-                <div className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-green-900">
-                    <CheckCircle2 className="h-5 w-5 shrink-0" />
-                    <p className="text-sm font-semibold">
-                      {t("billingPaymentSuccess")}
-                    </p>
+                <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex items-start gap-4">
+                      <div className="shrink-0">
+                        <img
+                          src="/paid.png"
+                          alt="Payment successful"
+                          className="h-14 w-14 sm:h-16 sm:w-16 object-contain"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-green-900">
+                          {t("billingPaymentSuccess")}
+                        </p>
+
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-green-800">
+                            {t("billingPlusActiveUntil")} {formatBillingDate(plan.nextDueDate, language)}.
+                          </p>
+                          {plan.lastPaidAt ? (
+                            <p className="text-xs text-green-800">
+                              {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt, language)}
+                            </p>
+                          ) : null}
+                          {phone.trim() ? (
+                            <p className="text-xs text-green-800">
+                              {t("billingPhone")}: {phone.trim()}
+                            </p>
+                          ) : null}
+                          <p className="text-xs text-green-800">
+                            {t("billingPackage")}: {packageName}
+                          </p>
+                          <p className="text-xs text-green-800">
+                            {t("price")}: {amount.toLocaleString()} {currency}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {daysRemaining != null ? (
+                      <div className="mt-4 rounded-xl border border-green-200/70 bg-white/60 p-3">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-green-900/80">Days remaining</span>
+                          <span className="font-semibold tabular-nums text-green-900">
+                            {daysRemaining.toLocaleString()} day{daysRemaining === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 rounded-full bg-green-100 overflow-hidden">
+                          <div
+                            className="h-full bg-green-500"
+                            style={{ width: `${usedPct ?? 0}%` }}
+                          />
+                        </div>
+                        <div className="mt-1 text-[10px] text-green-900/70 tabular-nums text-right">
+                          {formatBillingDate(periodStart, language)} → {formatBillingDate(periodEnd, language)}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                  <p className="text-xs text-green-800">
-                    {t("billingPlusActiveUntil")}{" "}
-                    {formatBillingDate(plan.nextDueDate, language)}.
-                  </p>
-                  {plan.lastPaidAt ? (
-                    <p className="text-xs text-green-800">
-                      {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt, language)}
-                    </p>
-                  ) : null}
                 </div>
               ) : canPay && paymentReady ? (
                 <>

@@ -151,11 +151,11 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "hidden lg:flex fixed z-50 bg-blue-500 transition-all duration-300 flex-col shadow-lg overflow-hidden",
-        "left-2 top-2 h-[calc(100vh-1rem)]",
+        "hidden lg:flex fixed z-50 bg-white transition-all duration-300 flex-col shadow-lg",
+        "left-0 top-0 h-screen",
         // Desktop: based on expanded state
         isExpanded ? "w-56" : "w-16",
-        "lg:border lg:border-blue-600 lg:rounded-lg"
+        "lg:shadow-none"
       )}
       onMouseEnter={() => {
         // Only auto-expand on desktop when collapsed (not on mobile)
@@ -177,9 +177,9 @@ export function AdminSidebar({
       style={{ touchAction: 'pan-y' }}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 bg-blue-500 lg:rounded-t-lg">
+      <div className="flex items-center justify-between h-16 px-4 bg-white">
         {isExpanded && (
-          <span className="text-lg font-bold text-white">
+          <span className="text-lg font-bold text-gray-900">
             Admin
           </span>
         )}
@@ -187,7 +187,7 @@ export function AdminSidebar({
           {onMobileToggle && (
             <button
               onClick={onMobileToggle}
-              className="p-2 hover:bg-blue-600 text-white transition-colors rounded lg:hidden"
+              className="p-2 hover:bg-gray-100 text-gray-600 transition-colors rounded lg:hidden"
             >
               <Menu size={20} />
             </button>
@@ -195,7 +195,7 @@ export function AdminSidebar({
           <button
             onClick={onToggle}
             className={cn(
-              "p-2 hover:bg-blue-600 text-white transition-colors rounded",
+              "p-2 hover:bg-gray-100 text-gray-600 transition-colors rounded",
               isMobile ? "block" : "hidden lg:block"
             )}
             title={isMobile 
@@ -227,18 +227,21 @@ export function AdminSidebar({
               key={item.section}
               onClick={() => handleNavClick(item.section)}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 w-full text-left text-white hover:bg-blue-600 transition-colors cursor-pointer rounded-md",
-                isActive && "bg-blue-700 text-white font-semibold shadow-sm",
+                "flex items-center gap-3 px-4 py-3 w-full text-left text-gray-600 font-bold hover:bg-gray-100 transition-colors cursor-pointer rounded-md",
+                isActive && "text-blue-600 font-bold hover:bg-transparent",
                 !isExpanded && "justify-center px-0"
               )}
               title={!isExpanded ? item.label : undefined}
             >
-              <item.icon size={20} className="text-white" />
+              <item.icon
+                size={20}
+                strokeWidth={2.5}
+                className={isActive ? "text-blue-600" : "text-gray-600"}
+              />
               {isExpanded && (
                 <span className={cn(
-                  "text-white",
-                  // Mobile: smaller text with medium font weight (like bottom nav bars)
-                  isMobile ? "text-xs font-medium" : "text-sm"
+                  isActive ? "text-blue-600" : "text-gray-600",
+                  isMobile ? "text-xs font-bold" : "text-sm font-bold"
                 )}>{item.label}</span>
               )}
             </button>
@@ -247,11 +250,11 @@ export function AdminSidebar({
       </nav>
 
       {/* Logout */}
-      <div className="p-2 border-t border-blue-600 lg:rounded-b-lg">
+      <div className="p-2 border-t border-gray-200">
         <button
           onClick={handleLogoutClick}
           className={cn(
-            "sidebar-item w-full hover:bg-red-600 hover:text-white transition-colors text-white",
+            "sidebar-item w-full hover:bg-red-50 hover:text-red-600 transition-colors text-gray-600",
             !isExpanded && "justify-center px-0"
           )}
           title={!isExpanded ? "Logout" : undefined}
@@ -260,11 +263,16 @@ export function AdminSidebar({
           {isExpanded && (
             <span className={cn(
               // Mobile: smaller text with medium font weight (like bottom nav bars)
-              isMobile ? "text-xs font-medium" : "text-sm"
+              isMobile ? "text-xs font-bold" : "text-sm font-bold"
             )}>Logout</span>
           )}
         </button>
       </div>
+
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-px bg-gray-200"
+        aria-hidden
+      />
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>

@@ -57,7 +57,10 @@ export function LowStockAlert() {
   const lowStockItems = useMemo(() => {
     return products
       .filter((product) => {
-        const minStock = product.minStock || 0;
+        if ((product as { category?: string }).category?.toLowerCase() === "service") {
+          return false;
+        }
+        const minStock = product.minStock ?? 5;
         // Check expiry window (30 days) if expiryDate exists
         const expiryDateStr = (product as any).expiryDate as string | undefined;
         let isExpiringSoon = false;
@@ -116,27 +119,16 @@ export function LowStockAlert() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<LowStockItem | null>(null);
 
-  // Automatically refresh when products are updated, added, or sales are made
+  // Automatically refresh when products are added/edited (not on every stock tick)
   useEffect(() => {
-    const handleProductStockUpdate = (event: CustomEvent) => {
-      // Automatically refresh when stock is updated
-      refreshProducts(true);
-    };
-
     const handleProductUpdate = () => {
-      // Automatically refresh when products are updated
       refreshProducts(true);
     };
 
-    // Listen for automatic stock updates and general product refresh events
-    window.addEventListener('product-stock-updated', handleProductStockUpdate as EventListener);
     window.addEventListener('products-should-refresh', handleProductUpdate);
-    window.addEventListener('sale-recorded', handleProductUpdate);
 
     return () => {
-      window.removeEventListener('product-stock-updated', handleProductStockUpdate as EventListener);
       window.removeEventListener('products-should-refresh', handleProductUpdate);
-      window.removeEventListener('sale-recorded', handleProductUpdate);
     };
   }, [refreshProducts]);
 

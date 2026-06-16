@@ -1,18 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 
 import { useApi } from "@/hooks/useApi";
 
-import { recurringExpenseApi } from "@/lib/api";
-
 import { Button } from "@/components/ui/button";
 
-import { Input } from "@/components/ui/input";
+import { Input, searchBarInputClass } from "@/components/ui/input";
 
 import { Label } from "@/components/ui/label";
 
-import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import {
 
@@ -25,6 +29,7 @@ import {
   SelectTrigger,
 
   SelectValue,
+  filterSelectClass,
 
 } from "@/components/ui/select";
 
@@ -43,13 +48,16 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 
-import { Trash2, Plus, Loader2, MoreVertical, RefreshCw, CheckCircle2, Pencil } from "lucide-react";
+import { Trash2, Plus, Loader2, MoreVertical, Pencil, Search, ArrowUpDown, X, Receipt } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { cn, formatDateWithTime } from "@/lib/utils";
-import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
+
+function expenseId(e: Expense): string {
+  return String(e._id ?? e.id ?? "");
+}
 
 
 
@@ -71,65 +79,62 @@ interface Expense {
 
 }
 
+type ExpenseSort = "default" | "date-desc" | "date-asc" | "title-asc" | "title-desc" | "amount-desc" | "amount-asc";
+type ExpenseDateFilter = "all" | "thisMonth" | "thisYear" | "last30";
+type AddMode = "single" | "bulk";
 
-
-interface RecurringExpense {
-
-  _id?: string;
-
-  id?: number;
-
+interface BulkExpenseRow {
   title: string;
-
-  amount: number;
-
-  category?: string;
-
-  note?: string;
-
-  frequency: "weekly" | "monthly" | "yearly" | "custom";
-
-  intervalDays?: number;
-
-  nextDueDate: string;
-
-  autoRecord?: boolean;
-
-  notifyEmail?: boolean;
-
-  advanceNotificationDays?: number;
-
-  repeatUntil?: string;
-
-  active?: boolean;
-
+  amount: string;
+  category: string;
+  date: string;
+  note: string;
 }
 
-
-
-const defaultRecurringForm = () => ({
-
+const emptyBulkExpenseRow = (): BulkExpenseRow => ({
   title: "",
-
   amount: "",
-
   category: "general",
-
+  date: new Date().toISOString().split("T")[0],
   note: "",
-
-  frequency: "monthly" as RecurringExpense["frequency"],
-
-  intervalDays: "30",
-
-  nextDueDate: new Date().toISOString().split("T")[0],
-
-  autoRecord: false,
-
-  notifyEmail: true,
-
-  advanceNotificationDays: "1",
-
 });
+
+function compareExpenses(a: Expense, b: Expense, sort: ExpenseSort): number {
+  if (sort === "default") return 0;
+  const titleA = (a.title || "").toLowerCase();
+  const titleB = (b.title || "").toLowerCase();
+  const amountA = Number(a.amount) || 0;
+  const amountB = Number(b.amount) || 0;
+  const dateA = new Date(a.date).getTime();
+  const dateB = new Date(b.date).getTime();
+  const idA = expenseId(a);
+  const idB = expenseId(b);
+  let primary = 0;
+  switch (sort) {
+    case "date-desc":
+      primary = dateB - dateA;
+      break;
+    case "date-asc":
+      primary = dateA - dateB;
+      break;
+    case "title-asc":
+      primary = titleA.localeCompare(titleB, undefined, { sensitivity: "base" });
+      break;
+    case "title-desc":
+      primary = titleB.localeCompare(titleA, undefined, { sensitivity: "base" });
+      break;
+    case "amount-desc":
+      primary = amountB - amountA;
+      break;
+    case "amount-asc":
+      primary = amountA - amountB;
+      break;
+    default:
+      return 0;
+  }
+  if (primary !== 0) return primary;
+  return idA.localeCompare(idB);
+}
 
 
 
@@ -138,7 +143,7 @@ export default function Expenses() {
   const { toast } = useToast();
   const { t } = useTranslation();
 
-  const { items: expenses, isLoading, add, remove, refresh } = useApi<Expense>({
+  const { items: expenses, isLoading, add, update, remove, refresh } = useApi<Expense>({
 
     endpoint: "expenses",
 
@@ -160,21 +165,24 @@ export default function Expenses() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [query, setQuery] = useState("");
 
+  const [sortBy, setSortBy] = useState<ExpenseSort>("date-desc");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<ExpenseDateFilter>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
-  const [recurringItems, setRecurringItems] = useState<RecurringExpense[]>([]);
+  const [open, setOpen] = useState(false);
 
-  const [recurringLoading, setRecurringLoading] = useState(true);
+  const [editing, setEditing] = useState<Expense | null>(null);
 
-  const [recurringSaving, setRecurringSaving] = useState(false);
+  const [addMode, setAddMode] = useState<AddMode>("single");
 
-  const [recurringActionId, setRecurringActionId] = useState<string | null>(null);
+  const [bulkRows, setBulkRows] = useState<BulkExpenseRow[]>([emptyBulkExpenseRow()]);
 
-  const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const [recurringForm, setRecurringForm] = useState(defaultRecurringForm);
-
-  const [expenseMode, setExpenseMode] = useState<"one-time" | "recurring">("one-time");
+  const expensesTitle = t("expenses");
 
   const total = useMemo(
 
@@ -186,69 +194,356 @@ export default function Expenses() {
 
 
 
-  const sorted = useMemo(() => {
-
-    return [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
+  const expenseCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of expenses) {
+      const cat = String(e.category || "").trim();
+      if (cat) set.add(cat);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [expenses]);
 
+  const matchesExpenseDateFilter = (dateStr: string, filter: ExpenseDateFilter) => {
+    if (filter === "all") return true;
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return false;
+    const now = new Date();
+    if (filter === "thisMonth") {
+      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    }
+    if (filter === "thisYear") {
+      return date.getFullYear() === now.getFullYear();
+    }
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() - 30);
+    cutoff.setHours(0, 0, 0, 0);
+    return date >= cutoff;
+  };
 
+  const filteredExpenses = useMemo(() => {
 
-  const loadRecurring = useCallback(async () => {
+    const q = query.trim().toLowerCase();
 
-    setRecurringLoading(true);
+    let list = !q
 
-    try {
+      ? [...expenses]
 
-      const res = await recurringExpenseApi.getAll();
+      : expenses.filter((e) =>
 
-      setRecurringItems((res.data as RecurringExpense[]) || []);
+          `${e.title} ${e.category || ""} ${e.note || ""}`.toLowerCase().includes(q),
 
-    } catch (error: any) {
+        );
 
-      toast({
+    if (categoryFilter !== "all") {
+      list = list.filter((e) => (e.category || "").toLowerCase() === categoryFilter.toLowerCase());
+    }
 
-        title: t("recurringLoadFailed"),
+    if (dateFilter !== "all") {
+      list = list.filter((e) => matchesExpenseDateFilter(e.date, dateFilter));
+    }
 
-        description: error?.message || t("pleaseTryAgain"),
+    if (sortBy !== "default") {
 
-        variant: "destructive",
-
-      });
-
-    } finally {
-
-      setRecurringLoading(false);
+      list.sort((a, b) => compareExpenses(a, b, sortBy));
 
     }
 
-  }, [toast, t]);
+    return list;
+
+  }, [expenses, query, sortBy, categoryFilter, dateFilter]);
 
 
 
-  useEffect(() => {
+  const sortOptionLabels: Record<ExpenseSort, string> = {
 
-    void loadRecurring();
+    default: t("defaultSortOrder"),
 
-  }, [loadRecurring]);
+    "date-desc": `${t("date")} (newest)`,
+
+    "date-asc": `${t("date")} (oldest)`,
+
+    "title-asc": t("nameAsc"),
+
+    "title-desc": t("nameDesc"),
+
+    "amount-desc": `${t("amount")} (high)`,
+
+    "amount-asc": `${t("amount")} (low)`,
+
+  };
 
 
+  const resetExpenseForm = () => {
 
-  const resetRecurringForm = () => {
+    setTitle("");
 
-    setRecurringForm(defaultRecurringForm());
+    setAmount("");
 
-    setEditingRecurringId(null);
+    setCategory("general");
+
+    setDate(new Date().toISOString().split("T")[0]);
+
+    setNote("");
+
+    setEditing(null);
+
+    setAddMode("single");
+
+    setBulkRows([emptyBulkExpenseRow()]);
 
   };
 
 
 
+  const openCreate = () => {
+
+    resetExpenseForm();
+
+    setOpen(true);
+
+  };
+
+
+
+  const openEdit = (expense: Expense) => {
+
+    setEditing(expense);
+
+    setTitle(expense.title || "");
+
+    setAmount(String(expense.amount ?? ""));
+
+    setCategory(expense.category || "general");
+
+    setDate(String(expense.date || "").slice(0, 10) || new Date().toISOString().split("T")[0]);
+
+    setNote(expense.note || "");
+
+    setOpen(true);
+
+  };
+
+
+
+  const addBulkRow = () => {
+
+    setBulkRows((rows) => [...rows, emptyBulkExpenseRow()]);
+
+  };
+
+
+
+  const removeBulkRow = (index: number) => {
+
+    setBulkRows((rows) => (rows.length > 1 ? rows.filter((_, i) => i !== index) : rows));
+
+  };
+
+
+
+  const updateBulkRow = (index: number, field: keyof BulkExpenseRow, value: string) => {
+
+    setBulkRows((rows) => {
+
+      const next = [...rows];
+
+      next[index] = { ...next[index], [field]: value };
+
+      return next;
+
+    });
+
+  };
+
+
+
+  const buildExpenseDate = (dateValue: string) => {
+
+    const now = new Date();
+
+    const savedDate = new Date((dateValue || new Date().toISOString().split("T")[0]) + "T00:00:00");
+
+    savedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
+    return savedDate.toISOString();
+
+  };
+
+
+
+  const buildExpensePayload = (
+
+    expenseTitle: string,
+
+    expenseAmount: number,
+
+    expenseCategory: string,
+
+    expenseDate: string,
+
+    expenseNote?: string,
+
+    base: Partial<Expense> = {},
+
+  ): Expense =>
+
+    ({
+
+      ...base,
+
+      title: expenseTitle.trim(),
+
+      amount: expenseAmount,
+
+      category: expenseCategory.trim() || "general",
+
+      date: buildExpenseDate(expenseDate),
+
+      note: expenseNote?.trim() || undefined,
+
+    }) as Expense;
+
+
+
   const handleSave = async () => {
+
+    if (editing) {
+
+      const parsedAmount = parseFloat(amount);
+
+      if (!title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+
+        toast({
+
+          title: t("missingInformation"),
+
+          description: t("expenseNameAmountRequired"),
+
+          variant: "destructive",
+
+        });
+
+        return;
+
+      }
+
+      setIsSaving(true);
+
+      try {
+
+        await update(buildExpensePayload(title, parsedAmount, category, date, note, editing));
+
+        await refresh(true);
+
+        toast({ title: t("expenseRecorded"), description: t("changesSaved") });
+
+        resetExpenseForm();
+
+        setOpen(false);
+
+        window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+
+      } catch (error: unknown) {
+
+        const message = error instanceof Error ? error.message : t("saveExpenseFailed");
+
+        toast({ title: t("saveFailed"), description: message, variant: "destructive" });
+
+      } finally {
+
+        setIsSaving(false);
+
+      }
+
+      return;
+
+    }
+
+
+
+    if (addMode === "bulk") {
+
+      const expensesToAdd = bulkRows
+
+        .map((row) => {
+
+          const parsedAmount = parseFloat(row.amount);
+
+          if (!row.title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) return null;
+
+          return buildExpensePayload(row.title, parsedAmount, row.category, row.date, row.note);
+
+        })
+
+        .filter((row): row is Expense => row !== null);
+
+
+
+      if (expensesToAdd.length === 0) {
+
+        toast({
+
+          title: t("missingInformation"),
+
+          description: t("expenseNameAmountRequired"),
+
+          variant: "destructive",
+
+        });
+
+        return;
+
+      }
+
+
+
+      setIsSaving(true);
+
+      try {
+
+        for (const expense of expensesToAdd) {
+
+          await add(expense);
+
+        }
+
+        await refresh(true);
+
+        toast({
+
+          title: t("expenseRecorded"),
+
+          description: `${expensesToAdd.length} ${expensesTitle.toLowerCase()}`,
+
+        });
+
+        resetExpenseForm();
+
+        setOpen(false);
+
+        window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+
+      } catch (error: unknown) {
+
+        const message = error instanceof Error ? error.message : t("saveExpenseFailed");
+
+        toast({ title: t("saveFailed"), description: message, variant: "destructive" });
+
+      } finally {
+
+        setIsSaving(false);
+
+      }
+
+      return;
+
+    }
+
+
 
     const parsedAmount = parseFloat(amount);
 
-    if (!title.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
+    if (!title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
 
       toast({
 
@@ -266,55 +561,31 @@ export default function Expenses() {
 
 
 
+    setIsSaving(true);
+
     try {
 
-      const now = new Date();
-
-      const savedDate = new Date((date || new Date().toISOString().split("T")[0]) + "T00:00:00");
-
-      savedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-
-      await add({
-
-        title: title.trim(),
-
-        amount: parsedAmount,
-
-        category,
-
-        date: savedDate.toISOString(),
-
-        note: note.trim() || undefined,
-
-      } as any);
+      await add(buildExpensePayload(title, parsedAmount, category, date, note));
 
       await refresh(true);
 
-      setTitle("");
+      resetExpenseForm();
 
-      setAmount("");
-
-      setCategory("general");
-
-      setDate(new Date().toISOString().split("T")[0]);
-
-      setNote("");
+      setOpen(false);
 
       toast({ title: t("expenseRecorded"), description: t("expenseRecordedDesc") });
 
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
 
-    } catch (error: any) {
+    } catch (error: unknown) {
 
-      toast({
+      const message = error instanceof Error ? error.message : t("saveExpenseFailed");
 
-        title: t("saveFailed"),
+      toast({ title: t("saveFailed"), description: message, variant: "destructive" });
 
-        description: error?.message || t("saveExpenseFailed"),
+    } finally {
 
-        variant: "destructive",
-
-      });
+      setIsSaving(false);
 
     }
 
@@ -322,13 +593,13 @@ export default function Expenses() {
 
 
 
-  const handleDelete = async (expense: Expense) => {
+  const handleDelete = async (expense: Expense): Promise<boolean> => {
 
-    if (!window.confirm(`Delete expense "${expense.title}"?`)) return;
+    if (!window.confirm(`Delete expense "${expense.title}"?`)) return false;
 
     const id = String((expense as { _id?: string; id?: number })._id ?? expense.id ?? "");
 
-    if (!id) return;
+    if (!id) return false;
 
     setDeletingId(id);
 
@@ -341,6 +612,7 @@ export default function Expenses() {
       toast({ title: t("deleted"), description: t("expenseRemovedDesc") });
 
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+      return true;
 
     } catch (error: any) {
 
@@ -353,6 +625,7 @@ export default function Expenses() {
         variant: "destructive",
 
       });
+      return false;
 
     } finally {
 
@@ -362,1149 +635,230 @@ export default function Expenses() {
 
   };
 
-
-
-  const handleSaveRecurring = async () => {
-
-    const parsedAmount = parseFloat(recurringForm.amount);
-
-    if (!recurringForm.title.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-
-      toast({
-
-        title: t("missingInformation"),
-
-        description: t("recurringValidationDesc"),
-
-        variant: "destructive",
-
-      });
-
-      return;
-
-    }
-
-
-
-    if (!recurringForm.nextDueDate) {
-
-      toast({
-
-        title: t("missingDueDateTitle"),
-
-        description: t("chooseDueDateDesc"),
-
-        variant: "destructive",
-
-      });
-
-      return;
-
-    }
-
-
-
-    setRecurringSaving(true);
-
-    try {
-
-      const payload = {
-
-        title: recurringForm.title.trim(),
-
-        amount: parsedAmount,
-
-        category: recurringForm.category.trim() || "general",
-
-        note: recurringForm.note.trim() || undefined,
-
-        frequency: recurringForm.frequency,
-
-        intervalDays:
-
-          recurringForm.frequency === "custom"
-
-            ? Math.max(1, parseInt(recurringForm.intervalDays, 10) || 30)
-
-            : undefined,
-
-        nextDueDate: recurringForm.nextDueDate,
-
-        autoRecord: recurringForm.autoRecord,
-
-        notifyEmail: recurringForm.notifyEmail,
-
-        advanceNotificationDays: Math.max(
-
-          0,
-
-          parseInt(recurringForm.advanceNotificationDays, 10) || 0,
-
-        ),
-
-      };
-
-
-
-      if (editingRecurringId) {
-
-        await recurringExpenseApi.update(editingRecurringId, payload);
-
-        toast({ title: t("updated"), description: t("recurringUpdatedDesc") });
-
-      } else {
-
-        await recurringExpenseApi.create(payload);
-
-        toast({
-
-          title: t("recurringSavedTitle"),
-
-          description: recurringForm.notifyEmail
-
-            ? t("recurringEmailRemindDesc")
-
-            : t("recurringCreatedDesc"),
-
-        });
-
-      }
-
-
-
-      resetRecurringForm();
-
-      await loadRecurring();
-
-    } catch (error: any) {
-
-      toast({
-
-        title: t("saveFailed"),
-
-        description: error?.message || t("recurringSaveFailed"),
-
-        variant: "destructive",
-
-      });
-
-    } finally {
-
-      setRecurringSaving(false);
-
-    }
-
-  };
-
-
-
-  const handleEditRecurring = (item: RecurringExpense) => {
-
-    const id = String(item._id ?? item.id ?? "");
-
-    setExpenseMode("recurring");
-
-    setEditingRecurringId(id);
-
-    setRecurringForm({
-
-      title: item.title,
-
-      amount: String(item.amount),
-
-      category: item.category || "general",
-
-      note: item.note || "",
-
-      frequency: item.frequency,
-
-      intervalDays: String(item.intervalDays || 30),
-
-      nextDueDate: item.nextDueDate
-
-        ? new Date(item.nextDueDate).toISOString().split("T")[0]
-
-        : new Date().toISOString().split("T")[0],
-
-      autoRecord: Boolean(item.autoRecord),
-
-      notifyEmail: item.notifyEmail !== false,
-
-      advanceNotificationDays: String(item.advanceNotificationDays ?? 1),
-
-    });
-
-  };
-
-
-
-  const handleDeleteRecurring = async (item: RecurringExpense) => {
-
-    const id = String(item._id ?? item.id ?? "");
-
-    if (!id || !window.confirm(`Delete recurring expense "${item.title}"?`)) return;
-
-
-
-    setRecurringActionId(id);
-
-    try {
-
-      await recurringExpenseApi.delete(id);
-
-      if (editingRecurringId === id) resetRecurringForm();
-
-      await loadRecurring();
-
-      toast({ title: t("deleted"), description: t("recurringRemovedDesc") });
-
-    } catch (error: any) {
-
-      toast({
-
-        title: t("error"),
-
-        description: error?.message || t("recurringDeleteFailed"),
-
-        variant: "destructive",
-
-      });
-
-    } finally {
-
-      setRecurringActionId(null);
-
-    }
-
-  };
-
-
-
-  const handleMarkPaid = async (item: RecurringExpense) => {
-
-    const id = String(item._id ?? item.id ?? "");
-
-    if (!id) return;
-
-
-
-    setRecurringActionId(id);
-
-    try {
-
-      await recurringExpenseApi.markPaid(id);
-
-      await loadRecurring();
-
-      await refresh(true);
-
-      toast({
-
-        title: t("paymentRecordedTitle"),
-
-        description: `${item.title} ${t("paymentRecordedDesc")}`,
-
-      });
-
-      window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
-
-    } catch (error: any) {
-
-      toast({
-
-        title: t("recordPaymentFailed"),
-
-        description: error?.message || t("recordPaymentFailedDesc"),
-
-        variant: "destructive",
-
-      });
-
-    } finally {
-
-      setRecurringActionId(null);
-
-    }
-
-  };
-
-
-
-  const getFrequencyText = (item: RecurringExpense) => {
-
-    if (item.frequency === "custom") {
-
-      return t("everyNDays").replace("{days}", String(item.intervalDays || 30));
-
-    }
-
-    const labels: Record<RecurringExpense["frequency"], string> = {
-
-      weekly: t("freqEveryWeek"),
-
-      monthly: t("freqEveryMonth"),
-
-      yearly: t("freqEveryYear"),
-
-      custom: t("freqCustomDays"),
-
-    };
-
-    return labels[item.frequency];
-
-  };
-
-  const getEmailReminderText = (days: number) =>
-
-    t("emailReminderSummary").replace("{days}", String(days));
-
-
-
-  return (
-
-    <AppLayout title={t("expenses")}>
-
-      <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden p-4 sm:p-5 space-y-4">
-          <ToggleGroup
-            type="single"
-            value={expenseMode}
-            onValueChange={(v) => v && setExpenseMode(v as "one-time" | "recurring")}
-            className="grid grid-cols-2 gap-1.5 w-full sm:max-w-md"
-            variant="outline"
-            size="sm"
-          >
-            <ToggleGroupItem value="one-time" className="h-9 text-xs sm:text-sm">
-              {t("oneTimeExpense")}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="recurring" className="h-9 text-xs sm:text-sm">
-              {t("recurringExpenses")}
-            </ToggleGroupItem>
-          </ToggleGroup>
-
-          {expenseMode === "one-time" ? (
-          <>
-          <p className="text-xs text-muted-foreground">{t("recordSingleExpenseHint")}</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
-            <div className="space-y-1">
-
-              <Label>{t("expenseTitle")}</Label>
-
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("expenseExamplePlaceholder")} />
-
-            </div>
-
-            <div className="space-y-1">
-
-              <Label>{t("amount")} (rwf)</Label>
-
-              <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t("amount")} />
-
-            </div>
-
-            <div className="space-y-1">
-
-              <Label>{t("category")}</Label>
-
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t("expenseCategoryPlaceholder")} />
-
-            </div>
-
-            <div className="space-y-1">
-
-              <Label>{t("date")}</Label>
-
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-
-            </div>
-
+  const titleLabel = t("expenseTitle");
+  const categoryLabel = t("category");
+  const amountLabel = t("amount");
+  const dateLabel = t("date");
+  const noteLabel = t("note");
+  const actionsLabel = t("actions");
+
+  const filterControls = (
+    <div className="space-y-3">
+      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+          <SelectValue placeholder={t("category")} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t("allCategories")}</SelectItem>
+          {expenseCategories.map((cat) => (
+            <SelectItem key={cat} value={cat}>
+              {cat}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as ExpenseDateFilter)}>
+        <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+          <SelectValue placeholder={t("date")} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t("allDates")}</SelectItem>
+          <SelectItem value="thisMonth">{t("thisMonth")}</SelectItem>
+          <SelectItem value="thisYear">{t("thisYear")}</SelectItem>
+          <SelectItem value="last30">{t("filterLast30Days")}</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={sortBy} onValueChange={(v) => setSortBy(v as ExpenseSort)}>
+        <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+          <div className="flex items-center gap-2">
+            <ArrowUpDown size={14} className="text-gray-400" />
+            <SelectValue placeholder={t("sortBy")} />
           </div>
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(sortOptionLabels) as ExpenseSort[]).map((key) => (
+            <SelectItem key={key} value={key}>
+              {sortOptionLabels[key]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {(categoryFilter !== "all" || dateFilter !== "all") && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setCategoryFilter("all");
+            setDateFilter("all");
+          }}
+          className="h-10 rounded-lg w-full"
+        >
+          <X size={14} className="mr-1.5" />
+          {t("clearFilters")}
+        </Button>
+      )}
+    </div>
+  );
 
-          <div className="space-y-1">
+  const addExpenseButton = (
+    <Button
+      className="bg-primary text-white hover:bg-blue-700 hover:text-white gap-2 shrink-0 rounded-lg h-10 px-3"
+      onClick={openCreate}
+    >
+      <Plus size={18} />
+      <span className="sr-only">{t("add")}</span>
+    </Button>
+  );
 
-            <Label>{t("noteOptional")}</Label>
-
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("expenseNotePlaceholder")} />
-
-          </div>
-
+  const filterBar = (
+    <>
+      <MobileListSearchFilters
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder={`${t("search")} ${expensesTitle.toLowerCase()}...`}
+        showFilters={showFilters}
+        onToggleFilters={() => setShowFilters((v) => !v)}
+        filters={filterControls}
+        trailing={addExpenseButton}
+        searchName="search-expenses"
+      />
+      <div className="hidden lg:flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`${t("search")} ${expensesTitle.toLowerCase()}...`}
+            className={searchBarInputClass}
+            autoComplete="off"
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className={cn("w-[160px] h-10 rounded-lg shrink-0", filterSelectClass)}>
+            <SelectValue placeholder={t("category")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allCategories")}</SelectItem>
+            {expenseCategories.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {cat}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as ExpenseDateFilter)}>
+          <SelectTrigger className={cn("w-[170px] h-10 rounded-lg shrink-0", filterSelectClass)}>
+            <SelectValue placeholder={t("date")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allDates")}</SelectItem>
+            <SelectItem value="thisMonth">{t("thisMonth")}</SelectItem>
+            <SelectItem value="thisYear">{t("thisYear")}</SelectItem>
+            <SelectItem value="last30">{t("filterLast30Days")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as ExpenseSort)}>
+          <SelectTrigger className={cn("w-[200px] h-10 rounded-lg shrink-0", filterSelectClass)}>
+            <div className="flex items-center gap-2">
+              <ArrowUpDown size={14} className="text-gray-400" />
+              <SelectValue placeholder={t("sortBy")} />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(sortOptionLabels) as ExpenseSort[]).map((key) => (
+              <SelectItem key={key} value={key}>
+                {sortOptionLabels[key]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(categoryFilter !== "all" || dateFilter !== "all") && (
           <Button
-
-            size="sm"
-
-            className="bg-blue-600 hover:bg-blue-700 text-white gap-2 w-fit rounded-lg"
-
-            onClick={() => void handleSave()}
-
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setCategoryFilter("all");
+              setDateFilter("all");
+            }}
+            className="h-10 rounded-lg shrink-0"
           >
-
-            <Plus size={16} />
-
-            {t("saveExpense")}
+            <X size={14} className="mr-1.5" />
+            {t("clearFilters")}
           </Button>
-          </>
-          ) : (
-          <>
-            <p className="text-xs text-muted-foreground">
-              {t("recurringExpenseHint")}
-            </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
-            <div className="space-y-1">
-
-              <Label>{t("expenseTitle")}</Label>
-
-              <Input
-
-                value={recurringForm.title}
-
-                onChange={(e) => setRecurringForm((f) => ({ ...f, title: e.target.value }))}
-
-                placeholder={t("expenseExamplePlaceholder")}
-
-              />
-
-            </div>
-
-            <div className="space-y-1">
-
-              <Label>{t("amount")} (rwf)</Label>
-
-              <Input
-
-                type="number"
-
-                min="0"
-
-                value={recurringForm.amount}
-
-                onChange={(e) => setRecurringForm((f) => ({ ...f, amount: e.target.value }))}
-
-                placeholder={t("amount")}
-
-              />
-
-            </div>
-
-            <div className="space-y-1">
-
-              <Label>{t("category")}</Label>
-
-              <Input
-
-                value={recurringForm.category}
-
-                onChange={(e) => setRecurringForm((f) => ({ ...f, category: e.target.value }))}
-
-                placeholder={t("expenseCategoryPlaceholder")}
-
-              />
-
-            </div>
-
-            <div className="space-y-1">
-
-              <Label>{t("repeatEveryLabel")}</Label>
-
-              <Select
-
-                value={recurringForm.frequency}
-
-                onValueChange={(value) =>
-
-                  setRecurringForm((f) => ({ ...f, frequency: value as RecurringExpense["frequency"] }))
-
-                }
-
-              >
-
-                <SelectTrigger>
-
-                  <SelectValue />
-
-                </SelectTrigger>
-
-                <SelectContent>
-
-                  <SelectItem value="weekly">{t("freqEveryWeek")}</SelectItem>
-
-                  <SelectItem value="monthly">{t("freqEveryMonth")}</SelectItem>
-
-                  <SelectItem value="yearly">{t("freqEveryYear")}</SelectItem>
-
-                  <SelectItem value="custom">{t("freqCustomDays")}</SelectItem>
-
-                </SelectContent>
-
-              </Select>
-
-            </div>
-
-            {recurringForm.frequency === "custom" && (
-
-              <div className="space-y-1">
-
-                <Label>{t("intervalDaysLabel")}</Label>
-
-                <Input
-
-                  type="number"
-
-                  min="1"
-
-                  value={recurringForm.intervalDays}
-
-                  onChange={(e) => setRecurringForm((f) => ({ ...f, intervalDays: e.target.value }))}
-
-                />
-
-              </div>
-
-            )}
-
-            <div className="space-y-1">
-
-              <Label>{t("nextDueDateLabel")}</Label>
-
-              <Input
-
-                type="date"
-
-                value={recurringForm.nextDueDate}
-
-                onChange={(e) => setRecurringForm((f) => ({ ...f, nextDueDate: e.target.value }))}
-
-              />
-
-            </div>
-
-            <div className="space-y-1">
-
-              <Label>{t("emailReminderDaysLabel")}</Label>
-
-              <Input
-
-                type="number"
-
-                min="0"
-
-                max="30"
-
-                value={recurringForm.advanceNotificationDays}
-
-                onChange={(e) =>
-
-                  setRecurringForm((f) => ({ ...f, advanceNotificationDays: e.target.value }))
-
-                }
-
-                disabled={!recurringForm.notifyEmail}
-
-              />
-
-            </div>
-
-          </div>
-
-
-
-          <div className="space-y-1">
-
-            <Label>{t("noteOptional")}</Label>
-
-            <Input
-
-              value={recurringForm.note}
-
-              onChange={(e) => setRecurringForm((f) => ({ ...f, note: e.target.value }))}
-
-              placeholder={t("expenseNotePlaceholder")}
-
-            />
-
-          </div>
-
-
-
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
-
-            <div className="flex items-center gap-2">
-
-              <Switch
-
-                checked={recurringForm.notifyEmail}
-
-                onCheckedChange={(checked) =>
-
-                  setRecurringForm((f) => ({ ...f, notifyEmail: checked }))
-
-                }
-
-              />
-
-              <Label className="font-normal">{t("emailWhenPendingLabel")}</Label>
-
-            </div>
-
-            <div className="flex items-center gap-2">
-
-              <Switch
-
-                checked={recurringForm.autoRecord}
-
-                onCheckedChange={(checked) =>
-
-                  setRecurringForm((f) => ({ ...f, autoRecord: checked }))
-
-                }
-
-              />
-
-              <Label className="font-normal">{t("autoRecordDueLabel")}</Label>
-
-            </div>
-
-          </div>
-
-
-
-          <div className="flex flex-wrap gap-2">
-
-            <Button
-
-              size="sm"
-
-              className="bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-lg"
-
-              onClick={() => void handleSaveRecurring()}
-
-              disabled={recurringSaving}
-
-            >
-
-              {recurringSaving ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-
-              {editingRecurringId ? t("updateRecurringBtn") : t("saveRecurringBtn")}
-
-            </Button>
-
-            {editingRecurringId && (
-
-              <Button size="sm" variant="outline" onClick={resetRecurringForm}>
-
-                {t("cancelEditBtn")}
-
-              </Button>
-
-            )}
-
-          </div>
-
-
-
-          {recurringLoading ? (
-
-            <div className="space-y-2">
-
-              {Array.from({ length: 3 }).map((_, i) => (
-
-                <Skeleton key={i} className="h-12 w-full" />
-
-              ))}
-
-            </div>
-
-          ) : recurringItems.length === 0 ? (
-
-            <p className="text-sm text-gray-500">{t("noRecurringYet")}</p>
-
-          ) : (
-
+        )}
+        <Button
+          className="bg-primary text-white hover:bg-blue-700 hover:text-white gap-2 shrink-0 rounded-lg h-10"
+          onClick={openCreate}
+        >
+          <Plus size={16} />
+          <span>{t("saveExpense")}</span>
+        </Button>
+      </div>
+    </>
+  );
+
+  const renderExpensesTable = (compact = false) => {
+    const thClass = compact
+      ? "text-left text-xs font-semibold text-gray-700 py-2 px-2"
+      : "text-left text-sm font-semibold text-gray-700 py-4 px-6";
+    const tdClass = compact ? "py-2 px-2" : "py-4 px-6";
+
+    return (
+      <table className="w-full border-collapse">
+        <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+          <tr>
+            <th className={thClass}>{titleLabel}</th>
+            <th className={thClass}>{categoryLabel}</th>
+            <th className={thClass}>{amountLabel}</th>
+            <th className={thClass}>{dateLabel}</th>
+            <th className={cn(thClass, compact ? "" : "hidden xl:table-cell")}>{noteLabel}</th>
+            <th className={cn(thClass, "text-right")}>{actionsLabel}</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white">
+          {filteredExpenses.length > 0 ? (
             <>
-            <DesktopDataTable>
+              {filteredExpenses.map((expense, index) => {
+                const id = expenseId(expense);
+                const isDeletingThis = deletingId !== null && id === deletingId;
 
-              <table className="w-full border-collapse">
-
-                <thead className="bg-gray-100 border-b border-gray-200">
-
-                  <tr>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("expenseTitle")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("amount")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("scheduleCol")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("nextDueCol")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-3 px-4">{t("remindersCol")}</th>
-
-                    <th className="text-right text-sm font-semibold text-gray-700 py-3 px-4">{t("actions")}</th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {recurringItems.map((item, index) => {
-
-                    const id = String(item._id ?? item.id ?? "");
-
-                    const isBusy = recurringActionId === id;
-
-                    const isOverdue =
-
-                      item.active !== false &&
-
-                      new Date(item.nextDueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
-
-                    return (
-
-                      <tr
-
-                        key={id}
-
-                        className={cn(
-
-                          "border-b border-gray-200",
-
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50",
-
-                        )}
-
-                      >
-
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.title}</td>
-
-                        <td className="py-3 px-4 text-sm text-red-600 tabular-nums">
-
-                          {Number(item.amount).toLocaleString()} rwf
-
-                        </td>
-
-                        <td className="py-3 px-4 text-sm text-gray-700">{getFrequencyText(item)}</td>
-
-                        <td className="py-3 px-4 text-sm whitespace-nowrap">
-
-                          <span className={cn(isOverdue ? "text-red-600 font-medium" : "text-gray-700")}>
-
-                            {formatDateWithTime(item.nextDueDate)}
-
-                            {isOverdue ? ` ${t("pendingSuffix")}` : ""}
-
-                          </span>
-
-                        </td>
-
-                        <td className="py-3 px-4 text-sm text-gray-700">
-
-                          {item.notifyEmail
-
-                            ? getEmailReminderText(item.advanceNotificationDays ?? 1)
-
-                            : t("offLabel")}
-
-                          {item.autoRecord ? ` · ${t("autoRecordLabel")}` : ""}
-
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-
-                          <DropdownMenu>
-
-                            <DropdownMenuTrigger asChild>
-
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={isBusy}>
-
-                                {isBusy ? (
-
-                                  <Loader2 size={16} className="animate-spin" />
-
-                                ) : (
-
-                                  <MoreVertical size={16} />
-
-                                )}
-
-                              </Button>
-
-                            </DropdownMenuTrigger>
-
-                            <DropdownMenuContent align="end">
-
-                              <DropdownMenuItem onClick={() => void handleMarkPaid(item)}>
-
-                                <CheckCircle2 size={14} className="mr-2" />
-
-                                {t("markPaidAction")}
-
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => handleEditRecurring(item)}>
-
-                                <Pencil size={14} className="mr-2" />
-
-                                {t("edit")}
-
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem
-
-                                onClick={() => void handleDeleteRecurring(item)}
-
-                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-
-                              >
-
-                                <Trash2 size={14} className="mr-2" />
-
-                                {t("delete")}
-
-                              </DropdownMenuItem>
-
-                            </DropdownMenuContent>
-
-                          </DropdownMenu>
-
-                        </td>
-
-                      </tr>
-
-                    );
-
-                  })}
-
-                </tbody>
-
-              </table>
-
-            </DesktopDataTable>
-
-            <MobileDataList>
-              {recurringItems.map((item, index) => {
-                const id = String(item._id ?? item.id ?? "");
-                const isBusy = recurringActionId === id;
-                const isOverdue =
-                  item.active !== false &&
-                  new Date(item.nextDueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
                 return (
-                  <MobileListCard key={id} index={index}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
-                        <p className="text-sm font-semibold text-red-600 tabular-nums mt-0.5">
-                          {Number(item.amount).toLocaleString()} rwf
-                        </p>
+                  <tr
+                    key={id || expense.title}
+                    className={cn(
+                      "border-b border-gray-200",
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50",
+                    )}
+                  >
+                    <td className={tdClass}>
+                      <div className={cn("text-gray-900", compact ? "text-xs font-medium" : "text-sm font-medium")}>
+                        {expense.title}
                       </div>
+                    </td>
+                    <td className={tdClass}>
+                      <div className={cn("text-gray-700", compact ? "text-xs" : "text-sm")}>
+                        {expense.category || "general"}
+                      </div>
+                    </td>
+                    <td className={tdClass}>
+                      <div className={cn("text-red-600 tabular-nums font-semibold", compact ? "text-xs" : "text-sm")}>
+                        {Number(expense.amount).toLocaleString()} rwf
+                      </div>
+                    </td>
+                    <td className={tdClass}>
+                      <div className={cn("text-gray-700 whitespace-nowrap", compact ? "text-xs" : "text-sm")}>
+                        {formatDateWithTime(expense.date)}
+                      </div>
+                    </td>
+                    <td className={cn(tdClass, compact ? "" : "hidden xl:table-cell")}>
+                      <div className={cn("text-gray-500 truncate max-w-[200px]", compact ? "text-xs" : "text-sm")}>
+                        {expense.note || "—"}
+                      </div>
+                    </td>
+                    <td className={cn(tdClass, "text-right")}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" disabled={isBusy}>
-                            {isBusy ? (
-                              <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                              <MoreVertical size={16} />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => void handleMarkPaid(item)}>
-                            <CheckCircle2 size={14} className="mr-2" />
-                            Mark paid
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditRecurring(item)}>
-                            <Pencil size={14} className="mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => void handleDeleteRecurring(item)}
-                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                          >
-                            <Trash2 size={14} className="mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <div className="mt-2 space-y-1 text-xs text-gray-600">
-                      <p>{getFrequencyText(item)}</p>
-                      <p className={cn(isOverdue ? "text-red-600 font-medium" : "text-gray-700")}>
-                        {t("duePrefix")} {formatDateWithTime(item.nextDueDate)}
-                        {isOverdue ? " (pending)" : ""}
-                      </p>
-                      <p>
-                        {item.notifyEmail
-                          ? `Email ${item.advanceNotificationDays ?? 1}d before + on due date`
-                          : t("remindersOffLabel")}
-                        {item.autoRecord ? " · Auto-record" : ""}
-                      </p>
-                    </div>
-                  </MobileListCard>
-                );
-              })}
-            </MobileDataList>
-            </>
-
-          )}
-          </>
-          )}
-
-          <h3 className="text-sm font-semibold text-gray-800 border-t border-gray-200 pt-6 mt-6">{t("recentExpenses")}</h3>
-
-
-
-          {isLoading ? (
-
-            <>
-            <DesktopDataTable>
-
-              <table className="w-full border-collapse">
-
-                <thead className="bg-gray-100 border-b border-gray-200">
-
-                  <tr>
-
-                    {["Title", "Category", "Amount", "Date", "Note", ""].map((col) => (
-
-                      <th key={col} className="text-left py-4 px-6">
-
-                        <Skeleton className="h-4 w-20" />
-
-                      </th>
-
-                    ))}
-
-                  </tr>
-
-                </thead>
-
-                <tbody className="bg-white">
-
-                  {Array.from({ length: 5 }).map((_, i) => (
-
-                    <tr key={i} className="border-b border-gray-200">
-
-                      {Array.from({ length: 6 }).map((_, j) => (
-
-                        <td key={j} className="py-4 px-6">
-
-                          <Skeleton className="h-4 w-24" />
-
-                        </td>
-
-                      ))}
-
-                    </tr>
-
-                  ))}
-
-                </tbody>
-
-              </table>
-
-            </DesktopDataTable>
-            <MobileDataList>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <MobileListCard key={i} index={i}>
-                  <Skeleton className="h-4 w-32 mb-2" />
-                  <Skeleton className="h-4 w-full" />
-                </MobileListCard>
-              ))}
-            </MobileDataList>
-            </>
-
-          ) : sorted.length === 0 ? (
-
-            <p className="px-4 py-5 text-sm text-gray-500">{t("noExpensesYet")}</p>
-
-          ) : (
-
-            <>
-            <DesktopDataTable>
-
-              <table className="w-full border-collapse">
-
-                <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-
-                  <tr>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("expenseTitle")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("category")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("amount")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("date")}</th>
-
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("note")}</th>
-
-                    <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("actions")}</th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody className="bg-white">
-
-                  {sorted.map((expense, index) => {
-
-                    const id = (expense as any)._id || expense.id;
-
-                    const idStr = id != null ? String(id) : "";
-
-                    const isDeletingThis = deletingId !== null && idStr === deletingId;
-
-                    return (
-
-                      <tr
-
-                        key={id}
-
-                        className={cn(
-
-                          "border-b border-gray-200",
-
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50",
-
-                        )}
-
-                      >
-
-                        <td className="py-4 px-6">
-
-                          <div className="text-sm text-gray-900 font-medium">{expense.title}</div>
-
-                        </td>
-
-                        <td className="py-4 px-6">
-
-                          <div className="text-sm text-gray-700">{expense.category || "general"}</div>
-
-                        </td>
-
-                        <td className="py-4 px-6">
-
-                          <div className="text-sm font-semibold text-red-600 tabular-nums">
-
-                            {Number(expense.amount).toLocaleString()} rwf
-
-                          </div>
-
-                        </td>
-
-                        <td className="py-4 px-6">
-
-                          <div className="text-sm text-gray-700 whitespace-nowrap">
-
-                            {formatDateWithTime(expense.date)}
-
-                          </div>
-
-                        </td>
-
-                        <td className="py-4 px-6">
-
-                          <div className="text-sm text-gray-500 max-w-[200px] truncate">
-
-                            {expense.note || "—"}
-
-                          </div>
-
-                        </td>
-
-                        <td className="py-4 px-6 text-right">
-
-                          <DropdownMenu>
-
-                            <DropdownMenuTrigger asChild>
-
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Expense actions">
-
-                                {isDeletingThis ? (
-
-                                  <Loader2 size={16} className="animate-spin" />
-
-                                ) : (
-
-                                  <MoreVertical size={16} />
-
-                                )}
-
-                              </Button>
-
-                            </DropdownMenuTrigger>
-
-                            <DropdownMenuContent align="end">
-
-                              <DropdownMenuItem
-
-                                onClick={() => void handleDelete(expense)}
-
-                                disabled={isDeletingThis}
-
-                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-
-                              >
-
-                                <Trash2 size={14} className="mr-2" />
-
-                                {t("delete")}
-
-                              </DropdownMenuItem>
-
-                            </DropdownMenuContent>
-
-                          </DropdownMenu>
-
-                        </td>
-
-                      </tr>
-
-                    );
-
-                  })}
-
-                  <tr className="border-t border-gray-200 bg-blue-50/70">
-
-                    <td colSpan={2} className="py-4 px-6 text-sm font-semibold text-gray-800">
-
-                      {t("total")}
-
-                    </td>
-
-                    <td className="py-4 px-6 text-sm font-semibold text-red-600 tabular-nums">
-
-                      {total.toLocaleString()} rwf
-
-                    </td>
-
-                    <td colSpan={3} />
-
-                  </tr>
-
-                </tbody>
-
-              </table>
-
-            </DesktopDataTable>
-
-            <MobileDataList>
-              {sorted.map((expense, index) => {
-                const id = (expense as { _id?: string; id?: number })._id || expense.id;
-                const idStr = id != null ? String(id) : "";
-                const isDeletingThis = deletingId !== null && idStr === deletingId;
-                return (
-                  <MobileListCard key={id} index={index}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{expense.title}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{expense.category || "general"}</p>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" aria-label="Expense actions">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={isDeletingThis}>
                             {isDeletingThis ? (
                               <Loader2 size={16} className="animate-spin" />
                             ) : (
@@ -1513,6 +867,10 @@ export default function Expenses() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(expense)}>
+                            <Pencil size={14} className="mr-2" />
+                            {t("edit")}
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => void handleDelete(expense)}
                             disabled={isDeletingThis}
@@ -1523,30 +881,295 @@ export default function Expenses() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-red-600 tabular-nums">
-                        {Number(expense.amount).toLocaleString()} rwf
-                      </span>
-                      <span className="text-xs text-gray-500">{formatDateWithTime(expense.date)}</span>
-                    </div>
-                    {expense.note ? (
-                      <p className="mt-1.5 text-xs text-gray-500 line-clamp-2">{expense.note}</p>
-                    ) : null}
-                  </MobileListCard>
+                    </td>
+                  </tr>
                 );
               })}
-              <MobileListCard className="bg-blue-50/70">
-                <div className="flex items-center justify-between text-sm font-semibold">
-                  <span className="text-gray-800">{t("total")}</span>
-                  <span className="text-red-600 tabular-nums">{total.toLocaleString()} rwf</span>
-                </div>
-              </MobileListCard>
-            </MobileDataList>
+              <tr className="border-t border-gray-200 bg-blue-50/70">
+                <td colSpan={2} className={cn(tdClass, "text-sm font-semibold text-gray-800")}>
+                  {t("total")}
+                </td>
+                <td className={cn(tdClass, "text-sm font-semibold text-red-600 tabular-nums")}>
+                  {total.toLocaleString()} rwf
+                </td>
+                <td colSpan={compact ? 2 : 3} />
+              </tr>
             </>
-
+          ) : (
+            <tr>
+              <td colSpan={6} className={cn(tdClass, "py-12 text-center")}>
+                <div className="flex flex-col items-center justify-center text-gray-400">
+                  <Receipt size={48} className="mb-4 opacity-50" />
+                  <p className="text-base font-medium">{t("noExpensesYet")}</p>
+                </div>
+              </td>
+            </tr>
           )}
+        </tbody>
+      </table>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <AppLayout title={expensesTitle}>
+        <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
+          <div className="lg:bg-white lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
+            <div className="lg:bg-white lg:border-b lg:border-gray-200 lg:px-4 lg:py-4 flex-shrink-0">
+              {filterBar}
+            </div>
+            <div className="hidden lg:block overflow-auto flex-1 pb-4">
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    {[titleLabel, categoryLabel, amountLabel, dateLabel, noteLabel, actionsLabel].map((col) => (
+                      <th key={col} className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                        <Skeleton className="h-4 w-20" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b border-gray-200">
+                      {Array.from({ length: 6 }).map((_, j) => (
+                        <td key={j} className="py-4 px-6">
+                          <Skeleton className="h-4 w-28" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+
+    <AppLayout title={expensesTitle}>
+
+      <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
+
+      <div className="lg:bg-white lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
+          <div className="lg:bg-white lg:border-b lg:border-gray-200 lg:px-4 lg:py-4 flex-shrink-0 mb-4 lg:mb-0">
+            {filterBar}
+            <div className="mt-3 text-xs text-gray-500 hidden lg:block">
+              {filteredExpenses.length} {expensesTitle.toLowerCase()}
+            </div>
+          </div>
+          <div className="hidden lg:block overflow-auto flex-1 pb-4">
+            {renderExpensesTable(false)}
+          </div>
+          <div className="lg:hidden mt-4 pb-20 overflow-auto">
+            <div className="min-w-full">{renderExpensesTable(true)}</div>
+          </div>
       </div>
+      </div>
+
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && isSaving) return;
+          setOpen(next);
+          if (!next) resetExpenseForm();
+        }}
+      >
+        <DialogContent
+          className={cn(
+            "sm:max-w-md max-h-[90vh] overflow-y-auto",
+            !editing && addMode === "bulk" && "sm:max-w-2xl",
+          )}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? t("edit") : addMode === "bulk" ? t("bulkAdd") : t("saveExpense")}
+            </DialogTitle>
+          </DialogHeader>
+
+          {!editing && (
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={addMode === "single" ? "default" : "outline"}
+                onClick={() => setAddMode("single")}
+                className={cn(addMode === "single" && "bg-primary text-white hover:bg-blue-700 hover:text-white")}
+                disabled={isSaving}
+              >
+                {t("saveExpense")}
+              </Button>
+              <Button
+                type="button"
+                variant={addMode === "bulk" ? "default" : "outline"}
+                onClick={() => setAddMode("bulk")}
+                className={cn(addMode === "bulk" && "bg-primary text-white hover:bg-blue-700 hover:text-white")}
+                disabled={isSaving}
+              >
+                {t("bulkAdd")}
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-3 py-2">
+            {editing || addMode === "single" ? (
+              <>
+                <div className="space-y-1">
+                  <Label>{t("expenseTitle")}</Label>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={t("expenseExamplePlaceholder")}
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>{t("amount")} (rwf)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder={t("amount")}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>{t("category")}</Label>
+                    <Input
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      placeholder={t("expenseCategoryPlaceholder")}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>{t("date")}</Label>
+                    <Input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>{t("noteOptional")}</Label>
+                    <Input
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder={t("expenseNotePlaceholder")}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <p className="text-sm text-muted-foreground">{t("addMultipleExpenses")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addBulkRow}
+                    disabled={isSaving}
+                    className="shrink-0 gap-1"
+                  >
+                    <Plus size={14} />
+                    {t("saveExpense")}
+                  </Button>
+                </div>
+                {bulkRows.map((row, index) => (
+                  <div
+                    key={index}
+                    className="rounded-lg border border-gray-300 p-3 space-y-2 bg-white shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">
+                        {t("expenseTitle")} #{index + 1}
+                      </span>
+                      {bulkRows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeBulkRow(index)}
+                          disabled={isSaving}
+                          className="p-1 rounded text-red-600 hover:bg-red-50"
+                          aria-label={t("delete")}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <Input
+                        value={row.title}
+                        onChange={(e) => updateBulkRow(index, "title", e.target.value)}
+                        placeholder={t("expenseExamplePlaceholder")}
+                        disabled={isSaving}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        value={row.amount}
+                        onChange={(e) => updateBulkRow(index, "amount", e.target.value)}
+                        placeholder={t("amount")}
+                        disabled={isSaving}
+                      />
+                      <Input
+                        value={row.category}
+                        onChange={(e) => updateBulkRow(index, "category", e.target.value)}
+                        placeholder={t("expenseCategoryPlaceholder")}
+                        disabled={isSaving}
+                      />
+                      <Input
+                        type="date"
+                        value={row.date}
+                        onChange={(e) => updateBulkRow(index, "date", e.target.value)}
+                        disabled={isSaving}
+                      />
+                    </div>
+                    <Input
+                      value={row.note}
+                      onChange={(e) => updateBulkRow(index, "note", e.target.value)}
+                      placeholder={t("expenseNotePlaceholder")}
+                      disabled={isSaving}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
+              {t("cancel")}
+            </Button>
+            <Button
+              className="bg-primary text-white hover:bg-blue-700 hover:text-white min-w-[7rem]"
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("saving")}
+                </>
+              ) : editing ? (
+                t("save")
+              ) : addMode === "bulk" ? (
+                t("addExpensesBtn")
+              ) : (
+                t("save")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
 
   );

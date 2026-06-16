@@ -21,6 +21,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { periodToggleClass } from "@/lib/fieldStyles";
+import { SalesExpensesPeriodChart } from "@/components/dashboard/SalesExpensesPeriodChart";
 import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import {
   ComposedChart,
@@ -122,6 +124,63 @@ const Reports = () => {
     return Number.isNaN(ms) ? null : ms;
   };
 
+  const getExpenseTimeMs = (expense: Expense) => {
+    const d = new Date(expense.date);
+    const ms = d.getTime();
+    return Number.isNaN(ms) ? null : ms;
+  };
+
+  const getReportPeriodRange = (type: string): { start: Date; end: Date } => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    if (type === "daily") {
+      return { start, end };
+    }
+
+    if (type === "weekly") {
+      start.setDate(start.getDate() - start.getDay());
+      return { start, end };
+    }
+
+    if (type === "monthly") {
+      start.setDate(1);
+      return { start, end };
+    }
+
+    if (type === "yearly") {
+      start.setMonth(0, 1);
+      return { start, end };
+    }
+
+    return { start, end };
+  };
+
+  const isInReportPeriod = (ms: number, type: string) => {
+    const { start, end } = getReportPeriodRange(type);
+    return ms >= start.getTime() && ms <= end.getTime();
+  };
+
+  const getReportDateRangeLabel = (type: string) => {
+    const { start, end } = getReportPeriodRange(type);
+    if (type === "daily") {
+      return start.toLocaleDateString();
+    }
+    if (type === "weekly") {
+      return `${start.toLocaleDateString()} – ${end.toLocaleDateString()}`;
+    }
+    if (type === "monthly") {
+      return start.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+    if (type === "yearly") {
+      return String(start.getFullYear());
+    }
+    return start.toLocaleDateString();
+  };
+
   type PeriodKey =
     | { type: "daily"; key: string; label: string; sortKey: string }
     | { type: "weekly"; key: string; label: string; sortKey: string }
@@ -160,12 +219,27 @@ const Reports = () => {
       return { type: "monthly", key: monthKey, label: monthLabel, sortKey: monthKey };
     }
 
+    if (type === "yearly") {
+      const yearKey = String(d.getFullYear());
+      return { type: "monthly", key: yearKey, label: yearKey, sortKey: yearKey };
+    }
+
     return null;
   };
 
-  // No date filtering in Reports: always use all data
-  const filteredSales = sales;
-  const filteredExpenses = expenses;
+  const filteredSales = useMemo(() => {
+    return sales.filter((sale) => {
+      const ms = getSaleTimeMs(sale);
+      return ms !== null && isInReportPeriod(ms, reportType);
+    });
+  }, [sales, reportType]);
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((expense) => {
+      const ms = getExpenseTimeMs(expense);
+      return ms !== null && isInReportPeriod(ms, reportType);
+    });
+  }, [expenses, reportType]);
 
   const barberPeriodSales = useMemo(() => {
     const now = new Date();
@@ -387,6 +461,16 @@ const Reports = () => {
     }));
   }, [salesExpensesByPeriod]);
 
+  const salesExpensesChartData = useMemo(
+    () =>
+      salesExpensesByPeriod.map((row) => ({
+        label: row.label,
+        sales: row.salesRevenue || 0,
+        expenses: row.expenses || 0,
+      })),
+    [salesExpensesByPeriod],
+  );
+
   const barberServiceBreakdown = useMemo(() => {
     const barberMap = new Map<
       string,
@@ -451,32 +535,6 @@ const Reports = () => {
         { revenue: 0, expenses: 0, net: 0 },
       ),
     [salesExpensesByPeriod],
-  );
-
-  const servicePerformanceTotals = useMemo(
-    () =>
-      salesByProduct.reduce(
-        (acc, row) => {
-          acc.quantity += row.quantity || 0;
-          acc.revenue += row.revenue || 0;
-          return acc;
-        },
-        { quantity: 0, revenue: 0 },
-      ),
-    [salesByProduct],
-  );
-
-  const workerPerformanceTotals = useMemo(
-    () =>
-      barberServiceBreakdown.reduce(
-        (acc, row) => {
-          acc.services += row.services || 0;
-          acc.revenue += row.revenue || 0;
-          return acc;
-        },
-        { services: 0, revenue: 0 },
-      ),
-    [barberServiceBreakdown],
   );
 
   const totalLabel = t("total");
@@ -620,7 +678,7 @@ const Reports = () => {
     const margin = 14;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const dateRangeLabel = "All time";
+    const dateRangeLabel = getReportDateRangeLabel(reportType);
 
     addHeader(doc, pageWidth, margin, reportType, dateRangeLabel);
 
@@ -693,14 +751,6 @@ const Reports = () => {
       `rwf ${item.revenue.toLocaleString()}`,
     ]);
 
-    if (serviceRows.length > 0) {
-      serviceRows.push([
-        totalLabel,
-        servicePerformanceTotals.quantity.toString(),
-        `rwf ${servicePerformanceTotals.revenue.toLocaleString()}`,
-      ]);
-    }
-
     yPosition = appendPdfTable(
       doc,
       "Service Performance",
@@ -719,15 +769,6 @@ const Reports = () => {
       row.topServices.join(", ") || "—",
       `rwf ${row.revenue.toLocaleString()}`,
     ]);
-
-    if (workerRows.length > 0) {
-      workerRows.push([
-        totalLabel,
-        workerPerformanceTotals.services.toString(),
-        "—",
-        `rwf ${workerPerformanceTotals.revenue.toLocaleString()}`,
-      ]);
-    }
 
     appendPdfTable(
       doc,
@@ -757,7 +798,7 @@ const Reports = () => {
       ["Report Summary"],
       [""],
       ["Report Type", reportType.charAt(0).toUpperCase() + reportType.slice(1)],
-      ["Date Range", "All time"],
+      ["Date Range", getReportDateRangeLabel(reportType)],
       ["Worker Period", barberPeriod],
       ["Generated", new Date().toLocaleString()],
       [""],
@@ -791,13 +832,6 @@ const Reports = () => {
 
     const serviceHeaders = ["Service", "Quantity", "Revenue"];
     const serviceData = salesByProduct.map((item) => [item.product, item.quantity, item.revenue]);
-    if (serviceData.length > 0) {
-      serviceData.push([
-        totalLabel,
-        servicePerformanceTotals.quantity,
-        servicePerformanceTotals.revenue,
-      ]);
-    }
     XLSX.utils.book_append_sheet(
       workbook,
       XLSX.utils.aoa_to_sheet([serviceHeaders, ...serviceData]),
@@ -811,14 +845,6 @@ const Reports = () => {
       row.topServices.join(", "),
       row.revenue,
     ]);
-    if (workerData.length > 0) {
-      workerData.push([
-        totalLabel,
-        workerPerformanceTotals.services,
-        "",
-        workerPerformanceTotals.revenue,
-      ]);
-    }
     XLSX.utils.book_append_sheet(
       workbook,
       XLSX.utils.aoa_to_sheet([workerHeaders, ...workerData]),
@@ -868,8 +894,11 @@ const Reports = () => {
     reportType === "daily"
       ? t("day")
       : reportType === "weekly"
-      ? t("week")
-      : t("month");
+        ? t("week")
+        : reportType === "monthly"
+          ? t("month")
+          : t("periodYear");
+  const reportPeriodLabel = getReportDateRangeLabel(reportType);
   const topBarber = salesByBarber[0];
 
   return (
@@ -879,26 +908,29 @@ const Reports = () => {
         <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                <Label className="text-xs font-normal text-muted-foreground">
+              <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1 sm:flex-row sm:items-center">
+                <Label className="text-xs font-normal text-muted-foreground shrink-0">
                   {t("period")}
                 </Label>
                 <ToggleGroup
                   type="single"
                   value={reportType}
                   onValueChange={(v) => v && setReportType(v)}
-                  className="grid grid-cols-3 gap-1.5 w-full"
-                  variant="outline"
+                  className="flex flex-wrap gap-1.5"
+                  variant="default"
                   size="sm"
                 >
-                  <ToggleGroupItem value="daily" className="h-9 text-xs">
+                  <ToggleGroupItem value="daily" className={periodToggleClass}>
                     {t("day")}
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="weekly" className="h-9 text-xs">
+                  <ToggleGroupItem value="weekly" className={periodToggleClass}>
                     {t("week")}
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="monthly" className="h-9 text-xs">
+                  <ToggleGroupItem value="monthly" className={periodToggleClass}>
                     {t("month")}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="yearly" className={periodToggleClass}>
+                    {t("periodYear")}
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
@@ -923,8 +955,20 @@ const Reports = () => {
             {t("salesExpensesSummary")}
           </h3>
           <p className="mb-3 text-xs text-muted-foreground">
-            {t("revenue")}, {t("expenses")}, {t("net")} · {t("period")}
+            {t("revenue")}, {t("expenses")}, {t("net")} · {reportTypeLabel} · {reportPeriodLabel}
           </p>
+
+          {salesExpensesChartData.length > 0 ? (
+            <SalesExpensesPeriodChart
+              data={salesExpensesChartData}
+              className="mb-6"
+              labelInterval={
+                reportType === "daily"
+                  ? Math.max(0, Math.floor(salesExpensesChartData.length / 12) - 1)
+                  : 0
+              }
+            />
+          ) : null}
 
           {salesExpensesByPeriod.length > 0 ? (
             <>
@@ -1051,7 +1095,7 @@ const Reports = () => {
             {t("profitExpensesChart")}
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
-            {t("profit")} · {t("expenses")} · {reportTypeLabel}
+            {t("profit")} · {t("expenses")} · {reportTypeLabel} · {reportPeriodLabel}
           </p>
           {profitExpensesChartData.length > 0 ? (
             <div className="w-full overflow-x-auto">
@@ -1141,7 +1185,7 @@ const Reports = () => {
               {t("servicePerformance")}
             </h3>
             <p className="mb-3 text-xs text-muted-foreground">
-              {t("topServices")} · {t("revenue")}
+              {t("topServices")} · {t("revenue")} · {reportPeriodLabel}
             </p>
             {salesByProduct.length > 0 ? (
               <>
@@ -1170,15 +1214,6 @@ const Reports = () => {
                         <td className="py-4 px-6 text-sm font-semibold text-gray-700 tabular-nums">{row.revenue.toLocaleString()} rwf</td>
                       </tr>
                     ))}
-                    <tr className="border-t border-gray-200 bg-blue-50/70">
-                      <td className="py-4 px-6 text-sm font-semibold text-gray-800">{totalLabel}</td>
-                      <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums">
-                        {servicePerformanceTotals.quantity.toLocaleString()}
-                      </td>
-                      <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums">
-                        {servicePerformanceTotals.revenue.toLocaleString()} rwf
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
               </DesktopDataTable>
@@ -1192,15 +1227,6 @@ const Reports = () => {
                     </div>
                   </MobileListCard>
                 ))}
-                <MobileListCard className="bg-blue-50/70">
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span className="text-gray-800">{totalLabel}</span>
-                    <div className="text-right tabular-nums">
-                      <div className="text-gray-900">{servicePerformanceTotals.quantity.toLocaleString()} qty</div>
-                      <div className="text-gray-900">{servicePerformanceTotals.revenue.toLocaleString()} rwf</div>
-                    </div>
-                  </div>
-                </MobileListCard>
               </MobileDataList>
               </>
             ) : (
@@ -1223,20 +1249,20 @@ const Reports = () => {
                 type="single"
                 value={barberPeriod}
                 onValueChange={(v) => v && setBarberPeriod(v as any)}
-                className="grid grid-cols-4 gap-1.5"
-                variant="outline"
+                className="flex flex-wrap gap-1.5 shrink-0"
+                variant="default"
                 size="sm"
               >
-                <ToggleGroupItem value="today" className="h-8 px-2 text-[11px]">
+                <ToggleGroupItem value="today" className={periodToggleClass}>
                   {t("periodToday")}
                 </ToggleGroupItem>
-                <ToggleGroupItem value="week" className="h-8 px-2 text-[11px]">
+                <ToggleGroupItem value="week" className={periodToggleClass}>
                   {t("periodWeek")}
                 </ToggleGroupItem>
-                <ToggleGroupItem value="month" className="h-8 px-2 text-[11px]">
+                <ToggleGroupItem value="month" className={periodToggleClass}>
                   {t("periodMonth")}
                 </ToggleGroupItem>
-                <ToggleGroupItem value="year" className="h-8 px-2 text-[11px]">
+                <ToggleGroupItem value="year" className={periodToggleClass}>
                   {t("periodYear")}
                 </ToggleGroupItem>
               </ToggleGroup>
@@ -1303,16 +1329,6 @@ const Reports = () => {
                         </td>
                       </tr>
                     ))}
-                    <tr className="border-t border-gray-200 bg-blue-50/70">
-                      <td className="py-4 px-6 text-sm font-semibold text-gray-800">{totalLabel}</td>
-                      <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums">
-                        {workerPerformanceTotals.services.toLocaleString()}
-                      </td>
-                      <td className="py-4 px-6 text-sm text-gray-500">—</td>
-                      <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums text-right">
-                        {workerPerformanceTotals.revenue.toLocaleString()} rwf
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
               </DesktopDataTable>
@@ -1334,15 +1350,6 @@ const Reports = () => {
                     ) : null}
                   </MobileListCard>
                 ))}
-                <MobileListCard className="bg-blue-50/70">
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span className="text-gray-800">{totalLabel}</span>
-                    <div className="text-right tabular-nums">
-                      <div className="text-gray-900">{workerPerformanceTotals.services.toLocaleString()} services</div>
-                      <div className="text-gray-900">{workerPerformanceTotals.revenue.toLocaleString()} rwf</div>
-                    </div>
-                  </div>
-                </MobileListCard>
               </MobileDataList>
               </>
             ) : (

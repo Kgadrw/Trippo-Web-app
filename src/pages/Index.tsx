@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
+import { SalesExpenseGauge } from "@/components/dashboard/SalesExpenseGauge";
+import { RecentSalesTable } from "@/components/dashboard/RecentSalesTable";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -18,38 +20,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Eye, EyeOff, X, Check, ChevronsUpDown, Search, Clock, FileText, Settings, UserRound, Wallet, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Clock, FileText, UserRound, Wallet, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "@/components/ui/sonner";
 import { useApi } from "@/hooks/useApi";
-import { playSaleBeep, playErrorBeep, playWarningBeep, initAudio } from "@/lib/sound";
+import { playSaleBeep, playErrorBeep } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useOffline } from "@/hooks/useOffline";
 import { formatDateWithTime } from "@/lib/utils";
-import { formatStockDisplay } from "@/lib/stockFormatter";
 import { MobileNumberPad } from "@/components/mobile/MobileNumberPad";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { computeProductSaleMetrics } from "@/lib/saleCalculations";
 
 interface Product {
   id?: number;
@@ -84,13 +70,6 @@ interface Sale {
   workerName?: string;
 }
 
-interface Client {
-  id?: number;
-  _id?: string;
-  name: string;
-  clientType?: "debtor" | "worker" | "other";
-}
-
 interface Expense {
   id?: number;
   _id?: string;
@@ -99,15 +78,6 @@ interface Expense {
   date: string;
   category?: string;
   note?: string;
-}
-
-interface BulkSaleFormData {
-  product: string;
-  quantity: string;
-  sellingPrice: string;
-  paymentMethod: string;
-  saleDate: string;
-  workerId: string;
 }
 
 type RevenuePeriod = "today" | "week" | "month" | "year";
@@ -126,6 +96,27 @@ function getSaleTimeMs(sale: Sale): number | null {
     if (!isNaN(t)) return t;
   }
   return null;
+}
+
+function getExpenseTimeMs(expense: Expense): number | null {
+  if (!expense?.date) return null;
+  const d = expense.date;
+  if (typeof d === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const t = new Date(`${d}T12:00:00`).getTime();
+      return isNaN(t) ? null : t;
+    }
+    const t = new Date(d).getTime();
+    if (!isNaN(t)) return t;
+  }
+  const t = new Date(d as string | number).getTime();
+  return isNaN(t) ? null : t;
+}
+
+function endOfLocalDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
 }
 
 function startOfLocalDay(d: Date): Date {
@@ -155,217 +146,147 @@ function getPeriodStart(period: RevenuePeriod, now: Date): Date {
   }
 }
 
-function getProductId(p: Product) {
-  return String((p as { _id?: string; id?: number })._id ?? p.id ?? "");
+function getPreviousPeriodBounds(
+  period: RevenuePeriod,
+  now: Date,
+): { startMs: number; endMs: number } {
+  switch (period) {
+    case "today": {
+      const day = startOfLocalDay(now);
+      day.setDate(day.getDate() - 1);
+      const end = new Date(day);
+      end.setHours(23, 59, 59, 999);
+      return { startMs: day.getTime(), endMs: end.getTime() };
+    }
+    case "week": {
+      const thisWeekStart = startOfWeekMonday(now);
+      const prevWeekEnd = new Date(thisWeekStart.getTime() - 1);
+      prevWeekEnd.setHours(23, 59, 59, 999);
+      const prevWeekStart = startOfWeekMonday(prevWeekEnd);
+      return { startMs: prevWeekStart.getTime(), endMs: prevWeekEnd.getTime() };
+    }
+    case "month": {
+      const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return { startMs: prevMonthStart.getTime(), endMs: prevMonthEnd.getTime() };
+    }
+    case "year": {
+      const prevYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const prevYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      return { startMs: prevYearStart.getTime(), endMs: prevYearEnd.getTime() };
+    }
+  }
+}
+
+function computeStatsForRange(
+  sales: Sale[],
+  expenses: Expense[],
+  startMs: number,
+  endMs: number,
+) {
+  const filteredSales = sales.filter((sale) => {
+    const t = getSaleTimeMs(sale);
+    return t !== null && t >= startMs && t <= endMs;
+  });
+  const filteredExpenses = expenses.filter((expense) => {
+    const t = getExpenseTimeMs(expense);
+    return t !== null && t >= startMs && t <= endMs;
+  });
+
+  const totalItems = filteredSales.reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0);
+  const totalRevenue = filteredSales.reduce((sum, sale) => sum + (Number(sale.revenue) || 0), 0);
+  const grossProfit = filteredSales.reduce((sum, sale) => sum + (Number(sale.profit) || 0), 0);
+  const totalExpenses = filteredExpenses.reduce(
+    (sum, expense) => sum + (Number(expense.amount) || 0),
+    0,
+  );
+
+  return {
+    salesCount: filteredSales.length,
+    expensesCount: filteredExpenses.length,
+    totalItems,
+    totalRevenue,
+    totalExpenses,
+    totalProfit: grossProfit - totalExpenses,
+  };
+}
+
+export type KpiTrendDisplay = {
+  value: string;
+  positive: boolean;
+  flat: boolean;
+  hasComparison: boolean;
+  comparisonLabel?: string;
+};
+
+function formatKpiTrend(current: number, previous: number): KpiTrendDisplay {
+  const cur = Number.isFinite(current) ? current : 0;
+  const prev = Number.isFinite(previous) ? previous : 0;
+
+  // No prior-period baseline ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â first use or no historical activity to compare against.
+  if (prev === 0) {
+    return {
+      value: "0%",
+      positive: true,
+      flat: true,
+      hasComparison: false,
+    };
+  }
+
+  // Had prior activity but none in the current period ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a real decline.
+  if (cur === 0) {
+    return {
+      value: "-100%",
+      positive: false,
+      flat: false,
+      hasComparison: true,
+    };
+  }
+
+  const change = ((cur - prev) / Math.abs(prev)) * 100;
+  const rounded = Math.round(change);
+
+  if (rounded === 0) {
+    return {
+      value: "0%",
+      positive: true,
+      flat: true,
+      hasComparison: true,
+    };
+  }
+
+  const sign = rounded > 0 ? "+" : "";
+  return {
+    value: `${sign}${rounded}%`,
+    positive: rounded > 0,
+    flat: false,
+    hasComparison: true,
+  };
+}
+
+function withComparisonLabel(
+  trend: KpiTrendDisplay,
+  comparisonLabel: string,
+): KpiTrendDisplay {
+  return { ...trend, comparisonLabel };
+}
+
+function getComparisonLabel(period: RevenuePeriod, t: (key: string) => string) {
+  switch (period) {
+    case "today":
+      return t("vsYesterday");
+    case "week":
+      return t("vsLastWeek");
+    case "month":
+      return t("vsLastMonth");
+    case "year":
+      return t("vsLastYear");
+  }
 }
 
 function isServiceItem(p: Product) {
   return (p.category || "").toLowerCase() === "service";
 }
-
-// Product Combobox Component
-interface ProductComboboxProps {
-  value: string;
-  onValueChange: (value: string) => void;
-  products: Product[];
-  placeholder?: string;
-  className?: string;
-  onError?: (message: string) => void;
-  excludeServices?: boolean;
-  serviceBadgeLabel?: string;
-}
-
-const ProductCombobox = ({
-  value,
-  onValueChange,
-  products,
-  placeholder = "Search products and services...",
-  className,
-  onError,
-  excludeServices = false,
-  serviceBadgeLabel = "Service",
-}: ProductComboboxProps) => {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredProducts = useMemo(() => {
-    const available = products.filter((product) => {
-      if (excludeServices && isServiceItem(product)) return false;
-      return isServiceItem(product) || product.stock > 0;
-    });
-
-    if (!searchQuery) return available;
-    const query = searchQuery.toLowerCase();
-    return available.filter(
-      (product) =>
-        product.name.toLowerCase().includes(query) ||
-        (product.category || "").toLowerCase().includes(query) ||
-        (product.productType && product.productType.toLowerCase().includes(query))
-    );
-  }, [products, searchQuery, excludeServices]);
-
-  const selectedProduct = products.find((p) => getProductId(p) === value);
-
-  useEffect(() => {
-    if (value && products.length > 0) {
-      const currentProduct = products.find((p) => getProductId(p) === value);
-      if (currentProduct && !isServiceItem(currentProduct) && currentProduct.stock <= 0) {
-        onValueChange("");
-        setSearchQuery("");
-        if (onError) {
-          onError(`${currentProduct.name} ${t("productOutOfStockRemovedSuffix")}`);
-        }
-      }
-    }
-  }, [value, products, onValueChange, onError]);
-
-  const displayProduct =
-    selectedProduct && (isServiceItem(selectedProduct) || selectedProduct.stock > 0)
-      ? selectedProduct
-      : null;
-
-  return (
-    <div className="relative h-full w-full">
-      <Popover open={open} onOpenChange={setOpen} modal={false}>
-        <PopoverTrigger asChild>
-          <div className="relative h-full" onClick={(e) => e.stopPropagation()}>
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <Input
-              type="text"
-              value={displayProduct ? displayProduct.name : searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (!open) setOpen(true);
-                if (e.target.value === "") {
-                  onValueChange("");
-                }
-              }}
-              onFocus={(e) => {
-                e.stopPropagation();
-                setOpen(true);
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(true);
-              }}
-              placeholder={placeholder}
-              className={cn("input-field h-full pl-10 pr-10 cursor-text", className)}
-            />
-            {displayProduct && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onValueChange("");
-                  setSearchQuery("");
-                  setOpen(true);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-            {!displayProduct && (
-              <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            )}
-          </div>
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-[var(--radix-popover-trigger-width)] p-0" 
-          align="start"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          onInteractOutside={(e) => {
-            // Prevent closing when clicking on the input
-            const target = e.target as HTMLElement;
-            if (target.closest('[role="combobox"]') || target.closest('.relative')) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <Command shouldFilter={false}>
-            <CommandList>
-              <CommandEmpty>{t("noProducts")}</CommandEmpty>
-              <CommandGroup>
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => {
-                    const pid = getProductId(product);
-                    const isService = isServiceItem(product);
-                    return (
-                    <CommandItem
-                      key={pid}
-                      value={`${product.name} ${product.category} ${product.productType || ""}`}
-                      onSelect={() => {
-                        if (isService || product.stock > 0) {
-                          onValueChange(pid);
-                          setOpen(false);
-                          setSearchQuery("");
-                        } else if (onError) {
-                          onError(`${product.name} ${t("productOutOfStockCannotSellSuffix")}`);
-                        }
-                      }}
-                      disabled={!isService && product.stock <= 0}
-                      className={cn(
-                        "flex items-center justify-between",
-                        !isService && product.stock <= 0 && "opacity-50 cursor-not-allowed"
-                      )}
-                    >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4 shrink-0",
-                            value === pid ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="truncate font-medium">{product.name}</span>
-                            {isService && (
-                              <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
-                                {serviceBadgeLabel}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {!isService && <span>{product.category}</span>}
-                            {product.productType && (
-                              <>
-                                {!isService && <span>•</span>}
-                                <span>{product.productType}</span>
-                              </>
-                            )}
-                            {product.isPackage && (
-                              <>
-                                <span>•</span>
-                                <span className="flex items-center gap-1">
-                                  <Package size={10} />
-                                  {t("boxOf").replace("{qty}", String(product.packageQuantity))}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right text-sm font-semibold ml-2">
-                          rwf {product.sellingPrice.toLocaleString()}
-                        </div>
-                      </div>
-                    </CommandItem>
-                    );
-                  })
-                ) : (
-                  <CommandEmpty>{t("noProductsSearchHint")}</CommandEmpty>
-                )}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-};
 
 const Dashboard = () => {
   const { t, language } = useTranslation();
@@ -402,7 +323,6 @@ const Dashboard = () => {
     items: products,
     isLoading: productsLoading,
     refresh: refreshProducts,
-    update: updateProduct,
   } = useApi<Product>({
     endpoint: "products",
     defaultValue: [],
@@ -414,11 +334,7 @@ const Dashboard = () => {
   const {
     items: sales,
     isLoading: salesLoading,
-    add: addSale,
-    bulkAdd: bulkAddSales,
     refresh: refreshSales,
-    reloadFromIndexedDB: reloadSalesFromIndexedDB,
-    setItems: setSales,
   } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
@@ -427,12 +343,8 @@ const Dashboard = () => {
       console.error("Error with sales:", error);
     },
   });
-  const { items: expenses, add: addExpense, refresh: refreshExpenses } = useApi<Expense>({
+  const { items: expenses, add: addExpense, refresh: refreshExpenses, isLoading: expensesLoading } = useApi<Expense>({
     endpoint: "expenses",
-    defaultValue: [],
-  });
-  const { items: clients } = useApi<Client>({
-    endpoint: "clients",
     defaultValue: [],
   });
   const [expensePresets, setExpensePresets] = useState<Array<{ title: string; amount?: number }>>(() => {
@@ -579,6 +491,15 @@ const Dashboard = () => {
     // Note: useApi hook will handle the actual refresh via the event listener
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount, not when refresh functions change
+
+  // Keep gauge in sync when expenses change on other pages
+  useEffect(() => {
+    const handleExpensesRefresh = () => {
+      void refreshExpenses(true);
+    };
+    window.addEventListener("expenses-should-refresh", handleExpensesRefresh);
+    return () => window.removeEventListener("expenses-should-refresh", handleExpensesRefresh);
+  }, [refreshExpenses]);
   
   // Get today's date in YYYY-MM-DD format (consistent across all devices)
   const getTodayDate = () => {
@@ -598,90 +519,43 @@ const Dashboard = () => {
   
   // Calculate KPI values from real data - always uses fresh sales data
   const todayStats = useMemo(() => {
-    const today = getTodayDate();
-    
-    // Filter sales for today - handle all date formats consistently
-    const todaySales = sales.filter((sale) => {
-      let saleDate: string;
-      
-      // Prefer timestamp if available (most accurate)
-      if (sale.timestamp) {
-        const dateObj = new Date(sale.timestamp);
-        const year = dateObj.getFullYear();
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        saleDate = `${year}-${month}-${day}`;
-      } else if (typeof sale.date === 'string') {
-        // Handle string dates (ISO format or date-only)
-        if (sale.date.includes('T')) {
-          saleDate = sale.date.split('T')[0];
-        } else {
-          saleDate = sale.date;
-        }
-      } else if (sale.date && typeof sale.date === 'object' && sale.date !== null && 'getFullYear' in sale.date) {
-        // Handle Date-like objects (for backwards compatibility)
-        const dateObj = sale.date as any;
-        const year = dateObj.getFullYear();
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        saleDate = `${year}-${month}-${day}`;
-      } else {
-        // Fallback: try to parse as date
-        const dateObj = new Date(sale.date);
-        if (!isNaN(dateObj.getTime())) {
-          const year = dateObj.getFullYear();
-          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-          const day = String(dateObj.getDate()).padStart(2, '0');
-          saleDate = `${year}-${month}-${day}`;
-        } else {
-          return false; // Invalid date, exclude from today's sales
-        }
-      }
-      
-      return saleDate === today;
-    });
-    
-    const todayExpenses = expenses.filter((expense) => {
-      const d = new Date(expense.date);
-      const expenseDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      return expenseDate === today;
-    });
+    const now = new Date();
+    const startMs = startOfLocalDay(now).getTime();
+    return computeStatsForRange(sales, expenses, startMs, now.getTime());
+  }, [sales, expenses]);
 
-    // Calculate totals from today's sales
-    const totalItems = todaySales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
-    const totalRevenue = todaySales.reduce((sum, sale) => sum + (sale.revenue || 0), 0);
-    const grossProfit = todaySales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
-    const totalExpenses = todayExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
-    const totalProfit = grossProfit - totalExpenses;
-    
-    return { totalItems, totalRevenue, totalProfit };
+  // Today's stats for gauge ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â full local day so dated expenses/sales from DB are included
+  const todayGaugeStats = useMemo(() => {
+    const now = new Date();
+    const startMs = startOfLocalDay(now).getTime();
+    const endMs = endOfLocalDay(now).getTime();
+    return computeStatsForRange(sales, expenses, startMs, endMs);
+  }, [sales, expenses]);
+
+  const yesterdayStats = useMemo(() => {
+    const now = new Date();
+    const { startMs, endMs } = getPreviousPeriodBounds("today", now);
+    return computeStatsForRange(sales, expenses, startMs, endMs);
   }, [sales, expenses]);
 
   const [mobileRevenuePeriod, setMobileRevenuePeriod] = useState<RevenuePeriod>("today");
 
   const mobilePeriodStats = useMemo(() => {
     const now = new Date();
-    const start = getPeriodStart(mobileRevenuePeriod, now);
-    const startMs = start.getTime();
-    const endMs = now.getTime();
-
-    const filtered = sales.filter((sale) => {
-      const t = getSaleTimeMs(sale);
-      if (t === null) return false;
-      return t >= startMs && t <= endMs;
-    });
-    const filteredExpenses = expenses.filter((expense) => {
-      const t = new Date(expense.date).getTime();
-      if (isNaN(t)) return false;
-      return t >= startMs && t <= endMs;
-    });
-
-    const totalRevenue = filtered.reduce((sum, s) => sum + (s.revenue || 0), 0);
-    const grossProfit = filtered.reduce((sum, s) => sum + (s.profit || 0), 0);
-    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const totalProfit = grossProfit - totalExpenses;
-    return { totalRevenue, totalProfit };
+    const startMs = getPeriodStart(mobileRevenuePeriod, now).getTime();
+    return computeStatsForRange(sales, expenses, startMs, now.getTime());
   }, [sales, expenses, mobileRevenuePeriod]);
+
+  const mobilePreviousPeriodStats = useMemo(() => {
+    const now = new Date();
+    const { startMs, endMs } = getPreviousPeriodBounds(mobileRevenuePeriod, now);
+    return computeStatsForRange(sales, expenses, startMs, endMs);
+  }, [sales, expenses, mobileRevenuePeriod]);
+
+  const mobileComparisonLabel = useMemo(
+    () => getComparisonLabel(mobileRevenuePeriod, t),
+    [mobileRevenuePeriod, t],
+  );
 
   const mobileRevenueProfitLabels = useMemo(() => {
     switch (mobileRevenuePeriod) {
@@ -697,39 +571,11 @@ const Dashboard = () => {
   }, [mobileRevenuePeriod, t]);
   
   const serviceStats = useMemo(() => {
-    const services = products.filter((p) => (p.category || "").toLowerCase() === "service");
+    const services = products.filter((p) => isServiceItem(p));
     return { totalServices: services.length };
   }, [products]);
 
-  const workers = useMemo(
-    () => clients.filter((c) => c.clientType === "worker"),
-    [clients],
-  );
-
-  // Get today's recent sales (last 10, sorted by date descending)
-  const recentSales = useMemo(() => {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    const startMs = startOfToday.getTime();
-    const endMs = endOfToday.getTime();
-
-    return [...sales]
-      .filter((s) => {
-        const t = getSaleTimeMs(s);
-        if (t === null) return false;
-        return t >= startMs && t <= endMs;
-      })
-      .sort((a, b) => {
-        const dateA = new Date(a.timestamp || a.date).getTime();
-        const dateB = new Date(b.timestamp || b.date).getTime();
-        return dateB - dateA; // Most recent first
-      })
-      .slice(0, 10);
-  }, [sales]);
-
-  const recentMobileActivity = useMemo(() => {
+  const recentActivity = useMemo(() => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date();
@@ -744,140 +590,34 @@ const Dashboard = () => {
         return t >= startMs && t <= endMs;
       })
       .map((sale) => ({
-      id: `sale-${(sale as any)._id || sale.id || Math.random()}`,
-      type: "sale" as const,
-      title: sale.product,
-      amount: sale.revenue || 0,
-      date: sale.timestamp || sale.date,
-      meta: sale.paymentMethod || "",
-    }));
+        id: `sale-${(sale as any)._id || sale.id || Math.random()}`,
+        type: "sale" as const,
+        title: sale.serviceName || sale.product,
+        subtitle: sale.workerName || "",
+        amount: sale.revenue || 0,
+        date: sale.timestamp || sale.date,
+        meta: sale.paymentMethod || "",
+      }));
 
     const expenseEntries = expenses
       .filter((e) => {
-        const t = new Date(e.date).getTime();
-        if (isNaN(t)) return false;
+        const t = getExpenseTimeMs(e);
+        if (t === null) return false;
         return t >= startMs && t <= endMs;
       })
       .map((expense) => ({
-      id: `expense-${(expense as any)._id || expense.id || Math.random()}`,
-      type: "expense" as const,
-      title: expense.title,
-      amount: expense.amount || 0,
-      date: expense.date,
-      meta: expense.category || "",
-    }));
+        id: `expense-${(expense as any)._id || expense.id || Math.random()}`,
+        type: "expense" as const,
+        title: expense.title,
+        amount: expense.amount || 0,
+        date: expense.date,
+        meta: expense.category || "",
+      }));
 
     return [...saleEntries, ...expenseEntries]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 20);
   }, [sales, expenses]);
-
-  // Track if sale recording is in progress (for button disabling)
-  const [isRecordingSale, setIsRecordingSale] = useState(false);
-
-  // === Poll-until-found mechanism for Recent Sales ===
-  // After recording a sale, poll the backend until the new sale appears in the list
-  const [isWaitingForSale, setIsWaitingForSale] = useState(false);
-  const pendingSaleRef = useRef<{ product: string; timestamp: string } | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Stop polling and clear all timers
-  const stopPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    if (pollTimeoutRef.current) {
-      clearTimeout(pollTimeoutRef.current);
-      pollTimeoutRef.current = null;
-    }
-    pendingSaleRef.current = null;
-    setIsWaitingForSale(false);
-  }, []);
-
-  // Check if the pending sale has appeared in the sales list
-  useEffect(() => {
-    if (!pendingSaleRef.current || !isWaitingForSale) return;
-
-    const pending = pendingSaleRef.current;
-    const pendingTime = new Date(pending.timestamp).getTime();
-
-    // Look for a sale matching product name with a timestamp within 60s of the recorded one
-    const found = sales.some((sale) => {
-      if (sale.product !== pending.product) return false;
-      const saleTime = new Date(sale.timestamp || sale.date).getTime();
-      return Math.abs(saleTime - pendingTime) < 60000; // within 60 seconds
-    });
-
-    if (found) {
-      console.log('[Dashboard] New sale found in list - stopping poll');
-      stopPolling();
-    }
-  }, [sales, isWaitingForSale, stopPolling]);
-
-  // Start polling for the new sale
-  const startPollingForSale = useCallback((saleDetail: { product: string; timestamp: string }) => {
-    // Clear any existing poll
-    stopPolling();
-
-    pendingSaleRef.current = saleDetail;
-    setIsWaitingForSale(true);
-
-    // First immediate refresh
-    refreshSales(true);
-
-    // Poll every 1.5s
-    pollIntervalRef.current = setInterval(() => {
-      console.log('[Dashboard] Polling for new sale...');
-      refreshSales(true);
-    }, 1500);
-
-    // Safety timeout: stop polling after 15s regardless
-    pollTimeoutRef.current = setTimeout(() => {
-      console.log('[Dashboard] Poll timeout reached - stopping');
-      stopPolling();
-    }, 15000);
-  }, [refreshSales, stopPolling]);
-
-  // Clean up timers on unmount
-  useEffect(() => {
-    return () => {
-      stopPolling();
-    };
-  }, [stopPolling]);
-
-  // Listen for sale-recorded events and start polling
-  useEffect(() => {
-    const handleSaleRecorded = (event: CustomEvent) => {
-      const sale = event.detail?.sale;
-      if (sale) {
-        console.log('[Dashboard] Sale recorded - start polling until it appears in list');
-        startPollingForSale({
-          product: sale.product,
-          timestamp: sale.timestamp || sale.date || new Date().toISOString(),
-        });
-      } else {
-        // No sale detail, just do a one-time refresh
-        refreshSales(true);
-      }
-    };
-
-    const handleSalesShouldRefresh = () => {
-      // If already polling, let it continue; otherwise just refresh
-      if (!isWaitingForSale) {
-        refreshSales(true);
-      }
-    };
-
-    window.addEventListener('sale-recorded', handleSaleRecorded as EventListener);
-    window.addEventListener('sales-should-refresh', handleSalesShouldRefresh as EventListener);
-
-    return () => {
-      window.removeEventListener('sale-recorded', handleSaleRecorded as EventListener);
-      window.removeEventListener('sales-should-refresh', handleSalesShouldRefresh as EventListener);
-    };
-  }, [refreshSales, startPollingForSale, isWaitingForSale]);
 
   // Listen for products updates from other pages (Products page, AddProduct, etc.)
   useEffect(() => {
@@ -910,659 +650,7 @@ const Dashboard = () => {
     };
   }, [refreshProducts]);
 
-  const [isBulkMode, setIsBulkMode] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [sellingPrice, setSellingPrice] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [saleDate, setSaleDate] = useState(getTodayDate());
   const [saleModalOpen, setSaleModalOpen] = useState(false);
-  const [packageSaleMode, setPackageSaleMode] = useState<"quantity" | "wholePackage">("quantity"); // For package products: sell by quantity or whole package
-  const [selectedWorkerId, setSelectedWorkerId] = useState("");
-  const [bulkSales, setBulkSales] = useState<BulkSaleFormData[]>([
-    { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" }
-  ]);
-
-  // Sync sale date with today's date on component mount
-  useEffect(() => {
-    setSaleDate(getTodayDate());
-    setPaymentMethod("cash"); // Set default payment method to cash
-  }, []);
-
-  const selectedSaleItem = useMemo(() => {
-    if (!selectedProduct) return null;
-    return products.find((p) => getProductId(p) === selectedProduct) ?? null;
-  }, [selectedProduct, products]);
-
-  const isSelectedService = selectedSaleItem ? isServiceItem(selectedSaleItem) : false;
-
-  const serviceBadgeLabel = t("serviceBadge");
-
-  // Clear selected product if it becomes out of stock (services are exempt)
-  useEffect(() => {
-    if (selectedProduct) {
-      const product = products.find((p) => getProductId(p) === selectedProduct);
-      if (product && !isServiceItem(product) && product.stock <= 0) {
-        setSelectedProduct("");
-        setSellingPrice("");
-        setSelectedWorkerId("");
-        playWarningBeep();
-        toast({
-          title: t("productOutOfStock"),
-          description: `${product.name} ${t("productOutOfStockRemovedSuffix")}`,
-          variant: "destructive",
-        });
-      }
-    }
-  }, [products, selectedProduct, t, toast]);
-
-  // Calculate selling price based on product priceType and sale mode
-  const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
-    if (!product.isPackage || !product.packageQuantity) {
-      // Regular product - use selling price as is
-      return product.sellingPrice;
-    }
-    
-    if (product.priceType === "perQuantity") {
-      // Price is per individual item
-      if (saleMode === "wholePackage") {
-        // Selling whole package: multiply by package quantity
-        return product.sellingPrice * product.packageQuantity;
-      } else {
-        // Selling by quantity: use price as is (per item)
-        return product.sellingPrice;
-      }
-    } else {
-      // priceType === "perPackage" - Price is for whole package
-      if (saleMode === "wholePackage") {
-        // Selling whole package: use price as is
-        return product.sellingPrice;
-      } else {
-        // Selling by quantity: divide by package quantity to get price per item
-        return product.sellingPrice / product.packageQuantity;
-      }
-    }
-  };
-
-  const handleProductChange = (productId: string) => {
-    const product = products.find((p) => getProductId(p) === productId);
-
-    if (product && !isServiceItem(product) && product.stock <= 0) {
-      playErrorBeep();
-      toast({
-        title: t("productOutOfStock"),
-        description: `${product.name} ${t("productOutOfStockCannotSellSuffix")}`,
-        variant: "destructive",
-      });
-      setSelectedProduct("");
-      setSellingPrice("");
-      setSelectedWorkerId("");
-      return;
-    }
-
-    setSelectedProduct(productId);
-    if (product) {
-      if (isServiceItem(product)) {
-        setQuantity("1");
-        setSellingPrice(String(product.sellingPrice || ""));
-        setPackageSaleMode("quantity");
-        return;
-      }
-      setSelectedWorkerId("");
-      if (product.isPackage) {
-        setPackageSaleMode("quantity");
-      }
-      const calculatedPrice = calculateSellingPrice(product, product.isPackage ? "quantity" : "quantity");
-      setSellingPrice(calculatedPrice.toString());
-    } else {
-      setSellingPrice("");
-      setSelectedWorkerId("");
-    }
-  };
-
-  // Update selling price when sale mode changes for package products
-  useEffect(() => {
-    if (selectedProduct) {
-      const product = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === selectedProduct;
-      });
-      
-      if (product && product.isPackage && product.packageQuantity) {
-        const calculatedPrice = calculateSellingPrice(product, packageSaleMode);
-        setSellingPrice(calculatedPrice.toString());
-      }
-    }
-  }, [packageSaleMode, selectedProduct, products]);
-
-  const addBulkRow = () => {
-    setBulkSales([
-      ...bulkSales,
-      { product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" },
-    ]);
-  };
-
-  const removeBulkRow = (index: number) => {
-    if (bulkSales.length > 1) {
-      setBulkSales(bulkSales.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateBulkSale = (index: number, field: keyof BulkSaleFormData, value: string) => {
-    const updated = [...bulkSales];
-    updated[index] = { ...updated[index], [field]: value };
-    
-    // Auto-fill selling price when product is selected
-    if (field === "product" && value) {
-      const product = products.find((p) => getProductId(p) === value);
-      if (product) {
-        updated[index].sellingPrice = product.sellingPrice.toString();
-        if (isServiceItem(product)) {
-          updated[index].quantity = "1";
-        } else {
-          updated[index].workerId = "";
-        }
-      }
-    }
-
-    setBulkSales(updated);
-  };
-
-  const salePreview = useMemo(() => {
-    if (!selectedProduct || !sellingPrice.trim()) return null;
-    const product = products.find((p) => getProductId(p) === selectedProduct);
-    if (!product || isServiceItem(product)) return null;
-    const isWholePkg = packageSaleMode === "wholePackage" && !!(product.isPackage && product.packageQuantity);
-    if (!isWholePkg) {
-      const q = parseInt(quantity, 10);
-      if (!quantity.trim() || isNaN(q) || q <= 0) return null;
-    }
-    const m = computeProductSaleMetrics(
-      product,
-      { quantityStr: quantity, sellingPriceStr: sellingPrice, packageSaleMode },
-      { skipStockCheck: true }
-    );
-    if (!m.ok) return null;
-    return { product, metrics: m };
-  }, [selectedProduct, quantity, sellingPrice, packageSaleMode, products]);
-
-  const handleRecordSale = async () => {
-    // Prevent duplicate submissions
-    if (isRecordingSale) {
-      return;
-    }
-
-    // Initialize audio immediately on button click (user interaction ensures audio works)
-    initAudio();
-
-    // Set loading state
-    setIsRecordingSale(true);
-
-    try {
-    if (isBulkMode) {
-      // Bulk add mode
-      // Validate all bulk sales before creating them
-      const invalidSales: string[] = [];
-      const salesToCreate = bulkSales
-        .filter((sale) => {
-          if (!sale.product.trim() || !sale.sellingPrice) return false;
-          const product = products.find((p) => getProductId(p) === sale.product);
-          if (!product) return false;
-          if (isServiceItem(product)) return !!sale.workerId;
-          return !!sale.quantity;
-        })
-        .map((sale) => {
-          const product = products.find((p) => getProductId(p) === sale.product);
-          if (!product) return null;
-
-          const now = new Date();
-          let saleDateTime: Date;
-          if (sale.saleDate) {
-            const selectedDate = new Date(sale.saleDate + "T00:00:00");
-            saleDateTime = new Date(selectedDate);
-            saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-          } else {
-            saleDateTime = now;
-          }
-
-          if (isServiceItem(product)) {
-            const worker = workers.find(
-              (w) => String((w as { _id?: string; id?: number })._id ?? w.id ?? "") === sale.workerId,
-            );
-            if (!worker) {
-              invalidSales.push(`${product.name}: ${t("workerRequired")}`);
-              return null;
-            }
-            const price = parseFloat(sale.sellingPrice) || 0;
-            if (price <= 0) {
-              invalidSales.push(`${product.name}: ${t("invalidPriceShort")}`);
-              return null;
-            }
-            return {
-              product: product.name,
-              quantity: 1,
-              revenue: price,
-              cost: 0,
-              profit: 0,
-              date: saleDateTime.toISOString(),
-              timestamp: new Date().toISOString(),
-              paymentMethod: sale.paymentMethod || "cash",
-              saleType: "service" as const,
-              serviceName: product.name,
-              workerId: sale.workerId,
-              workerName: worker.name,
-            };
-          }
-
-          const qty = parseInt(sale.quantity) || 1;
-          if (isNaN(qty) || qty <= 0) {
-            invalidSales.push(`${product.name}: ${t("invalidQuantityShort")}`);
-            return null;
-          }
-          if (qty > product.stock || product.stock <= 0) {
-            const itemWord = product.stock === 1 ? t("itemSingular") : t("itemsPlural");
-            invalidSales.push(
-              `${product.name}: ${t("onlyItemsAvailable").replace("{stock}", String(product.stock)).replace("{items}", itemWord)}`,
-            );
-            return null;
-          }
-
-          const price = parseFloat(sale.sellingPrice) || 0;
-          const revenue = qty * price;
-          const cost = qty * Number(product.costPrice ?? 0);
-          const profit = revenue - cost;
-
-          return {
-            product: product.name,
-            productId: product._id || product.id,
-            quantity: qty,
-            revenue,
-            cost,
-            profit,
-            date: saleDateTime.toISOString(),
-            timestamp: new Date().toISOString(),
-            paymentMethod: sale.paymentMethod || "cash",
-          };
-        })
-        .filter((sale): sale is any => sale !== null);
-      
-        // Show error if any sales have insufficient stock
-        if (invalidSales.length > 0) {
-          playErrorBeep();
-          toast({
-            title: t("insufficientStock"),
-            description: t("insufficientStockBulkDesc").replace("{list}", invalidSales.join(", ")),
-            variant: "destructive",
-          });
-          setIsRecordingSale(false);
-          return;
-        }
-
-      if (salesToCreate.length > 0) {
-          await bulkAddSales(salesToCreate as any);
-        
-        // Reduce product stock locally immediately for instant UI feedback
-        // Group sales by productId to handle multiple sales of the same product
-        const stockReductions = new Map<string, number>();
-        salesToCreate.forEach((sale: any) => {
-          if (sale.saleType === "service") return;
-          const productId = sale.productId?.toString();
-          if (productId) {
-            const currentReduction = stockReductions.get(productId) || 0;
-            stockReductions.set(productId, currentReduction + sale.quantity);
-          }
-        });
-        
-        // Update each product's stock immediately for instant UI feedback
-        for (const [productId, totalQuantity] of stockReductions.entries()) {
-          try {
-            const product = products.find((p) => {
-              const id = (p as any)._id || p.id;
-              return id.toString() === productId;
-            });
-            if (product) {
-              // Ensure we have the correct ID format
-              const productId = (product as any)._id || product.id;
-              const updatedProduct = {
-                ...product,
-                _id: productId,
-                id: productId,
-                stock: Math.max(0, product.stock - totalQuantity),
-              };
-              // Update via useApi hook (this updates IndexedDB and UI state immediately)
-              await updateProduct(updatedProduct);
-              console.log(`[Dashboard] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-            }
-          } catch (updateError) {
-            // If update fails, log but continue - backend will handle stock reduction
-            console.warn(`Failed to update product stock via API for product ${productId}:`, updateError);
-          }
-        }
-        
-        // Stock is automatically updated via updateProduct above
-        // Dispatch events to automatically notify all components
-        for (const [productId, totalQuantity] of stockReductions.entries()) {
-          const product = products.find((p) => {
-            const id = (p as any)._id || p.id;
-            return id.toString() === productId;
-          });
-          if (product) {
-            window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-              detail: { productId, newStock: Math.max(0, product.stock - totalQuantity) } 
-            }));
-          }
-        }
-        window.dispatchEvent(new CustomEvent('products-should-refresh'));
-        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        // Dispatch sale-recorded event for each sale to trigger immediate refresh
-        salesToCreate.forEach((sale) => {
-          window.dispatchEvent(new CustomEvent('sale-recorded', { 
-            detail: { sale, bulk: true } 
-          }));
-        });
-
-          playSaleBeep();
-
-          // Extra desktop popup using Sonner
-          sonnerToast.success(t("salesRecorded"), {
-            description: t("salesRecordedBulkDesc").replace("{count}", String(salesToCreate.length)),
-          });
-
-          // Reset bulk form
-          setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" }]);
-          setIsBulkMode(false);
-      } else {
-        playWarningBeep();
-        toast({
-          title: t("noSalesRecorded"),
-          description: t("noSalesRecordedDesc"),
-          variant: "destructive",
-        });
-      }
-    } else {
-      // Single sale mode
-      if (!selectedProduct || !sellingPrice || !paymentMethod) {
-        // Play error beep immediately (we're in user interaction context)
-        playErrorBeep();
-        toast({
-          title: t("missingInformation"),
-          description: t("fillAllRequired"),
-          variant: "destructive",
-        });
-        setIsRecordingSale(false);
-        return;
-      }
-
-      const product = products.find((p) => getProductId(p) === selectedProduct);
-      if (!product) {
-        setIsRecordingSale(false);
-        return;
-      }
-
-      if (isServiceItem(product)) {
-        if (!selectedWorkerId) {
-          playErrorBeep();
-          toast({
-            title: t("missingInformation"),
-            description: t("selectServiceWorker"),
-            variant: "destructive",
-          });
-          setIsRecordingSale(false);
-          return;
-        }
-
-        const amount = parseFloat(sellingPrice);
-        if (isNaN(amount) || amount <= 0) {
-          playErrorBeep();
-          toast({
-            title: t("invalidAmount"),
-            description: t("serviceAmountMustBePositive"),
-            variant: "destructive",
-          });
-          setIsRecordingSale(false);
-          return;
-        }
-
-        const worker = workers.find(
-          (w) => String((w as { _id?: string; id?: number })._id ?? w.id ?? "") === selectedWorkerId,
-        );
-        if (!worker) {
-          playErrorBeep();
-          toast({
-            title: t("workerNotFound"),
-            description: t("selectValidWorker"),
-            variant: "destructive",
-          });
-          setIsRecordingSale(false);
-          return;
-        }
-
-        const now = new Date();
-        let saleDateTime: Date;
-        if (saleDate) {
-          const selectedDate = new Date(saleDate + "T00:00:00");
-          saleDateTime = new Date(selectedDate);
-          saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-        } else {
-          saleDateTime = now;
-        }
-
-        const newSale: Sale = {
-          product: product.name,
-          quantity: 1,
-          revenue: amount,
-          cost: 0,
-          profit: 0,
-          date: saleDateTime.toISOString(),
-          timestamp: new Date().toISOString(),
-          paymentMethod,
-          saleType: "service",
-          serviceName: product.name,
-          workerId: selectedWorkerId,
-          workerName: worker.name,
-        };
-
-        await addSale(newSale);
-        playSaleBeep();
-        sonnerToast.success(t("serviceRecorded"), {
-          description: t("serviceRecordedDesc")
-            .replace("{product}", product.name)
-            .replace("{worker}", worker.name)
-            .replace("{amount}", amount.toLocaleString()),
-        });
-
-        setSelectedProduct("");
-        setSelectedWorkerId("");
-        setQuantity("1");
-        setSellingPrice("");
-        setPaymentMethod("cash");
-        setSaleDate(getTodayDate());
-
-        window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: newSale } }));
-        window.dispatchEvent(new CustomEvent("sales-should-refresh"));
-        setIsRecordingSale(false);
-        return;
-      }
-
-      if (!quantity) {
-        playErrorBeep();
-        toast({
-          title: t("missingInformation"),
-          description: t("enterQuantityDesc"),
-          variant: "destructive",
-        });
-        setIsRecordingSale(false);
-        return;
-      }
-
-      const metrics = computeProductSaleMetrics(product, {
-        quantityStr: quantity,
-        sellingPriceStr: sellingPrice,
-        packageSaleMode,
-      });
-      if (metrics.ok === false) {
-        playErrorBeep();
-        if (metrics.code === "invalid_quantity") {
-          toast({
-            title: t("invalidQuantity"),
-            description: t("invalidQuantityDesc"),
-            variant: "destructive",
-          });
-        } else if (metrics.code === "invalid_price") {
-          toast({
-            title: t("invalidPriceShort"),
-            description: t("invalidPriceDesc"),
-            variant: "destructive",
-          });
-        } else {
-          const need =
-            product.isPackage && product.packageQuantity && packageSaleMode === "wholePackage"
-              ? product.packageQuantity
-              : null;
-          const itemWord = product.stock === 1 ? t("itemSingular") : t("itemsPlural");
-          toast({
-            title: t("insufficientStock"),
-            description:
-              need != null
-                ? t("needWholePackageStock")
-                    .replace("{need}", String(need))
-                    .replace("{stock}", String(product.stock))
-                : t("onlyItemsInStock")
-                    .replace("{stock}", String(product.stock))
-                    .replace("{items}", itemWord),
-            variant: "destructive",
-          });
-        }
-        setIsRecordingSale(false);
-        return;
-      }
-
-      const { qty, stockReduction, revenue, cost, profit } = metrics;
-
-      // Combine selected date with current time to preserve hours/minutes/seconds
-      const now = new Date();
-      let saleDateTime: Date;
-      if (saleDate) {
-        // Parse the date string and combine with current time
-        const selectedDate = new Date(saleDate + 'T00:00:00');
-        saleDateTime = new Date(selectedDate);
-        saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-      } else {
-        saleDateTime = now;
-      }
-
-      const newSale = {
-        product: product.name,
-        productId: product._id || product.id,
-        quantity: qty,
-        revenue,
-        cost,
-        profit,
-        date: saleDateTime.toISOString(),
-        timestamp: new Date().toISOString(), // Record exact time when sale was recorded
-        paymentMethod: paymentMethod,
-      };
-
-        await addSale(newSale as any);
-        
-        // Show success immediately (addSale already updates UI)
-        playSaleBeep();
-        sonnerToast.success(t("saleRecorded"), {
-          description: t("saleRecordedDesc")
-            .replace("{qty}", String(qty))
-            .replace("{product}", product.name),
-        });
-
-        // Reset form immediately for better UX
-        setSelectedProduct("");
-        setQuantity("1");
-        setSellingPrice("");
-        setPaymentMethod("cash");
-        setSaleDate(getTodayDate());
-
-        // Dispatch events immediately (non-blocking)
-        const productId = (product as any)._id || product.id;
-        window.dispatchEvent(new CustomEvent('sale-recorded', { 
-          detail: { sale: newSale, productId, stockReduction } 
-        }));
-        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        window.dispatchEvent(new CustomEvent('products-should-refresh'));
-        
-        // Run non-blocking operations in parallel (don't wait for them)
-        // These happen in the background and don't slow down the user experience
-        Promise.all([
-          // Update product stock (non-blocking)
-          (async () => {
-            try {
-              const updatedProduct = {
-                ...product,
-                _id: productId,
-                id: productId,
-                stock: Math.max(0, product.stock - stockReduction),
-              };
-              await updateProduct(updatedProduct);
-              console.log(`[Dashboard] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-              window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-                detail: { productId, newStock: updatedProduct.stock } 
-              }));
-            } catch (updateError) {
-              console.warn("Failed to update product stock via API:", updateError);
-            }
-          })()
-        ]).catch(err => {
-          // Silently handle any errors in background operations
-          console.log('[Dashboard] Background operation error:', err);
-        });
-      }
-      } catch (error: any) {
-        // Get product info for error messages
-        const errorProduct = products.find((p) => {
-          const id = (p as any)._id || p.id;
-          return id.toString() === selectedProduct;
-        });
-        const errorQty = parseInt(quantity) || 0;
-        
-        // Check if it's an offline/connection error
-        if (error?.response?.silent || error?.response?.connectionError || !navigator.onLine) {
-          // Offline mode - treat as success
-          playSaleBeep();
-          sonnerToast.success(t("saleRecordedOffline"), {
-            description: errorProduct
-              ? t("saleRecordedOfflineWithProduct")
-                  .replace("{qty}", String(errorQty))
-                  .replace("{product}", errorProduct.name)
-              : t("saleRecordedOfflineGeneric"),
-          });
-          toast({
-            title: t("saleRecordedOffline"),
-            description: errorProduct
-              ? t("saleRecordedOfflineWithProduct")
-                  .replace("{qty}", String(errorQty))
-                  .replace("{product}", errorProduct.name)
-              : t("saleRecordedOfflineGeneric"),
-          });
-          
-          // Reset form
-          setSelectedProduct("");
-          setQuantity("1");
-          setSellingPrice("");
-          setPaymentMethod("cash");
-          setSaleDate(getTodayDate());
-        } else {
-          // Real error - show error message with details
-          playErrorBeep();
-          console.error("Error recording sale:", error);
-          toast({
-            title: t("recordFailed"),
-            description: error?.message || error?.response?.error || t("recordFailedDesc"),
-            variant: "destructive",
-          });
-        }
-    } finally {
-      // Always reset loading state
-      setIsRecordingSale(false);
-    }
-  };
 
   const handleRecordExpense = async () => {
     if (isSavingExpense) return;
@@ -1593,7 +681,8 @@ const Dashboard = () => {
       await refreshExpenses(true);
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
       playSaleBeep();
-      sonnerToast.success(t("expenseRecorded"), {
+      toast({
+        title: t("expenseRecorded"),
         description: t("expenseRecordedDesc"),
       });
 
@@ -1615,7 +704,7 @@ const Dashboard = () => {
     }
   };
 
-  const isLoading = productsLoading || salesLoading;
+  const isLoading = productsLoading || salesLoading || expensesLoading;
 
   // KPI Card Skeleton Component
   const KPICardSkeleton = ({ hideIcon }: { hideIcon?: boolean } = {}) => (
@@ -1637,7 +726,7 @@ const Dashboard = () => {
 
   // Chart Skeleton Component
   const ChartSkeleton = () => (
-    <div className="lg:bg-white bg-white/80 backdrop-blur-md lg:backdrop-blur-none border border-gray-200 rounded-lg p-4 sm:p-6">
+    <div className="bg-white p-4 sm:p-6">
       <div className="flex items-center gap-2 mb-6">
         <Skeleton className="w-5 h-5 rounded" />
         <Skeleton className="h-6 w-48" />
@@ -1648,7 +737,7 @@ const Dashboard = () => {
 
   // Low Stock Alert Skeleton Component
   const LowStockSkeleton = () => (
-    <div className="kpi-card border border-transparent lg:bg-white bg-white/80 backdrop-blur-md lg:backdrop-blur-none">
+    <div className="kpi-card">
       <div className="flex items-center gap-2 mb-4">
         <Skeleton className="w-10 h-10 rounded" />
         <Skeleton className="h-6 w-32" />
@@ -1668,26 +757,25 @@ const Dashboard = () => {
   );
 
   const mobilePeriodToggleClass = cn(
-    "text-[11px] px-1.5 h-9 font-medium rounded-xl",
-    "border-transparent bg-white/10 text-white/90",
-    "hover:bg-white/15 hover:text-white",
-    "data-[state=on]:bg-white data-[state=on]:text-blue-700 data-[state=on]:border-white",
+    "text-[11px] px-1.5 h-9 font-medium rounded-xl border-0",
+    "bg-transparent text-gray-700",
+    "hover:bg-gray-50",
+    "data-[state=on]:bg-gray-100 data-[state=on]:text-gray-900",
   );
 
   return (
     <AppLayout title={t("dashboard")}>
       {/* Desktop: greeting + date/time (scrolls with page) */}
-      <div className="hidden lg:flex mb-4 items-center justify-between gap-4">
-        <p className="min-w-0 text-[15px] leading-tight">
+      <div className="hidden lg:flex mb-6 -mt-6 items-center justify-between gap-4 pl-4 lg:pl-5">
+        <p className="min-w-0 text-lg leading-tight">
           <span className="text-muted-foreground">{t("hello")}</span>{" "}
-          <span className="font-semibold text-foreground">
+          <span className="font-semibold text-foreground pl-1">
             {greetingName ? greetingName : t("greetingFallback")}
           </span>
         </p>
-        <p className="shrink-0 text-right text-xs leading-tight tabular-nums text-muted-foreground">
-          <span className="font-medium text-foreground">{greetingTime}</span>
-          <span className="mx-1.5 text-border">·</span>
-          {greetingDate}
+        <p className="shrink-0 flex items-center justify-end gap-3 text-sm leading-tight tabular-nums text-muted-foreground">
+          <span className="font-semibold text-foreground">{greetingTime}</span>
+          <span>{greetingDate}</span>
         </p>
       </div>
 
@@ -1701,7 +789,7 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-            <div className="rounded-2xl border border-blue-600/20 bg-gradient-to-r from-blue-700 to-indigo-700 p-2 shadow-sm">
+            <div className="p-2">
             <ToggleGroup
               type="single"
               value={mobileRevenuePeriod}
@@ -1769,11 +857,11 @@ const Dashboard = () => {
       <div className="hidden lg:block mb-6">
         <div className="grid grid-cols-12 gap-4 items-start">
           {/* Left: KPIs + chart (shared background) */}
-          <div className="col-span-9 bg-white border border-gray-200 rounded-xl shadow-sm p-4 space-y-4">
+          <div className="col-span-9 p-4 space-y-4">
         {isLoading ? (
               <>
-          <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
                     <KPICardSkeleton key={i} hideIcon />
             ))}
           </div>
@@ -1784,663 +872,97 @@ const Dashboard = () => {
               </>
         ) : (
               <>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <KPICard
               title={t("servicesToday")}
               value={`${todayStats.totalItems}`}
               subtitle={t("servicesRecorded")}
               icon={ShoppingCart}
                     hideIcon
-                    tone="inverted"
-                    bgColor="bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm rounded-lg"
+              trend={withComparisonLabel(
+                formatKpiTrend(todayStats.totalItems, yesterdayStats.totalItems),
+                t("vsYesterday"),
+              )}
             />
             <KPICard
               title={t("todaysRevenue")}
               value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
               icon={DollarSign}
                     hideIcon
-                    tone="inverted"
-                    bgColor="bg-gradient-to-br from-indigo-600 to-violet-700 border border-indigo-600/30 shadow-sm rounded-lg"
+              valueColor="kpi-value-revenue"
+              trend={withComparisonLabel(
+                formatKpiTrend(todayStats.totalRevenue, yesterdayStats.totalRevenue),
+                t("vsYesterday"),
+              )}
             />
             <KPICard
               title={t("todaysProfit")}
               value={`${todayStats.totalProfit.toLocaleString()} rwf`}
               icon={TrendingUp}
                     hideIcon
-                    tone="inverted"
-                    bgColor={
-                      todayStats.totalProfit >= 0
-                        ? "bg-gradient-to-br from-emerald-600 to-green-700 border border-emerald-600/30 shadow-sm rounded-lg"
-                        : "bg-gradient-to-br from-rose-600 to-red-700 border border-red-600/30 shadow-sm rounded-lg"
-                    }
-            />
-            <KPICard
-              title={t("activeServices")}
-              value={`${serviceStats.totalServices}`}
-              subtitle={t("servicesInSystem")}
-              icon={Package}
-                    hideIcon
-                    tone="inverted"
-                    bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm rounded-lg"
+              valueColor={todayStats.totalProfit >= 0 ? "kpi-value-profit" : "kpi-value-loss"}
+              trend={withComparisonLabel(
+                formatKpiTrend(todayStats.totalProfit, yesterdayStats.totalProfit),
+                t("vsYesterday"),
+              )}
             />
           </div>
 
                 <div className="pt-2">
-                  <SalesTrendChart sales={sales} className="bg-transparent border-0 shadow-none p-0" />
+                  <SalesTrendChart sales={sales} expenses={expenses} className="bg-transparent border-0 shadow-none p-0" />
                 </div>
               </>
             )}
           </div>
 
-          {/* Right: recent activity table */}
-          <div className="col-span-3 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-900">
-                  {t("recentActivity")}
-                </h3>
-              </div>
-              <p className="text-xs text-gray-600 mt-1">
-                {t("salesAndExpenses")}
-              </p>
-            </div>
-
-            {isLoading || salesLoading || isWaitingForSale ? (
-              <div className="p-4 space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : recentMobileActivity.length > 0 ? (
-              <div className="max-h-[420px] overflow-auto">
-                <table className="w-full border-collapse">
-                  <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {t("typeLabel")}
-                      </th>
-                      <th className="text-left text-xs font-semibold text-gray-700 py-3 px-3">
-                        {t("amount")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {recentMobileActivity.slice(0, 7).map((entry, index) => (
-                      <tr key={entry.id || index} className="border-b border-gray-200 last:border-0">
-                        <td className="py-3 px-3">
-                          <div className={cn("text-xs font-semibold", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
-                            {entry.type === "sale" ? t("activitySaleLabel") : t("activityExpenseLabel")}
-                          </div>
-                          <div className="text-xs text-gray-700 truncate max-w-[160px]">{entry.title}</div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className={cn("text-xs font-semibold tabular-nums whitespace-nowrap", entry.type === "sale" ? "text-green-700" : "text-red-700")}>
-                            {entry.type === "sale" ? "+" : "-"}
-                            {Number(entry.amount).toLocaleString()} rwf
-                          </div>
-                          <div className="text-[10px] text-gray-500 whitespace-nowrap">{formatDateWithTime(entry.date)}</div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Right: sales vs expenses speedometer */}
+          <div className="col-span-3 overflow-hidden min-h-[420px]">
+            {isLoading ? (
+              <div className="p-4 space-y-4">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-48 w-full rounded-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
               </div>
             ) : (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                {t("noActivity")}
-              </div>
-            )}
-
-            {recentMobileActivity.length > 7 && (
-              <div className="p-3 border-t border-gray-200">
-                <Button variant="outline" className="w-full" onClick={() => navigate("/sales")}>
-                  {t("viewMoreInSales")}
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Record New Sale Form - Hidden on mobile */}
-      <div className="form-card mb-6 border-transparent bg-blue-500 border-blue-600 hidden lg:block">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="section-title flex items-center gap-2 text-white">
-            <Plus size={20} className="text-white" />
-            {t("recordNewSale")}
-          </h3>
-          <div className="flex gap-2">
-            {!isBulkMode && (
-              <Button
-                onClick={() => setIsBulkMode(true)}
-                className="bg-green-600 text-white hover:bg-green-700 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 gap-2"
-              >
-                <Plus size={16} />
-                {t("bulkAdd")}
-              </Button>
-            )}
-            {isBulkMode && (
-              <Button
-                onClick={() => {
-                  setIsBulkMode(false);
-                  setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate(), workerId: "" }]);
-                }}
-                variant="ghost"
-                className="text-white hover:text-white/80 hover:bg-white/10"
-              >
-                {t("singleSale")}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {isBulkMode ? (
-          /* Bulk Add Form */
-          <div className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-white/90">
-                {t("addMultipleSalesHint")}
-              </p>
-              <Button
-                onClick={addBulkRow}
-                className="bg-blue-500 text-white hover:bg-blue-600 border border-transparent shadow-sm hover:shadow transition-all font-medium px-3 py-2 gap-2"
-              >
-                <Plus size={14} />
-                {t("addRow")}
-              </Button>
-            </div>
-
-            <div className="overflow-x-auto space-y-3">
-              <table className="w-full border-collapse">
-                <tbody>
-                  {bulkSales.map((sale, index) => (
-                    <tr key={index} className="align-top">
-                      <td className="py-2 pr-2 align-top w-[28%] min-w-[140px]">
-                        <ProductCombobox
-                          value={sale.product}
-                          onValueChange={(value) => updateBulkSale(index, "product", value)}
-                          products={products}
-                          serviceBadgeLabel={serviceBadgeLabel}
-                          placeholder={t("searchProductsAndServices")}
-                          className="h-9"
-                          onError={(message) => {
-                            playErrorBeep();
-                            toast({
-                              title: "Product Out of Stock",
-                              description: message,
-                              variant: "destructive",
-                            });
-                          }}
-                        />
-                      </td>
-                      <td className="py-2 pr-2 align-top w-[16%] min-w-[100px]">
-                        {(() => {
-                          const rowProduct = products.find((p) => getProductId(p) === sale.product);
-                          const isBulkService = rowProduct && isServiceItem(rowProduct);
-                          if (isBulkService) {
-                            return (
-                              <Select
-                                value={sale.workerId}
-                                onValueChange={(value) => updateBulkSale(index, "workerId", value)}
-                              >
-                                <SelectTrigger className="input-field h-9 w-full">
-                                  <SelectValue placeholder={t("selectWorker")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {workers.length > 0 ? (
-                                    workers.map((worker) => {
-                                      const workerId = String((worker as { _id?: string; id?: number })._id ?? worker.id ?? "");
-                                      if (!workerId) return null;
-                                      return (
-                                        <SelectItem key={workerId} value={workerId}>
-                                          {worker.name}
-                                        </SelectItem>
-                                      );
-                                    })
-                                  ) : (
-                                    <SelectItem value="__no_worker__" disabled>
-                                      {t("noWorkersFound")}
-                                    </SelectItem>
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            );
-                          }
-                          return (
-                            <>
-                              <Input
-                                type="number"
-                                min="1"
-                                max={rowProduct?.stock || undefined}
-                                value={sale.quantity}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === "") {
-                                    updateBulkSale(index, "quantity", "");
-                                    return;
-                                  }
-                                  const numValue = parseInt(value);
-                                  if (rowProduct && numValue > rowProduct.stock) {
-                                    updateBulkSale(index, "quantity", rowProduct.stock.toString());
-                                    playErrorBeep();
-                                    toast({
-                                      title: t("maximumQuantity"),
-                                      description: `${rowProduct.name}: ${t("onlyItemsInStock")
-                                        .replace("{stock}", String(rowProduct.stock))
-                                        .replace(
-                                          "{items}",
-                                          rowProduct.stock === 1 ? t("itemSingular") : t("itemsPlural"),
-                                        )}`,
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-                                  updateBulkSale(index, "quantity", value);
-                                }}
-                                className="input-field h-9"
-                                placeholder={t("enterQuantity")}
-                              />
-                              {rowProduct && (
-                                <p className="text-xs text-white/80 mt-1">
-                                  {t("stockLabel")}: {rowProduct.stock || 0}
-                                </p>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </td>
-                      <td className="py-2 pr-2 align-top w-[14%] min-w-[90px]">
-                        <Input
-                          type="number"
-                          value={sale.sellingPrice}
-                          onChange={(e) => updateBulkSale(index, "sellingPrice", e.target.value)}
-                          className="input-field h-9"
-                          placeholder={t("enterPrice")}
-                        />
-                        {sale.product && sale.sellingPrice && (() => {
-                          const p = products.find((pr) => getProductId(pr) === sale.product);
-                          if (!p) return null;
-                          const isBulkService = isServiceItem(p);
-                          const q = isBulkService ? 1 : parseInt(sale.quantity, 10);
-                          const price = parseFloat(sale.sellingPrice);
-                          if ((!isBulkService && (isNaN(q) || q <= 0)) || isNaN(price)) return null;
-                          const revenue = q * price;
-                          const cost = isBulkService ? 0 : q * Number(p.costPrice ?? 0);
-                          const profit = revenue - cost;
-                          return (
-                            <p className={`mt-1 text-xs font-medium tabular-nums ${profit >= 0 ? "text-emerald-200" : "text-red-200"}`}>
-                              {t("profit")}: rwf {profit.toLocaleString()}
-                            </p>
-                          );
-                        })()}
-                      </td>
-                      <td className="py-2 pr-2 align-top w-[16%] min-w-[110px]">
-                        <Select
-                          value={sale.paymentMethod}
-                          onValueChange={(value) => updateBulkSale(index, "paymentMethod", value)}
-                        >
-                          <SelectTrigger className="input-field h-9 w-full">
-                            <SelectValue placeholder={t("paymentMethod")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cash">{t("cash")}</SelectItem>
-                            <SelectItem value="momo">{t("momoPay")}</SelectItem>
-                            <SelectItem value="card">{t("card")}</SelectItem>
-                            <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
-                            <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="py-2 pr-2 align-top w-[14%] min-w-[130px]">
-                        <Input
-                          type="date"
-                          value={sale.saleDate}
-                          onChange={(e) => updateBulkSale(index, "saleDate", e.target.value)}
-                          className="input-field h-9 w-full"
-                        />
-                      </td>
-                      <td className="py-2 align-top w-10">
-                        {bulkSales.length > 1 && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0 hover:bg-red-100 rounded-full"
-                            onClick={() => removeBulkRow(index)}
-                          >
-                            <X size={14} className="text-red-600" />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-end mt-4">
-              <Button
-                onClick={handleRecordSale}
-                disabled={isRecordingSale}
-                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ShoppingCart size={16} />
-                {isRecordingSale ? t("recording") : t("recordSales")}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /* Single Sale Form */
-          <div className="space-y-4">
-            {/* First Row: labels on one row, inputs on the next — always aligned */}
-            <div>
-              <div className="grid grid-cols-3 gap-x-4 gap-y-2">
-                <Label className="text-white">
-                  {t("productOrService")}
-                </Label>
-                <Label className="text-white">
-                  {isSelectedService
-                    ? t("worker")
-                    : (() => {
-                        if (!selectedProduct) return t("quantity");
-                        const product = products.find((p) => getProductId(p) === selectedProduct);
-                        if (product?.isPackage && packageSaleMode === "wholePackage") {
-                          return t("packageLabel");
-                        }
-                        return t("quantity");
-                      })()}
-                </Label>
-                <Label className="text-white">{t("sellingPrice")} (rwf)</Label>
-
-                <div className="h-10">
-                  <ProductCombobox
-                    value={selectedProduct}
-                    onValueChange={handleProductChange}
-                    products={products}
-                    serviceBadgeLabel={serviceBadgeLabel}
-                    placeholder={t("searchProductsAndServices")}
-                    className="h-10"
-                    onError={(message) => {
-                      playErrorBeep();
-                      toast({
-                        title: "Product Out of Stock",
-                        description: message,
-                        variant: "destructive",
-                      });
-                    }}
-                  />
-                </div>
-                {isSelectedService ? (
-                  <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
-                    <SelectTrigger className="input-field h-10 w-full">
-                      <SelectValue placeholder={t("selectWorker")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {workers.length > 0 ? (
-                        workers.map((worker) => {
-                          const workerId = String((worker as { _id?: string; id?: number })._id ?? worker.id ?? "");
-                          if (!workerId) return null;
-                          return (
-                            <SelectItem key={workerId} value={workerId}>
-                              {worker.name}
-                            </SelectItem>
-                          );
-                        })
-                      ) : (
-                        <SelectItem value="__no_worker__" disabled>
-                          {t("noWorkersFound")}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    type="number"
-                    min="1"
-                    max={selectedProduct ? products.find((p) => getProductId(p) === selectedProduct)?.stock || 0 : undefined}
-                    value={selectedProduct && (() => {
-                      const product = products.find((p) => getProductId(p) === selectedProduct);
-                      if (product?.isPackage && packageSaleMode === "wholePackage") {
-                        return product.packageQuantity?.toString() || "1";
-                      }
-                      return quantity;
-                    })()}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === "") {
-                        setQuantity("");
-                        return;
-                      }
-                      const numValue = parseInt(value);
-                      if (selectedProduct) {
-                        const product = products.find((p) => getProductId(p) === selectedProduct);
-                        if (product && numValue > product.stock) {
-                          setQuantity(product.stock.toString());
-                          playErrorBeep();
-                          toast({
-                            title: t("maximumQuantity"),
-                            description: t("onlyItemsInStock")
-                              .replace("{stock}", String(product.stock))
-                              .replace(
-                                "{items}",
-                                product.stock === 1 ? t("itemSingular") : t("itemsPlural"),
-                              ),
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                      }
-                      setQuantity(value);
-                    }}
-                    disabled={selectedProduct && (() => {
-                      const product = products.find((p) => getProductId(p) === selectedProduct);
-                      return product?.isPackage && packageSaleMode === "wholePackage";
-                    })()}
-                    className="input-field h-10"
-                    placeholder={t("enterQuantity")}
-                  />
-                )}
-                <Input
-                  type="number"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                  className="input-field h-10"
-                  placeholder={selectedProduct ? t("enterPrice") : t("selectProductFirst")}
-                />
-              </div>
-              {selectedProduct && !isSelectedService && (() => {
-                const product = products.find((p) => getProductId(p) === selectedProduct);
-                if (!product) return null;
-
-                let priceHint: string | null = null;
-                if (product.isPackage && product.packageQuantity) {
-                  const basePrice = product.sellingPrice;
-                  const priceType = product.priceType || "perQuantity";
-                  const currentMode = packageSaleMode;
-
-                  if (priceType === "perQuantity") {
-                    priceHint = currentMode === "wholePackage"
-                      ? t("priceWholePackageCalc")
-                          .replace("{base}", basePrice.toLocaleString())
-                          .replace("{qty}", String(product.packageQuantity))
-                          .replace("{total}", (basePrice * product.packageQuantity).toLocaleString())
-                      : `${t("pricePerItem")}: ${basePrice.toLocaleString()} rwf - ${t("youCanChangeThis")}`;
-                  } else {
-                    priceHint = currentMode === "wholePackage"
-                      ? `${t("priceForWholePackageLabel")}: ${basePrice.toLocaleString()} rwf - ${t("youCanChangeThis")}`
-                      : t("priceFromPackageCalc")
-                          .replace("{perItem}", (basePrice / product.packageQuantity).toFixed(2))
-                          .replace("{base}", basePrice.toLocaleString())
-                          .replace("{qty}", String(product.packageQuantity));
-                  }
-                } else {
-                  priceHint = `${t("suggestedPrice")}: rwf ${product.sellingPrice.toLocaleString()} - ${t("youCanChangeThis")}`;
-                }
-
-                return (
-                  <div className="grid grid-cols-3 gap-x-4 mt-1">
-                    <div />
-                    <p className="text-xs text-white/80">
-                      {t("availableStock")}: {formatStockDisplay(product, language === "rw" ? "rw" : "en")}
-                      {product.isPackage && product.packageQuantity && (
-                        <span className="ml-1">({t("boxOf").replace("{qty}", String(product.packageQuantity))})</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-white/80">{priceHint}</p>
-                  </div>
-                );
-              })()}
-            </div>
-            
-            {/* Package Sale Mode Selector - Only for package products */}
-            {selectedProduct && !isSelectedService && (() => {
-              const product = products.find((p) => getProductId(p) === selectedProduct);
-              if (product?.isPackage && product.packageQuantity) {
-                return (
-                  <div className="space-y-2">
-                    <Label className="text-white">
-                      {t("saleMode")}
-                    </Label>
-                    <Select
-                      value={packageSaleMode}
-                      onValueChange={(value: "quantity" | "wholePackage") => setPackageSaleMode(value)}
-                    >
-                      <SelectTrigger className="input-field w-full max-w-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="quantity">
-                          {t("sellByQuantity")}
-                        </SelectItem>
-                        <SelectItem value="wholePackage">
-                          {t("sellWholePackage")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-            {/* Revenue, Cost, and Profit Preview (revenue − cost = profit) */}
-            {salePreview && (
-              <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/30 rounded-lg border border-blue-400/30 mt-2">
-                <div className="text-center">
-                  <p className="text-xs text-white/80 mb-1 font-medium">
-                    {t("revenue")}
-                  </p>
-                  <p className="text-xl font-bold text-blue-200">
-                    rwf {salePreview.metrics.revenue.toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-white/80 mb-1 font-medium">
-                    {t("cost")}
-                  </p>
-                  <p className="text-xl font-bold text-orange-200">
-                    rwf {salePreview.metrics.cost.toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-white/80 mb-1 font-medium">
-                    {t("profit")}
-                  </p>
-                  <p
-                    className={`text-xl font-bold ${
-                      salePreview.metrics.profit >= 0 ? "text-green-200" : "text-red-200"
-                    }`}
-                  >
-                    rwf {salePreview.metrics.profit.toLocaleString()}
-                  </p>
-                  <p className="text-[10px] text-white/60 mt-1">
-                    {t("revenueMinusCost")}
-                  </p>
-                </div>
-              </div>
-            )}
-            {/* Payment Method, Sale Date, and Record — one row */}
-            <div className="grid grid-cols-3 gap-x-4 gap-y-2 items-end">
-              <Label className="text-white">{t("paymentMethod")}</Label>
-              <Label className="text-white">{t("saleDate")}</Label>
-              <div />
-
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="input-field h-10 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">{t("cash")}</SelectItem>
-                  <SelectItem value="momo">{t("momoPay")}</SelectItem>
-                  <SelectItem value="card">{t("card")}</SelectItem>
-                  <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
-                  <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                type="date"
-                value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
-                className="input-field h-10 w-full"
+              <SalesExpenseGauge
+                salesCount={todayGaugeStats.salesCount}
+                salesTotal={todayGaugeStats.totalRevenue}
+                expensesTotal={todayGaugeStats.totalExpenses}
+                className="h-full"
               />
-              <Button
-                onClick={handleRecordSale}
-                disabled={isRecordingSale}
-                className="bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow transition-all font-semibold h-10 px-4 border border-transparent w-full gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ShoppingCart size={16} />
-                {isRecordingSale ? t("recording") : t("recordSale")}
-              </Button>
+            )}
             </div>
-          </div>
-        )}
-      </div>
+            </div>
 
-      {/* Desktop Large Quick Actions */}
-      <div className="hidden lg:block mb-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-gray-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
-              {t("quickActions")}
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-            <Button onClick={() => navigate("/products")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
-              <Package size={20} />
-              <span>{t("services")}</span>
-            </Button>
-            <Button onClick={() => setSaleModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
-              <Plus size={20} />
-              <span>{t("recordService")}</span>
-            </Button>
-            <Button onClick={() => setExpenseModalOpen(true)} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white">
-              <Wallet size={20} />
-              <span>{t("recordExpense")}</span>
-            </Button>
-            <Button onClick={() => navigate("/barbers")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white">
-              <UserRound size={20} />
-              <span>{t("workers")}</span>
-            </Button>
-            <Button onClick={() => navigate("/sales")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white">
-              <ShoppingCart size={20} />
-              <span>{t("sales")}</span>
-            </Button>
-            <Button onClick={() => navigate("/reports")} className="h-20 flex flex-col gap-2 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white">
-              <FileText size={20} />
-              <span>{t("reports")}</span>
-            </Button>
-          </div>
+        <div className="mt-8 pl-6 pr-4 lg:pl-8 lg:pr-5">
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <RecentSalesTable
+              activities={recentActivity}
+              loading={isLoading || salesLoading}
+              maxRows={10}
+              className="w-full min-w-0"
+              onRecordSale={() => setSaleModalOpen(true)}
+            />
+          )}
         </div>
-      </div>
+              </div>
+
 
       {/* Charts and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Quick Actions - Mobile Only */}
         <div className="lg:hidden">
-          <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm p-4">
+          <div className="bg-white p-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
-              <h3 className="text-base font-semibold text-gray-900">
+              <h3 className="text-base font-bold text-gray-900">
               {t("quickActions")}
               </h3>
             </div>
@@ -2524,61 +1046,64 @@ const Dashboard = () => {
 
       {/* Recent Sales Table */}
       <div className="mb-6 lg:hidden">
-        <div className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
+        <div className="bg-white overflow-hidden">
+          <div className="p-4">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-900">
-                {t("recentSalesAndExpenses")}
+              <h3 className="text-lg font-bold text-gray-900">
+                {t("latestActivity")}
               </h3>
             </div>
-            <p className="text-sm text-gray-600 mt-1">
-              {t("latestActivity")}
-            </p>
           </div>
           
-          {isLoading || salesLoading || isWaitingForSale ? (
+          {isLoading || salesLoading ? (
             <div className="p-4">
               <Skeleton className="h-12 w-full mb-2" />
               <Skeleton className="h-12 w-full mb-2" />
               <Skeleton className="h-12 w-full mb-2" />
             </div>
-          ) : recentSales.length > 0 || recentMobileActivity.length > 0 ? (
+          ) : recentActivity.length > 0 ? (
             <>
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse">
-                  <thead className="bg-gray-100 border-b border-gray-200">
+                  <thead>
                     <tr>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
                         {t("typeLabel")}
                       </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
                         {t("details")}
                       </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
                         {t("amountRwf")}
                       </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
+                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
                         {t("date")}
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {recentMobileActivity.slice(0, 7).map((entry, index) => (
+                    {recentActivity.slice(0, 7).map((entry, index) => (
                       <tr 
                         key={entry.id || index}
                         className={cn(
-                          "border-b border-gray-200",
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          index % 2 === 0 ? "bg-white" : "bg-white"
                         )}
                       >
                         <td className="py-4 px-6">
-                          <div className={cn(
-                            "text-sm font-semibold",
-                            entry.type === "sale" ? "text-green-700" : "text-red-700"
-                          )}>
-                            {entry.type === "sale" ? t("activitySaleLabel") : t("activityExpenseLabel")}
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={cn(
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                entry.type === "sale" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600",
+                              )}
+                            >
+                              {entry.type === "sale" ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+                            </div>
+                            <span className={cn("text-sm font-semibold", entry.type === "sale" ? "text-emerald-700" : "text-red-700")}>
+                              {entry.type === "sale" ? t("activitySaleLabel") : t("activityExpenseLabel")}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 px-6">
@@ -2588,10 +1113,7 @@ const Dashboard = () => {
                           )}
                         </td>
                         <td className="py-4 px-6">
-                          <div className={cn(
-                            "text-sm font-semibold",
-                            entry.type === "sale" ? "text-green-700" : "text-red-700"
-                          )}>
+                          <div className="text-sm font-semibold text-gray-900">
                             {entry.type === "sale" ? "+" : "-"}{Number(entry.amount).toLocaleString()}
                           </div>
                         </td>
@@ -2608,8 +1130,8 @@ const Dashboard = () => {
 
               {/* Mobile activity list: sales + expenses (row-style, like native apps) */}
               <div className="lg:hidden">
-                <div className="divide-y divide-border/60">
-                  {recentMobileActivity.slice(0, 7).map((entry, index) => {
+                <div>
+                  {recentActivity.slice(0, 7).map((entry, index) => {
                     const isSale = entry.type === "sale";
                     const label = isSale ? t("activitySaleLabel") : t("activityExpenseLabel");
                     return (
@@ -2618,33 +1140,26 @@ const Dashboard = () => {
                         type="button"
                         className="w-full text-left px-4 py-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
                       >
-                        <div
-                          className={cn(
-                            "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
-                            isSale ? "text-green-700" : "text-red-700"
-                          )}
-                        >
+                        <div className={cn(
+                          "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                          isSale ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600",
+                        )}>
                           {isSale ? (
-                            <ArrowUpRight size={18} className="rotate-[18deg]" />
+                            <ArrowUp size={18} />
                           ) : (
-                            <ArrowDownLeft size={18} className="-rotate-[18deg]" />
+                            <ArrowDown size={18} />
                           )}
-                            </div>
+                        </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-foreground truncate">{entry.title}</span>
                             </div>
                           <div className="mt-0.5 text-xs text-muted-foreground truncate">
-                            {label} • {formatDateWithTime(entry.date)}
-                            {entry.meta ? ` • ${entry.meta}` : ""}
+                            {label} {formatDateWithTime(entry.date)}
+                            {entry.meta ? ` ${entry.meta}` : ""}
                           </div>
                         </div>
-                        <div
-                          className={cn(
-                            "text-sm font-semibold tabular-nums whitespace-nowrap",
-                            isSale ? "text-green-700" : "text-red-700"
-                          )}
-                        >
+                        <div className="text-sm font-semibold tabular-nums whitespace-nowrap text-gray-900">
                           {isSale ? "+" : "-"}
                           {Number(entry.amount).toLocaleString()} rwf
                             </div>
@@ -2668,7 +1183,7 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-        {recentMobileActivity.length > 7 && (
+        {recentActivity.length > 7 && (
           <div className="pt-3 lg:hidden">
             <Button variant="outline" className="w-full" onClick={() => navigate("/sales")}>
               {t("viewMoreInSales")}
@@ -2853,7 +1368,7 @@ const Dashboard = () => {
             </Button>
             <Button
               onClick={handleRecordExpense}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary text-white hover:bg-blue-700 hover:text-white"
               disabled={isSavingExpense}
             >
               {isSavingExpense ? t("saving") : t("saveExpense")}
@@ -2863,7 +1378,7 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Record Sale Modal - Mobile Only */}
+      {/* Record Sale Modal */}
       <RecordSaleModal 
         open={saleModalOpen} 
         onOpenChange={setSaleModalOpen}

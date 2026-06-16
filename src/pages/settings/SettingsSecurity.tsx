@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Lock, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePinAuth } from "@/hooks/usePinAuth";
@@ -136,21 +135,19 @@ export default function SettingsSecurity() {
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto p-5">
+    <div className="px-4 pb-4 lg:px-6">
       <SettingsSubpageHeader
         icon={Shield}
         title={t("security")}
         description={t("securityPageDesc")}
       />
 
-      <Separator className="mb-4 bg-blue-200" />
-
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-xl">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Lock size={14} className="text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Lock size={14} className="text-gray-500" />
                 {t("financialPinTitle")}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
@@ -170,7 +167,7 @@ export default function SettingsSecurity() {
           </div>
 
           {hasPin && pinMode === "change" && (
-            <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
+            <div className="space-y-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-foreground">{t("currentPin")}</Label>
                 <Input
@@ -217,7 +214,7 @@ export default function SettingsSecurity() {
               </div>
               <Button
                 onClick={handleChangePin}
-                className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                className="bg-primary text-white hover:bg-blue-700 hover:text-white w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                 disabled={currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4}
               >
                 <Lock size={14} />
@@ -227,7 +224,7 @@ export default function SettingsSecurity() {
           )}
 
           {(!hasPin || pinMode === "set") && (
-            <div className="space-y-3 p-4 bg-secondary/30 border border-transparent rounded-lg">
+            <div className="space-y-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-foreground">{t("newPin")}</Label>
@@ -260,7 +257,7 @@ export default function SettingsSecurity() {
               </div>
               <Button
                 onClick={handleSetPin}
-                className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                className="bg-primary text-white hover:bg-blue-700 hover:text-white w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                 disabled={newPin.length !== 4 || confirmPin.length !== 4}
               >
                 <Lock size={14} />

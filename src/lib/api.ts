@@ -3,9 +3,14 @@ import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
 
-// API URL Configuration — always local backend (see backend/ repo)
+// API URL Configuration
 const getApiBaseUrl = (): string => {
-  return import.meta.env.VITE_API_URL || 'https://trippo.rw/api';
+  const configured = import.meta.env.VITE_API_URL;
+  // Local dev: use Vite proxy to the backend on :3000 (bookings and other new routes)
+  if (import.meta.env.DEV && (!configured || configured.includes('trippo.rw'))) {
+    return '/api';
+  }
+  return configured || 'https://trippo.rw/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -13,7 +18,12 @@ export const PUBLIC_API_BASE_URL = API_BASE_URL;
 
 /** WebSocket origin derived from API base */
 export function getWebSocketBaseUrl(): string {
-  return import.meta.env.VITE_WS_URL || 'wss://trippo.rw';
+  const configured = import.meta.env.VITE_WS_URL;
+  if (import.meta.env.DEV && (!configured || configured.includes('trippo.rw'))) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+  }
+  return configured || 'wss://trippo.rw';
 }
 
 // Log API URL in development mode for debugging (disabled for privacy/security)
@@ -1055,6 +1065,37 @@ export const notificationApi = {
     return request('/notifications/all', {
       method: 'DELETE',
     });
+  },
+};
+
+export const bookingApi = {
+  async getAll(params?: { status?: string; date?: string; from?: string; to?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.date) queryParams.append('date', params.date);
+    if (params?.from) queryParams.append('from', params.from);
+    if (params?.to) queryParams.append('to', params.to);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/bookings?${queryString}` : '/bookings';
+    return request(url, { method: 'GET' });
+  },
+
+  async create(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request('/bookings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/bookings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/bookings/${id}`, { method: 'DELETE' });
   },
 };
 

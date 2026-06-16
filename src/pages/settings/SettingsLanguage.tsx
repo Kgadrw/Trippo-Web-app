@@ -1,5 +1,4 @@
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -17,16 +16,14 @@ export default function SettingsLanguage() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto p-5">
+    <div className="px-4 pb-4 lg:px-6">
       <SettingsSubpageHeader
         icon={Globe}
         title={t("language")}
         description={t("languagePageDesc")}
       />
 
-      <Separator className="mb-4 bg-blue-200" />
-
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 max-w-xl">
         <Label className="text-xs font-medium flex items-center gap-1.5">
           <Globe size={12} className="text-blue-600" />
           {t("language")}

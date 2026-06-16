@@ -162,7 +162,7 @@ export default function VerifyTicket() {
   }, [ticketFromUrl]);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10">
+    <div className="min-h-screen bg-white px-4 py-10">
       <div className="mx-auto w-full max-w-xl space-y-4">
         <div className="flex items-center justify-between gap-3">
           <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900">

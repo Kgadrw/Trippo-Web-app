@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -19,27 +18,25 @@ export default function SettingsNotifications() {
   }, []);
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto p-5">
+    <div className="px-4 pb-4 lg:px-6">
       <SettingsSubpageHeader
         icon={Bell}
         title={t("notificationsPageTitle")}
         description={t("notificationsPageDesc")}
       />
 
-      <Separator className="mb-4 bg-blue-200" />
-
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-xl">
         <div className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
-              <Bell size={14} className="text-blue-600" />
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
+              <Bell size={14} className="text-gray-500" />
               {t("browserNotificationsTitle")}
             </h3>
             <p className="text-xs text-muted-foreground mb-4">
               {t("browserNotificationsBody")}
             </p>
 
-            <div className="p-4 bg-secondary/30 border border-transparent rounded-lg space-y-4">
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-foreground">{t("notificationStatusLabel")}</p>
@@ -105,7 +102,7 @@ export default function SettingsNotifications() {
                       });
                     }
                   }}
-                  className="bg-blue-600 text-white hover:bg-blue-700 w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                  className="bg-primary text-white hover:bg-blue-700 hover:text-white w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                 >
                   <Bell size={14} />
                   {notificationPermission === "denied"

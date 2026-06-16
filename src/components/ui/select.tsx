@@ -3,6 +3,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { filterSelectClass } from "@/lib/fieldStyles";
 
 const Select = SelectPrimitive.Root;
 
@@ -17,7 +18,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 rounded-lg",
+      "flex h-10 w-full items-center justify-between border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm ring-offset-background placeholder:text-gray-500 focus:outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-300/50 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 rounded-lg",
       className,
     )}
     {...props}
@@ -141,3 +142,4 @@ export {
   SelectScrollUpButton,
   SelectScrollDownButton,
 };
+export { filterSelectClass };

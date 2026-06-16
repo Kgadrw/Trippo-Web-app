@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -84,17 +83,15 @@ export default function SettingsDeleteAccount() {
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto p-5">
+    <div className="px-4 pb-4 lg:px-6">
       <SettingsSubpageHeader
         icon={Trash2}
         title={t("deleteAccount")}
-        tone="red"
+        tone="danger"
         description={t("deleteAccountDesc")}
       />
 
-      <Separator className="mb-4 bg-red-200" />
-
-      <div className="space-y-4">
+      <div className="space-y-4 max-w-xl">
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-start gap-3">
                 <AlertTriangle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />

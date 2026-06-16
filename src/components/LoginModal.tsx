@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -619,7 +619,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 </div>
                 <Button
                   onClick={handleLogin}
-                  className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                  className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
                   disabled={loginPin.length !== 4 || isLoading}
                 >
                   {isLoading ? "Signing in..." : "Sign In"}
@@ -685,7 +685,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                   </div>
                   <Button
                     onClick={handleSendOTP}
-                    className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                    className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
                     disabled={isLoading || !resetEmail.trim()}
                   >
                     {isLoading ? "Sending..." : "Send OTP"}
@@ -951,7 +951,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             {!registerOtpSent ? (
               <Button
                 onClick={() => void handleSendRegistrationOtp()}
-                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
                 disabled={isLoading}
               >
                 {isLoading ? t("sendingCode") : t("sendVerificationCode")}
@@ -959,7 +959,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             ) : (
               <Button
                 onClick={() => void handleCreateAccount()}
-                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
                 disabled={isLoading || registerOtp.length !== 6}
               >
                 {isLoading ? t("creatingAccount") : t("createAccount")}

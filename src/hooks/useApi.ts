@@ -1,17 +1,165 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, saleApi, clientApi, scheduleApi, expenseApi } from "@/lib/api";
+import { productApi, saleApi, clientApi, scheduleApi, bookingApi, expenseApi } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
 import { initDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
 import { apiCache } from "@/lib/apiCache";
 import { logger } from "@/lib/logger";
 import { websocketManager } from "@/lib/websocketManager";
+import { patchProductStock } from "@/lib/productStock";
 
 interface UseApiOptions<T> {
-  endpoint: 'products' | 'sales' | 'clients' | 'schedules' | 'expenses';
+  endpoint: 'products' | 'sales' | 'clients' | 'schedules' | 'bookings' | 'expenses';
   defaultValue: T[];
   onError?: (error: Error) => void;
+}
+
+type DataChangeAction = 'create' | 'update' | 'delete';
+
+type DataChangedDetail = {
+  endpoint: string;
+  action: DataChangeAction;
+  item?: unknown;
+  itemId?: string;
+};
+
+const DATA_CHANGED_EVENT = 'profit-pilot-data-changed';
+
+function getRecordId(record: { _id?: string; id?: number | string }): string | null {
+  const id = record._id ?? record.id;
+  return id != null ? String(id) : null;
+}
+
+function sortSalesByNewest<T>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const aTime = (a as { timestamp?: string; date?: string }).timestamp || (a as { date?: string }).date;
+    const bTime = (b as { timestamp?: string; date?: string }).timestamp || (b as { date?: string }).date;
+    return new Date(bTime || 0).getTime() - new Date(aTime || 0).getTime();
+  });
+}
+
+function isMongoServerId(id: unknown): boolean {
+  return typeof id === "string" && /^[a-f0-9]{24}$/i.test(id);
+}
+
+/** Mirror stock change in IndexedDB (background). UI updates via patchProductStock. */
+function mirrorProductStockInIndexedDB(productId: string, delta: number): void {
+  void (async () => {
+    try {
+      await initDB();
+      const products = await getAllItems<{ _id?: string; id?: string | number; stock?: number }>("products");
+      const product = products.find((p) => (p._id ?? p.id)?.toString() === productId);
+      if (!product) return;
+      await updateItem("products", {
+        ...product,
+        stock: Math.max(0, (product.stock ?? 0) + delta),
+      });
+      apiCache.invalidateStore("products");
+    } catch {
+      // products may only live in API memory
+    }
+  })();
+}
+
+/** Instant UI stock patch + background IndexedDB mirror (no full refresh). */
+function applyProductStockDelta(productId: string, delta: number): void {
+  if (!productId || !delta) return;
+  patchProductStock(productId, delta);
+  mirrorProductStockInIndexedDB(productId, delta);
+}
+
+function notifyProductsStockChanged(): void {
+  apiCache.invalidateStore("products");
+  window.dispatchEvent(new CustomEvent("products-should-refresh"));
+}
+
+function salesDedupKey(sale: {
+  product?: string;
+  serviceName?: string;
+  date?: string | Date;
+  quantity?: number;
+  revenue?: number;
+  workerId?: string;
+  workerName?: string;
+  timestamp?: string;
+}): string {
+  const dateStr =
+    typeof sale.date === "string"
+      ? sale.date.split("T")[0]
+      : sale.date
+        ? new Date(sale.date).toISOString().split("T")[0]
+        : "";
+  const label = (sale.serviceName || sale.product || "").trim().toLowerCase();
+  const worker = (sale.workerId || sale.workerName || "").toString();
+  const ts = sale.timestamp || (typeof sale.date === "string" ? sale.date : "");
+  const tsSec = ts ? Math.floor(new Date(ts).getTime() / 1000) : "";
+  return `${label}_${dateStr}_${sale.quantity ?? 0}_${sale.revenue ?? 0}_${worker}_${tsSec}`;
+}
+
+function deduplicateSales<T>(items: T[]): T[] {
+  const seen = new Map<string, T>();
+  for (const item of items) {
+    const sale = item as {
+      _id?: string;
+      id?: number | string;
+      product?: string;
+      serviceName?: string;
+      date?: string | Date;
+      quantity?: number;
+      revenue?: number;
+      workerId?: string;
+      workerName?: string;
+      timestamp?: string;
+    };
+    const key = salesDedupKey(sale);
+    if (seen.has(key)) {
+      const existing = seen.get(key)!;
+      const existingId = (existing as { _id?: string; id?: number | string })._id
+        ?? (existing as { id?: number | string }).id;
+      const currentId = sale._id ?? sale.id;
+      const existingIsServer = isMongoServerId(existingId);
+      const currentIsServer = isMongoServerId(currentId);
+      if (currentIsServer && !existingIsServer) {
+        seen.set(key, item);
+      }
+    } else {
+      seen.set(key, item);
+    }
+  }
+  return sortSalesByNewest(Array.from(seen.values()));
+}
+
+function applyCreateToList<T>(prev: T[], item: T, listEndpoint: string): T[] {
+  if (listEndpoint === "sales") {
+    return deduplicateSales([item, ...prev]);
+  }
+
+  const itemId = getRecordId(item as { _id?: string; id?: number });
+  const exists = itemId
+    ? prev.some((i) => getRecordId(i as { _id?: string; id?: number }) === itemId)
+    : false;
+
+  if (exists) {
+    return prev.map((i) =>
+      getRecordId(i as { _id?: string; id?: number }) === itemId ? item : i,
+    );
+  }
+  return [...prev, item];
+}
+
+function applyUpdateToList<T>(prev: T[], item: T): T[] {
+  const itemId = getRecordId(item as { _id?: string; id?: number });
+  if (!itemId) return prev;
+  const exists = prev.some((i) => getRecordId(i as { _id?: string; id?: number }) === itemId);
+  if (!exists) return [...prev, item];
+  return prev.map((i) =>
+    getRecordId(i as { _id?: string; id?: number }) === itemId ? item : i,
+  );
+}
+
+function dispatchDataChanged(detail: DataChangedDetail) {
+  window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT, { detail }));
 }
 
 export function useApi<T extends { _id?: string; id?: number }>({
@@ -293,6 +441,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await clientApi.getAll();
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.getAll();
+        } else if (endpoint === 'bookings') {
+          response = await bookingApi.getAll();
         } else if (endpoint === 'expenses') {
           response = await expenseApi.getAll();
         } else {
@@ -351,8 +501,23 @@ export function useApi<T extends { _id?: string; id?: number }>({
               });
             }
             
-            // Update UI immediately with fresh data
-            setItems(sortedItems.length > 0 ? sortedItems : defaultValue);
+            // Update UI — merge so a just-created sale isn't wiped by a stale GET
+            setItems((prevItems) => {
+              if (!isSalesEndpoint) {
+                return sortedItems.length > 0 ? sortedItems : defaultValue;
+              }
+              const serverIds = new Set(
+                sortedItems
+                  .map((i: any) => String(i._id ?? i.id ?? ""))
+                  .filter(Boolean),
+              );
+              const missingFromServer = prevItems.filter((i: any) => {
+                const id = String(i._id ?? i.id ?? "");
+                return id && isMongoServerId(id) && !serverIds.has(id);
+              });
+              const merged = deduplicateSales([...sortedItems, ...missingFromServer]);
+              return merged.length > 0 ? merged : defaultValue;
+            });
             
             // Cache the response for future use
             const cacheKey = `/${endpoint}`;
@@ -605,14 +770,75 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const MIN_RELOAD_INTERVAL = 5000; // 5 seconds minimum between reloads (increased to prevent loops)
   const MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES = 10000; // 10 seconds for products/sales to prevent loops
   
-  // Products and sales should always refresh on mount/page open
-  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales';
+  // Products, sales, and expenses should always refresh on mount/page open
+  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales' || endpoint === 'expenses';
   const minReloadInterval = shouldAlwaysRefresh ? MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES : MIN_RELOAD_INTERVAL;
 
   // Update items length ref when items change
   useEffect(() => {
     itemsLengthRef.current = items.length;
   }, [items.length]);
+
+  // Sync this hook's state when another component mutates the same endpoint
+  useEffect(() => {
+    const handleDataChanged = (event: Event) => {
+      const detail = (event as CustomEvent<DataChangedDetail>).detail;
+      if (!detail || detail.endpoint !== endpoint) return;
+
+      if (detail.action === 'create' && detail.item) {
+        const mapped = mapItem(detail.item);
+        setItems((prev) => applyCreateToList(prev, mapped, endpoint));
+      } else if (detail.action === 'update' && detail.item) {
+        const mapped = mapItem(detail.item);
+        setItems((prev) => applyUpdateToList(prev, mapped));
+      } else if (detail.action === 'delete' && detail.itemId) {
+        setItems((prev) =>
+          prev.filter((i) => {
+            const id = getRecordId(i as { _id?: string; id?: number });
+            return id !== String(detail.itemId);
+          }),
+        );
+      }
+    };
+
+    window.addEventListener(DATA_CHANGED_EVENT, handleDataChanged);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, handleDataChanged);
+  }, [endpoint, mapItem]);
+
+  // Patch product stock in memory when sales change inventory (instant UI)
+  useEffect(() => {
+    if (endpoint !== "products") return;
+
+    const handleStockPatch = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        productId?: string;
+        newStock?: number;
+        delta?: number;
+      }>).detail;
+      const productId = detail?.productId?.toString();
+      if (!productId) return;
+
+      setItems((prev) => {
+        let changed = false;
+        const next = prev.map((item) => {
+          const id = ((item as { _id?: string; id?: string | number })._id ?? (item as { id?: string | number }).id)?.toString();
+          if (id !== productId) return item;
+          const current = Number((item as { stock?: number }).stock) || 0;
+          const stock =
+            detail.newStock !== undefined
+              ? detail.newStock
+              : Math.max(0, current + (detail.delta ?? 0));
+          if (stock === current) return item;
+          changed = true;
+          return { ...item, stock } as T;
+        });
+        return changed ? next : prev;
+      });
+    };
+
+    window.addEventListener("product-stock-updated", handleStockPatch);
+    return () => window.removeEventListener("product-stock-updated", handleStockPatch);
+  }, [endpoint]);
 
   // Load data on mount and when force refresh is requested
   useEffect(() => {
@@ -738,7 +964,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   }, [items, defaultValue]);
 
   // Add item - save to IndexedDB first, then sync with backend
-  const add = useCallback(async (item: T): Promise<void> => {
+  const add = useCallback(async (item: T): Promise<T> => {
     // Validate userId exists (data isolation)
     const userId = localStorage.getItem("profit-pilot-user-id");
     if (!userId) {
@@ -785,6 +1011,13 @@ export function useApi<T extends { _id?: string; id?: number }>({
         window.dispatchEvent(new CustomEvent('sale-recording-started', { 
           detail: { sale: item } 
         }));
+
+        const saleProductId = (item as any).productId?.toString();
+        const saleQty = Number((item as any).quantity) || 0;
+        const isProductSale = Boolean(saleProductId && saleQty > 0);
+        if (isProductSale) {
+          applyProductStockDelta(saleProductId, -saleQty);
+        }
         
         // Make API call and wait for response before updating UI
         // This ensures we only show sales that are confirmed by backend
@@ -824,65 +1057,73 @@ export function useApi<T extends { _id?: string; id?: number }>({
             (syncedItem as any).timestamp = new Date().toISOString();
           }
           
-          // Find and remove the local item with the temporary ID
-          const existingItems = await getAllItems<T>(storeName);
-          const localItemToRemove = existingItems.find((i) => {
-            const currentId = (i as any)._id || (i as any).id;
-            return currentId === localId;
-          });
-          
-          // Remove the local item if it exists
-          if (localItemToRemove) {
-            const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
-            if (!isNaN(numericId)) {
-              await deleteItem(storeName, numericId);
-            }
-          }
-          
-          // Add userId for data isolation
+          // Replace the local pending row with the server-confirmed sale (same IndexedDB key)
           const syncedItemWithUserId = {
             ...syncedItem,
-            userId: userId
+            userId: userId,
           } as T;
-          
-          // Add the synced item with server ID to IndexedDB
-          await addItem(storeName, syncedItemWithUserId);
+          const syncedForStore = {
+            ...syncedItemWithUserId,
+            id: localId,
+          } as T;
+          await updateItem(storeName, syncedForStore);
           
           // Invalidate cache
           apiCache.invalidateStore(endpoint);
           localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
           
           // NOW update UI - only after backend confirms the sale
-          setItems((prev) => {
-            // Check if sale already exists (avoid duplicates)
-            const syncedId = (syncedItem as any)._id || (syncedItem as any).id;
-            const itemExists = prev.some((i) => {
-              const currentId = (i as any)._id || (i as any).id;
-              return currentId?.toString() === syncedId?.toString();
-            });
-            
-            if (itemExists) {
-              // Replace existing item with server version
-              return prev.map((i) => {
-                const currentId = (i as any)._id || (i as any).id;
-                return currentId?.toString() === syncedId?.toString() ? syncedItem : i;
-              });
-            } else {
-              // Add new sale at the beginning (most recent first)
-              return [syncedItem, ...prev];
-            }
-          });
+          setItems((prev) => deduplicateSales([syncedItem as T, ...prev]));
           
           // Dispatch event to notify other components (after backend confirms)
           window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale: syncedItem } }));
           window.dispatchEvent(new CustomEvent('sales-should-refresh'));
+          dispatchDataChanged({ endpoint: 'sales', action: 'create', item: syncedItem });
           
           // Dispatch event to notify that sale recording has completed successfully
           window.dispatchEvent(new CustomEvent('sale-recording-completed', { 
             detail: { sale: syncedItem, success: true } 
           }));
-        } catch (error) {
-          // If API call fails, remove from IndexedDB and throw error
+
+          if (isProductSale) {
+            mirrorProductStockInIndexedDB(saleProductId, -saleQty);
+          }
+          return syncedItem as T;
+        } catch (error: any) {
+          const isNetworkError = !navigator.onLine ||
+            error?.message?.includes('Failed to fetch') ||
+            error?.message?.includes('NetworkError') ||
+            error?.message?.includes('Network request failed') ||
+            error?.message?.includes('Cannot record sales while offline') ||
+            (error?.response?.connectionError === true);
+
+          if (isNetworkError) {
+            const offlineSale = mapItem(itemWithId);
+            setItems((prev) => applyCreateToList(prev, offlineSale as T, 'sales'));
+            dispatchDataChanged({ endpoint: 'sales', action: 'create', item: offlineSale });
+            window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale: offlineSale } }));
+            window.dispatchEvent(new CustomEvent('sale-recording-completed', {
+              detail: { sale: offlineSale, success: true },
+            }));
+            const offlineProductId = (item as any).productId?.toString();
+            const offlineQty = Number((item as any).quantity) || 0;
+            if (offlineProductId && offlineQty > 0 && !isProductSale) {
+              applyProductStockDelta(offlineProductId, -offlineQty);
+            }
+            await syncManager.queueAction({
+              type: "create",
+              store: storeName,
+              data: itemWithId,
+            });
+            const silentError: any = new Error("Sale saved locally. Will sync when online.");
+            silentError.response = { silent: true, connectionError: true };
+            throw silentError;
+          }
+
+          // If API call fails for a real error, remove from IndexedDB and throw
+          if (isProductSale) {
+            applyProductStockDelta(saleProductId, saleQty);
+          }
           try {
             const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
             if (!isNaN(numericId)) {
@@ -902,8 +1143,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
         }
         
         // Return after API call completes
-        return;
+        return itemWithId as T;
       }
+      
+      // Optimistic local save — instant UI, then sync to server
+      await addItem(storeName, itemWithId);
+      const optimisticItem = mapItem(itemWithId) as T;
+      setItems((prev) => applyCreateToList(prev, optimisticItem, endpoint));
+      dispatchDataChanged({ endpoint, action: 'create', item: optimisticItem });
       
       // For other endpoints, continue with blocking API call
       // ALWAYS try to send to backend when online - this is the primary path
@@ -926,6 +1173,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await clientApi.create(itemData);
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.create(itemData);
+        } else if (endpoint === 'bookings') {
+          response = await bookingApi.create(itemData);
         } else if (endpoint === 'expenses') {
           response = await expenseApi.create(itemData);
         } else {
@@ -993,7 +1242,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           apiCache.invalidateStore(endpoint);
           localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
           
-          // Update UI - replace local item with synced item and remove duplicates
+          // Update UI - replace optimistic/temp row with server-confirmed item
           setItems((prev) => {
           if (isSalesEndpoint) {
             // For sales, replace local item with server item or add if not found, then deduplicate
@@ -1050,22 +1299,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
               
               return deduplicated;
           } else {
-            // For other endpoints, replace local item or add if not found
-            const itemExists = prev.some((i) => {
-              const currentId = (i as any)._id || (i as any).id;
-              return currentId === localId;
+            const localKey = String(localId);
+            const withoutTemp = prev.filter((i) => {
+              const currentId = getRecordId(i as { _id?: string; id?: number });
+              return currentId !== localKey;
             });
-            
-            if (itemExists) {
-              return prev.map((i) => {
-                const currentId = (i as any)._id || (i as any).id;
-                return currentId === localId ? syncedItem : i;
-              });
-            } else {
-              return [...prev, syncedItem];
-            }
+            return applyCreateToList(withoutTemp, syncedItem as T, endpoint);
           }
         });
+        dispatchDataChanged({ endpoint, action: 'create', item: syncedItem });
+        return syncedItem as T;
       } catch (apiError: any) {
         // Check if it's actually a connection/network error (not a server validation error)
         const isNetworkError = !navigator.onLine || 
@@ -1075,27 +1318,20 @@ export function useApi<T extends { _id?: string; id?: number }>({
                                apiError?.message?.includes('Cannot record sales while offline') ||
                                (apiError?.response?.connectionError === true);
         
-        // For sales, queue for sync if it's a network error (item is already saved to IndexedDB)
-        if (isSalesEndpoint && isNetworkError) {
-          // Queue for sync - the item is already saved locally
-          await syncManager.queueAction({
-            type: "create",
-            store: storeName,
-            data: itemWithId,
-          });
-          // Throw a silent error so the UI can show success message
-          const silentError: any = new Error("Sale saved locally. Will sync when online.");
-          silentError.response = { silent: true, connectionError: true };
-          throw silentError;
-        }
-        
-        // For products, don't queue for sync - just throw the error
+        // For products, don't queue for sync - roll back optimistic row and throw
         if (endpoint === 'products') {
+          const localKey = String(localId);
+          setItems((prev) =>
+            prev.filter((i) => getRecordId(i as { _id?: string; id?: number }) !== localKey),
+          );
           throw apiError;
         }
         
         // For other endpoints, queue for sync if it's a REAL network/connection error
         if (isNetworkError) {
+          const offlineItem = mapItem(itemWithId);
+          setItems((prev) => applyCreateToList(prev, offlineItem as T, endpoint));
+          dispatchDataChanged({ endpoint, action: 'create', item: offlineItem });
           // logger.log(`[useApi] Network error detected for ${endpoint}, queueing for sync:`, apiError);
           await syncManager.queueAction({
             type: "create",
@@ -1131,7 +1367,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   }, [endpoint, mapItem, onError, syncManager]);
 
   // Update item - save to IndexedDB first, then sync with backend
-  const update = useCallback(async (item: T): Promise<void> => {
+  const update = useCallback(async (item: T): Promise<T> => {
     // Validate userId exists (data isolation)
     const userId = localStorage.getItem("profit-pilot-user-id");
     if (!userId) {
@@ -1163,6 +1399,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           return currentId === itemId ? updatedItem : i;
         })
       );
+      dispatchDataChanged({ endpoint, action: 'update', item: updatedItem });
 
       // Try to sync with backend (silently fail if offline)
       const itemData = { ...item };
@@ -1180,6 +1417,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await clientApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'bookings') {
+          response = await bookingApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'expenses') {
           response = await expenseApi.update(itemId.toString(), itemData);
         } else {
@@ -1207,6 +1446,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
               return currentId === itemId ? syncedItem : i;
             })
           );
+          dispatchDataChanged({ endpoint, action: 'update', item: syncedItem });
           
           // Automatically dispatch event for product stock updates
           if (endpoint === 'products') {
@@ -1214,6 +1454,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
               detail: { productId: itemId, newStock: (syncedItem as any).stock } 
             }));
           }
+          return syncedItem as T;
         }
       } catch (apiError: any) {
         // For sales and products, don't queue for sync - just throw the error
@@ -1247,6 +1488,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           throw apiError;
         }
       }
+      return updatedItem as T;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to update item');
       setError(error);
@@ -1311,6 +1553,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
           return String(currentId) !== String(itemId);
         })
       );
+      dispatchDataChanged({ endpoint, action: 'delete', itemId: String(itemId) });
+
+      if (endpoint === "sales") {
+        const pid = (item as any).productId?.toString();
+        const qty = Number((item as any).quantity) || 0;
+        if (pid && qty > 0) {
+          applyProductStockDelta(pid, qty);
+        }
+      }
 
       // Invalidate cache for this endpoint since data changed
       apiCache.invalidateStore(endpoint);
@@ -1326,6 +1577,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           await clientApi.delete(itemId.toString());
         } else if (endpoint === 'schedules') {
           await scheduleApi.delete(itemId.toString());
+        } else if (endpoint === 'bookings') {
+          await bookingApi.delete(itemId.toString());
         } else if (endpoint === 'expenses') {
           await expenseApi.delete(itemId.toString());
         } else {
@@ -1418,6 +1671,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
         
         return itemData;
       });
+
+      const bulkStockPatches: { productId: string; qty: number }[] = [];
+      for (const sale of itemsToAdd) {
+        const pid = (sale as any).productId?.toString();
+        const qty = Number((sale as any).quantity) || 0;
+        if (pid && qty > 0) {
+          bulkStockPatches.push({ productId: pid, qty });
+          applyProductStockDelta(pid, -qty);
+        }
+      }
       
       try {
         // logger.log(`[useApi] Attempting to send bulk sales via DIRECT API call:`, itemsData);
@@ -1474,46 +1737,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
           localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
           
         // Update UI - add synced items and remove duplicates
-          setItems((prev) => {
-          const updated = [...prev, ...syncedItems];
-            
-            // Deduplicate sales by content to remove any remaining duplicates
-            const seen = new Map<string, T>();
-            for (const item of updated) {
-              const sale = item as any;
-              const dateStr = typeof sale.date === 'string' 
-                ? sale.date.split('T')[0] 
-                : new Date(sale.date).toISOString().split('T')[0];
-              const key = `${sale.product}_${dateStr}_${sale.quantity}_${sale.revenue}`;
-              
-              if (seen.has(key)) {
-                const existing = seen.get(key)!;
-                const existingId = (existing as any)._id || (existing as any).id;
-                const currentId = (sale as any)._id || (sale as any).id;
-                
-                // Prefer server ID over temporary ID
-                const existingIsServerId = typeof existingId === 'string' || (typeof existingId === 'number' && existingId < 1e15);
-                const currentIsServerId = typeof currentId === 'string' || (typeof currentId === 'number' && currentId < 1e15);
-                
-                if (currentIsServerId && !existingIsServerId) {
-                  seen.set(key, item);
-                }
-              } else {
-                seen.set(key, item);
-              }
-            }
-            const deduplicated = Array.from(seen.values());
-            
-            // Sort by timestamp (newest first) to ensure new sales appear at top
-            deduplicated.sort((a, b) => {
-              const aTime = (a as any).timestamp || (a as any).date;
-              const bTime = (b as any).timestamp || (b as any).date;
-              return new Date(bTime).getTime() - new Date(aTime).getTime();
-            });
-            
-            return deduplicated;
-          });
+          setItems((prev) => deduplicateSales([...syncedItems as T[], ...prev]));
+          for (const syncedItem of syncedItems) {
+            dispatchDataChanged({ endpoint: 'sales', action: 'create', item: syncedItem });
+            window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale: syncedItem } }));
+          }
       } catch (apiError: any) {
+        for (const { productId, qty } of bulkStockPatches) {
+          applyProductStockDelta(productId, qty);
+        }
         // For sales, don't queue for sync - just throw the error
           throw apiError;
       }
@@ -1542,7 +1774,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
     // For sales and products endpoints, always force refresh to get real data from API
     const isSalesEndpoint = endpoint === 'sales';
     const isProductsEndpoint = endpoint === 'products';
-    const shouldForce = force || isSalesEndpoint || isProductsEndpoint;
+    const isExpensesEndpoint = endpoint === 'expenses';
+    const shouldForce = force || isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint;
     
     // Don't refresh if already loading (unless forced)
     if (isLoadingDataRef.current && !shouldForce) {
@@ -1570,7 +1803,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     
     // For sales and products, always refresh immediately (bypass cooldown)
-    if (isSalesEndpoint || isProductsEndpoint || timeSinceLastRefresh >= REFRESH_COOLDOWN || shouldForce) {
+    if (isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint || timeSinceLastRefresh >= REFRESH_COOLDOWN || shouldForce) {
       // Refresh immediately (loadData already checks isLoadingDataRef)
       // Use silent mode for forced refreshes so existing data stays visible (no skeleton flash)
       lastRefreshTimeRef.current = Date.now();
@@ -1650,15 +1883,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
           });
           
           // Convert map back to array
-          const merged = Array.from(existingMap.values());
+          let merged = Array.from(existingMap.values());
           
-          // For sales, re-sort after merge
+          // For sales, re-sort after merge and drop local/server duplicates
           if (endpoint === 'sales') {
-            merged.sort((a, b) => {
-              const aTime = (a as any).timestamp || (a as any).date;
-              const bTime = (b as any).timestamp || (b as any).date;
-              return new Date(bTime).getTime() - new Date(aTime).getTime();
-            });
+            merged = deduplicateSales(merged);
             return reconcileSalesListWithPendingDeletions(merged);
           }
           
@@ -1731,28 +1960,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
       // Subscribe to sales WebSocket events for instant real-time updates
       const unsubscribeCreated = websocketManager.subscribe('sale:created', (sale) => {
         console.log(`[useApi] WebSocket: Sale created - immediate update`, sale);
-        // Immediately add the sale to the list (optimistic update)
         if (sale && (sale._id || sale.id)) {
-          setItems((prev) => {
-            // Check if sale already exists (avoid duplicates)
-            const exists = prev.some((s: any) => (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString());
-            if (exists) {
-              // If exists, update it instead of adding duplicate
-              return prev.map((s: any) => 
-                (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString() ? sale : s
-              );
-            }
-            // Add new sale at the beginning of the list (most recent first)
-            return [sale, ...prev];
-          });
-          // Reload from IndexedDB to ensure we have the latest data (instant, no API wait)
-          reloadFromIndexedDB();
-        } else {
-          // Fallback to reload from IndexedDB if sale data is incomplete
-          reloadFromIndexedDB();
+          setItems((prev) => deduplicateSales([sale as T, ...prev]));
         }
-        // Dispatch event to notify other components
-        window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale } }));
       });
       
       const unsubscribeUpdated = websocketManager.subscribe('sale:updated', (sale) => {

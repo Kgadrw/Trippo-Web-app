@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, searchBarInputClass } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Pencil, Trash2, X, User, Mail, Phone, Building, Calendar, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { Search, Pencil, Trash2, X, User, Mail, Phone, Building, Calendar, CheckCircle2, AlertCircle, Clock, ArrowUpDown } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Select,
@@ -28,8 +28,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  filterSelectClass,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playUpdateBeep, playDeleteBeep, playErrorBeep } from "@/lib/sound";
@@ -115,6 +117,11 @@ const Clients = () => {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [clientTypeFilter, setClientTypeFilter] = useState<"all" | "debtor" | "worker" | "other">("all");
+  const [businessTypeFilter, setBusinessTypeFilter] = useState("all");
+  const [scheduleFilter, setScheduleFilter] = useState<"all" | "hasSchedules" | "hasActive" | "hasOverdue">("all");
+  const [sortBy, setSortBy] = useState<"name-asc" | "name-desc">("name-asc");
+  const [showFilters, setShowFilters] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -161,6 +168,17 @@ const Clients = () => {
     return due < now;
   };
 
+  const businessTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of clients) {
+      const bt = String(c.businessType || "").trim();
+      if (bt) set.add(bt);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [clients]);
+
+  const getClientSchedules = (clientId: string) => getClientScheduleList(clientId);
+
   const filteredClients = useMemo(() => {
     let filtered = clients;
     
@@ -174,9 +192,33 @@ const Clients = () => {
           c.businessType?.toLowerCase().includes(query)
       );
     }
+
+    if (clientTypeFilter !== "all") {
+      filtered = filtered.filter((c) => (c.clientType || "other") === clientTypeFilter);
+    }
+
+    if (businessTypeFilter !== "all") {
+      filtered = filtered.filter(
+        (c) => (c.businessType || "").toLowerCase() === businessTypeFilter.toLowerCase(),
+      );
+    }
+
+    if (scheduleFilter !== "all") {
+      filtered = filtered.filter((c) => {
+        const clientId = ((c as any)._id || c.id)?.toString();
+        if (!clientId) return false;
+        const linked = getClientSchedules(clientId);
+        if (scheduleFilter === "hasSchedules") return linked.length > 0;
+        if (scheduleFilter === "hasActive") return linked.some((s) => s.status === "pending");
+        return linked.some((s) => s.status === "pending" && isOverdue(s.dueDate));
+      });
+    }
     
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, searchQuery]);
+    return filtered.sort((a, b) => {
+      const cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      return sortBy === "name-asc" ? cmp : -cmp;
+    });
+  }, [clients, searchQuery, clientTypeFilter, businessTypeFilter, scheduleFilter, sortBy, schedules]);
 
   const openAddModal = (preferredType: 'debtor' | 'worker' | 'other' = "other") => {
     setEditingClient(null);
@@ -403,14 +445,152 @@ const Clients = () => {
                   </Button>
                 </div>
               </div>
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-                <Input
-                  placeholder={t("searchClientsPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg"
-                />
+              <MobileListSearchFilters
+                searchValue={searchQuery}
+                onSearchChange={setSearchQuery}
+                searchPlaceholder={t("searchClientsPlaceholder")}
+                showFilters={showFilters}
+                onToggleFilters={() => setShowFilters((v) => !v)}
+                searchName="search-clients"
+                filters={
+                  <div className="space-y-3">
+                    <Select value={clientTypeFilter} onValueChange={(v) => setClientTypeFilter(v as typeof clientTypeFilter)}>
+                      <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                        <SelectValue placeholder={t("clientTypeRelationship")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allClientTypes")}</SelectItem>
+                        <SelectItem value="debtor">{t("clientTypeDebtor")}</SelectItem>
+                        <SelectItem value="worker">{t("clientTypeWorker")}</SelectItem>
+                        <SelectItem value="other">{t("clientTypeOther")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={businessTypeFilter} onValueChange={setBusinessTypeFilter}>
+                      <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                        <SelectValue placeholder={t("businessTypeWhatTheyDo")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("allBusinessTypes")}</SelectItem>
+                        {businessTypes.map((bt) => (
+                          <SelectItem key={bt} value={bt}>
+                            {bt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as typeof scheduleFilter)}>
+                      <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                        <SelectValue placeholder={t("schedulesLinkedLabel")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("all")}</SelectItem>
+                        <SelectItem value="hasSchedules">{t("filterHasSchedules")}</SelectItem>
+                        <SelectItem value="hasActive">{t("filterHasActiveSchedules")}</SelectItem>
+                        <SelectItem value="hasOverdue">{t("filterHasOverdueSchedules")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                      <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                        <div className="flex items-center gap-2">
+                          <ArrowUpDown size={14} className="text-gray-400" />
+                          <SelectValue placeholder={t("sortBy")} />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name-asc">{t("nameAsc")}</SelectItem>
+                        <SelectItem value="name-desc">{t("nameDesc")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {(clientTypeFilter !== "all" || businessTypeFilter !== "all" || scheduleFilter !== "all") && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setClientTypeFilter("all");
+                          setBusinessTypeFilter("all");
+                          setScheduleFilter("all");
+                        }}
+                        className="h-10 rounded-lg w-full"
+                      >
+                        <X size={14} className="mr-1.5" />
+                        {t("clearFilters")}
+                      </Button>
+                    )}
+                  </div>
+                }
+              />
+              <div className="hidden lg:flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                  <Input
+                    placeholder={t("searchClientsPlaceholder")}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={searchBarInputClass}
+                  />
+                </div>
+                <Select value={clientTypeFilter} onValueChange={(v) => setClientTypeFilter(v as typeof clientTypeFilter)}>
+                  <SelectTrigger className={cn("w-[160px] h-10 rounded-lg shrink-0", filterSelectClass)}>
+                    <SelectValue placeholder={t("clientTypeRelationship")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allClientTypes")}</SelectItem>
+                    <SelectItem value="debtor">{t("clientTypeDebtor")}</SelectItem>
+                    <SelectItem value="worker">{t("clientTypeWorker")}</SelectItem>
+                    <SelectItem value="other">{t("clientTypeOther")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={businessTypeFilter} onValueChange={setBusinessTypeFilter}>
+                  <SelectTrigger className={cn("w-[180px] h-10 rounded-lg", filterSelectClass)}>
+                    <SelectValue placeholder={t("businessTypeWhatTheyDo")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allBusinessTypes")}</SelectItem>
+                    {businessTypes.map((bt) => (
+                      <SelectItem key={bt} value={bt}>
+                        {bt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as typeof scheduleFilter)}>
+                  <SelectTrigger className={cn("w-[190px] h-10 rounded-lg", filterSelectClass)}>
+                    <SelectValue placeholder={t("schedulesLinkedLabel")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("all")}</SelectItem>
+                    <SelectItem value="hasSchedules">{t("filterHasSchedules")}</SelectItem>
+                    <SelectItem value="hasActive">{t("filterHasActiveSchedules")}</SelectItem>
+                    <SelectItem value="hasOverdue">{t("filterHasOverdueSchedules")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                  <SelectTrigger className={cn("w-[160px] h-10 rounded-lg", filterSelectClass)}>
+                    <div className="flex items-center gap-2">
+                      <ArrowUpDown size={14} className="text-gray-400" />
+                      <SelectValue placeholder={t("sortBy")} />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">{t("nameAsc")}</SelectItem>
+                    <SelectItem value="name-desc">{t("nameDesc")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(clientTypeFilter !== "all" || businessTypeFilter !== "all" || scheduleFilter !== "all") && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setClientTypeFilter("all");
+                      setBusinessTypeFilter("all");
+                      setScheduleFilter("all");
+                    }}
+                    className="h-10 rounded-lg"
+                  >
+                    <X size={14} className="mr-1.5" />
+                    {t("clearFilters")}
+                  </Button>
+                )}
               </div>
               <div className="text-xs text-gray-500">
                 {t("showingClientsCount")

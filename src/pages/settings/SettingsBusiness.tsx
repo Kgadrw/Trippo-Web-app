@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Building2, Phone, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -87,16 +86,14 @@ export default function SettingsBusiness() {
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto p-5">
+    <div className="px-4 pb-4 lg:px-6">
       <SettingsSubpageHeader
         icon={Building2}
         title={t("businessInfo")}
         description={t("businessInfoPageDesc")}
       />
 
-      <Separator className="mb-4 bg-blue-200" />
-
-      <div className="space-y-5">
+      <div className="space-y-4 max-w-xl">
         <div className="space-y-1.5">
           <Label className="text-xs font-medium flex items-center gap-1.5">
             <Building2 size={12} className="text-blue-600" />
@@ -127,13 +124,11 @@ export default function SettingsBusiness() {
         </div>
       </div>
 
-      <Separator className="my-4" />
-
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-4 mt-4 border-t border-gray-200 max-w-xl">
         <Button
           onClick={() => void handleSave()}
           disabled={saving}
-          className="bg-blue-600 text-white hover:bg-blue-700 gap-2 h-10 px-5 text-sm font-semibold rounded-lg"
+          className="bg-primary text-white hover:bg-blue-700 hover:text-white gap-2 h-10 px-5 text-sm font-semibold rounded-lg"
         >
           <Save size={14} />
           {t("saveChanges")}

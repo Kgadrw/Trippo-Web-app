@@ -30,11 +30,9 @@ import {
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
-import { playSaleBeep, playErrorBeep, playWarningBeep } from "@/lib/sound";
+import { playSaleBeep, playErrorBeep } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useOffline } from "@/hooks/useOffline";
-import { computeProductSaleMetrics } from "@/lib/saleCalculations";
 
 interface Product {
   id?: number;
@@ -44,11 +42,6 @@ interface Product {
   costPrice: number;
   sellingPrice: number;
   stock: number;
-  isPackage?: boolean;
-  packageQuantity?: number;
-  priceType?: "perQuantity" | "perPackage"; // "perQuantity" = price per individual item, "perPackage" = price for whole package
-  costPriceType?: "perQuantity" | "perPackage"; // "perQuantity" = cost price per individual item, "perPackage" = cost price for whole package
-  productType?: string;
 }
 
 interface Sale {
@@ -60,9 +53,9 @@ interface Sale {
   profit: number;
   cost: number;
   date: string;
-  timestamp?: string; // ISO timestamp of when the sale was recorded
+  timestamp?: string;
   paymentMethod: string;
-  saleType?: "product" | "service";
+  saleType?: "service";
   serviceName?: string;
   workerId?: string;
   workerName?: string;
@@ -82,51 +75,29 @@ interface RecordSaleModalProps {
   initialServiceName?: string;
 }
 
-const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search products by name, category, or type...", className, onError }: {
+const ServiceCombobox = ({
+  value,
+  onValueChange,
+  services,
+  placeholder = "Search services...",
+  className,
+}: {
   value: string;
   onValueChange: (value: string) => void;
-  products: Product[];
+  services: Product[];
   placeholder?: string;
   className?: string;
-  onError?: (message: string) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredProducts = useMemo(() => {
-    const availableProducts = products.filter((product) => product.stock > 0);
-    if (!searchQuery) return availableProducts;
+  const filteredServices = useMemo(() => {
+    if (!searchQuery) return services;
     const query = searchQuery.toLowerCase();
-    return availableProducts.filter(
-      (product) =>
-        product.name.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query) ||
-        (product.productType && product.productType.toLowerCase().includes(query))
-    );
-  }, [products, searchQuery]);
+    return services.filter((service) => service.name.toLowerCase().includes(query));
+  }, [services, searchQuery]);
 
-  const selectedProduct = products.find((p) => {
-    const id = (p as any)._id || p.id;
-    return id.toString() === value;
-  });
-
-  useEffect(() => {
-    if (value && products.length > 0) {
-      const currentProduct = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id.toString() === value;
-      });
-      if (currentProduct && currentProduct.stock <= 0) {
-        onValueChange("");
-        setSearchQuery("");
-        if (onError) {
-          onError(`${currentProduct.name} is now out of stock and has been removed from selection.`);
-        }
-      }
-    }
-  }, [value, products, onValueChange, onError]);
-
-  const displayProduct = selectedProduct && selectedProduct.stock > 0 ? selectedProduct : null;
+  const selectedService = services.find((s) => s.name === value) ?? null;
 
   return (
     <div className="relative w-full">
@@ -138,7 +109,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
             </div>
             <Input
               type="text"
-              value={displayProduct ? displayProduct.name : searchQuery}
+              value={selectedService ? selectedService.name : searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 if (!open) setOpen(true);
@@ -157,7 +128,7 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
               placeholder={placeholder}
               className={cn("pl-10 pr-10 cursor-text", className)}
             />
-            {displayProduct && (
+            {selectedService && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -172,63 +143,49 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
                 <X className="h-4 w-4" />
               </button>
             )}
-            {!displayProduct && (
+            {!selectedService && (
               <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             )}
           </div>
         </PopoverTrigger>
-        <PopoverContent 
-          className="w-[var(--radix-popover-trigger-width)] p-0" 
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-0"
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onInteractOutside={(e) => {
             const target = e.target as HTMLElement;
-            if (target.closest('[role="combobox"]') || target.closest('.relative')) {
+            if (target.closest('[role="combobox"]') || target.closest(".relative")) {
               e.preventDefault();
             }
           }}
         >
           <Command shouldFilter={false}>
             <CommandList>
-              <CommandEmpty>No products found.</CommandEmpty>
+              <CommandEmpty>No services found.</CommandEmpty>
               <CommandGroup>
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => {
-                    const id = (product as any)._id || product.id;
+                {filteredServices.length > 0 ? (
+                  filteredServices.map((service) => {
+                    const sid = ((service as any)._id || service.id || service.name).toString();
                     return (
                       <CommandItem
-                        key={id}
-                        value={`${product.name} ${product.category} ${product.productType || ""}`}
+                        key={sid}
+                        value={service.name}
                         onSelect={() => {
-                          if (product.stock > 0) {
-                            onValueChange(id.toString());
-                            setOpen(false);
-                            setSearchQuery("");
-                          } else {
-                            onError?.(`${product.name} is out of stock`);
-                          }
+                          onValueChange(service.name);
+                          setOpen(false);
+                          setSearchQuery("");
                         }}
+                        className="flex items-center justify-between gap-3"
                       >
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="truncate font-medium">{product.name}</span>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{product.category}</span>
-                            {product.productType && (
-                              <>
-                                <span>•</span>
-                                <span>{product.productType}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right text-sm font-semibold ml-2">
-                          rwf {product.sellingPrice.toLocaleString()}
-                        </div>
+                        <span className="truncate font-medium">{service.name}</span>
+                        <span className="shrink-0 text-sm font-semibold text-gray-700">
+                          rwf {service.sellingPrice.toLocaleString()}
+                        </span>
                       </CommandItem>
                     );
                   })
                 ) : (
-                  <CommandEmpty>No products found. Try a different search.</CommandEmpty>
+                  <CommandEmpty>No services found. Try a different search.</CommandEmpty>
                 )}
               </CommandGroup>
             </CommandList>
@@ -242,19 +199,11 @@ const ProductCombobox = ({ value, onValueChange, products, placeholder = "Search
 export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialServiceName }: RecordSaleModalProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { isOnline } = useOffline();
-  const {
-    items: products,
-    isLoading: productsLoading,
-    update: updateProduct,
-  } = useApi<Product>({
+  const { items: products } = useApi<Product>({
     endpoint: "products",
     defaultValue: [],
   });
-  const {
-    add: addSale,
-    refresh: refreshSales,
-  } = useApi<Sale>({
+  const { add: addSale } = useApi<Sale>({
     endpoint: "sales",
     defaultValue: [],
   });
@@ -263,27 +212,18 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
     defaultValue: [],
   });
 
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const saleType: "service" = "service";
   const [serviceName, setServiceName] = useState("");
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [serviceAmount, setServiceAmount] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [sellingPrice, setSellingPrice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [isRecordingSale, setIsRecordingSale] = useState(false);
-  const [packageSaleMode, setPackageSaleMode] = useState<"quantity" | "wholePackage">("quantity"); // For package products: sell by quantity or whole package
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (!open) {
       setServiceName("");
       setSelectedWorkerId("");
       setServiceAmount("");
-      setSelectedProduct("");
-      setQuantity("1");
-      setSellingPrice("");
       setPaymentMethod("cash");
       setSaleDate(new Date().toISOString().split("T")[0]);
     } else if (initialServiceName?.trim()) {
@@ -293,7 +233,7 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
 
   const workers = useMemo(
     () => clients.filter((c) => c.clientType === "worker"),
-    [clients]
+    [clients],
   );
 
   const availableServices = useMemo(() => {
@@ -310,403 +250,110 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
     }
   }, [open, initialServiceName, availableServices]);
 
-  // Calculate selling price based on product priceType and sale mode
-  const calculateSellingPrice = (product: Product, saleMode: "quantity" | "wholePackage"): number => {
-    if (!product.isPackage || !product.packageQuantity) {
-      // Regular product - use selling price as is
-      return product.sellingPrice;
-    }
-    
-    if (product.priceType === "perQuantity") {
-      // Price is per individual item
-      if (saleMode === "wholePackage") {
-        // Selling whole package: multiply by package quantity
-        return product.sellingPrice * product.packageQuantity;
-      } else {
-        // Selling by quantity: use price as is (per item)
-        return product.sellingPrice;
-      }
-    } else {
-      // priceType === "perPackage" - Price is for whole package
-      if (saleMode === "wholePackage") {
-        // Selling whole package: use price as is
-        return product.sellingPrice;
-      } else {
-        // Selling by quantity: divide by package quantity to get price per item
-        return product.sellingPrice / product.packageQuantity;
-      }
+  const handleServiceChange = (value: string) => {
+    setServiceName(value);
+    const selectedService = availableServices.find((s) => s.name === value);
+    if (selectedService && selectedService.sellingPrice > 0) {
+      setServiceAmount(String(selectedService.sellingPrice));
     }
   };
 
-  // Auto-fill selling price when product is selected
-  useEffect(() => {
-    if (selectedProduct) {
-      const product = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id?.toString() === selectedProduct;
-      });
-      if (product) {
-        // Reset package sale mode when product changes
-        if (product.isPackage) {
-          setPackageSaleMode("quantity");
-        }
-        // Calculate and set selling price based on product and sale mode
-        const calculatedPrice = calculateSellingPrice(product, product.isPackage ? "quantity" : "quantity");
-        setSellingPrice(calculatedPrice.toString());
-      }
-    }
-  }, [selectedProduct, products]);
-
-  // Update selling price when sale mode changes for package products
-  useEffect(() => {
-    if (selectedProduct) {
-      const product = products.find((p) => {
-        const id = (p as any)._id || p.id;
-        return id?.toString() === selectedProduct;
-      });
-      
-      if (product && product.isPackage && product.packageQuantity) {
-        const calculatedPrice = calculateSellingPrice(product, packageSaleMode);
-        setSellingPrice(calculatedPrice.toString());
-      }
-    }
-  }, [packageSaleMode, selectedProduct, products]);
-
   const handleRecordSale = async () => {
-    if (saleType === "service") {
-      if (!serviceName.trim() || !selectedWorkerId || !serviceAmount) {
-        playErrorBeep();
-        toast({
-          title: t("missingInformation"),
-          description: t("fillServiceWorkerAmount"),
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const amount = parseFloat(serviceAmount);
-      if (isNaN(amount) || amount <= 0) {
-        playErrorBeep();
-        toast({
-          title: t("invalidAmount"),
-          description: t("serviceAmountMustBePositive"),
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const worker = workers.find((w) => ((w as any)._id || w.id)?.toString() === selectedWorkerId);
-      if (!worker) {
-        playErrorBeep();
-        toast({
-          title: t("workerNotFound"),
-          description: t("selectValidWorker"),
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setIsRecordingSale(true);
-      try {
-        const now = new Date();
-        let saleDateTime: Date;
-        if (saleDate) {
-          const selectedDate = new Date(saleDate + "T00:00:00");
-          saleDateTime = new Date(selectedDate);
-          saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-        } else {
-          saleDateTime = now;
-        }
-
-        const newSale: Sale = {
-          product: serviceName.trim(),
-          quantity: 1,
-          revenue: amount,
-          cost: 0,
-          profit: 0,
-          date: saleDateTime.toISOString(),
-          timestamp: new Date().toISOString(),
-          paymentMethod,
-          saleType: "service",
-          serviceName: serviceName.trim(),
-          workerId: selectedWorkerId,
-          workerName: worker.name,
-        };
-
-        await addSale(newSale);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        playSaleBeep();
-        toast({
-          title: t("serviceRecorded"),
-          description: t("serviceRecordedDesc")
-            .replace("{product}", serviceName.trim())
-            .replace("{worker}", worker.name)
-            .replace("{amount}", amount.toLocaleString()),
-        });
-
-        setServiceName("");
-        setSelectedWorkerId("");
-        setServiceAmount("");
-        setPaymentMethod("cash");
-        setSaleDate(new Date().toISOString().split("T")[0]);
-
-        window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: newSale } }));
-        window.dispatchEvent(new CustomEvent("sales-should-refresh"));
-        onSaleRecorded?.();
-
-        setTimeout(() => {
-          onOpenChange(false);
-        }, 500);
-      } catch (error: any) {
-        playErrorBeep();
-        toast({
-          title: t("errorRecordingService"),
-          description: error?.message || error?.response?.error || t("recordServiceFailedDesc"),
-          variant: "destructive",
-        });
-      } finally {
-        setIsRecordingSale(false);
-      }
-      return;
-    }
-
-    if (!selectedProduct) {
+    if (!serviceName.trim() || !selectedWorkerId || !serviceAmount) {
       playErrorBeep();
       toast({
-        title: "Error",
-        description: "Please select a product.",
+        title: t("missingInformation"),
+        description: t("fillServiceWorkerAmount"),
         variant: "destructive",
       });
       return;
     }
 
-    const product = products.find((p) => {
-      const id = (p as any)._id || p.id;
-      return id?.toString() === selectedProduct;
-    });
-
-    if (!product) {
-      setIsRecordingSale(false);
-      return;
-    }
-
-    const metrics = computeProductSaleMetrics(product, {
-      quantityStr: quantity,
-      sellingPriceStr: sellingPrice,
-      packageSaleMode,
-    });
-    if (metrics.ok === false) {
+    const amount = parseFloat(serviceAmount);
+    if (isNaN(amount) || amount <= 0) {
       playErrorBeep();
-      if (metrics.code === "invalid_quantity") {
-        toast({
-          title: "Invalid Quantity",
-          description: "Please enter a valid quantity greater than 0.",
-          variant: "destructive",
-        });
-      } else if (metrics.code === "invalid_price") {
-        toast({
-          title: "Invalid price",
-          description: "Enter a valid selling price (a number, zero or greater).",
-          variant: "destructive",
-        });
-      } else {
-        const need =
-          product.isPackage && product.packageQuantity && packageSaleMode === "wholePackage"
-            ? product.packageQuantity
-            : null;
-        toast({
-          title: "Insufficient Stock",
-          description:
-            need != null
-              ? `You need at least ${need} in stock to sell a whole package (${product.stock} available).`
-              : `Only ${product.stock} ${product.stock === 1 ? "item" : "items"} available in stock.`,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: t("invalidAmount"),
+        description: t("serviceAmountMustBePositive"),
+        variant: "destructive",
+      });
       return;
     }
 
-    const { qty, stockReduction, revenue, cost, profit } = metrics;
+    const worker = workers.find((w) => ((w as any)._id || w.id)?.toString() === selectedWorkerId);
+    if (!worker) {
+      playErrorBeep();
+      toast({
+        title: t("workerNotFound"),
+        description: t("selectValidWorker"),
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsRecordingSale(true);
-
     try {
-      // Combine selected date with current time to preserve hours/minutes/seconds
       const now = new Date();
       let saleDateTime: Date;
       if (saleDate) {
-        // Parse the date string and combine with current time
-        const selectedDate = new Date(saleDate + 'T00:00:00');
+        const selectedDate = new Date(saleDate + "T00:00:00");
         saleDateTime = new Date(selectedDate);
         saleDateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
       } else {
         saleDateTime = now;
       }
 
-      const newSale = {
-        product: product.name,
-        quantity: qty,
-        revenue,
-        profit,
-        cost,
+      const newSale: Sale = {
+        product: serviceName.trim(),
+        quantity: 1,
+        revenue: amount,
+        cost: 0,
+        profit: 0,
         date: saleDateTime.toISOString(),
-        timestamp: new Date().toISOString(), // Record exact time when sale was recorded
+        timestamp: new Date().toISOString(),
         paymentMethod,
+        saleType: "service",
+        serviceName: serviceName.trim(),
+        workerId: selectedWorkerId,
+        workerName: worker.name,
       };
 
-      // addSale updates UI immediately and returns right away (non-blocking for sales)
-      // Sale is added to IndexedDB and UI state immediately (< 50ms)
       await addSale(newSale);
-      
-      // Wait a tiny bit to ensure IndexedDB transaction commits before notifying other components
-      // This ensures the Index page can read the sale from IndexedDB immediately
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Success message shows instantly - UI is already updated
       playSaleBeep();
-      
-      // Check if offline mode
-      const isOfflineMode = !isOnline;
-      
-      if (isOfflineMode) {
-        toast({
-          title: "Sale Recorded (Offline Mode)",
-          description: `${qty} ${qty === 1 ? 'item' : 'items'} of ${product.name} sold for RWF ${revenue.toLocaleString()}. Changes will sync when you're back online.`,
-        });
-      } else {
-        toast({
-          title: "Sale Recorded!",
-          description: `${qty} ${qty === 1 ? 'item' : 'items'} of ${product.name} sold for RWF ${revenue.toLocaleString()}`,
-        });
-      }
+      toast({
+        title: t("serviceRecorded"),
+        description: t("serviceRecordedDesc")
+          .replace("{product}", serviceName.trim())
+          .replace("{worker}", worker.name)
+          .replace("{amount}", amount.toLocaleString()),
+      });
 
-      // Reset form immediately for better UX
-      setSelectedProduct("");
-      setQuantity("1");
-      setSellingPrice("");
+      setServiceName("");
+      setSelectedWorkerId("");
+      setServiceAmount("");
       setPaymentMethod("cash");
       setSaleDate(new Date().toISOString().split("T")[0]);
 
-      // Dispatch events after IndexedDB write completes - other pages will reload from IndexedDB
-      const productId = (product as any)._id || product.id;
-      window.dispatchEvent(new CustomEvent('sale-recorded', { 
-        detail: { sale: newSale, productId, stockReduction } 
-      }));
-      window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-      window.dispatchEvent(new CustomEvent('products-should-refresh'));
-      
-      // Call callback to trigger Index page reload (after IndexedDB write completes)
       onSaleRecorded?.();
-      
-      // Update product stock in background (non-blocking)
-      // API call for sale is already happening in background via useApi
-      // No refresh needed - UI already updated immediately
-      (async () => {
-        try {
-          const updatedProduct = {
-            ...product,
-            _id: productId,
-            id: productId,
-            stock: Math.max(0, product.stock - stockReduction),
-          };
-          await updateProduct(updatedProduct);
-          console.log(`[RecordSaleModal] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-          window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-            detail: { productId, newStock: updatedProduct.stock } 
-          }));
-        } catch (updateError) {
-          console.warn("Failed to update product stock in modal:", updateError);
-        }
-      })().catch(err => {
-        console.log('[RecordSaleModal] Background stock update error:', err);
-      });
-      
-      // Close modal after a short delay
+
       setTimeout(() => {
         onOpenChange(false);
       }, 500);
     } catch (error: any) {
-      // Check if it's an offline/connection error
-      if (error?.response?.silent || error?.response?.connectionError || !isOnline) {
-        // Offline mode - treat as success
-        playSaleBeep();
-        toast({
-          title: "Sale Recorded (Offline Mode)",
-          description: `${qty} ${qty === 1 ? 'item' : 'items'} of ${product.name} sold for RWF ${revenue.toLocaleString()}. Changes will sync when you're back online.`,
-        });
-        
-        // Reset form
-        setSelectedProduct("");
-        setQuantity("1");
-        setSellingPrice("");
-        setPaymentMethod("cash");
-        setSaleDate(new Date().toISOString().split("T")[0]);
-        
-        // Always refresh sales list immediately (works both online and offline)
-        try {
-          await refreshSales(true); // Force refresh to get fresh data
-          console.log('[RecordSaleModal] Sales list refreshed after recording sale (offline mode)');
-        } catch (refreshError) {
-          // Silently ignore refresh errors - the useApi hook handles offline scenarios
-          console.log('[RecordSaleModal] Refresh error (offline):', refreshError);
-        }
-        
-        // Dispatch custom event to notify all pages (especially Sales page) to refresh
-        window.dispatchEvent(new CustomEvent('sale-recorded', { 
-          detail: { sale: { product: product.name, quantity: qty, revenue } } 
-        }));
-        window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        
-        onSaleRecorded?.();
-        
-        // Close modal after a short delay
-        setTimeout(() => {
-          onOpenChange(false);
-        }, 500);
-      } else {
-        // Real error - show error message with details
-        playErrorBeep();
-        console.error("Error recording sale:", error);
-        toast({
-          title: "Error Recording Sale",
-          description: error?.message || error?.response?.error || "Failed to record sale. Please check your connection and try again.",
-          variant: "destructive",
-        });
-      }
+      playErrorBeep();
+      toast({
+        title: t("errorRecordingService"),
+        description: error?.message || error?.response?.error || t("recordServiceFailedDesc"),
+        variant: "destructive",
+      });
     } finally {
       setIsRecordingSale(false);
     }
   };
 
-  const handleProductChange = (productId: string) => {
-    const product = products.find((p) => {
-      const id = (p as any)._id || p.id;
-      return id.toString() === productId;
-    });
-    
-    if (product && product.stock <= 0) {
-      playErrorBeep();
-      toast({
-        title: t("productOutOfStock"),
-        description: `${product.name} ${t("productOutOfStockCannotSellSuffix")}`,
-        variant: "destructive",
-      });
-      setSelectedProduct("");
-      setSellingPrice("");
-      return;
-    }
-    
-    setSelectedProduct(productId);
-    if (product) {
-      setSellingPrice(product.sellingPrice.toString());
-    } else {
-      setSellingPrice("");
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[360px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-2xl shadow-xl">
+      <DialogContent className="max-w-[480px] max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-300 rounded-2xl shadow-xl">
         <div className="p-4">
           <DialogHeader className="mb-3 pb-3 border-b border-gray-100">
             <DialogTitle className="flex items-center justify-between text-gray-900 text-lg font-semibold">
@@ -714,123 +361,94 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                   <Plus size={18} className="text-white" />
                 </div>
-                <span>{t("recordService")}</span>
+                <span>{t("recordNewSale")}</span>
               </span>
             </DialogTitle>
           </DialogHeader>
 
-          {/* Compact Form */}
           <div className="space-y-3">
-            <>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t("serviceName")}</Label>
-                  <Select
-                    value={serviceName}
-                    onValueChange={(value) => {
-                      setServiceName(value);
-                      const selectedService = availableServices.find((s) => s.name === value);
-                      if (selectedService && selectedService.sellingPrice > 0) {
-                        setServiceAmount(String(selectedService.sellingPrice));
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                      <SelectValue placeholder={t("selectService")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableServices.length > 0 ? (
-                        availableServices.map((service) => {
-                          const sid = ((service as any)._id || service.id || service.name).toString();
-                          return (
-                            <SelectItem key={sid} value={service.name}>
-                              {service.name}
-                            </SelectItem>
-                          );
-                        })
-                      ) : (
-                        <SelectItem value="__no_service__" disabled>
-                          {t("noServicesAddFirst")}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">
-                      {t("worker")}
-                    </Label>
-                  <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
-                    <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                      <SelectValue placeholder={t("selectWorker")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {workers.length > 0 ? (
-                        workers.map((worker) => {
-                          const workerId = ((worker as any)._id || worker.id)?.toString();
-                          if (!workerId) return null;
-                          return (
-                            <SelectItem key={workerId} value={workerId}>
-                              {worker.name}
-                            </SelectItem>
-                          );
-                        })
-                      ) : (
-                        <SelectItem value="__no_worker__" disabled>
-                          {t("noWorkersAddFirst")}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{t("amount")} (rwf)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={serviceAmount}
-                      onChange={(e) => setServiceAmount(e.target.value)}
-                      className="h-10 text-base bg-gray-50 border-gray-200"
-                      placeholder={t("amount")}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{t("paymentMethod")}</Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                      <SelectTrigger className="h-10 text-base bg-gray-50 border-gray-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">{t("cash")}</SelectItem>
-                        <SelectItem value="momo">{t("momoPay")}</SelectItem>
-                        <SelectItem value="card">{t("card")}</SelectItem>
-                        <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
-                        <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">{t("date")}</Label>
-                    <Input
-                      type="date"
-                      value={saleDate}
-                      onChange={(e) => setSaleDate(e.target.value)}
-                      className="h-10 text-base bg-gray-50 border-gray-200"
-                    />
-                  </div>
-                </div>
-            </>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-600">{t("serviceName")}</Label>
+              <ServiceCombobox
+                value={serviceName}
+                onValueChange={handleServiceChange}
+                services={availableServices}
+                placeholder={t("selectService")}
+                className="h-10 text-base"
+              />
+            </div>
 
-            {/* Submit Button */}
-            <Button 
-              onClick={handleRecordSale} 
-              disabled={
-                isRecordingSale ||
-                (!serviceName.trim() || !selectedWorkerId || !serviceAmount)
-              }
-              className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-md hover:shadow-lg transition-all rounded-lg gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-600">{t("worker")}</Label>
+              <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
+                <SelectTrigger className="h-10 text-base">
+                  <SelectValue placeholder={t("selectWorker")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {workers.length > 0 ? (
+                    workers.map((worker) => {
+                      const workerId = ((worker as any)._id || worker.id)?.toString();
+                      if (!workerId) return null;
+                      return (
+                        <SelectItem key={workerId} value={workerId}>
+                          {worker.name}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="__no_worker__" disabled>
+                      {t("noWorkersAddFirst")}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-600">{t("amount")} (rwf)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={serviceAmount}
+                  onChange={(e) => setServiceAmount(e.target.value)}
+                  className="h-10 text-base"
+                  placeholder={t("amount")}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-600">{t("paymentMethod")}</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="h-10 text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">{t("cash")}</SelectItem>
+                    <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                    <SelectItem value="card">{t("card")}</SelectItem>
+                    <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                    <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-600">{t("date")}</Label>
+                <Input
+                  type="date"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                  className="h-10 text-base"
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleRecordSale}
+              disabled={isRecordingSale || !serviceName.trim() || !selectedWorkerId || !serviceAmount}
+              className="w-full h-11 bg-primary hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all rounded-lg gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingCart size={18} />
               {isRecordingSale ? t("recording") : t("recordSale")}

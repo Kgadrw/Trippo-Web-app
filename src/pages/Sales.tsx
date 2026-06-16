@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, searchBarInputClass, filterDateInputClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -9,6 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  filterSelectClass,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -23,12 +24,12 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar, Filter, ArrowUpDown, Trash2, Lock, MoreVertical, Printer, Download, Loader2 } from "lucide-react";
+import { ShoppingCart, Plus, X, Check, ChevronsUpDown, Package, Search, Calendar, Filter, ArrowUpDown, Trash2, Lock, MoreVertical, Printer, Download, Loader2, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep, playWarningBeep, playUpdateBeep, playDeleteBeep, initAudio } from "@/lib/sound";
-import { toast as sonnerToast } from "@/components/ui/sonner";
 import { cn, formatDateWithTime } from "@/lib/utils";
+import { getSaleProductId } from "@/lib/productIds";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { usePinAuth } from "@/hooks/usePinAuth";
@@ -300,7 +301,6 @@ const Sales = () => {
     items: products,
     isLoading: productsLoading,
     refresh: refreshProducts,
-    update: updateProduct,
   } = useApi<Product>({
     endpoint: "products",
     defaultValue: [],
@@ -366,11 +366,10 @@ const Sales = () => {
   }, []); // Only run once on mount, not when refresh functions change
   const { hasPin, verifyPin } = usePinAuth();
   const getTodayDate = () => new Date().toISOString().split("T")[0];
-  const getYearStartDate = () => {
-    const date = new Date();
-    date.setMonth(0);
-    date.setDate(1);
-    return date.toISOString().split("T")[0];
+  const toDateKey = (value: string | Date) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
   };
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -385,12 +384,12 @@ const Sales = () => {
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "product-asc" | "product-desc" | "revenue-desc" | "revenue-asc" | "profit-desc" | "profit-asc">("date-desc");
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [inventories, setInventories] = useState<Array<{ _id?: string; id?: number; name: string }>>([]);
   const [selectedInventoryId, setSelectedInventoryId] = useState<string>(""); // ''=all, '__unassigned__'=null
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
 
   useEffect(() => {
     (async () => {
@@ -423,49 +422,18 @@ const Sales = () => {
     setSaleDate(getTodayDate());
   }, []);
 
-  // Listen for sale recording completion - update UI immediately with the confirmed sale
+  // Product stock patches instantly via product-stock-updated; full refresh only for catalog changes
   useEffect(() => {
-    const handleSaleRecordingCompleted = (event: CustomEvent) => {
-      if (event.detail?.success && event.detail?.sale) {
-        const confirmedSale = event.detail.sale;
-        console.log('[Sales] Sale confirmed by backend - inserting into list immediately');
-        // Directly insert the backend-confirmed sale into this page's state
-        // This avoids a full refresh and shows the sale instantly
-        const saleId = confirmedSale._id || confirmedSale.id;
-        if (saleId) {
-          // Use the setter from useApi to update the sales list
-          refreshSales(true);
-        }
-      }
+    const handleProductsRefresh = () => {
+      refreshProducts(true);
     };
 
-    window.addEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
+    window.addEventListener("products-should-refresh", handleProductsRefresh);
 
     return () => {
-      window.removeEventListener('sale-recording-completed', handleSaleRecordingCompleted as EventListener);
+      window.removeEventListener("products-should-refresh", handleProductsRefresh);
     };
-  }, [refreshSales]);
-
-  // Listen for sale-recorded events from RecordSaleModal or other sources
-  // Force refresh so the sales list updates immediately
-  useEffect(() => {
-    const handleSaleRecorded = () => {
-      console.log('[Sales] Sale recorded event - refreshing sales list');
-      refreshSales(true);
-    };
-
-    const handleSalesShouldRefresh = () => {
-      refreshSales(true);
-    };
-
-    window.addEventListener('sale-recorded', handleSaleRecorded);
-    window.addEventListener('sales-should-refresh', handleSalesShouldRefresh);
-
-    return () => {
-      window.removeEventListener('sale-recorded', handleSaleRecorded);
-      window.removeEventListener('sales-should-refresh', handleSalesShouldRefresh);
-    };
-  }, [refreshSales]);
+  }, [refreshProducts]);
 
   // Clear selected product if it becomes out of stock
   useEffect(() => {
@@ -621,7 +589,7 @@ const Sales = () => {
 
           return {
             product: product.name,
-            productId: (product as any)._id || product.id,
+            productId: getSaleProductId(product),
             inventoryId: selectedInventoryId === "__unassigned__" ? null : (selectedInventoryId ? selectedInventoryId : (product.inventoryId ?? null)),
             quantity: qty,
             revenue,
@@ -652,59 +620,14 @@ const Sales = () => {
             
             // Show success immediately (bulkAddSales already updates UI)
             playSaleBeep();
-            sonnerToast.success("Sales Recorded", {
+            toast({
+              title: "Sales Recorded",
               description: `Successfully recorded ${salesToCreate.length} sale(s).`,
             });
 
             // Reset bulk form immediately for better UX
             setBulkSales([{ product: "", quantity: "1", sellingPrice: "", paymentMethod: "cash", saleDate: getTodayDate() }]);
             setIsBulkMode(false);
-
-            // Dispatch events immediately (non-blocking) - other pages will update via WebSocket
-            window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-            window.dispatchEvent(new CustomEvent('products-should-refresh'));
-            
-            // Update product stock in background (non-blocking)
-            // API calls for sales are already happening in background via useApi
-            // No refresh needed - UI already updated immediately
-            (async () => {
-            const stockReductions = new Map<string, number>();
-            salesToCreate.forEach((sale: any) => {
-              const productId = sale.productId?.toString();
-              if (productId) {
-                const currentReduction = stockReductions.get(productId) || 0;
-                stockReductions.set(productId, currentReduction + sale.quantity);
-              }
-            });
-            
-              // Update each product's stock (non-blocking)
-              const updatePromises = Array.from(stockReductions.entries()).map(async ([productId, totalQuantity]) => {
-              try {
-                const product = products.find((p) => {
-                  const id = (p as any)._id || p.id;
-                  return id.toString() === productId;
-                });
-                if (product) {
-                  const updatedProduct = {
-                    ...product,
-                    _id: productId,
-                    id: productId,
-                    stock: Math.max(0, product.stock - totalQuantity),
-                  };
-                  await updateProduct(updatedProduct);
-                  console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-                    window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-                      detail: { productId, newStock: updatedProduct.stock } 
-                    }));
-                }
-              } catch (updateError) {
-                console.warn(`Failed to update product stock via API for product ${productId}:`, updateError);
-              }
-              });
-              await Promise.all(updatePromises);
-            })().catch(err => {
-              console.log('[Sales] Background stock update error:', err);
-            });
           } catch (bulkError: any) {
             // Check if it's a connection error
             if (bulkError?.response?.connectionError) {
@@ -814,7 +737,7 @@ const Sales = () => {
 
       const newSale = {
         product: product.name,
-        productId: (product as any)._id || product.id,
+        productId: getSaleProductId(product),
         inventoryId: selectedInventoryId === "__unassigned__" ? null : (selectedInventoryId ? selectedInventoryId : (product.inventoryId ?? null)),
         quantity: qty,
         revenue,
@@ -832,7 +755,8 @@ const Sales = () => {
           
           // Success message shows instantly - UI is already updated
           playSaleBeep();
-          sonnerToast.success("Sale Recorded", {
+          toast({
+            title: "Sale Recorded",
             description: `Successfully recorded sale of ${qty}x ${product.name}`,
           });
           
@@ -842,37 +766,6 @@ const Sales = () => {
           setSellingPrice("");
           setPaymentMethod("cash");
           setSaleDate(getTodayDate());
-
-          // Dispatch events immediately (non-blocking) - other pages will update via WebSocket
-          const productId = (product as any)._id || product.id;
-          window.dispatchEvent(new CustomEvent('sale-recorded', { 
-            detail: { sale: newSale, productId, stockReduction } 
-          }));
-          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-          window.dispatchEvent(new CustomEvent('products-should-refresh'));
-          
-          // Update product stock in background (non-blocking)
-          // API call for sale is already happening in background via useApi
-          // No refresh needed - UI already updated immediately
-          (async () => {
-            try {
-          const updatedProduct = {
-            ...product,
-            _id: productId,
-            id: productId,
-            stock: Math.max(0, product.stock - stockReduction),
-          };
-            await updateProduct(updatedProduct);
-            console.log(`[Sales] Stock updated: ${product.name} - ${product.stock} -> ${updatedProduct.stock}`);
-          window.dispatchEvent(new CustomEvent('product-stock-updated', { 
-            detail: { productId, newStock: updatedProduct.stock } 
-          }));
-            } catch (updateError) {
-              console.warn("Failed to update product stock via API:", updateError);
-            }
-          })().catch(err => {
-            console.log('[Sales] Background stock update error:', err);
-          });
         } catch (saleError: any) {
           // Check if it's a connection error
           if (saleError?.response?.connectionError) {
@@ -924,6 +817,11 @@ const Sales = () => {
       });
     }
     
+    // Filter by payment method
+    if (paymentMethodFilter !== "all") {
+      filtered = filtered.filter((sale) => (sale.paymentMethod || "cash") === paymentMethodFilter);
+    }
+    
     // Filter by search query (product/service/worker name)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -934,30 +832,11 @@ const Sales = () => {
       );
     }
     
-    // Filter by date range
-    if (startDate || endDate) {
-      filtered = filtered.filter(sale => {
-        const saleDate = new Date(sale.date);
-        saleDate.setHours(0, 0, 0, 0); // Normalize to start of day
-        
-        const start = startDate ? new Date(startDate) : null;
-        if (start) {
-          start.setHours(0, 0, 0, 0);
-        }
-        
-        const end = endDate ? new Date(endDate) : null;
-        if (end) {
-          end.setHours(23, 59, 59, 999); // Set to end of day
-        }
-        
-        if (start && end) {
-          return saleDate >= start && saleDate <= end;
-        } else if (start) {
-          return saleDate >= start;
-        } else if (end) {
-          return saleDate <= end;
-        }
-        return true;
+    // Filter by date
+    if (dateFilter) {
+      filtered = filtered.filter((sale) => {
+        const raw = (sale as any).timestamp || sale.date;
+        return toDateKey(raw) === dateFilter;
       });
     }
     
@@ -991,7 +870,7 @@ const Sales = () => {
     });
     
     return filtered;
-  }, [sales, selectedInventoryId, searchQuery, startDate, endDate, sortBy]);
+  }, [sales, selectedInventoryId, searchQuery, dateFilter, sortBy, paymentMethodFilter]);
 
   const ticketBarberOptions = useMemo(() => {
     const map = new Map<string, { key: string; label: string }>();
@@ -1091,23 +970,12 @@ const Sales = () => {
       );
     }
 
-    if (startDate || endDate) {
-      filtered = filtered.filter((expense) => {
-        const expenseDate = new Date(expense.date);
-        expenseDate.setHours(0, 0, 0, 0);
-        const start = startDate ? new Date(startDate) : null;
-        if (start) start.setHours(0, 0, 0, 0);
-        const end = endDate ? new Date(endDate) : null;
-        if (end) end.setHours(23, 59, 59, 999);
-        if (start && end) return expenseDate >= start && expenseDate <= end;
-        if (start) return expenseDate >= start;
-        if (end) return expenseDate <= end;
-        return true;
-      });
+    if (dateFilter) {
+      filtered = filtered.filter((expense) => toDateKey(expense.date) === dateFilter);
     }
 
     return filtered;
-  }, [expenses, searchQuery, startDate, endDate]);
+  }, [expenses, searchQuery, dateFilter]);
 
   const mobileActivity = useMemo(() => {
     const saleRows = filteredSales.map((sale) => ({
@@ -1146,14 +1014,6 @@ const Sales = () => {
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [filteredSales, filteredExpenses, t]);
-
-  const handleClearFilters = () => {
-    setSearchQuery("");
-    setStartDate("");
-    setEndDate("");
-    setSortBy("date-desc");
-    setSelectedInventoryId("");
-  };
 
   // Clear selection when exiting selection mode
   useEffect(() => {
@@ -1315,7 +1175,6 @@ const Sales = () => {
         await refreshProducts(true);
 
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
         playUpdateBeep();
         toast({
@@ -1329,35 +1188,6 @@ const Sales = () => {
           const saleId = (sale as any)._id || sale.id;
           return saleId && selectedArray.includes(saleId.toString());
         });
-        
-        // First, restore stock for selected sales before deleting
-        const stockRestorations = new Map<string, number>();
-        for (const sale of salesToDelete) {
-          const productId = (sale as any).productId?.toString();
-          if (productId) {
-            const currentQuantity = stockRestorations.get(productId) || 0;
-            stockRestorations.set(productId, currentQuantity + sale.quantity);
-          }
-        }
-
-        // Restore stock for each product
-        for (const [productId, totalQuantity] of stockRestorations.entries()) {
-          try {
-            const product = products.find((p) => {
-              const id = (p as any)._id || p.id;
-              return id.toString() === productId;
-            });
-            if (product) {
-              const updatedProduct = {
-                ...product,
-                stock: product.stock + totalQuantity,
-              };
-              await updateProduct(updatedProduct);
-            }
-          } catch (updateError) {
-            console.warn(`Failed to restore stock for product ${productId}:`, updateError);
-          }
-        }
         
         // Delete selected sales in parallel for faster deletion
         const deletePromises = salesToDelete.map(async (sale) => {
@@ -1385,7 +1215,6 @@ const Sales = () => {
         await refreshProducts(true);
 
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
         playUpdateBeep();
         toast({
@@ -1393,27 +1222,7 @@ const Sales = () => {
           description: `Successfully deleted ${deletedCount} sale(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}`,
         });
       } else if (deleteMode === "single" && singleSaleToDelete) {
-        // Delete single sale using remove function for proper UI updates
-        // First, restore stock for this sale before deleting (optimistic update)
-          const productId = (singleSaleToDelete as any).productId?.toString();
-          if (productId) {
-              const product = products.find((p) => {
-                const id = (p as any)._id || p.id;
-                return id.toString() === productId;
-              });
-              if (product) {
-                const updatedProduct = {
-                  ...product,
-                  stock: product.stock + singleSaleToDelete.quantity,
-                };
-            // Don't await - let it happen in background
-            updateProduct(updatedProduct).catch((updateError) => {
-              console.warn("Failed to restore stock locally:", updateError);
-            });
-            }
-          }
-
-        // Remove from selection if it was selected (optimistic update)
+        // Delete single sale — backend restores stock on delete
           const saleId = (singleSaleToDelete as any)._id || singleSaleToDelete.id;
           if (saleId) {
             setSelectedSales((prev) => {
@@ -1433,7 +1242,6 @@ const Sales = () => {
         await refreshProducts(true);
 
         window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-        window.dispatchEvent(new CustomEvent('products-should-refresh'));
 
         playDeleteBeep();
         toast({
@@ -1588,7 +1396,7 @@ const Sales = () => {
                   placeholder={t("search") + " " + t("searchByProduct")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+                  className={searchBarInputClass}
                   autoComplete="off"
                   name="search-products"
                 />
@@ -1661,10 +1469,10 @@ const Sales = () => {
                       {t("inventory")}
                     </div>
                     <Select
-                      value={selectedInventoryId}
+                      value={selectedInventoryId || "__all__"}
                       onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
                     >
-                      <SelectTrigger className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
+                      <SelectTrigger className={cn("rounded-lg", filterSelectClass)}>
                         <SelectValue placeholder={t("all")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1683,104 +1491,50 @@ const Sales = () => {
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Start Date */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div className="space-y-1">
-                      <div className="text-[11px] font-medium text-gray-600">
-                        {t("startDate")}
-                      </div>
-                      <div className="relative">
-                        <Calendar
-                          size={16}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none"
-                        />
-                        <Input
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          className="pl-9 h-10 text-base bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
-                          style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light" }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* End Date */}
-                    <div className="space-y-1">
-                      <div className="text-[11px] font-medium text-gray-600">
-                        {t("endDate")}
-                      </div>
-                      <div className="relative">
-                        <Calendar
-                          size={16}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none"
-                        />
-                        <Input
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          className="pl-9 h-10 text-base bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg w-full"
-                          style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light" }}
-                        />
-                      </div>
+                      <div className="text-[11px] font-medium text-gray-600">{t("paymentMethod")}</div>
+                      <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                        <SelectTrigger className={cn("rounded-lg", filterSelectClass)}>
+                          <SelectValue placeholder={t("allPaymentMethods")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t("allPaymentMethods")}</SelectItem>
+                          <SelectItem value="cash">{t("cash")}</SelectItem>
+                          <SelectItem value="card">{t("card")}</SelectItem>
+                          <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                          <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                          <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
-                  {/* Quick ranges */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-medium text-gray-600">{t("date")}</div>
+                    <div className="relative">
+                      <Calendar
+                        size={16}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none"
+                      />
+                      <Input
+                        type="date"
+                        value={dateFilter}
+                        onChange={(e) => setDateFilter(e.target.value)}
+                        className={filterDateInputClass}
+                        style={{ WebkitAppearance: "none", appearance: "none", colorScheme: "light" }}
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
-                      onClick={() => {
-                        const today = getTodayDate();
-                        setStartDate(today);
-                        setEndDate(today);
-                      }}
+                      onClick={() => setDateFilter(getTodayDate())}
                     >
                       {t("periodToday")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
-                      onClick={() => {
-                        const now = new Date();
-                        const day = now.getDay(); // 0=Sun
-                        const diffToMonday = (day + 6) % 7; // Mon=0
-                        const monday = new Date(now);
-                        monday.setDate(now.getDate() - diffToMonday);
-                        const sunday = new Date(monday);
-                        sunday.setDate(monday.getDate() + 6);
-                        setStartDate(monday.toISOString().slice(0, 10));
-                        setEndDate(sunday.toISOString().slice(0, 10));
-                      }}
-                    >
-                      {t("periodWeek")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
-                      onClick={() => {
-                        const now = new Date();
-                        const first = new Date(now.getFullYear(), now.getMonth(), 1);
-                        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                        setStartDate(first.toISOString().slice(0, 10));
-                        setEndDate(last.toISOString().slice(0, 10));
-                      }}
-                    >
-                      {t("thisMonth")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-9 px-3 bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
-                      onClick={() => {
-                        setStartDate(getYearStartDate());
-                        setEndDate(getTodayDate());
-                      }}
-                    >
-                      {t("thisYear")}
                     </Button>
                   </div>
 
@@ -1789,17 +1543,14 @@ const Sales = () => {
                       type="button"
                       variant="outline"
                       className="bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg w-full"
-                      onClick={() => {
-                        setStartDate("");
-                        setEndDate("");
-                      }}
+                      onClick={() => setDateFilter("")}
                     >
                       <X size={14} className="mr-2" />
                       {t("cancel")}
                     </Button>
                     <Button
                       type="button"
-                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg w-full"
+                      className="bg-primary text-white hover:bg-blue-700 hover:text-white rounded-lg w-full"
                       onClick={() => setShowFilters(false)}
                     >
                       {t("confirm")}
@@ -1814,36 +1565,90 @@ const Sales = () => {
           </div>
           
           {/* Desktop Filter Section */}
-          <div className="hidden lg:flex flex-col gap-4">
-            {/* Search Bar with Filter Icon */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
+          <div className="hidden lg:flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
                 <Input
                   placeholder={t("search") + " " + t("searchByProduct")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded-lg w-full"
+                  className={searchBarInputClass}
                   autoComplete="off"
                   name="search-products"
                 />
               </div>
-              <Button
-                onClick={() => setShowFilters(!showFilters)}
-                variant="outline"
-                className={cn(
-                  "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-4 py-2",
-                  showFilters && "bg-blue-50 border-blue-300 text-blue-700"
-                )}
+              <Select
+                value={selectedInventoryId || "__all__"}
+                onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
               >
-                <Filter size={18} className="mr-2" />
-                {t("filter")}
-              </Button>
+                <SelectTrigger className={cn("w-[180px] rounded-lg shrink-0", filterSelectClass)}>
+                  <SelectValue placeholder={t("inventory")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">{t("all")}</SelectItem>
+                  <SelectItem value="__unassigned__">{t("unassigned")}</SelectItem>
+                  {inventories.map((inv) => {
+                    const id = String((inv as any)._id ?? (inv as any).id ?? "");
+                    if (!id) return null;
+                    return (
+                      <SelectItem key={id} value={id}>
+                        {inv.name}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                <SelectTrigger className={cn("w-[170px] rounded-lg shrink-0", filterSelectClass)}>
+                  <SelectValue placeholder={t("paymentMethod")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allPaymentMethods")}</SelectItem>
+                  <SelectItem value="cash">{t("cash")}</SelectItem>
+                  <SelectItem value="card">{t("card")}</SelectItem>
+                  <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                  <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                  <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-[170px] shrink-0">
+                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                <Input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className={filterDateInputClass}
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    colorScheme: 'light'
+                  }}
+                />
+              </div>
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className={cn("w-[200px] rounded-lg shrink-0", filterSelectClass)}>
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown size={14} className="text-gray-400" />
+                    <SelectValue placeholder={t("sortBy")} />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                  <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                  <SelectItem value="product-asc">Product (A-Z)</SelectItem>
+                  <SelectItem value="product-desc">Product (Z-A)</SelectItem>
+                  <SelectItem value="revenue-desc">Revenue (High to Low)</SelectItem>
+                  <SelectItem value="revenue-asc">Revenue (Low to High)</SelectItem>
+                  <SelectItem value="profit-desc">Profit (High to Low)</SelectItem>
+                  <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
+                </SelectContent>
+              </Select>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-4 py-2"
+                    className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg px-4 py-2 shrink-0"
                   >
                     <MoreVertical size={18} />
                   </Button>
@@ -1877,123 +1682,15 @@ const Sales = () => {
             
             {/* Selected Sales Indicator */}
             {selectedSales.size > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg w-fit">
                 <span className="text-xs font-semibold text-gray-700">
                   {selectedSales.size} {selectedSales.size === 1 ? 'sale' : 'sales'} selected
                 </span>
               </div>
             )}
-            
-            {/* Filter Options - Collapsible */}
-            {showFilters && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-5 gap-3">
-                  {/* Inventory */}
-                  <Select
-                    value={selectedInventoryId}
-                    onValueChange={(v) => setSelectedInventoryId(v === "__all__" ? "" : v)}
-                  >
-                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                      <SelectValue placeholder={t("all")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">{t("all")}</SelectItem>
-                      <SelectItem value="__unassigned__">{t("unassigned")}</SelectItem>
-                      {inventories.map((inv) => {
-                        const id = String((inv as any)._id ?? (inv as any).id ?? "");
-                        if (!id) return null;
-                        return (
-                          <SelectItem key={id} value={id}>
-                            {inv.name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Start Date */}
-                  <div className="relative">
-                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
-                      style={{
-                        WebkitAppearance: 'none',
-                        appearance: 'none',
-                        colorScheme: 'light'
-                      }}
-                    />
-                  </div>
-                  
-                  {/* End Date */}
-                  <div className="relative">
-                    <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="pl-9 h-10 text-base bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg"
-                      style={{
-                        WebkitAppearance: 'none',
-                        appearance: 'none',
-                        colorScheme: 'light'
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Sort By */}
-                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                    <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <ArrowUpDown size={14} className="text-gray-400" />
-                        <SelectValue placeholder={t("sortBy")} />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date-desc">Date (Newest First)</SelectItem>
-                      <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
-                      <SelectItem value="product-asc">Product (A-Z)</SelectItem>
-                      <SelectItem value="product-desc">Product (Z-A)</SelectItem>
-                      <SelectItem value="revenue-desc">Revenue (High to Low)</SelectItem>
-                      <SelectItem value="revenue-asc">Revenue (Low to High)</SelectItem>
-                      <SelectItem value="profit-desc">Profit (High to Low)</SelectItem>
-                      <SelectItem value="profit-asc">Profit (Low to High)</SelectItem>
-                    </SelectContent>
-                  </Select>
-              
-                  {/* Clear Filters */}
-                  <Button
-                    onClick={handleClearFilters}
-                    variant="outline"
-                    className="bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg"
-                  >
-                    <X size={14} className="mr-2" />
-                    {t("cancel")}
-                  </Button>
-                  
-                  {/* Delete Selected Sales - Hidden */}
-                  {false && selectedSales.size > 0 && (
-                    <Button
-                      onClick={handleDeleteSelected}
-                      className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-lg px-4 py-2 font-semibold flex items-center gap-2"
-                    >
-                      <div className="relative">
-                        <Trash2 size={16} />
-                        <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                          {selectedSales.size}
-                        </span>
-                      </div>
-                      <span>{t("delete")} Selected</span>
-                    </Button>
-                  )}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {filteredSales.length} / {sales.length} {t("sales").toLowerCase()}
-                </div>
-              </div>
-            )}
+            <div className="text-xs text-gray-500">
+              {mobileActivity.length} {t("latestActivity").toLowerCase()} ({filteredSales.length} {t("sales").toLowerCase()}, {filteredExpenses.length} {t("expenses").toLowerCase()})
+            </div>
           </div>
         </div>
         
@@ -2013,15 +1710,9 @@ const Sales = () => {
                     />
                   </th>
                 )}
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Service</th>
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">Barber</th>
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("quantity")}</th>
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                  {t("cost")}
-                </th>
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("profit")}</th>
-                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("paymentMethod")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("typeLabel")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("details")}</th>
+                <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("amount")}</th>
                 <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("date")}</th>
                 <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">
                   {t("actions")}
@@ -2029,102 +1720,110 @@ const Sales = () => {
               </tr>
             </thead>
             <tbody className="bg-white">
-              {filteredSales.length > 0 ? (
-                filteredSales.map((sale, index) => {
-                  const saleId = (sale as any)._id || sale.id;
-                  const idString = saleId?.toString() || '';
-                  const isSelected = selectedSales.has(idString);
-                  
+              {mobileActivity.length > 0 ? (
+                mobileActivity.map((row, index) => {
+                  const isSale = row.type === "sale";
+                  const sale = isSale ? (row as { sale?: Sale }).sale : undefined;
+                  const saleId = sale ? ((sale as any)._id || sale.id) : null;
+                  const idString = saleId?.toString() || "";
+                  const isSelected = isSale && selectedSales.has(idString);
+
                   return (
-                    <tr key={saleId || index} className={cn(
-                      "border-b border-gray-200",
-                      index % 2 === 0 ? "bg-white" : "bg-gray-50",
-                      isSelected && "bg-blue-50"
-                    )}>
+                    <tr
+                      key={row.id}
+                      className={cn(
+                        "border-b border-gray-200",
+                        index % 2 === 0 ? "bg-white" : "bg-gray-50",
+                        isSelected && "bg-blue-50",
+                      )}
+                    >
                       {isSelectionMode && (
                         <td className="py-4 px-6 w-12">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => handleSelectSale(idString)}
-                            className="h-4 w-4"
-                          />
+                          {isSale && saleId ? (
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => handleSelectSale(idString)}
+                              className="h-4 w-4"
+                            />
+                          ) : null}
                         </td>
                       )}
-                      <td className="py-4 px-6"><div className="text-sm text-gray-900">{sale.serviceName || sale.product}</div></td>
-                      <td className="py-4 px-6"><div className="text-sm text-gray-700">{sale.workerName || "-"}</div></td>
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">{sale.quantity}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">{sale.revenue.toLocaleString()} rwf</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">{sale.cost.toLocaleString()} rwf</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className={cn(
-                          "text-sm",
-                          sale.profit >= 0 ? "text-green-700" : "text-red-700"
-                        )}>
-                          {sale.profit >= 0 ? "+" : ""}{sale.profit.toLocaleString()} rwf
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              isSale ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600",
+                            )}
+                          >
+                            {isSale ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+                          </div>
+                          <span className={cn("text-sm font-medium", isSale ? "text-emerald-700" : "text-red-700")}>
+                            {isSale ? t("activitySaleLabel") : t("activityExpenseLabel")}
+                          </span>
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">
-                          {sale.paymentMethod === 'cash' && t("cash")}
-                          {sale.paymentMethod === 'card' && t("card")}
-                          {sale.paymentMethod === 'momo' && t("momoPay")}
-                          {sale.paymentMethod === 'airtel' && t("airtelPay")}
-                          {sale.paymentMethod === 'transfer' && t("bankTransfer")}
-                          {!sale.paymentMethod && t("cash")}
+                        <div className="text-sm text-gray-900">{row.title}</div>
+                        {row.subtitle ? <div className="text-xs text-gray-600 mt-0.5">{row.subtitle}</div> : null}
+                        {row.meta ? <div className="text-xs text-gray-500 mt-0.5">{row.meta}</div> : null}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className={cn("text-sm font-semibold tabular-nums", isSale ? "text-emerald-700" : "text-red-700")}>
+                          {isSale ? "+" : "-"}
+                          {Number(row.amount).toLocaleString()} rwf
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="text-sm text-gray-700">{formatDateWithTime(sale.timestamp || sale.date)}</div>
+                        <div className="text-sm text-gray-700">{formatDateWithTime(row.date)}</div>
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreVertical size={16} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handlePrintTicket(sale)}>
-                              <Printer size={14} className="mr-2" />
-                                  {t("export")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDownloadTicket(sale)}>
-                              <Download size={14} className="mr-2" />
-                                  {t("exportPdf")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setDeleteMode("single");
-                                setSingleSaleToDelete(sale);
-                                setShowPinDialog(true);
-                              }}
-                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                            >
-                              <Trash2 size={14} className="mr-2" />
-                              {t("delete")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {isSale && sale ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical size={16} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handlePrintTicket(sale)}>
+                                <Printer size={14} className="mr-2" />
+                                {t("export")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownloadTicket(sale)}>
+                                <Download size={14} className="mr-2" />
+                                {t("exportPdf")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setDeleteMode("single");
+                                  setSingleSaleToDelete(sale);
+                                  setShowPinDialog(true);
+                                }}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              >
+                                <Trash2 size={14} className="mr-2" />
+                                {t("delete")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSelectionMode ? 10 : 9} className="py-12 text-center px-6">
+                  <td colSpan={isSelectionMode ? 6 : 5} className="py-12 text-center px-6">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <ShoppingCart size={48} className="mb-4 opacity-50" />
                       <p className="text-base font-medium">
-                        {t("noSales")}
+                        {t("noActivity")}
                       </p>
                       <p className="text-sm mt-1">
-                        {t("noProductsSearchHint")}
+                        {t("activityEmptyHint")}
                       </p>
                     </div>
                   </td>
@@ -2186,10 +1885,20 @@ const Sales = () => {
                               )}
                             </td>
                             <td className="py-2 px-2 align-top">
-                              <div className={cn("text-xs font-semibold", row.type === "sale" ? "text-green-700" : "text-red-700")}>
-                                {row.type === "sale"
-                                  ? t("activitySaleLabel")
-                                  : t("activityExpenseLabel")}
+                              <div className="flex items-center gap-1.5">
+                                <div
+                                  className={cn(
+                                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                                    row.type === "sale" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600",
+                                  )}
+                                >
+                                  {row.type === "sale" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                                </div>
+                                <span className={cn("text-xs font-semibold", row.type === "sale" ? "text-emerald-700" : "text-red-700")}>
+                                  {row.type === "sale"
+                                    ? t("activitySaleLabel")
+                                    : t("activityExpenseLabel")}
+                                </span>
                               </div>
                             </td>
                             <td className="py-2 px-2">

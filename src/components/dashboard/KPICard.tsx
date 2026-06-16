@@ -1,6 +1,5 @@
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown, Minus, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -12,6 +11,9 @@ interface KPICardProps {
   trend?: {
     value: string;
     positive: boolean;
+    flat?: boolean;
+    hasComparison?: boolean;
+    comparisonLabel?: string;
   };
   showMoneyToggle?: boolean;
   showMoney?: boolean;
@@ -88,7 +90,7 @@ export function KPICard({
         <div className={cn("space-y-1 sm:space-y-2 flex-1 min-w-0", hideIcon && "w-full")}>
           <p
             className={cn(
-              "text-xs sm:text-sm font-medium truncate",
+              "text-xs sm:text-sm font-bold truncate",
               isImageVariant || isInverted ? "text-white/90" : "text-muted-foreground"
             )}
           >
@@ -136,20 +138,28 @@ export function KPICard({
             </p>
           )}
           {trend && (
-            <p
+            <div
               className={cn(
-                "text-[10px] sm:text-xs font-semibold mt-0.5 sm:mt-1",
-                trend.positive
-                  ? isImageVariant
-                    ? "text-green-300"
-                    : "text-green-600"
-                  : isImageVariant
-                  ? "text-red-300"
-                  : "text-red-600"
+                "flex items-center gap-1 text-[10px] sm:text-xs font-medium mt-0.5 sm:mt-1",
+                trend.hasComparison === false || trend.flat
+                  ? "text-muted-foreground"
+                  : trend.positive
+                    ? "text-emerald-600"
+                    : "text-red-600"
               )}
             >
-              {trend.positive ? "↑" : "↓"} {trend.value} vs yesterday
-            </p>
+              {trend.hasComparison === false || trend.flat ? (
+                <Minus size={14} className="shrink-0" aria-hidden />
+              ) : trend.positive ? (
+                <TrendingUp size={14} className="shrink-0" aria-hidden />
+              ) : (
+                <TrendingDown size={14} className="shrink-0" aria-hidden />
+              )}
+              <span>
+                {trend.value}
+                {trend.comparisonLabel ? ` ${trend.comparisonLabel}` : ""}
+              </span>
+            </div>
           )}
           {linkTo && linkText && !isImageVariant && (
             <Link

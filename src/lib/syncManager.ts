@@ -1,7 +1,7 @@
 // Sync Manager for handling offline changes and auto-sync
 
 import { addItem, updateItem, deleteItem, getAllItems, clearStore } from "./indexedDB";
-import { productApi, saleApi, clientApi, scheduleApi } from "./api";
+import { productApi, saleApi, clientApi, scheduleApi, bookingApi } from "./api";
 import { logger } from "./logger";
 
 export interface SyncAction {
@@ -112,6 +112,8 @@ export class SyncManager {
             response = await clientApi.create(itemData);
           } else if (action.store === "schedules") {
             response = await scheduleApi.create(itemData);
+          } else if (action.store === "bookings") {
+            response = await bookingApi.create(itemData);
           }
           if (!response) {
             throw new Error(`No response from ${action.store} create API`);
@@ -133,6 +135,8 @@ export class SyncManager {
             response = await clientApi.update(itemId.toString(), itemData);
           } else if (action.store === "schedules") {
             response = await scheduleApi.update(itemId.toString(), itemData);
+          } else if (action.store === "bookings") {
+            response = await bookingApi.update(itemId.toString(), itemData);
           }
           if (!response) {
             throw new Error(`No response from ${action.store} update API`);
@@ -154,6 +158,8 @@ export class SyncManager {
             response = await clientApi.delete(deleteId.toString());
           } else if (action.store === "schedules") {
             response = await scheduleApi.delete(deleteId.toString());
+          } else if (action.store === "bookings") {
+            response = await bookingApi.delete(deleteId.toString());
           }
           // logger.log(`[SyncManager] Delete response for ${action.store}:`, response);
           break;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -184,7 +184,7 @@ const InventoryDetail = () => {
               <Pencil size={16} />
               Edit shop
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={handleAddProduct} disabled={loading}>
+            <Button className="bg-primary text-white hover:bg-blue-700 hover:text-white gap-2" onClick={handleAddProduct} disabled={loading}>
               <Plus size={16} />
               Add product
             </Button>
@@ -260,7 +260,7 @@ const InventoryDetail = () => {
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={saveEdit} disabled={saving}>
+            <Button className="bg-primary text-white hover:bg-blue-700 hover:text-white" onClick={saveEdit} disabled={saving}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

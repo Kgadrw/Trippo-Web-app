@@ -1,9 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* App-specific Trippo styles (loaded via styles/globals.css) */
 
 /* Prevent layout shifts on initial load */
-@layer base {
   * {
     box-sizing: border-box;
   }
@@ -37,6 +34,7 @@
     min-height: 100vh;
     width: 100%;
     position: relative;
+    background-color: #ffffff;
   }
   
   /* Prevent flash of unstyled content - use opacity instead of visibility to prevent layout shift */
@@ -52,7 +50,6 @@
     position: relative;
     height: auto;
   }
-}
 
 @keyframes loading-bar {
   0%, 40%, 100% {
@@ -69,7 +66,6 @@
   animation: loading-bar 1.2s ease-in-out infinite;
 }
 
-@layer base {
   /* Prevent mobile zoom on input focus */
   input[type="text"],
   input[type="number"],
@@ -136,16 +132,16 @@
   }
 
   :root {
-    /* Primary - Light Gray */
-    --primary: 0 0% 98.4%;
-    --primary-foreground: 0 0% 20%;
+    /* Primary — platform button blue (Tailwind blue-600 #2563eb) */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
 
     /* Background & Foreground */
-    --background: 210 40% 98%;
+    --background: 0 0% 100%;
     --foreground: 222 47% 11%;
 
-    /* Card - Vibrant Tinted White */
-    --card: 200 30% 98%;
+    /* Card */
+    --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
     /* Popover */
@@ -153,8 +149,8 @@
     --popover-foreground: 222 47% 11%;
 
     /* Secondary - Light Cyan/Blue */
-    --secondary: 195 100% 95.5%;
-    --secondary-foreground: 195 100% 30%;
+    --secondary: 213 94% 95%;
+    --secondary-foreground: 213 70% 35%;
 
     /* Muted */
     --muted: 220 30% 94%;
@@ -171,24 +167,24 @@
     /* Border & Input */
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 200 100% 50%;
+    --ring: 221 83% 53%;
 
     /* Radius */
     --radius: 0.5rem;
 
-    /* Sidebar - Vibrant Dark Blue */
-    --sidebar-background: 220 90% 15%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 200 100% 55%;
-    --sidebar-primary-foreground: 220 90% 15%;
-    --sidebar-accent: 270 80% 40%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 0% / 0;
-    --sidebar-ring: 200 100% 55%;
-    --sidebar-muted: 220 30% 70%;
+    /* Sidebar — same as primary button blue */
+    --sidebar-background: 221 83% 53%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 222 47% 11%;
+    --sidebar-primary-foreground: 221 83% 53%;
+    --sidebar-accent: 224 76% 48%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 221 70% 45%;
+    --sidebar-ring: 222 47% 11%;
+    --sidebar-muted: 221 40% 90%;
 
     /* Chart colors - Vibrant palette */
-    --chart-1: 200 100% 50%;
+    --chart-1: 221 83% 53%;
     --chart-2: 270 80% 55%;
     --chart-3: 35 100% 55%;
     --chart-4: 340 90% 60%;
@@ -197,17 +193,20 @@
     /* Custom shadows with vibrant tints */
     --shadow-soft: 0 1px 3px 0 rgb(0 191 255 / 0.08), 0 1px 2px -1px rgb(0 191 255 / 0.08);
     --shadow-card: 0 2px 8px -2px rgb(0 191 255 / 0.12), 0 1px 2px -1px rgb(0 191 255 / 0.08);
+
+    /* Tailwind v4 maps bg-primary → --background-color-primary (not shadcn --primary) */
+    --background-color-primary: hsl(var(--primary));
   }
 
   .dark {
-    --background: 220 90% 8%;
-    --foreground: 0 0% 98%;
-    --card: 220 45% 13%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
     --card-foreground: 0 0% 98%;
     --popover: 220 45% 13%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98.4%;
-    --primary-foreground: 0 0% 20%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 220 35% 16%;
     --secondary-foreground: 0 0% 98%;
     --muted: 220 28% 18%;
@@ -218,24 +217,53 @@
     --destructive-foreground: 0 0% 98%;
     --border: 220 18% 26%;
     --input: 220 18% 26%;
-    --ring: 200 100% 55%;
+    --ring: 221 83% 53%;
+    --sidebar-background: 224 76% 48%;
+    --sidebar-foreground: 222 47% 11%;
   }
-}
 
-@layer base {
   * {
     @apply border-transparent;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-white text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-}
 
-@layer components {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 700 !important;
+  }
+
   .kpi-card {
-    @apply bg-card/80 backdrop-blur-md lg:bg-card lg:backdrop-blur-none p-3 sm:p-6 border-0 shadow-none lg:border lg:border-border lg:shadow-sm rounded-lg sm:rounded-xl text-foreground;
+    @apply bg-white p-3 sm:p-6 border-0 shadow-none rounded-lg sm:rounded-xl text-foreground;
+  }
+
+  .kpi-value-revenue {
+    color: rgb(37, 99, 235) !important;
+  }
+
+  .kpi-value-profit {
+    color: rgb(22, 163, 74) !important;
+  }
+
+  .kpi-value-loss {
+    color: rgb(220, 38, 38) !important;
   }
 
   .data-table {
@@ -243,7 +271,7 @@
   }
 
   .data-table th {
-    @apply text-left text-sm font-semibold text-foreground py-3 px-4 border-b-0 lg:border-b lg:border-border bg-card sticky top-16 z-10 shadow-none lg:shadow-sm;
+    @apply text-left text-sm font-bold text-foreground py-3 px-4 border-b-0 lg:border-b lg:border-border bg-card sticky top-16 z-10 shadow-none lg:shadow-sm;
   }
 
   .data-table td {
@@ -259,7 +287,7 @@
   }
 
   .form-card {
-    @apply bg-card/80 backdrop-blur-md lg:bg-card p-6 border-0 shadow-none lg:border lg:border-border lg:shadow-sm rounded-xl text-foreground;
+    @apply bg-white lg:bg-card p-6 border-0 shadow-none lg:border lg:border-border lg:shadow-sm rounded-xl text-foreground;
   }
 
   .section-title {
@@ -267,7 +295,7 @@
   }
 
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:opacity-90 shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent rounded-lg;
+    @apply bg-primary text-white hover:bg-blue-700 hover:text-white shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent rounded-lg cursor-pointer disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
@@ -275,23 +303,50 @@
   }
 
   .input-field {
-    @apply bg-card border border-border px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500 transition-all rounded-lg;
+    @apply bg-white border border-gray-300 px-4 py-2.5 text-gray-900 placeholder:text-gray-500 shadow-sm focus:outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-300/50 transition-all rounded-lg;
+  }
+
+  /* Modal form fields — clear contrast on white dialog backgrounds */
+  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+  [role="dialog"] textarea,
+  [role="dialog"] button[role="combobox"] {
+    background-color: #ffffff !important;
+    color: rgb(17 24 39) !important;
+    border: 1px solid rgb(209 213 219);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"])::placeholder,
+  [role="dialog"] textarea::placeholder {
+    color: rgb(107 114 128);
+  }
+
+  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):focus-visible,
+  [role="dialog"] textarea:focus-visible,
+  [role="dialog"] button[role="combobox"]:focus {
+    border-color: rgb(107 114 128);
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(209 213 219 / 0.6);
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 text-blue-100 hover:bg-blue-700 transition-colors cursor-pointer rounded-md;
+    @apply flex items-center gap-3 px-3 py-2.5 text-white/90 font-normal hover:bg-white/15 hover:text-white transition-colors cursor-pointer rounded-md;
+  }
+
+  @media (min-width: 1024px) and (max-width: 1279px), (min-width: 1024px) and (max-height: 820px) {
+    .sidebar-item {
+      @apply gap-2.5 px-2.5 py-2.5;
+    }
   }
 
   .sidebar-item-active {
-    @apply bg-blue-500 text-white font-semibold shadow-sm;
+    @apply text-white font-normal bg-white/20 hover:bg-white/25 hover:text-white;
   }
 
   .sidebar-item-active:hover {
-    @apply bg-blue-500 text-white;
+    @apply bg-white/25 text-white;
   }
-}
 
-@layer base {
   * {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted)) transparent;
@@ -310,9 +365,7 @@
     background-color: hsl(var(--muted));
     border-radius: 0;
   }
-}
 
-@layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted)) transparent;
@@ -395,6 +448,3 @@
       transform: translateY(0);
     }
   }
-}
-
-

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { Bell, ArrowLeft, CheckCheck, ChevronDown, Package, AlertTriangle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { StockUpdateDialog } from "@/components/StockUpdateDialog";
 import { useApi } from "@/hooks/useApi";
 import { useSubdomain } from "@/hooks/useSubdomain";
+import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 
 interface MobileHeaderProps {
   onNotificationClick?: () => void;
@@ -38,6 +39,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const subdomain = useSubdomain();
+  const { loading: subLoading, plan } = useSubscriptionAccess();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -196,6 +198,16 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     return !isDashboardRoot && !isAdminRoot;
   }, [location.pathname, subdomain]);
 
+  const showBillingCrown = useMemo(() => {
+    if (subLoading || !plan || location.pathname.startsWith("/billing")) return false;
+    return (
+      plan.isOnTrial ||
+      plan.requiresPayment ||
+      plan.status === "past_due" ||
+      plan.hasPlus
+    );
+  }, [subLoading, plan, location.pathname]);
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
       {/* Left side - Back (IMS inner pages) + Account Info */}
@@ -236,8 +248,23 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
         </div>
       </div>
 
-      {/* Right side - Notification Bell */}
-      <div className="flex-shrink-0 ml-2">
+      {/* Right side - Billing + Notification */}
+      <div className="flex flex-shrink-0 items-center ml-2 gap-1">
+        {showBillingCrown ? (
+          <button
+            type="button"
+            onClick={() => navigate("/billing")}
+            className="p-1.5 transition-opacity hover:opacity-80"
+            aria-label={t("billing")}
+          >
+            <img
+              src="/plus.png"
+              alt="Trippo Plus"
+              className="h-9 w-9 object-contain"
+              loading="lazy"
+            />
+          </button>
+        ) : null}
         <button
           onClick={handleNotificationBellClick}
           className={cn(
@@ -372,7 +399,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
                             )}
                             <Button
                               onClick={handleUpdateStock}
-                              className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                              className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
                             >
                               <Package size={16} className="mr-2" />
                               Update Stock
@@ -390,7 +417,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
                               setNotificationOpen(false);
                               setSelectedNotification(null);
                             }}
-                            className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                            className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
                           >
                             View Details
                           </Button>
