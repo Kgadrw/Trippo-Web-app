@@ -235,8 +235,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
     const minLoadingTime = silent ? 0 : 500;
     
     try {
-      // Initialize IndexedDB
-      await initDB();
+      // Initialize IndexedDB (optional — app falls back to API if unavailable)
+      try {
+        await initDB();
+      } catch (dbError) {
+        console.warn("[useApi] IndexedDB unavailable, continuing with API only:", dbError);
+      }
       
       const storeName = endpoint;
       const isSalesEndpoint = endpoint === 'sales';

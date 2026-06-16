@@ -49,7 +49,10 @@ if (import.meta.env.PROD) {
 // Don't block rendering - initialize in parallel
 Promise.all([
   initDB().catch((error) => {
-    logger.error("Failed to initialize IndexedDB:", error);
+    logger.warn(
+      "IndexedDB unavailable — app will use the API only. Try clearing site data or closing other Trippo tabs if this persists:",
+      error,
+    );
   }),
   registerServiceWorker().catch((error) => {
     logger.error("Failed to register service worker:", error);

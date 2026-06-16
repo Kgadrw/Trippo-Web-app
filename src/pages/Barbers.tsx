@@ -30,7 +30,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, Loader2, X, MoreVertical, Pencil, ArrowUpDown, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useConfirmAlert } from "@/hooks/useConfirmAlert";
 import { cn } from "@/lib/utils";
 import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
 
@@ -108,7 +107,6 @@ function StatusBadge({ active, label }: { active: boolean; label: string }) {
 export default function Barbers() {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const { requestConfirm, confirmDialog } = useConfirmAlert();
   const { items, isLoading, add, update, remove, refresh } = useApi<Worker>({
     endpoint: "clients",
     defaultValue: [],
@@ -315,7 +313,8 @@ export default function Barbers() {
     }
   };
 
-  const performDelete = async (worker: Worker): Promise<boolean> => {
+  const handleDelete = async (worker: Worker): Promise<boolean> => {
+    if (!window.confirm(`Delete ${worker.name}?`)) return false;
     const id = getWorkerId(worker);
     if (!id) return false;
     setDeletingWorkerId(id);
@@ -331,23 +330,6 @@ export default function Barbers() {
     } finally {
       setDeletingWorkerId(null);
     }
-  };
-
-  const promptDeleteWorker = (worker: Worker, onSuccess?: () => void) => {
-    requestConfirm({
-      title: t("confirmDelete"),
-      description: t("deleteNamedItemConfirm").replace("{name}", worker.name),
-      confirmLabel: t("yesDelete"),
-      cancelLabel: t("noCancel"),
-      onConfirm: async () => {
-        const ok = await performDelete(worker);
-        if (ok) onSuccess?.();
-      },
-    });
-  };
-
-  const handleDelete = (worker: Worker) => {
-    promptDeleteWorker(worker);
   };
 
   const barbersTitle = t("workers");
@@ -828,11 +810,11 @@ export default function Barbers() {
                 variant="outline"
                 className="text-red-600 border-red-200 hover:bg-red-50"
                 disabled={isSaving || deletingWorkerId !== null}
-                onClick={() => {
-                  promptDeleteWorker(editingWorker, () => {
-                    setOpen(false);
-                    resetForm();
-                  });
+                onClick={async () => {
+                  const deleted = await handleDelete(editingWorker);
+                  if (!deleted) return;
+                  setOpen(false);
+                  resetForm();
                 }}
               >
                 {deletingWorkerId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -866,7 +848,6 @@ export default function Barbers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {confirmDialog}
     </AppLayout>
   );
 }

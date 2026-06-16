@@ -41,7 +41,22 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
+          // React + Radix (and other React UI primitives) must share one chunk.
+          // Splitting Radix out breaks runtime: React.forwardRef is undefined in vendor-radix.
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/scheduler/') ||
+            id.includes('@radix-ui') ||
+            id.includes('cmdk') ||
+            id.includes('vaul') ||
+            id.includes('react-aria') ||
+            id.includes('@react-aria') ||
+            id.includes('@react-stately') ||
+            id.includes('react-day-picker') ||
+            id.includes('input-otp') ||
+            id.includes('embla-carousel-react')
+          ) {
             return 'vendor-react';
           }
           if (id.includes('react-router') || id.includes('@remix-run')) {
@@ -52,9 +67,6 @@ export default defineConfig(({ mode }) => ({
           }
           if (id.includes('recharts') || id.includes('/d3-')) {
             return 'vendor-charts';
-          }
-          if (id.includes('@radix-ui')) {
-            return 'vendor-radix';
           }
           if (id.includes('lucide-react')) {
             return 'vendor-icons';

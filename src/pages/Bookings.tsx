@@ -3,7 +3,6 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useApi } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useConfirmAlert } from "@/hooks/useConfirmAlert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -177,7 +176,6 @@ function renderBookingActions(
 
 export default function Bookings() {
   const { t } = useTranslation();
-  const { requestConfirm, confirmDialog } = useConfirmAlert();
   const { toast } = useToast();
 
   const today = useMemo(() => toDateInputValue(new Date()), []);
@@ -439,26 +437,18 @@ export default function Bookings() {
     }
   };
 
-  const handleDelete = (booking: Booking) => {
+  const handleDelete = async (booking: Booking) => {
     const id = booking._id || booking.id;
     if (!id) return;
-    const label = booking.clientName || t("booking");
-    requestConfirm({
-      title: t("confirmDelete"),
-      description: t("deleteNamedItemConfirm").replace("{name}", label),
-      confirmLabel: t("yesDelete"),
-      cancelLabel: t("noCancel"),
-      onConfirm: async () => {
-        await removeBooking(id);
-        setSheetRows((prev) =>
-          ensureTrailingEmptyRows(
-            prev.filter((r) => r._entityId !== getId(booking)),
-            [...BOOKING_SHEET_KEYS],
-          ),
-        );
-        toast({ title: t("success"), description: t("deleted") });
-      },
-    });
+    if (!window.confirm(`${t("delete")} "${booking.clientName}"?`)) return;
+    await removeBooking(id);
+    setSheetRows((prev) =>
+      ensureTrailingEmptyRows(
+        prev.filter((r) => r._entityId !== getId(booking)),
+        [...BOOKING_SHEET_KEYS],
+      ),
+    );
+    toast({ title: t("success"), description: t("deleted") });
   };
 
   return (
@@ -765,7 +755,6 @@ export default function Bookings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {confirmDialog}
     </AppLayout>
   );
 }

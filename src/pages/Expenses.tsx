@@ -47,7 +47,6 @@ import {
 
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useConfirmAlert } from "@/hooks/useConfirmAlert";
 
 import { Trash2, Plus, Loader2, MoreVertical, Pencil, Search, ArrowUpDown, X, Receipt } from "lucide-react";
 
@@ -143,7 +142,6 @@ export default function Expenses() {
 
   const { toast } = useToast();
   const { t } = useTranslation();
-  const { requestConfirm, confirmDialog } = useConfirmAlert();
 
   const { items: expenses, isLoading, add, update, remove, refresh } = useApi<Expense>({
 
@@ -595,36 +593,46 @@ export default function Expenses() {
 
 
 
-  const performDelete = async (expense: Expense): Promise<boolean> => {
+  const handleDelete = async (expense: Expense): Promise<boolean> => {
+
+    if (!window.confirm(`Delete expense "${expense.title}"?`)) return false;
+
     const id = String((expense as { _id?: string; id?: number })._id ?? expense.id ?? "");
+
     if (!id) return false;
+
     setDeletingId(id);
+
     try {
+
       await remove(expense as any);
+
       await refresh(true);
+
       toast({ title: t("deleted"), description: t("expenseRemovedDesc") });
+
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
       return true;
+
     } catch (error: any) {
+
       toast({
+
         title: t("error"),
+
         description: error?.message || t("deleteExpenseFailed"),
+
         variant: "destructive",
+
       });
       return false;
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
-  const handleDelete = (expense: Expense) => {
-    requestConfirm({
-      title: t("confirmDelete"),
-      description: t("deleteNamedItemConfirm").replace("{name}", expense.title),
-      confirmLabel: t("yesDelete"),
-      cancelLabel: t("noCancel"),
-      onConfirm: () => void performDelete(expense),
-    });
+    } finally {
+
+      setDeletingId(null);
+
+    }
+
   };
 
   const titleLabel = t("expenseTitle");
@@ -1167,7 +1175,6 @@ export default function Expenses() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {confirmDialog}
     </AppLayout>
 
   );

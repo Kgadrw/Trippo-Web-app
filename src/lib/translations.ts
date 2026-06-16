@@ -356,7 +356,6 @@ export interface Translations {
   
   // Common Messages
   confirmDelete: string;
-  deleteNamedItemConfirm: string;
   areYouSure: string;
   thisActionCannotBeUndone: string;
   yesDelete: string;
@@ -1410,7 +1409,6 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     
     // Common Messages
     confirmDelete: "Confirm Delete",
-    deleteNamedItemConfirm: "Are you sure you want to delete {name}? This action cannot be undone.",
     areYouSure: "Are you sure?",
     thisActionCannotBeUndone: "This action cannot be undone.",
     yesDelete: "Yes, Delete",
@@ -1879,7 +1877,6 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     
     // Common Messages
     confirmDelete: "Emeza gusiba",
-    deleteNamedItemConfirm: "Uremeza ko ushaka gusiba {name}? Iki gikorwa ntigisubirwamo.",
     areYouSure: "Urasabye?",
     thisActionCannotBeUndone: "Iki gikorwa ntikigishobora guhindurwa.",
     yesDelete: "Yego, Siba",
@@ -2213,7 +2210,6 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     
     // Common messages
     confirmDelete: "Confirmer la suppression",
-    deleteNamedItemConfirm: "Voulez-vous vraiment supprimer {name} ? Cette action est irréversible.",
     areYouSure: "Êtes-vous sûr ?",
     thisActionCannotBeUndone: "Cette action ne peut pas être annulée.",
     yesDelete: "Oui, supprimer",
