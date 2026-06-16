@@ -24,12 +24,16 @@ import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
 import type { Language } from "@/lib/translations";
 import {
   clearPendingPaymentRef,
+  getBillingNoPromptHint,
   getPaymentUserMessage,
   hasPaidSubscription,
   isPaymentSettled,
   savePendingPaymentRef,
   type PaymentStatusPayload,
 } from "@/lib/subscriptionPayment";
+import { usePlatformContact } from "@/hooks/usePlatformContact";
+import { PlatformContactCard } from "@/components/support/PlatformContactCard";
+import { TextWithUssdCodes, ussdToastDescription } from "@/components/billing/TextWithUssdCodes";
 
 type MobileNetwork = "mtn" | "airtel";
 
@@ -132,6 +136,7 @@ function NetworkOption({
 export default function Billing() {
   const { toast } = useToast();
   const { t, language } = useTranslation();
+  const { contact } = usePlatformContact();
 
   const {
     loading,
@@ -181,6 +186,12 @@ export default function Billing() {
   const packageName = plan?.planName ? `${plan.planName} Pack` : t("plusPack");
   const amount = plan?.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
   const currency = plan?.currency || "RWF";
+  const requiredTotal = Math.ceil(amount * 1.023);
+  const paymentMessageOptions = {
+    network,
+    amount,
+    requiredTotal,
+  };
 
   const isPaidActive = hasPaidSubscription(plan);
   const isTrialEnded = Boolean(plan?.requiresPayment && !plan?.hasPlus);
@@ -234,7 +245,7 @@ export default function Billing() {
           const payload = await checkStatus();
           const status = payload.payment.status;
           const syncIssue = payload.payment.sync?.latestIssue;
-          const issueMessage = getPaymentUserMessage(syncIssue, language);
+          const issueMessage = getPaymentUserMessage(syncIssue, language, contact, paymentMessageOptions);
 
           if (isPaymentSettled(payload)) {
             await refresh(true);
@@ -246,7 +257,7 @@ export default function Billing() {
             clearPendingPaymentRef();
             toast({
               title: t("billingPaymentIssue"),
-              description: issueMessage || syncIssue.message,
+              description: ussdToastDescription(issueMessage || syncIssue.message || ""),
               variant: "destructive",
             });
             stopProcessing();
@@ -264,7 +275,7 @@ export default function Billing() {
               t("billingMoMoDeclined");
             toast({
               title: t("billingPaymentFailed"),
-              description: reason,
+              description: ussdToastDescription(reason),
               variant: "destructive",
             });
             stopProcessing();
@@ -433,7 +444,7 @@ export default function Billing() {
       } else {
         toast({
           title: t("billingApproveOnPhone"),
-          description: t("billingApproveOnPhoneDesc"),
+          description: ussdToastDescription(t("billingApproveOnPhoneDesc")),
         });
       }
       void pollPayment(data.referenceId);
@@ -443,11 +454,11 @@ export default function Billing() {
       let message = error instanceof Error ? error.message : "Could not start payment.";
       if (error instanceof ApiError) {
         const code = typeof error.response?.code === "string" ? error.response.code : undefined;
-        const mapped = getPaymentUserMessage({ code: code || "", message }, language);
+        const mapped = getPaymentUserMessage({ code: code || "", message }, language, contact, paymentMessageOptions);
         if (mapped) message = mapped;
       }
       await refresh(true);
-      toast({ title: t("billingPaymentError"), description: message, variant: "destructive" });
+      toast({ title: t("billingPaymentError"), description: ussdToastDescription(message), variant: "destructive" });
     } finally {
       setPaying(false);
     }
@@ -661,15 +672,24 @@ export default function Billing() {
                   </div>
 
                   {network && (
-                    <div className="space-y-1 text-xs text-muted-foreground leading-relaxed">
+                    <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
                       <p>{t("billingPinHint")}</p>
                       <p>
                         {t("billingHaveMoMoBalance")
                           .replace("{amount}", Math.ceil(amount * 1.023).toLocaleString())
                           .replace("{base}", amount.toLocaleString())}
                       </p>
-                      <p>{network === "mtn" ? t("billingNoPromptMtn") : t("billingNoPromptAirtel")}</p>
-                      <p>{t("billingPayFailHint")}</p>
+                      <p>
+                        <TextWithUssdCodes
+                          text={network === "mtn" ? t("billingNoPromptMtn") : t("billingNoPromptAirtel")}
+                        />
+                      </p>
+                      <p>
+                        <TextWithUssdCodes text={getBillingNoPromptHint(language, network, contact)} />
+                      </p>
+                      <p>
+                        <TextWithUssdCodes text={t("billingPayFailHint")} />
+                      </p>
                     </div>
                   )}
 
@@ -683,6 +703,14 @@ export default function Billing() {
                   >
                     {t("billingPayAmount").replace("{amount}", amount.toLocaleString())}
                   </Button>
+
+                  <PlatformContactCard
+                    contact={contact}
+                    compact
+                    title={t("callSupport")}
+                    description={getBillingNoPromptHint(language, network, contact)}
+                    className="lg:bg-gray-50"
+                  />
                 </>
               ) : !paymentReady ? (
                 <div className="space-y-3 text-sm text-muted-foreground">

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Building2, Shield, Globe, Trash2, Bell, ChevronRight } from "lucide-react";
+import { Building2, Shield, Globe, Trash2, Bell, ChevronRight, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -15,6 +15,13 @@ const Settings = () => {
       icon: Bell,
       label: t("notifications"),
       to: "/settings/notifications",
+      tone: "default" as const,
+    },
+    {
+      key: "help",
+      icon: LifeBuoy,
+      label: t("settingsHelpSupport"),
+      to: "/settings/help",
       tone: "default" as const,
     },
     {

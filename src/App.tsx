@@ -69,6 +69,7 @@ import SettingsLanguage from "./pages/settings/SettingsLanguage";
 import SettingsSecurity from "./pages/settings/SettingsSecurity";
 import SettingsNotifications from "./pages/settings/SettingsNotifications";
 import SettingsDeleteAccount from "./pages/settings/SettingsDeleteAccount";
+import SettingsHelpSupport from "./pages/settings/SettingsHelpSupport";
 import Billing from "./pages/Billing";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLogin from "./pages/AdminLogin";
@@ -216,6 +217,7 @@ const SubdomainRouter = () => {
           <Route path="language" element={<SettingsLanguage />} />
           <Route path="security" element={<SettingsSecurity />} />
           <Route path="notifications" element={<SettingsNotifications />} />
+          <Route path="help" element={<SettingsHelpSupport />} />
           <Route path="delete-account" element={<SettingsDeleteAccount />} />
         </Route>
         <Route path="*" element={<NotFound />} />
@@ -345,6 +347,7 @@ const SubdomainRouter = () => {
         <Route path="language" element={<SettingsLanguage />} />
         <Route path="security" element={<SettingsSecurity />} />
         <Route path="notifications" element={<SettingsNotifications />} />
+        <Route path="help" element={<SettingsHelpSupport />} />
         <Route path="delete-account" element={<SettingsDeleteAccount />} />
       </Route>
       <Route path="*" element={<NotFound />} />

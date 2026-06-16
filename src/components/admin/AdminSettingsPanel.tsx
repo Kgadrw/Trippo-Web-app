@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Save, Shield, CreditCard, Building2 } from "lucide-react";
+import { Loader2, Save, Shield, CreditCard, Building2, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ADMIN_PANEL_CLASS, ADMIN_TITLE_CLASS } from "@/components/admin/adminStyles";
 
@@ -16,6 +16,9 @@ export type PlatformSettings = {
   trialDays: number;
   currency: string;
   supportEmail: string;
+  supportPhone: string;
+  whatsappNumber: string;
+  instagramUrl: string;
   companyName: string;
   maintenanceMode: boolean;
   updatedAt?: string;
@@ -29,6 +32,9 @@ type SettingsForm = {
   subscriptionAmount: string;
   trialDays: string;
   supportEmail: string;
+  supportPhone: string;
+  whatsappNumber: string;
+  instagramUrl: string;
   companyName: string;
   maintenanceMode: boolean;
 };
@@ -101,6 +107,9 @@ export function AdminSettingsPanel() {
     subscriptionAmount: "10000",
     trialDays: "7",
     supportEmail: "",
+    supportPhone: "",
+    whatsappNumber: "",
+    instagramUrl: "",
     companyName: "Trippo",
     maintenanceMode: false,
   });
@@ -113,6 +122,9 @@ export function AdminSettingsPanel() {
       subscriptionAmount: String(data.subscriptionAmount),
       trialDays: String(data.trialDays),
       supportEmail: data.supportEmail || "",
+      supportPhone: data.supportPhone || "",
+      whatsappNumber: data.whatsappNumber || "",
+      instagramUrl: data.instagramUrl || "",
       companyName: data.companyName || "Trippo",
       maintenanceMode: Boolean(data.maintenanceMode),
       currentPin: "",
@@ -171,6 +183,9 @@ export function AdminSettingsPanel() {
         subscriptionAmount: Number(form.subscriptionAmount),
         trialDays: Number(form.trialDays),
         supportEmail: form.supportEmail.trim(),
+        supportPhone: form.supportPhone.trim(),
+        whatsappNumber: form.whatsappNumber.trim(),
+        instagramUrl: form.instagramUrl.trim(),
         companyName: form.companyName.trim(),
         maintenanceMode: form.maintenanceMode,
       });
@@ -301,6 +316,65 @@ export function AdminSettingsPanel() {
 
       <div className={cn("overflow-hidden", ADMIN_PANEL_CLASS)}>
         <SectionHeader
+          icon={Phone}
+          title="Contact & support"
+          description="Phone, email, and social links shown in the footer, billing help, and Settings → Help & support."
+        />
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="support-phone" className="text-xs text-gray-600">
+              Support phone
+            </Label>
+            <Input
+              id="support-phone"
+              value={form.supportPhone}
+              onChange={(e) => patchForm({ supportPhone: e.target.value })}
+              className="h-10 bg-white"
+              placeholder="0791998365"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="whatsapp-number" className="text-xs text-gray-600">
+              WhatsApp number
+            </Label>
+            <Input
+              id="whatsapp-number"
+              value={form.whatsappNumber}
+              onChange={(e) => patchForm({ whatsappNumber: e.target.value })}
+              className="h-10 bg-white"
+              placeholder="0791998365"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="support-email-contact" className="text-xs text-gray-600">
+              Support email
+            </Label>
+            <Input
+              id="support-email-contact"
+              type="email"
+              value={form.supportEmail}
+              onChange={(e) => patchForm({ supportEmail: e.target.value })}
+              className="h-10 bg-white"
+              placeholder="support@trippo.rw"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="instagram-url" className="text-xs text-gray-600">
+              Instagram URL or handle
+            </Label>
+            <Input
+              id="instagram-url"
+              value={form.instagramUrl}
+              onChange={(e) => patchForm({ instagramUrl: e.target.value })}
+              className="h-10 bg-white"
+              placeholder="https://instagram.com/trippoltd"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className={cn("overflow-hidden", ADMIN_PANEL_CLASS)}>
+        <SectionHeader
           icon={Building2}
           title="Platform"
           description="General platform details and operational toggles."
@@ -316,19 +390,6 @@ export function AdminSettingsPanel() {
                 value={form.companyName}
                 onChange={(e) => patchForm({ companyName: e.target.value })}
                 className="h-10 bg-white"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="support-email" className="text-xs text-gray-600">
-                Support email
-              </Label>
-              <Input
-                id="support-email"
-                type="email"
-                value={form.supportEmail}
-                onChange={(e) => patchForm({ supportEmail: e.target.value })}
-                className="h-10 bg-white"
-                placeholder="support@trippo.rw"
               />
             </div>
           </div>

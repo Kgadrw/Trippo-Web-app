@@ -854,6 +854,9 @@ export const adminApi = {
     subscriptionAmount?: number;
     trialDays?: number;
     supportEmail?: string;
+    supportPhone?: string;
+    whatsappNumber?: string;
+    instagramUrl?: string;
     companyName?: string;
     maintenanceMode?: boolean;
   }): Promise<ApiResponse> {
@@ -870,6 +873,10 @@ export const contentApi = {
     return request(`/content/homepage?lang=${encodeURIComponent(lang)}`, {
       method: 'GET',
     });
+  },
+
+  async getContact(): Promise<ApiResponse> {
+    return request('/content/contact', { method: 'GET' });
   },
 };
 

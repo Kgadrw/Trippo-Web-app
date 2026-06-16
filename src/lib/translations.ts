@@ -806,6 +806,10 @@ export interface Translations {
   billingApproveOnPhoneDesc: string;
   billingHaveMoMoBalance: string;
   billingPayFailHint: string;
+  billingNoOtpHint: string;
+  settingsHelpSupport: string;
+  settingsHelpSupportDesc: string;
+  callSupport: string;
   billingBackendError: string;
   billingPaypackHint: string;
   billingInvalidNumber: string;

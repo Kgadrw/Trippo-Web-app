@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { LoginModal } from "@/components/LoginModal";
-import { User, Instagram, Phone } from "lucide-react";
+import { User } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { getSubdomainUrl } from "@/hooks/useSubdomain";
 import { contentApi } from "@/lib/api";
+import { usePlatformContact } from "@/hooks/usePlatformContact";
+import { PlatformContactFooter } from "@/components/support/PlatformContactCard";
 import {
   FEATURE_COLOR_CLASSES,
   type ResolvedHomepageContent,
@@ -122,6 +124,7 @@ const Home = () => {
 
   const fallbackContent = useMemo(() => buildFallbackHomepageContent(t), [t]);
   const content = homepageContent ?? fallbackContent;
+  const { contact } = usePlatformContact();
 
   const loadHomepageContent = useCallback(async () => {
     try {
@@ -398,33 +401,7 @@ const Home = () => {
         defaultTab={loginModalTab}
       />
       
-      {/* Footer */}
-      <footer className="bg-stone-50 border-t border-gray-200" role="contentinfo">
-        <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20 py-12">
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-gray-600" />
-                <a href="tel:+250791998365" className="text-sm text-gray-900 hover:text-gray-600 transition-colors">
-                  0791998365
-                </a>
-              </div>
-
-              <a
-                href="https://instagram.com/trippoltd"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-900 hover:text-pink-600 transition-colors"
-                aria-label="Follow us on Instagram @trippoltd"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-            </div>
-            
-            <p className="text-sm text-gray-600">© 2025 Trippo. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <PlatformContactFooter contact={contact} />
     </div>
   );
 };
