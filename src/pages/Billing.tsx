@@ -86,25 +86,45 @@ function NetworkOption({
   label,
   logoSrc,
   logoAlt,
+  selected,
 }: {
   id: string;
   value: MobileNetwork;
   label: string;
   logoSrc: string;
   logoAlt: string;
+  selected?: boolean;
 }) {
   return (
     <label
       htmlFor={id}
-      className="flex items-center gap-3 sm:gap-4 cursor-pointer rounded-xl p-4 sm:p-5 w-full"
+      className={cn(
+        "flex items-center gap-3 sm:gap-4 cursor-pointer rounded-xl p-4 sm:p-5 w-full border-2 transition-all",
+        selected
+          ? "border-yellow-500 bg-yellow-50 shadow-sm ring-2 ring-yellow-500/25"
+          : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50",
+      )}
     >
       <RadioGroupItem
         value={value}
         id={id}
-        className="h-6 w-6 shrink-0 rounded-full border-2 border-gray-400 text-foreground data-[state=checked]:border-foreground [&_svg]:h-3 [&_svg]:w-3"
+        aria-label={label}
+        className={cn(
+          "h-5 w-5 shrink-0 rounded-full border-2 bg-white shadow-sm",
+          "border-gray-500 text-yellow-600",
+          "data-[state=checked]:border-yellow-500 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-white",
+          "[&_svg]:h-2.5 [&_svg]:w-2.5 data-[state=checked]:[&_svg]:fill-white",
+        )}
       />
       <img src={logoSrc} alt={logoAlt} className="h-14 w-14 sm:h-16 sm:w-16 object-contain shrink-0" />
-      <span className="text-sm font-semibold text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "text-sm font-semibold",
+          selected ? "text-gray-900" : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </span>
     </label>
   );
 }
@@ -461,8 +481,6 @@ export default function Billing() {
                   label={`${t("price")}:`}
                   value={`${amount.toLocaleString()} ${currency}`}
                 />
-                <SummaryRow label={`${t("billingStarts")}:`} value={formatBillingDate(periodStart, language)} />
-                <SummaryRow label={`${t("billingEnds")}:`} value={formatBillingDate(periodEnd, language)} />
               </div>
 
               <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
@@ -597,6 +615,13 @@ export default function Billing() {
                 </div>
               ) : canPay && paymentReady ? (
                 <>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">
+                      {t("billingSelectNetwork")}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">{t("billingSelectNetworkDesc")}</p>
+                  </div>
+
                   <RadioGroup
                     value={network ?? ""}
                     onValueChange={(v) => setNetwork(v as MobileNetwork)}
@@ -609,6 +634,7 @@ export default function Billing() {
                       label="MTN MoMo"
                       logoSrc="/mtn.png"
                       logoAlt="MTN MoMo"
+                      selected={network === "mtn"}
                     />
                     <NetworkOption
                       id="pay-airtel"
@@ -616,6 +642,7 @@ export default function Billing() {
                       label="Airtel Money"
                       logoSrc="/airtel.png"
                       logoAlt="Airtel Money"
+                      selected={network === "airtel"}
                     />
                   </RadioGroup>
 
