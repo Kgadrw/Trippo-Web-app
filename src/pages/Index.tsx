@@ -34,7 +34,6 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDateWithTime } from "@/lib/utils";
-import { MobileNumberPad } from "@/components/mobile/MobileNumberPad";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface Product {
@@ -363,7 +362,6 @@ const Dashboard = () => {
   const [expenseDate, setExpenseDate] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
   const [isSavingExpense, setIsSavingExpense] = useState(false);
-  const [showExpenseAmountPad, setShowExpenseAmountPad] = useState(false);
 
   const expenseSuggestions = useMemo(() => {
     const normalize = (s: string) => s.trim().toLowerCase();
@@ -385,10 +383,6 @@ const Dashboard = () => {
       }
       freq.set(key, cur);
     }
-
-    const mostUsed = Array.from(freq.values())
-      .sort((a, b) => b.count - a.count || b.lastMs - a.lastMs)
-      .slice(0, 6);
 
     const recent = [...expenses]
       .slice()
@@ -419,21 +413,18 @@ const Dashboard = () => {
     const allTitles = Array.from(
       new Set([
         ...presetTitles.map(normalize),
-        ...mostUsed.map((x) => normalize(x.title)),
         ...recent.map(normalize),
       ])
     )
       .map((key) => {
         const fromPreset = expensePresets.find((p) => normalize(p.title || "") === key);
-        const fromMost = mostUsed.find((m) => normalize(m.title) === key);
         const fromRecent = recent.find((r) => normalize(r) === key);
-        return (fromPreset?.title || fromMost?.title || fromRecent || "").trim();
+        return (fromPreset?.title || fromRecent || "").trim();
       })
       .filter(Boolean);
 
     return {
       presetTitles,
-      mostUsed,
       recent,
       allTitles,
       normalize,
@@ -1195,13 +1186,13 @@ const Dashboard = () => {
       <AddToHomeScreen />
 
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[560px] max-h-[70vh] sm:max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-200 rounded-xl sm:rounded-2xl shadow-xl">
-          <div className="p-3 sm:p-4">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[560px] max-h-[min(70vh,100dvh-2rem)] sm:max-h-[85vh] overflow-y-auto overflow-x-hidden p-0 bg-white border-gray-200 rounded-xl sm:rounded-2xl shadow-xl">
+          <div className="p-3 sm:p-4 min-w-0 max-w-full overflow-x-hidden">
           <DialogHeader className="pb-2 sm:pb-0">
             <DialogTitle className="text-base sm:text-lg font-semibold">{t("recordExpense")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 sm:space-y-3">
-            <div className="space-y-1">
+          <div className="space-y-2 sm:space-y-3 min-w-0">
+            <div className="space-y-1 min-w-0">
               <Label className="text-[11px] sm:text-xs">{t("expenseTitle")}</Label>
               <Input
                 value={expenseTitle}
@@ -1214,81 +1205,52 @@ const Dashboard = () => {
                   }
                 }}
                 placeholder={t("expenseExamplePlaceholder")}
-                className="h-9 sm:h-10 text-sm sm:text-base"
+                className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
               />
 
               {(expenseSuggestions.presetTitles.length > 0 ||
-                expenseSuggestions.mostUsed.length > 0 ||
                 expenseSuggestions.recent.length > 0) && (
-                <div className="pt-1.5 sm:pt-2 space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-none overflow-y-auto">
+                <div className="pt-1.5 sm:pt-2 space-y-1.5 sm:space-y-2">
                   {expenseSuggestions.presetTitles.length > 0 && (
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[11px] font-semibold text-gray-600">
                         {t("presets")}
                       </div>
-                      <div className="mt-1 -mx-1 px-1 overflow-x-auto">
-                        <div className="flex gap-2 w-max">
-                        {expenseSuggestions.presetTitles.map((t) => (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {expenseSuggestions.presetTitles.map((title) => (
                           <Button
-                            key={t}
+                            key={title}
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 sm:h-8 rounded-full text-xs"
-                            onClick={() => applyExpenseSuggestion(t)}
+                            className="h-7 sm:h-8 max-w-full rounded-full text-xs truncate"
+                            onClick={() => applyExpenseSuggestion(title)}
                           >
-                            {t}
+                            {title}
                           </Button>
                         ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {expenseSuggestions.mostUsed.length > 0 && (
-                    <div>
-                      <div className="text-[11px] font-semibold text-gray-600">
-                        {t("mostUsed")}
-                      </div>
-                      <div className="mt-1 -mx-1 px-1 overflow-x-auto">
-                        <div className="flex gap-2 w-max">
-                        {expenseSuggestions.mostUsed.map((x) => (
-                          <Button
-                            key={x.title}
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 sm:h-8 rounded-full text-xs"
-                            onClick={() => applyExpenseSuggestion(x.title)}
-                          >
-                            {x.title}
-                          </Button>
-                        ))}
-                        </div>
                       </div>
                     </div>
                   )}
 
                   {expenseSuggestions.recent.length > 0 && (
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[11px] font-semibold text-gray-600">
                         {t("recentExpenses")}
                       </div>
-                      <div className="mt-1 -mx-1 px-1 overflow-x-auto">
-                        <div className="flex gap-2 w-max">
-                        {expenseSuggestions.recent.map((t) => (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {expenseSuggestions.recent.map((title) => (
                           <Button
-                            key={t}
+                            key={title}
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 sm:h-8 rounded-full text-xs"
-                            onClick={() => applyExpenseSuggestion(t)}
+                            className="h-7 sm:h-8 max-w-full rounded-full text-xs truncate"
+                            onClick={() => applyExpenseSuggestion(title)}
                           >
-                            {t}
+                            {title}
                           </Button>
                         ))}
-                        </div>
                       </div>
                     </div>
                   )}
@@ -1308,61 +1270,46 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label className="text-[11px] sm:text-xs">{t("amount")} (rwf)</Label>
-              {isMobile ? (
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseAmountPad(true)}
-                  className="w-full h-10 sm:h-12 rounded-xl border border-gray-300 bg-white px-3 sm:px-4 text-left text-base sm:text-lg font-semibold text-gray-900 tabular-nums"
-                >
-                  {expenseAmount ? Number(expenseAmount).toLocaleString() : "0"} rwf
-                </button>
-              ) : (
               <Input
                 type="number"
                 min="0"
+                inputMode="numeric"
                 value={expenseAmount}
                 onChange={(e) => setExpenseAmount(e.target.value)}
                 placeholder="0"
+                className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
               />
-              )}
             </div>
-            {isMobile && showExpenseAmountPad && (
-              <MobileNumberPad
-                value={expenseAmount}
-                onChange={(next) => setExpenseAmount(next.replace(/[^\d]/g, ""))}
-                onDone={() => setShowExpenseAmountPad(false)}
-              />
-            )}
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 min-w-0">
+              <div className="space-y-1 min-w-0">
                 <Label className="text-[11px] sm:text-xs">{t("category")}</Label>
                 <Input
                   value={expenseCategory}
                   onChange={(e) => setExpenseCategory(e.target.value)}
                   placeholder={t("expenseCategoryPlaceholder")}
-                  className="h-9 sm:h-10 text-sm sm:text-base"
+                  className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <Label className="text-[11px] sm:text-xs">{t("date")}</Label>
                 <Input
                   type="date"
                   value={expenseDate}
                   onChange={(e) => setExpenseDate(e.target.value)}
-                  className="h-9 sm:h-10 text-sm sm:text-base"
+                  className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0 max-w-full"
                 />
               </div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label className="text-[11px] sm:text-xs">{t("noteOptional")}</Label>
               <Textarea
                 value={expenseNote}
                 onChange={(e) => setExpenseNote(e.target.value)}
                 placeholder={t("expenseNotePlaceholder")}
                 rows={isMobile ? 2 : 3}
-                className="text-sm sm:text-base min-h-[4.5rem] sm:min-h-0"
+                className="text-sm sm:text-base min-h-[4.5rem] sm:min-h-0 w-full min-w-0 resize-none"
               />
             </div>
           </div>

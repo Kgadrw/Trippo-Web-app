@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, Plus, ShoppingCart, Search, ChevronsUpDown } from "lucide-react";
+import { X, Plus, ShoppingCart, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
@@ -101,65 +102,59 @@ const ServiceCombobox = ({
 
   return (
     <div className="relative w-full">
-      <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setSearchQuery("");
+        }}
+        modal={false}
+      >
         <PopoverTrigger asChild>
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <Input
-              type="text"
-              value={selectedService ? selectedService.name : searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (!open) setOpen(true);
-                if (e.target.value === "") {
-                  onValueChange("");
-                }
-              }}
-              onFocus={(e) => {
-                e.stopPropagation();
-                setOpen(true);
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(true);
-              }}
-              placeholder={placeholder}
-              className={cn("pl-10 pr-10 cursor-text", className)}
-            />
-            {selectedService && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onValueChange("");
-                  setSearchQuery("");
-                  setOpen(true);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
-              >
-                <X className="h-4 w-4" />
-              </button>
+          <button
+            type="button"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              "flex h-9 sm:h-10 w-full items-center justify-between rounded-md border border-input bg-white px-3 py-2 text-sm sm:text-base shadow-sm transition-colors hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              !selectedService && "text-muted-foreground",
+              selectedService && "pr-10",
+              className,
             )}
+          >
+            <span className="truncate text-left">
+              {selectedService ? selectedService.name : placeholder}
+            </span>
             {!selectedService && (
-              <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
             )}
-          </div>
+          </button>
         </PopoverTrigger>
+        {selectedService && (
+          <button
+            type="button"
+            aria-label="Clear service"
+            onClick={(e) => {
+              e.stopPropagation();
+              onValueChange("");
+              setSearchQuery("");
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
         <PopoverContent
           className="w-[var(--radix-popover-trigger-width)] p-0"
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
-          onInteractOutside={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.closest('[role="combobox"]') || target.closest(".relative")) {
-              e.preventDefault();
-            }
-          }}
         >
           <Command shouldFilter={false}>
+            <CommandInput
+              placeholder={placeholder}
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+            />
             <CommandList>
               <CommandEmpty>No services found.</CommandEmpty>
               <CommandGroup>
@@ -353,7 +348,10 @@ export function RecordSaleModal({ open, onOpenChange, onSaleRecorded, initialSer
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[480px] max-h-[70vh] sm:max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-300 rounded-xl sm:rounded-2xl shadow-xl">
+      <DialogContent
+        className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[480px] max-h-[70vh] sm:max-h-[85vh] overflow-y-auto p-0 bg-white border-gray-300 rounded-xl sm:rounded-2xl shadow-xl"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="p-3 sm:p-4">
           <DialogHeader className="mb-2 sm:mb-3 pb-2 sm:pb-3 border-b border-gray-100">
             <DialogTitle className="flex items-center justify-between text-gray-900 text-base sm:text-lg font-semibold">

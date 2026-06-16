@@ -23,6 +23,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { periodToggleClass } from "@/lib/fieldStyles";
 import { SalesExpensesPeriodChart } from "@/components/dashboard/SalesExpensesPeriodChart";
+import { SalesExpenseGauge } from "@/components/dashboard/SalesExpenseGauge";
 import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import {
   ComposedChart,
@@ -537,6 +538,15 @@ const Reports = () => {
     [salesExpensesByPeriod],
   );
 
+  const gaugeStats = useMemo(
+    () => ({
+      salesCount: filteredSales.length,
+      salesTotal: salesExpensesPeriodTotals.revenue,
+      expensesTotal: salesExpensesPeriodTotals.expenses,
+    }),
+    [filteredSales.length, salesExpensesPeriodTotals],
+  );
+
   const totalLabel = t("total");
 
   const addHeader = (doc: jsPDF, pageWidth: number, margin: number, reportTypeLabel?: string, dateRangeLabel?: string) => {
@@ -946,6 +956,23 @@ const Reports = () => {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Mobile: sales vs expenses gauge for selected period */}
+        <div className="lg:hidden bg-white rounded-lg overflow-hidden">
+          {salesLoading ? (
+            <div className="p-4 space-y-4">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-48 w-full rounded-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ) : (
+            <SalesExpenseGauge
+              salesCount={gaugeStats.salesCount}
+              salesTotal={gaugeStats.salesTotal}
+              expensesTotal={gaugeStats.expensesTotal}
+            />
+          )}
         </div>
 
         {/* Sales & Expenses table (by day/week/month) */}
