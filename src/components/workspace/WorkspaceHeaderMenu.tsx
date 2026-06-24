@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { WorkspaceInviteEmailInput } from './WorkspaceInviteEmailInput';
 
 const workspacePermissionCheckboxClass =
   'border-2 border-sky-500 bg-white shadow-sm hover:border-sky-600 data-[state=checked]:bg-sky-400 data-[state=checked]:border-sky-500 data-[state=checked]:text-white focus-visible:ring-sky-400';
@@ -347,11 +348,11 @@ function ManageWorkspaceDialog({
           <div className="rounded-lg border border-gray-200 p-3 space-y-3">
             <p className="text-sm font-medium text-gray-900">Invite by email</p>
             <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="colleague@company.com"
+              <WorkspaceInviteEmailInput
+                workspaceId={workspaceId}
                 value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
+                onChange={setInviteEmail}
+                disabled={sending}
               />
               <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as 'admin' | 'member')}>
                 <SelectTrigger className="w-[110px]">

@@ -1852,6 +1852,27 @@ export const workspaceApi = {
     return request(`/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: 'GET' });
   },
 
+  async searchInviteUsers(
+    workspaceId: string,
+    query: string,
+  ): Promise<
+    ApiResponse & {
+      users?: Array<{
+        id: string;
+        name: string;
+        email: string;
+        profilePictureUrl?: string | null;
+        alreadyMember: boolean;
+      }>;
+    }
+  > {
+    const params = new URLSearchParams({ q: query });
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/invite-search?${params.toString()}`,
+      { method: 'GET' },
+    );
+  },
+
   async invite(
     workspaceId: string,
     data: { email: string; role?: 'admin' | 'member'; permissions?: string[] },
