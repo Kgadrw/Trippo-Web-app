@@ -710,7 +710,10 @@ export function BusinessCalendarTab() {
           </Button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-4">
+      <div
+        className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         {renderEventsList({ fullHeight: true })}
       </div>
     </div>
@@ -807,22 +810,10 @@ export function BusinessCalendarTab() {
 
   const showSidePanel = viewMode !== "day";
   const isDayView = viewMode === "day";
-  const useFullPageHeight = isDayView || showSidePanel;
 
   return (
-    <div
-      className={cn(
-        useFullPageHeight &&
-          "flex h-[calc(100dvh-9rem)] max-h-[calc(100dvh-9rem)] flex-col overflow-hidden lg:h-[calc(100dvh-7.5rem)] lg:max-h-[calc(100dvh-7.5rem)]",
-        !useFullPageHeight && "space-y-4",
-      )}
-    >
-      <div
-        className={cn(
-          "flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
-          useFullPageHeight && "mb-4 shrink-0",
-        )}
-      >
+    <div className="flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4 lg:px-6 lg:pb-6">
+      <div className="mb-4 flex shrink-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-1.5">
             <h2 className="text-lg font-semibold text-gray-900">{t("businessCalendarTitle")}</h2>
@@ -886,15 +877,16 @@ export function BusinessCalendarTab() {
           "min-h-0 flex-1 overflow-hidden",
           isDayView
             ? "flex flex-col"
-            : "flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-stretch lg:gap-8",
+            : "grid min-h-0 grid-rows-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-1 lg:gap-8",
         )}
       >
         <div
           className={cn(
-            isDayView && "flex min-h-0 flex-1 flex-col overflow-hidden",
-            showSidePanel &&
-              "min-h-0 max-h-[50dvh] overflow-y-auto overscroll-contain lg:max-h-none lg:min-h-0 lg:flex-1 lg:pr-1",
+            "min-h-0 overflow-y-auto overscroll-y-contain",
+            isDayView && "flex flex-1 flex-col overflow-hidden",
+            showSidePanel && "lg:pr-1",
           )}
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
           {viewMode !== "day" && (
             <div className="mb-4 flex items-center justify-between">
@@ -936,8 +928,8 @@ export function BusinessCalendarTab() {
         </div>
 
         {showSidePanel && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-gray-100 pt-4 lg:h-full lg:max-h-full lg:flex-none lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-            <div className="mb-4 flex shrink-0 items-start justify-between gap-4 lg:mb-5">
+          <div className="flex min-h-0 flex-col overflow-hidden border-t border-gray-100 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <div className="mb-3 flex shrink-0 items-start justify-between gap-4 lg:mb-4">
               <div className="min-w-0 space-y-1.5">
                 <p className="text-xs uppercase tracking-wide text-gray-500">{t("calSelectedDay")}</p>
                 <h3 className="text-base font-semibold text-gray-900">
@@ -952,7 +944,10 @@ export function BusinessCalendarTab() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-4">
+            <div
+              className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
               {renderEventsList({ fullHeight: true })}
             </div>
           </div>
