@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
 import { useApi } from "@/hooks/useApi";
@@ -81,6 +81,20 @@ export function SalesTab() {
   const [quantity, setQuantity] = useState("1");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const handleSyncFailed = (event: Event) => {
+      const detail = (event as CustomEvent<{ error?: { message?: string } }>).detail;
+      playErrorBeep();
+      toast({
+        title: t("saveFailed"),
+        description: detail?.error?.message || t("saveSaleFailed"),
+        variant: "destructive",
+      });
+    };
+    window.addEventListener("sale-sync-failed", handleSyncFailed);
+    return () => window.removeEventListener("sale-sync-failed", handleSyncFailed);
+  }, [toast, t]);
 
   const selectedProduct = sellableProducts.find((p) => productOptionId(p) === productId);
   const unitPrice = selectedProduct?.sellingPrice ?? 0;

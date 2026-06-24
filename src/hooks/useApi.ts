@@ -1199,17 +1199,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
       
       localId = (itemWithId as any).id || (itemWithId as any)._id;
       
-      // For sales, wait for backend confirmation before showing in UI
-      // Don't update UI until backend confirms the sale
+      // Sales: optimistic UI + instant stock, then sync to server in background
       if (isSalesEndpoint) {
-        // Save to IndexedDB for offline support, but don't show in UI yet
         await addItem(storeName, itemWithId);
-        
-        // Dispatch event to notify that sale recording has started
-        // This allows Dashboard and Sales pages to show loading state
-        window.dispatchEvent(new CustomEvent('sale-recording-started', { 
-          detail: { sale: item } 
-        }));
 
         const saleProductId = (item as any).productId?.toString();
         const saleQty = Number((item as any).quantity) || 0;
@@ -1217,127 +1209,107 @@ export function useApi<T extends { _id?: string; id?: number }>({
         if (isProductSale) {
           applyProductStockDelta(saleProductId, -saleQty);
         }
-        
-        // Make API call and wait for response before updating UI
-        // This ensures we only show sales that are confirmed by backend
-        // Prepare item data for API call
+
+        const optimisticItem = mapItem(itemWithId) as T;
+        setItems((prev) => applyCreateToList(prev, optimisticItem, "sales"));
+        dispatchDataChanged({ endpoint: "sales", action: "create", item: optimisticItem });
+        window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: optimisticItem } }));
+        window.dispatchEvent(new CustomEvent("sales-should-refresh"));
+
         const itemData = { ...item };
         delete (itemData as any).id;
         delete (itemData as any)._id;
-        
-        // Ensure timestamp is present for sales
+
         if (!(itemData as any).timestamp) {
           (itemData as any).timestamp = new Date().toISOString();
         }
-        
-        // Wait for API call to complete before updating UI
-        // Only show sales that are confirmed by backend
-        try {
-          const response = await saleApi.create(itemData);
-          
-          if (!response || (!response.data && !response)) {
-            console.warn('[useApi] Invalid response from sales API');
-            throw new Error('Invalid response from sales API');
-          }
-          
-          // Handle response - backend may return data in response.data or directly
-          const responseData = response?.data || response;
-          if (!responseData) {
-            console.warn('[useApi] No data in sales API response');
-            throw new Error('No data in sales API response');
-          }
-          
-          const syncedItem = mapItem(responseData);
-          
-          // Ensure timestamp is preserved
-          if (!(syncedItem as any).timestamp && (item as any).timestamp) {
-            (syncedItem as any).timestamp = (item as any).timestamp;
-          } else if (!(syncedItem as any).timestamp) {
-            (syncedItem as any).timestamp = new Date().toISOString();
-          }
-          
-          // Replace the local pending row with the server-confirmed sale (same IndexedDB key)
-          const syncedItemWithUserId = {
-            ...syncedItem,
-            userId: userId,
-          } as T;
-          const syncedForStore = {
-            ...syncedItemWithUserId,
-            id: localId,
-          } as T;
-          await updateItem(storeName, syncedForStore);
-          
-          // Invalidate cache
-          apiCache.invalidateStore(endpoint);
-          localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
-          
-          // NOW update UI - only after backend confirms the sale
-          setItems((prev) => deduplicateSales([syncedItem as T, ...prev]));
-          
-          // Dispatch event to notify other components (after backend confirms)
-          window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale: syncedItem } }));
-          window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-          dispatchDataChanged({ endpoint: 'sales', action: 'create', item: syncedItem });
-          
-          // Dispatch event to notify that sale recording has completed successfully
-          window.dispatchEvent(new CustomEvent('sale-recording-completed', { 
-            detail: { sale: syncedItem, success: true } 
-          }));
 
-          if (isProductSale) {
-            mirrorProductStockInIndexedDB(saleProductId, -saleQty);
-          }
-          return syncedItem as T;
-        } catch (error: any) {
-          const isNetworkError = isLikelyNetworkError(error);
+        const removeOptimisticFromList = (prev: T[]) => {
+          const localKey = localId?.toString();
+          if (!localKey) return prev;
+          return prev.filter(
+            (row) => getRecordId(row as { _id?: string; id?: number })?.toString() !== localKey,
+          );
+        };
 
-          if (isNetworkError) {
-            const offlineSale = mapItem(itemWithId);
-            setItems((prev) => applyCreateToList(prev, offlineSale as T, 'sales'));
-            dispatchDataChanged({ endpoint: 'sales', action: 'create', item: offlineSale });
-            window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale: offlineSale } }));
-            window.dispatchEvent(new CustomEvent('sale-recording-completed', {
-              detail: { sale: offlineSale, success: true },
-            }));
-            const offlineProductId = (item as any).productId?.toString();
-            const offlineQty = Number((item as any).quantity) || 0;
-            if (offlineProductId && offlineQty > 0 && !isProductSale) {
-              applyProductStockDelta(offlineProductId, -offlineQty);
-            }
-            await syncManager.queueAction({
-              type: "create",
-              store: storeName,
-              data: itemWithId,
-            });
-            const silentError: any = new Error("Sale saved locally. Will sync when online.");
-            silentError.response = { silent: true, connectionError: true };
-            throw silentError;
-          }
-
-          // If API call fails for a real error, remove from IndexedDB and throw
-          if (isProductSale) {
-            applyProductStockDelta(saleProductId, saleQty);
-          }
+        void (async () => {
           try {
-            const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
-            if (!isNaN(numericId)) {
-              await deleteItem(storeName, numericId);
+            const response = await saleApi.create(itemData);
+
+            if (!response || (!response.data && !response)) {
+              throw new Error("Invalid response from sales API");
             }
-          } catch (deleteError) {
-            console.warn('[useApi] Error removing failed sale from IndexedDB:', deleteError);
+
+            const responseData = response?.data || response;
+            if (!responseData) {
+              throw new Error("No data in sales API response");
+            }
+
+            const syncedItem = mapItem(responseData);
+
+            if (!(syncedItem as any).timestamp && (item as any).timestamp) {
+              (syncedItem as any).timestamp = (item as any).timestamp;
+            } else if (!(syncedItem as any).timestamp) {
+              (syncedItem as any).timestamp = new Date().toISOString();
+            }
+
+            const syncedItemWithUserId = {
+              ...syncedItem,
+              userId: userId,
+            } as T;
+            const syncedForStore = {
+              ...syncedItemWithUserId,
+              id: localId,
+            } as T;
+            await updateItem(storeName, syncedForStore);
+
+            apiCache.invalidateStore(endpoint);
+            localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
+
+            setItems((prev) =>
+              deduplicateSales([syncedItem as T, ...removeOptimisticFromList(prev)]),
+            );
+            dispatchDataChanged({ endpoint: "sales", action: "create", item: syncedItem });
+            window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: syncedItem } }));
+
+            if (isProductSale) {
+              mirrorProductStockInIndexedDB(saleProductId, -saleQty);
+            }
+          } catch (error: any) {
+            const isNetworkError = isLikelyNetworkError(error);
+
+            if (isNetworkError) {
+              await syncManager.queueAction({
+                type: "create",
+                store: storeName,
+                data: itemWithId,
+              });
+              return;
+            }
+
+            if (isProductSale) {
+              applyProductStockDelta(saleProductId, saleQty);
+            }
+            setItems((prev) => removeOptimisticFromList(prev));
+            dispatchDataChanged({ endpoint: "sales", action: "delete", item: optimisticItem });
+            try {
+              const numericId = typeof localId === "string" ? parseInt(localId, 10) : localId;
+              if (!isNaN(numericId)) {
+                await deleteItem(storeName, numericId);
+              }
+            } catch (deleteError) {
+              console.warn("[useApi] Error removing failed sale from IndexedDB:", deleteError);
+            }
+            console.error("[useApi] Error saving sale to backend:", error);
+            window.dispatchEvent(
+              new CustomEvent("sale-sync-failed", {
+                detail: { sale: optimisticItem, error },
+              }),
+            );
           }
-          console.error(`[useApi] Error saving sale to backend:`, error);
-          
-          // Dispatch event to notify that sale recording has completed with failure
-          window.dispatchEvent(new CustomEvent('sale-recording-completed', { 
-            detail: { sale: item, success: false, error } 
-          }));
-          
-          throw error; // Re-throw so caller knows it failed
-        }
-        
-        // Return after API call completes
-        return itemWithId as T;
+        })();
+
+        return optimisticItem;
       }
       
       // Optimistic local save — instant UI, then sync to server
@@ -1957,7 +1929,22 @@ export function useApi<T extends { _id?: string; id?: number }>({
       });
 
       const bulkStockPatches: { productId: string; qty: number }[] = [];
+      const optimisticRows: { itemWithId: T; localId: string | number }[] = [];
+
       for (const sale of itemsToAdd) {
+        const itemWithId = { ...sale } as T;
+        if (!(itemWithId as any).id && !(itemWithId as any)._id) {
+          (itemWithId as any).id = generateUniqueId();
+        }
+        (itemWithId as any).userId = userId;
+        if (!(itemWithId as any).timestamp) {
+          (itemWithId as any).timestamp = new Date().toISOString();
+        }
+
+        const localId = (itemWithId as any).id || (itemWithId as any)._id;
+        optimisticRows.push({ itemWithId, localId });
+        await addItem(storeName, itemWithId);
+
         const pid = (sale as any).productId?.toString();
         const qty = Number((sale as any).quantity) || 0;
         if (pid && qty > 0) {
@@ -1965,13 +1952,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
           applyProductStockDelta(pid, -qty);
         }
       }
+
+      const optimisticItems = optimisticRows.map((row) => mapItem(row.itemWithId) as T);
+      setItems((prev) => deduplicateSales([...optimisticItems, ...prev]));
+      for (const optimisticItem of optimisticItems) {
+        dispatchDataChanged({ endpoint: "sales", action: "create", item: optimisticItem });
+        window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: optimisticItem } }));
+      }
+      window.dispatchEvent(new CustomEvent("sales-should-refresh"));
       
       try {
-        // logger.log(`[useApi] Attempting to send bulk sales via DIRECT API call:`, itemsData);
-        // logger.log(`[useApi] Online status: ${navigator.onLine}`);
-        // logger.log(`[useApi] API Base URL: http://localhost:${import.meta.env.VITE_LOCAL_API_PORT || '3000'}/api`);
-        
-        // Direct API call - no offline storage, no syncing
         const response = await saleApi.createBulk(itemsData);
         
         // logger.log(`[useApi] ✓ Bulk sales API response received:`, response);
@@ -1996,7 +1986,6 @@ export function useApi<T extends { _id?: string; id?: number }>({
         const syncedItems = (Array.isArray(responseData) ? responseData : [responseData]).map((responseItem, index) => {
           const mapped = mapItem(responseItem);
           
-          // Ensure timestamp is preserved for sales (use server timestamp if available, otherwise use original)
           if (!(mapped as any).timestamp && itemsToAdd[index] && (itemsToAdd[index] as any).timestamp) {
             (mapped as any).timestamp = (itemsToAdd[index] as any).timestamp;
           } else if (!(mapped as any).timestamp) {
@@ -2005,33 +1994,71 @@ export function useApi<T extends { _id?: string; id?: number }>({
           
           return mapped;
         });
-        // logger.log(`[useApi] ✓ Successfully processed ${syncedItems.length} bulk sales from DIRECT API call`);
-        
-        // Add all synced items with server IDs and userId for data isolation
-        for (const syncedItem of syncedItems) {
+
+        const optimisticLocalIds = new Set(
+          optimisticRows.map((row) => row.localId?.toString()).filter(Boolean),
+        );
+
+        for (let index = 0; index < syncedItems.length; index++) {
+          const syncedItem = syncedItems[index];
+          const optimisticRow = optimisticRows[index];
           const syncedItemWithUserId = {
             ...syncedItem,
-            userId: userId
+            userId: userId,
           } as T;
-          await addItem(storeName, syncedItemWithUserId);
+
+          if (optimisticRow) {
+            const syncedForStore = {
+              ...syncedItemWithUserId,
+              id: optimisticRow.localId,
+            } as T;
+            await updateItem(storeName, syncedForStore);
+          } else {
+            await addItem(storeName, syncedItemWithUserId);
           }
-          
-          // Invalidate cache for this endpoint since data changed
-          apiCache.invalidateStore(endpoint);
-          localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
-          
-        // Update UI - add synced items and remove duplicates
-          setItems((prev) => deduplicateSales([...syncedItems as T[], ...prev]));
-          for (const syncedItem of syncedItems) {
-            dispatchDataChanged({ endpoint: 'sales', action: 'create', item: syncedItem });
-            window.dispatchEvent(new CustomEvent('sale-recorded', { detail: { sale: syncedItem } }));
-          }
+        }
+
+        apiCache.invalidateStore(endpoint);
+        localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
+
+        setItems((prev) => {
+          const withoutOptimistic = prev.filter(
+            (row) => !optimisticLocalIds.has(getRecordId(row as { _id?: string; id?: number })?.toString() ?? ""),
+          );
+          return deduplicateSales([...(syncedItems as T[]), ...withoutOptimistic]);
+        });
+
+        for (const syncedItem of syncedItems) {
+          dispatchDataChanged({ endpoint: "sales", action: "create", item: syncedItem });
+          window.dispatchEvent(new CustomEvent("sale-recorded", { detail: { sale: syncedItem } }));
+        }
+
+        for (const { productId, qty } of bulkStockPatches) {
+          mirrorProductStockInIndexedDB(productId, -qty);
+        }
       } catch (apiError: any) {
+        const optimisticLocalIds = new Set(
+          optimisticRows.map((row) => row.localId?.toString()).filter(Boolean),
+        );
         for (const { productId, qty } of bulkStockPatches) {
           applyProductStockDelta(productId, qty);
         }
-        // For sales, don't queue for sync - just throw the error
-          throw apiError;
+        setItems((prev) =>
+          prev.filter(
+            (row) => !optimisticLocalIds.has(getRecordId(row as { _id?: string; id?: number })?.toString() ?? ""),
+          ),
+        );
+        for (const row of optimisticRows) {
+          try {
+            const numericId = typeof row.localId === "string" ? parseInt(row.localId, 10) : row.localId;
+            if (!isNaN(numericId)) {
+              await deleteItem(storeName, numericId);
+            }
+          } catch {
+            // ignore cleanup errors
+          }
+        }
+        throw apiError;
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to bulk add items');

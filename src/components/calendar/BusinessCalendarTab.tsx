@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
@@ -174,7 +174,9 @@ export function BusinessCalendarTab() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [platformRaw, setPlatformRaw] = useState<PlatformRawData>(EMPTY_PLATFORM);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingPlatform, setLoadingPlatform] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -201,7 +203,12 @@ export function BusinessCalendarTab() {
   );
 
   const loadCalendarData = useCallback(async () => {
-    setLoading(true);
+    const showBlockingLoader = !hasLoadedOnceRef.current;
+    if (showBlockingLoader) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     try {
       const { start, end } = viewRange;
       const dateParams = {
@@ -225,6 +232,8 @@ export function BusinessCalendarTab() {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      hasLoadedOnceRef.current = true;
     }
 
     if (typeFilter !== "all") {
@@ -341,6 +350,15 @@ export function BusinessCalendarTab() {
   const selectDay = (day: Date) => {
     const normalized = startOfDay(day);
     setSelectedDay(normalized);
+    if (viewMode === "month") {
+      const inCurrentMonth =
+        normalized.getMonth() === viewMonth && normalized.getFullYear() === viewYear;
+      if (!inCurrentMonth) {
+        setViewYear(normalized.getFullYear());
+        setViewMonth(normalized.getMonth());
+      }
+      return;
+    }
     setViewYear(normalized.getFullYear());
     setViewMonth(normalized.getMonth());
   };
@@ -608,7 +626,7 @@ export function BusinessCalendarTab() {
   };
 
   const renderEventsList = ({ fullHeight = false }: { fullHeight?: boolean } = {}) => {
-    if (selectedDayItems.length === 0 && !loadingPlatform) {
+    if (selectedDayItems.length === 0 && !loadingPlatform && !refreshing) {
       return (
         <p
           className={cn(
@@ -626,16 +644,15 @@ export function BusinessCalendarTab() {
     );
 
     return (
-      <div
-        className={cn(
-          fullHeight ? "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4" : "max-h-[520px] overflow-y-auto",
+      <>
+        {refreshing && typeFilter === "all" && (
+          <p className="mb-2 text-center text-xs text-gray-400">{t("calLoadingActivity")}</p>
         )}
-      >
-        {loadingPlatform && typeFilter === "all" && (
+        {loadingPlatform && typeFilter === "all" && !refreshing && sorted.length === 0 && (
           <p className="text-center text-xs text-gray-400">{t("calLoadingActivity")}</p>
         )}
         {sorted.map(renderDisplayItem)}
-      </div>
+      </>
     );
   };
 
@@ -693,7 +710,9 @@ export function BusinessCalendarTab() {
           </Button>
         </div>
       </div>
-      {renderEventsList({ fullHeight: true })}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-4">
+        {renderEventsList({ fullHeight: true })}
+      </div>
     </div>
   );
 
@@ -754,7 +773,7 @@ export function BusinessCalendarTab() {
   );
 
   const renderCalendarBody = () => {
-    if (loading) {
+    if (loading && !hasLoadedOnceRef.current) {
       if (viewMode === "year") {
         return (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -867,13 +886,14 @@ export function BusinessCalendarTab() {
           "min-h-0 flex-1 overflow-hidden",
           isDayView
             ? "flex flex-col"
-            : cn("grid gap-6 lg:grid-cols-[1fr_300px] lg:items-stretch lg:gap-8", showSidePanel && "lg:overflow-hidden"),
+            : "flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-stretch lg:gap-8",
         )}
       >
         <div
           className={cn(
             isDayView && "flex min-h-0 flex-1 flex-col overflow-hidden",
-            showSidePanel && "min-h-0 overflow-y-auto overscroll-contain lg:pr-1",
+            showSidePanel &&
+              "min-h-0 max-h-[50dvh] overflow-y-auto overscroll-contain lg:max-h-none lg:min-h-0 lg:flex-1 lg:pr-1",
           )}
         >
           {viewMode !== "day" && (
@@ -916,9 +936,9 @@ export function BusinessCalendarTab() {
         </div>
 
         {showSidePanel && (
-          <div className="flex min-h-0 flex-col overflow-hidden border-t border-gray-100 pt-5 lg:max-h-full lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-            <div className="mb-5 flex shrink-0 items-start justify-between gap-4">
-              <div className="space-y-1.5">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-gray-100 pt-4 lg:h-full lg:max-h-full lg:flex-none lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <div className="mb-4 flex shrink-0 items-start justify-between gap-4 lg:mb-5">
+              <div className="min-w-0 space-y-1.5">
                 <p className="text-xs uppercase tracking-wide text-gray-500">{t("calSelectedDay")}</p>
                 <h3 className="text-base font-semibold text-gray-900">
                   {selectedDay.toLocaleDateString(undefined, {
@@ -932,7 +952,7 @@ export function BusinessCalendarTab() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-4">
               {renderEventsList({ fullHeight: true })}
             </div>
           </div>
