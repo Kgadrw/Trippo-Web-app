@@ -194,6 +194,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       name: user.name,
       email: user.email,
       businessName: user.businessName || "",
+      profilePictureUrl: user.profilePictureUrl || "",
     }));
     const dashboardUrl = getSubdomainUrl("bookfy", `#auth=${authToken}`);
     window.location.href = dashboardUrl;

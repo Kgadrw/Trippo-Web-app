@@ -11,6 +11,9 @@
       if (data.name) localStorage.setItem('profit-pilot-user-name', data.name);
       if (data.email) localStorage.setItem('profit-pilot-user-email', data.email);
       if (data.businessName) localStorage.setItem('profit-pilot-business-name', data.businessName);
+      if (data.profilePictureUrl) {
+        localStorage.setItem('profit-pilot-profile-picture-url', data.profilePictureUrl);
+      }
       history.replaceState(null, '', window.location.pathname);
     } catch(e) {}
   }

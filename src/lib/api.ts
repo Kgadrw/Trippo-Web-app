@@ -370,6 +370,7 @@ export const authApi = {
     const userName = localStorage.getItem('profit-pilot-user-name');
     const userEmail = localStorage.getItem('profit-pilot-user-email');
     const businessName = localStorage.getItem('profit-pilot-business-name');
+    const profilePictureUrl = localStorage.getItem('profit-pilot-profile-picture-url');
     const userId = localStorage.getItem('profit-pilot-user-id');
     
     // If we have user data in localStorage and not forcing fetch, return it
@@ -378,6 +379,7 @@ export const authApi = {
         name: userName,
         email: userEmail || undefined,
         businessName: businessName || undefined,
+        profilePictureUrl: profilePictureUrl || undefined,
         _id: userId,
         id: userId,
       };

@@ -12,6 +12,7 @@ import { StockUpdateDialog } from "@/components/StockUpdateDialog";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { SubscriptionProvider } from "@/hooks/useSubscriptionAccess";
 import { useSyncReminder } from "@/hooks/useSyncReminder";
+import { useSyncUserProfile } from "@/hooks/useSyncUserProfile";
 import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
@@ -342,6 +343,9 @@ const App = () => {
         if (authData.businessName) {
           localStorage.setItem("profit-pilot-business-name", authData.businessName);
         }
+        if (authData.profilePictureUrl) {
+          localStorage.setItem("profit-pilot-profile-picture-url", authData.profilePictureUrl);
+        }
         
         // Clear the hash from URL
         window.history.replaceState(null, '', window.location.pathname);
@@ -361,6 +365,7 @@ const App = () => {
 
   // Enable sync reminder notifications
   useSyncReminder();
+  useSyncUserProfile();
 
   // Initialize audio on app load
   useEffect(() => {
