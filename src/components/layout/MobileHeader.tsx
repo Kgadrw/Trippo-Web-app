@@ -11,6 +11,7 @@ import { HeaderAccountAvatar } from "./HeaderAccountAvatar";
 import { useSettingsModal } from "@/components/settings/settingsModalState";
 import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
 import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
+import { HeaderPlusIcon } from "./HeaderPlusIcon";
 
 interface MobileHeaderProps {
   onMenuOpen?: () => void;
@@ -87,6 +88,7 @@ export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderPr
           buttonClassName="rounded-full hover:bg-muted"
         />
         <HeaderSettingsIconButton className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60" />
+        <HeaderPlusIcon className="mr-0.5" />
         <HeaderSettingsMenu panel="profile">
           <button
             type="button"

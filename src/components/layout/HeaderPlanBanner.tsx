@@ -1,20 +1,13 @@
-import { useNavigate, useLocation } from "react-router-dom";
-import { Crown, CheckCircle2 } from "lucide-react";
-import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import { useNavigate } from "react-router-dom";
+import { Crown, CheckCircle2, X } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import { hasPaidSubscription } from "@/lib/subscriptionPayment";
-import { formatTrialDaysLeft, getTrialRemainingFromPlan } from "@/lib/trialDisplay";
+import { useHeaderSubscriptionBadge } from "@/hooks/useHeaderSubscriptionBadge";
 import { cn } from "@/lib/utils";
 
 export function HeaderPlanBanner() {
-  const { loading, plan } = useSubscriptionAccess();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  if (location.pathname.startsWith("/billing")) {
-    return null;
-  }
+  const { loading, tone, message, showPlanBanner, dismissPaidBanner } = useHeaderSubscriptionBadge();
 
   if (loading) {
     return (
@@ -25,36 +18,8 @@ export function HeaderPlanBanner() {
     );
   }
 
-  if (!plan) {
+  if (!showPlanBanner || !tone) {
     return null;
-  }
-
-  const isPaid = hasPaidSubscription(plan) || Boolean(plan.lastPaidAt && plan.hasPlus && !plan.isOnTrial);
-  const trialRemaining = getTrialRemainingFromPlan(plan);
-  const needsPayment =
-    (plan.requiresPayment && !plan.hasPlus) ||
-    plan.status === "past_due";
-
-  let tone: "paid" | "trial" | "due" = "trial";
-  let message = t("plusTrial");
-
-  if (isPaid) {
-    tone = "paid";
-    message = t("plusActive");
-  } else if (needsPayment) {
-    tone = "due";
-    message = t("billingPaymentRequired");
-  } else if (plan.isOnTrial) {
-    tone = "trial";
-    message = trialRemaining
-      ? formatTrialDaysLeft(t, trialRemaining.days)
-      : t("plusTrial");
-  } else if (plan.hasPlus) {
-    tone = "paid";
-    message = t("plusActive");
-  } else {
-    tone = "due";
-    message = t("subscribeToPlus");
   }
 
   return (
@@ -74,19 +39,31 @@ export function HeaderPlanBanner() {
         )}
         <span className="truncate">{message}</span>
       </div>
-      {tone !== "paid" ? (
-        <button
-          type="button"
-          onClick={() => navigate("/billing")}
-          className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold hover:bg-white/30"
-        >
-          {t("payNow")}
-        </button>
-      ) : (
-        <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold">
-          {t("paid")}
-        </span>
-      )}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {tone !== "paid" ? (
+          <button
+            type="button"
+            onClick={() => navigate("/billing")}
+            className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold hover:bg-white/30"
+          >
+            {t("payNow")}
+          </button>
+        ) : (
+          <>
+            <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold">
+              {t("paid")}
+            </span>
+            <button
+              type="button"
+              onClick={dismissPaidBanner}
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+              aria-label="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }

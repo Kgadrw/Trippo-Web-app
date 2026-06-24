@@ -10,6 +10,7 @@ import { HeaderPlanBanner } from "./HeaderPlanBanner";
 import { PageSearchBar } from "./PageSearchBar";
 import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
 import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
+import { HeaderPlusIcon } from "./HeaderPlusIcon";
 
 type DesktopHeaderProps = {
   sidebarOpen: boolean;
@@ -93,6 +94,8 @@ export function DesktopHeader({
           <HeaderSettingsIconButton
             className={cn(headerIconButtonClass, settingsOpen && "bg-gray-200 text-gray-900")}
           />
+
+          <HeaderPlusIcon className="mr-0.5" />
 
           <HeaderSettingsMenu panel="profile">
             <button
