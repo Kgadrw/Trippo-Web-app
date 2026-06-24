@@ -81,7 +81,9 @@ const menuItems: SidebarMenuItem[] = [
 
 interface SidebarProps {
   open: boolean;
+  mobileOpen?: boolean;
   onMobileClose?: () => void;
+  desktopHeaderHeight?: number;
 }
 
 function FilledTriangleDown({ className }: { className?: string }) {
@@ -100,7 +102,7 @@ function FilledTriangleUp({ className }: { className?: string }) {
   );
 }
 
-export function Sidebar({ open, onMobileClose }: SidebarProps) {
+export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeaderHeight = 56 }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
@@ -247,31 +249,62 @@ export function Sidebar({ open, onMobileClose }: SidebarProps) {
     navigate("/", { replace: true });
   };
 
-  if (!open) {
+  if (!open && !mobileOpen) {
     return null;
   }
 
+  const navContent = (
+    <nav className="flex-1 px-2 py-3 overflow-y-auto scrollbar-thin min-h-0">
+      <div className="space-y-2">{visibleMenuItems.map((item) => renderNavItem(item))}</div>
+    </nav>
+  );
+
+  const logoutButton = (
+    <div className="shrink-0 border-t border-sidebar-border p-2">
+      <button
+        onClick={handleLogoutClick}
+        className="sidebar-item w-full text-gray-700 hover:text-red-600"
+      >
+        <span className="text-sm font-semibold">Log out</span>
+      </button>
+    </div>
+  );
+
   return (
     <>
-      <aside
-        className={cn(
-          "hidden lg:flex fixed z-30 bg-sidebar flex-col",
-          "left-0 top-14 w-52 h-[calc(100vh-3.5rem)]",
-        )}
-      >
-        <nav className="flex-1 px-2 py-3 overflow-y-auto scrollbar-thin min-h-0">
-          <div className="space-y-2">{visibleMenuItems.map((item) => renderNavItem(item))}</div>
-        </nav>
-
-        <div className="p-2 shrink-0">
+      {mobileOpen ? (
+        <>
           <button
-            onClick={handleLogoutClick}
-            className="sidebar-item w-full text-gray-700 hover:text-red-600"
-          >
-            <span className="text-sm font-semibold">Log out</span>
-          </button>
-        </div>
-      </aside>
+            type="button"
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            aria-label="Close menu"
+            onClick={onMobileClose}
+          />
+          <aside className="fixed left-0 top-0 z-50 flex h-full w-56 flex-col bg-sidebar shadow-xl lg:hidden">
+            <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4">
+              <span className="text-lg font-semibold lowercase text-gray-600">bookfy</span>
+            </div>
+            {navContent}
+            {logoutButton}
+          </aside>
+        </>
+      ) : null}
+
+      {open ? (
+        <aside
+          className={cn(
+            "hidden lg:flex fixed z-30 bg-sidebar flex-col",
+            "left-0 w-52",
+          )}
+          style={{
+            top: desktopHeaderHeight,
+            height: `calc(100vh - ${desktopHeaderHeight}px)`,
+          }}
+        >
+          {navContent}
+          {logoutButton}
+        </aside>
+      ) : null}
 
       <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
         <AlertDialogContent>

@@ -1,5 +1,4 @@
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -7,6 +6,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import {
+  WorkspaceContext,
+  createFallbackWorkspaceValue,
+  type WorkspaceContextValue,
+} from '@/context/workspaceContext';
 import { workspaceApi } from '@/lib/api';
 import {
   canAccessPage,
@@ -22,22 +26,6 @@ import {
 import { apiCache } from '@/lib/apiCache';
 import { clearAllStores } from '@/lib/indexedDB';
 import { getWorkspaceScopeKey, STORED_DATA_SCOPE_KEY } from '@/lib/workspace';
-
-type WorkspaceContextValue = {
-  mode: WorkspaceMode;
-  activeWorkspace: WorkspaceSummary | null;
-  workspaces: WorkspaceSummary[];
-  loading: boolean;
-  isWorkspaceAdmin: boolean;
-  switchToPersonal: () => void;
-  switchToWorkspace: (workspace: WorkspaceSummary) => void;
-  refreshWorkspaces: () => Promise<void>;
-  createWorkspace: (name: string) => Promise<WorkspaceSummary>;
-  canAccessPage: (pageKey: WorkspacePageKey) => boolean;
-  pages: typeof WORKSPACE_PAGES;
-};
-
-const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 function clearDataCaches() {
   apiCache.clear();
@@ -155,13 +143,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
+  return (
+    <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
+  );
 }
 
 export function useWorkspace() {
   const ctx = useContext(WorkspaceContext);
-  if (!ctx) {
-    throw new Error('useWorkspace must be used within WorkspaceProvider');
-  }
-  return ctx;
+  return ctx ?? createFallbackWorkspaceValue();
 }
+
+export type { WorkspaceContextValue } from '@/context/workspaceContext';

@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
@@ -21,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { TrendingUp, FileText, Wallet, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useApi } from "@/hooks/useApi";
@@ -40,7 +38,6 @@ interface Expense {
 const Dashboard = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { items: expenses, add: addExpense, refresh: refreshExpenses, isLoading: expensesLoading } = useApi<Expense>({
     endpoint: "expenses",
     defaultValue: [],
@@ -421,67 +418,6 @@ const Dashboard = () => {
           loans={loans}
           loading={!dashboardReady}
         />
-      </div>
-
-      {/* Charts and Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Quick Actions - Mobile Only */}
-        <div className="lg:hidden">
-          <div className="bg-white p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-gray-600" />
-              <h3 className="text-base font-bold text-gray-900">
-              Quick Actions
-              </h3>
-            </div>
-            <p className="text-xs text-gray-600 mb-4">
-              Record expenses, view reports, and manage finance from here.
-            </p>
-            
-            
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                onClick={() => navigate("/reports")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <FileText size={18} />
-                <span className="text-xs font-medium">
-                  Reports
-                </span>
-              </Button>
-
-              <Button
-                onClick={() => setExpenseModalOpen(true)}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Wallet size={18} />
-                <span className="text-xs font-medium">
-                  Record Expense
-                </span>
-              </Button>
-
-              <Button
-                onClick={() => navigate("/products")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Package size={18} />
-                <span className="text-xs font-medium">
-                  Products
-                </span>
-              </Button>
-
-              <Button
-                onClick={() => navigate("/finance/expenditure")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Wallet size={18} />
-                <span className="text-xs font-medium">
-                  Expenditure
-                </span>
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <AddToHomeScreen />

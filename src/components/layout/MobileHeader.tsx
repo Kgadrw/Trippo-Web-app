@@ -1,30 +1,28 @@
 import { useMemo } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Menu } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubdomain } from "@/hooks/useSubdomain";
 import { getDashboardPath } from "@/lib/appRoutes";
-import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { HeaderNotificationBell } from "./HeaderNotificationBell";
 import { HeaderSettingsMenu, HeaderSettingsIconButton } from "./HeaderSettingsMenu";
 import { HeaderAccountAvatar } from "./HeaderAccountAvatar";
 import { useSettingsModal } from "@/components/settings/settingsModalState";
 import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
 import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
-import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 
 interface MobileHeaderProps {
+  onMenuOpen?: () => void;
   onNotificationClick?: () => void;
 }
 
-export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
+export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderProps) {
   const { user } = useCurrentUser();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const subdomain = useSubdomain();
-  const { loading: subLoading, plan } = useSubscriptionAccess();
 
   const { openSettings } = useSettingsModal();
 
@@ -41,19 +39,17 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
     return !isDashboardRoot && !isAdminRoot;
   }, [location.pathname, subdomain]);
 
-  const showBillingCrown = useMemo(() => {
-    if (subLoading || !plan || location.pathname.startsWith("/billing")) return false;
-    return (
-      plan.isOnTrial ||
-      plan.requiresPayment ||
-      plan.status === "past_due" ||
-      plan.hasPlus
-    );
-  }, [subLoading, plan, location.pathname]);
-
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-3 sm:px-4">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+        <button
+          type="button"
+          onClick={onMenuOpen}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60"
+          aria-label="Open menu"
+        >
+          <Menu className="h-6 w-6" strokeWidth={2.25} />
+        </button>
         {showDashboardBack && (
           <button
             type="button"
@@ -67,16 +63,10 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
         <button
           type="button"
           onClick={() => openSettings("profile")}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors hover:bg-white/60 sm:gap-3"
+          className="min-w-0 flex-1 rounded-lg py-1 text-left transition-colors hover:bg-white/60"
           aria-label={t("profileSectionTitle")}
         >
-          <UserProfileAvatar
-            name={user?.name}
-            profilePictureUrl={user?.profilePictureUrl}
-            className="h-10 w-10 shrink-0 rounded-full border-2 border-blue-600 bg-white"
-            fallbackClassName="border-0 bg-white font-bold text-blue-600"
-          />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 flex-col">
             <div className="flex items-center gap-1">
               <span className="text-sm text-muted-foreground">{t("hello")},</span>
               <span className="truncate text-sm font-semibold text-foreground">{firstName}</span>
@@ -88,17 +78,7 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
         </button>
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
-        {showBillingCrown ? (
-          <button
-            type="button"
-            onClick={() => navigate("/billing")}
-            className="p-1.5 transition-opacity hover:opacity-80"
-            aria-label={t("billing")}
-          >
-            <img src="/plus.png" alt="Trippo Plus" className="h-9 w-9 object-contain" loading="lazy" />
-          </button>
-        ) : null}
+      <div className="ml-auto flex shrink-0 items-center justify-end gap-0.5">
         <WorkspaceMemberAvatarStack className="mr-0.5" />
         <WorkspaceHeaderMenu className="border-0 bg-transparent hover:bg-white/60" />
         <HeaderNotificationBell
@@ -110,10 +90,10 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
         <HeaderSettingsMenu panel="profile">
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60"
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/60"
             aria-label={t("profileSectionTitle")}
           >
-            <HeaderAccountAvatar className="h-10 w-10" iconSize={18} />
+            <HeaderAccountAvatar className="h-9 w-9 border-blue-600 ring-blue-100" />
           </button>
         </HeaderSettingsMenu>
       </div>

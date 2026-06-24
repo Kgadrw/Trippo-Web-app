@@ -38,7 +38,7 @@ export function MobilePageSearchBar({ className }: { className?: string }) {
   if (!enabled) return null;
 
   return (
-    <div className={cn("border-b border-sidebar-border/80 bg-sidebar px-4 py-2 lg:hidden", className)}>
+    <div className={cn("border-t border-sidebar-border/80 bg-transparent px-3 py-2 sm:px-4", className)}>
       <PageSearchBar inputClassName="h-10 rounded-md border border-gray-200" />
     </div>
   );

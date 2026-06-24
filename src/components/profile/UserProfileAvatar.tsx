@@ -32,11 +32,17 @@ export function UserProfileAvatar({
   const imageSrc = useProfilePictureSrc(profilePictureUrl, previewUrl);
 
   return (
-    <Avatar className={cn("h-10 w-10 shrink-0 rounded-full", className)}>
-      {imageSrc ? <AvatarImage src={imageSrc} alt={name || "Profile"} className="object-cover" /> : null}
+    <Avatar className={cn("relative h-10 w-10 shrink-0 overflow-hidden rounded-full", className)}>
+      {imageSrc ? (
+        <AvatarImage
+          src={imageSrc}
+          alt={name || "Profile"}
+          className="relative z-10 h-full w-full object-cover"
+        />
+      ) : null}
       <AvatarFallback
         className={cn(
-          "rounded-full bg-primary text-sm font-bold text-white",
+          "absolute inset-0 z-0 flex items-center justify-center rounded-full bg-primary text-sm font-bold text-white",
           fallbackClassName,
         )}
       >
