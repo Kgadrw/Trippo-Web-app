@@ -12,7 +12,7 @@ const Checkbox = React.forwardRef<
     ref={ref}
     className={cn(
       // Flat, high-contrast checkbox (visible on light backgrounds)
-      "peer h-5 w-5 shrink-0 rounded border-2 border-gray-400 bg-white text-gray-900 transition-colors",
+      "peer h-5 w-5 shrink-0 rounded border border-gray-300 bg-white text-gray-900 transition-colors",
       "hover:border-gray-600",
       "data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900 data-[state=checked]:text-white",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white",

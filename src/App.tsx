@@ -15,37 +15,35 @@ import { useSyncReminder } from "@/hooks/useSyncReminder";
 import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
-import { useSubdomain, getSubdomainUrl } from "@/hooks/useSubdomain";
+import { useSubdomain, getSubdomainUrl, redirectLegacyDashboardHost } from "@/hooks/useSubdomain";
 import { applyLogoutQueryParamIfPresent } from "@/lib/session";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import Home from "./pages/Home";
 
 // Component to handle cross-domain redirects
 // Only redirects if user is authenticated
-const SubdomainRedirect = ({ subdomain }: { subdomain: 'admin' | 'dashboard' }) => {
+const SubdomainRedirect = ({ subdomain }: { subdomain: "admin" | "bookfy" }) => {
   useEffect(() => {
     const userId = localStorage.getItem("profit-pilot-user-id");
     const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
     const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
-    
-    // Only redirect if authenticated
+
     if (userId && authenticated) {
-      if (subdomain === 'admin' && isAdmin) {
-        window.location.href = getSubdomainUrl('admin', '/');
+      if (subdomain === "admin" && isAdmin) {
+        window.location.href = getSubdomainUrl("admin", "/");
         return;
       }
-      if (subdomain === 'dashboard') {
-        const url = getSubdomainUrl(subdomain);
-        window.location.href = url;
+      if (subdomain === "bookfy") {
+        window.location.href = getSubdomainUrl("bookfy");
         return;
       }
     }
 
-    if (subdomain === 'admin') {
-      window.location.href = getSubdomainUrl('admin', '/login');
+    if (subdomain === "admin") {
+      window.location.href = getSubdomainUrl("admin", "/login");
       return;
     }
-    
-    // If not authenticated or wrong role, redirect to home
+
     const homeUrl = getSubdomainUrl(null);
     if (window.location.hostname !== new URL(homeUrl).hostname) {
       window.location.href = homeUrl;
@@ -53,29 +51,67 @@ const SubdomainRedirect = ({ subdomain }: { subdomain: 'admin' | 'dashboard' }) 
   }, [subdomain]);
   return null;
 };
+
+/** Send main-domain app URLs to the bookfy subdomain (preserves path). */
+const BookfySubdomainRedirect = () => {
+  useEffect(() => {
+    const path = window.location.pathname;
+    const search = window.location.search;
+    const hash = window.location.hash;
+    const normalizedPath = path === "/dashboard" ? "/" : path;
+    const target = `${normalizedPath}${search}${hash}`;
+
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+
+    if (userId && authenticated) {
+      window.location.replace(getSubdomainUrl("bookfy", target));
+      return;
+    }
+
+    window.location.replace(getSubdomainUrl(null));
+  }, []);
+  return null;
+};
 import Index from "./pages/Index";
-import Products from "./pages/Products";
-import AddProduct from "./pages/AddProduct";
-import Sales from "./pages/Sales";
-import Barbers from "./pages/Barbers";
 import Reports from "./pages/Reports";
-import Expenses from "./pages/Expenses";
-import Inventories from "./pages/Inventories";
-import InventoryDetail from "./pages/InventoryDetail";
-import Settings from "./pages/Settings";
-import { SettingsLayout } from "./components/settings/SettingsLayout";
-import SettingsBusiness from "./pages/settings/SettingsBusiness";
-import SettingsLanguage from "./pages/settings/SettingsLanguage";
-import SettingsSecurity from "./pages/settings/SettingsSecurity";
-import SettingsNotifications from "./pages/settings/SettingsNotifications";
-import SettingsDeleteAccount from "./pages/settings/SettingsDeleteAccount";
-import SettingsHelpSupport from "./pages/settings/SettingsHelpSupport";
+import { FinanceLayout } from "./components/finance/FinanceLayout";
+import FinanceIncome from "./pages/finance/FinanceIncome";
+import FinanceExpenditure from "./pages/finance/FinanceExpenditure";
+import FinancePayroll from "./pages/finance/FinancePayroll";
+import FinanceBills from "./pages/finance/FinanceBills";
+import FinanceTaxes from "./pages/finance/FinanceTaxes";
+import FinanceBankDeposits from "./pages/finance/FinanceBankDeposits";
+import FinanceCustomers from "./pages/finance/FinanceCustomers";
+import FinanceInvoices from "./pages/finance/FinanceInvoices";
+import FinanceVendors from "./pages/finance/FinanceVendors";
+import FinanceAccounts from "./pages/finance/FinanceAccounts";
+import FinanceStatements from "./pages/finance/FinanceStatements";
+import FinanceReconciliation from "./pages/finance/FinanceReconciliation";
+import FinanceBudgets from "./pages/finance/FinanceBudgets";
+import FinanceLoans from "./pages/finance/FinanceLoans";
+import FinanceTransactions from "./pages/finance/FinanceTransactions";
+import Products from "./pages/Products";
+import Sales from "./pages/Sales";
+import Documents from "./pages/Documents";
+import Schedules from "./pages/Schedules";
+import BusinessCalendar from "./pages/BusinessCalendar";
+import { TeamLayout } from "./components/team/TeamLayout";
+import TeamOverview from "./pages/team/TeamOverview";
+import TeamTasks from "./pages/team/TeamTasks";
+import TeamTasksFinance from "./pages/team/TeamTasksFinance";
+import TeamMembers from "./pages/team/TeamMembers";
+import SettingsModalRoute from "./pages/settings/SettingsModalRoute";
+import { SettingsModalProvider } from "@/components/settings/SettingsModalProvider";
+import { PageSearchProvider } from "@/hooks/usePageSearch";
 import Billing from "./pages/Billing";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
 import VerifyTicket from "./pages/VerifyTicket";
-import Bookings from "./pages/Bookings";
+import WorkspaceInviteAccept from "./pages/WorkspaceInviteAccept";
+import { WorkspaceProvider } from "@/hooks/useWorkspace";
+import { WorkspaceActivityListener } from "@/components/workspace/WorkspaceActivityListener";
 
 const queryClient = new QueryClient();
 
@@ -102,8 +138,7 @@ const SubdomainRouter = () => {
     );
   }
 
-  // If on dashboard subdomain, show user dashboard at root, but allow other routes
-  if (subdomain === 'dashboard') {
+  if (subdomain === "bookfy") {
     return (
       <Routes>
         <Route 
@@ -114,71 +149,34 @@ const SubdomainRouter = () => {
             </ProtectedRoute>
           } 
         />
-        {/* Allow other routes to work on dashboard subdomain */}
-        <Route 
-          path="/products" 
-          element={
-            <ProtectedRoute>
-              <Products />
-            </ProtectedRoute>
-          } 
-        />
+        <Route path="/dashboard" element={<Navigate to="/" replace />} />
         <Route
-          path="/inventories"
+          path="/finance"
           element={
             <ProtectedRoute>
-              <Inventories />
+              <FinanceLayout />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/inventories/:id"
-          element={
-            <ProtectedRoute>
-              <InventoryDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route 
-          path="/products/add" 
-          element={
-            <ProtectedRoute>
-              <AddProduct />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/sales" 
-          element={
-            <ProtectedRoute>
-              <Sales />
-            </ProtectedRoute>
-          } 
-        />
-        <Route
-          path="/bookings"
-          element={
-            <ProtectedRoute>
-              <Bookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route 
-          path="/barbers" 
-          element={
-            <ProtectedRoute>
-              <Barbers />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/clients" 
-          element={
-            <ProtectedRoute>
-              <Barbers />
-            </ProtectedRoute>
-          } 
-        />
+        >
+          <Route index element={<Navigate to="/finance/income" replace />} />
+          <Route path="income" element={<FinanceIncome />} />
+          <Route path="customers" element={<FinanceCustomers />} />
+          <Route path="invoices" element={<FinanceInvoices />} />
+          <Route path="vendors" element={<FinanceVendors />} />
+          <Route path="deposits" element={<FinanceBankDeposits />} />
+          <Route path="accounts" element={<FinanceAccounts />} />
+          <Route path="statements" element={<FinanceStatements />} />
+          <Route path="reconciliation" element={<FinanceReconciliation />} />
+          <Route path="budgets" element={<FinanceBudgets />} />
+          <Route path="loans" element={<FinanceLoans />} />
+          <Route path="bills" element={<FinanceBills />} />
+          <Route path="taxes" element={<FinanceTaxes />} />
+          <Route path="expenditure" element={<FinanceExpenditure />} />
+          <Route path="payroll" element={<FinancePayroll />} />
+          <Route path="transactions" element={<FinanceTransactions />} />
+        </Route>
+        <Route path="/income" element={<Navigate to="/finance/income" replace />} />
+        <Route path="/expenses" element={<Navigate to="/finance/expenditure" replace />} />
         <Route 
           path="/reports" 
           element={
@@ -187,14 +185,59 @@ const SubdomainRouter = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/expenses" 
+        <Route
+          path="/sales"
           element={
             <ProtectedRoute>
-              <Expenses />
+              <Sales />
             </ProtectedRoute>
-          } 
+          }
         />
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute>
+              <Products />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents"
+          element={
+            <ProtectedRoute>
+              <Documents />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/schedules"
+          element={
+            <ProtectedRoute>
+              <Schedules />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <BusinessCalendar />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/team"
+          element={
+            <ProtectedRoute>
+              <TeamLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<TeamOverview />} />
+          <Route path="tasks" element={<TeamTasks />} />
+          <Route path="tasks/finance" element={<TeamTasksFinance />} />
+          <Route path="members" element={<TeamMembers />} />
+        </Route>
         <Route
           path="/billing"
           element={
@@ -204,152 +247,52 @@ const SubdomainRouter = () => {
           }
         />
         <Route
-          path="/settings"
+          path="/settings/*"
           element={
             <ProtectedRoute>
-              <SettingsLayout />
+              <SettingsModalRoute />
             </ProtectedRoute>
           }
-        >
-          <Route index element={<Settings />} />
-          <Route path="business" element={<SettingsBusiness />} />
-          <Route path="subscription" element={<Navigate to="/billing" replace />} />
-          <Route path="language" element={<SettingsLanguage />} />
-          <Route path="security" element={<SettingsSecurity />} />
-          <Route path="notifications" element={<SettingsNotifications />} />
-          <Route path="help" element={<SettingsHelpSupport />} />
-          <Route path="delete-account" element={<SettingsDeleteAccount />} />
-        </Route>
+        />
+        <Route path="/clients" element={<Navigate to="/schedules" replace />} />
+        <Route path="/inventories" element={<Navigate to="/products" replace />} />
+        <Route path="/add-product" element={<Navigate to="/products" replace />} />
+        <Route path="/bookings" element={<Navigate to="/" replace />} />
+        <Route path="/barbers" element={<Navigate to="/" replace />} />
+        <Route path="/workers" element={<Navigate to="/" replace />} />
+        <Route path="/workspace/invite/:token" element={<WorkspaceInviteAccept />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     );
   }
 
-  // Main domain - use normal routing
-  // Home at `/`; app routes including `/dashboard` stay on this origin (desktop session uses one localStorage)
+  const mainDomainAppRedirect = <BookfySubdomainRedirect />;
+
   return (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/verify" element={<VerifyTicket />} />
-      {/* Desktop app home on main domain — same origin as login so session persists */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Index />
-          </ProtectedRoute>
-        }
-      />
-      {/* Redirect old admin path to admin subdomain (only if authenticated) */}
-      <Route 
-        path="/admin-dashboard" 
-        element={<SubdomainRedirect subdomain="admin" />} 
-      />
-      <Route 
-        path="/products" 
-        element={
-          <ProtectedRoute>
-            <Products />
-          </ProtectedRoute>
-        } 
-      />
-      <Route
-        path="/inventories"
-        element={
-          <ProtectedRoute>
-            <Inventories />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/inventories/:id"
-        element={
-          <ProtectedRoute>
-            <InventoryDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route 
-        path="/products/add" 
-        element={
-          <ProtectedRoute>
-            <AddProduct />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/sales" 
-        element={
-          <ProtectedRoute>
-            <Sales />
-          </ProtectedRoute>
-        } 
-      />
-      <Route
-        path="/bookings"
-        element={
-          <ProtectedRoute>
-            <Bookings />
-          </ProtectedRoute>
-        }
-      />
-      <Route 
-        path="/barbers" 
-        element={
-          <ProtectedRoute>
-            <Barbers />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/clients" 
-        element={
-          <ProtectedRoute>
-            <Barbers />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/reports" 
-        element={
-          <ProtectedRoute>
-            <Reports />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/expenses" 
-        element={
-          <ProtectedRoute>
-            <Expenses />
-          </ProtectedRoute>
-        } 
-      />
-      <Route
-        path="/billing"
-        element={
-          <ProtectedRoute>
-            <Billing />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <SettingsLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Settings />} />
-        <Route path="business" element={<SettingsBusiness />} />
-        <Route path="subscription" element={<Navigate to="/billing" replace />} />
-        <Route path="language" element={<SettingsLanguage />} />
-        <Route path="security" element={<SettingsSecurity />} />
-        <Route path="notifications" element={<SettingsNotifications />} />
-        <Route path="help" element={<SettingsHelpSupport />} />
-        <Route path="delete-account" element={<SettingsDeleteAccount />} />
-      </Route>
+      <Route path="/workspace/invite/:token" element={<WorkspaceInviteAccept />} />
+      <Route path="/admin-dashboard" element={<SubdomainRedirect subdomain="admin" />} />
+      <Route path="/dashboard" element={mainDomainAppRedirect} />
+      <Route path="/reports" element={mainDomainAppRedirect} />
+      <Route path="/sales" element={mainDomainAppRedirect} />
+      <Route path="/products" element={mainDomainAppRedirect} />
+      <Route path="/documents" element={mainDomainAppRedirect} />
+      <Route path="/schedules" element={mainDomainAppRedirect} />
+      <Route path="/calendar" element={mainDomainAppRedirect} />
+      <Route path="/team/*" element={mainDomainAppRedirect} />
+      <Route path="/finance/*" element={mainDomainAppRedirect} />
+      <Route path="/income" element={mainDomainAppRedirect} />
+      <Route path="/expenses" element={mainDomainAppRedirect} />
+      <Route path="/billing" element={mainDomainAppRedirect} />
+      <Route path="/settings/*" element={mainDomainAppRedirect} />
+      <Route path="/clients" element={mainDomainAppRedirect} />
+      <Route path="/inventories" element={mainDomainAppRedirect} />
+      <Route path="/add-product" element={mainDomainAppRedirect} />
+      <Route path="/bookings" element={mainDomainAppRedirect} />
+      <Route path="/barbers" element={mainDomainAppRedirect} />
+      <Route path="/workers" element={mainDomainAppRedirect} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -357,6 +300,7 @@ const SubdomainRouter = () => {
 
 const App = () => {
   if (typeof window !== "undefined") {
+    redirectLegacyDashboardHost();
     applyLogoutQueryParamIfPresent();
   }
 
@@ -467,13 +411,18 @@ const App = () => {
 
   return (
   <QueryClientProvider client={queryClient}>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
     <TooltipProvider>
       <Toaster />
       <BrowserRouter>
         <ThemeProvider>
           <LanguageProvider>
+            <SettingsModalProvider>
+            <PageSearchProvider>
             <WebSocketProvider>
               <SubscriptionProvider>
+              <WorkspaceProvider>
+              <WorkspaceActivityListener />
               <SplashScreen />
               <SubdomainRouter />
             <OfflineIndicator />
@@ -485,12 +434,16 @@ const App = () => {
               open={stockUpdateDialogOpen}
               onOpenChange={setStockUpdateDialogOpen}
             />
+              </WorkspaceProvider>
               </SubscriptionProvider>
             </WebSocketProvider>
+            </PageSearchProvider>
+            </SettingsModalProvider>
           </LanguageProvider>
         </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
+    </GoogleOAuthProvider>
   </QueryClientProvider>
 );
 };

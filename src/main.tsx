@@ -45,9 +45,8 @@ if (import.meta.env.PROD) {
   console.clear = () => {};
 }
 
-// Initialize IndexedDB and register service worker
-// Don't block rendering - initialize in parallel
-Promise.all([
+// Initialize IndexedDB and register service worker in the background — do not block first paint.
+void Promise.all([
   tryInitDB().then((database) => {
     if (!database && import.meta.env.DEV) {
       logger.warn(
@@ -58,16 +57,10 @@ Promise.all([
   registerServiceWorker().catch((error) => {
     logger.error("Failed to register service worker:", error);
   }),
-]).then(() => {
-  // Render immediately - don't block on cache clearing
-  // Use requestAnimationFrame to ensure smooth render
-  requestAnimationFrame(() => {
+]);
+
+requestAnimationFrame(() => {
   createRoot(document.getElementById("root")!).render(<App />);
-  });
-  
-  // ✅ Do not wipe IndexedDB on every app open — that caused empty dashboards when the API
-  // was briefly unavailable. Use forceRefreshFromBackend() when a full cache reset is needed.
-  // (Previously called clearAllCachesAndData() here on every startup.)
 });
 
 // Unregister any service workers cached from www.trippo.rw

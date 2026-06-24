@@ -14,10 +14,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface Sale {
+interface Income {
   date: string | Date;
-  timestamp?: string;
-  revenue: number;
+  amount: number;
 }
 
 interface Expense {
@@ -28,7 +27,7 @@ interface Expense {
 type ChartPeriod = "week" | "month" | "year";
 
 interface SalesTrendChartProps {
-  sales?: Sale[];
+  incomes?: Income[];
   expenses?: Expense[];
   className?: string;
 }
@@ -48,21 +47,19 @@ function endOfLocalDay(d: Date): Date {
   return x;
 }
 
-function getSaleTimeMs(sale: Sale): number | null {
-  if (sale.timestamp) {
-    const t = new Date(sale.timestamp).getTime();
+function getIncomeTimeMs(income: Income): number | null {
+  if (!income?.date) return null;
+  const d = income.date;
+  if (typeof d === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const t = new Date(`${d}T12:00:00`).getTime();
+      return Number.isNaN(t) ? null : t;
+    }
+    const t = new Date(d).getTime();
     if (!Number.isNaN(t)) return t;
   }
-  if (typeof sale.date === "string") {
-    const raw = sale.date.includes("T") ? sale.date : `${sale.date}T12:00:00`;
-    const t = new Date(raw).getTime();
-    if (!Number.isNaN(t)) return t;
-  }
-  if (sale.date != null) {
-    const t = new Date(sale.date as string | number).getTime();
-    if (!Number.isNaN(t)) return t;
-  }
-  return null;
+  const t = new Date(d as string | number).getTime();
+  return Number.isNaN(t) ? null : t;
 }
 
 function getExpenseTimeMs(expense: Expense): number | null {
@@ -80,13 +77,13 @@ function getExpenseTimeMs(expense: Expense): number | null {
   return Number.isNaN(t) ? null : t;
 }
 
-function sumRevenueInRange(sales: Sale[], startMs: number, endMs: number): number {
-  return sales
-    .filter((sale) => {
-      const t = getSaleTimeMs(sale);
+function sumIncomeInRange(incomes: Income[], startMs: number, endMs: number): number {
+  return incomes
+    .filter((income) => {
+      const t = getIncomeTimeMs(income);
       return t !== null && t >= startMs && t <= endMs;
     })
-    .reduce((sum, sale) => sum + (Number(sale.revenue) || 0), 0);
+    .reduce((sum, income) => sum + (Number(income.amount) || 0), 0);
 }
 
 function sumExpensesInRange(expenses: Expense[], startMs: number, endMs: number): number {
@@ -104,7 +101,7 @@ function getLocaleTag(language: string): string {
   return "en-US";
 }
 
-export function SalesTrendChart({ sales = [], expenses = [], className }: SalesTrendChartProps) {
+export function SalesTrendChart({ incomes = [], expenses = [], className }: SalesTrendChartProps) {
   const { t, language } = useTranslation();
   const [period, setPeriod] = useState<ChartPeriod>("week");
 
@@ -138,7 +135,7 @@ export function SalesTrendChart({ sales = [], expenses = [], className }: SalesT
         const endMs = endOfLocalDay(date).getTime();
         return {
           label: dayLabels[date.getDay()],
-          sales: sumRevenueInRange(sales, startMs, endMs),
+          income: sumIncomeInRange(incomes, startMs, endMs),
           expenses: sumExpensesInRange(expenses, startMs, endMs),
         };
       });
@@ -156,7 +153,7 @@ export function SalesTrendChart({ sales = [], expenses = [], className }: SalesT
         const endMs = endOfLocalDay(date).getTime();
         return {
           label: String(day),
-          sales: sumRevenueInRange(sales, startMs, endMs),
+          income: sumIncomeInRange(incomes, startMs, endMs),
           expenses: sumExpensesInRange(expenses, startMs, endMs),
         };
       });
@@ -178,11 +175,11 @@ export function SalesTrendChart({ sales = [], expenses = [], className }: SalesT
 
       return {
         label,
-        sales: sumRevenueInRange(sales, startMs, endMs),
+        income: sumIncomeInRange(incomes, startMs, endMs),
         expenses: sumExpensesInRange(expenses, startMs, endMs),
       };
     });
-  }, [sales, expenses, dayLabels, period, localeTag]);
+  }, [incomes, expenses, dayLabels, period, localeTag]);
 
   const periodToggleClassName = periodToggleClass;
 
@@ -225,7 +222,7 @@ export function SalesTrendChart({ sales = [], expenses = [], className }: SalesT
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#475569", fontSize: 12, fontWeight: 500 }}
-              tickFormatter={(value) => `rwf ${(value / 1000).toFixed(1)}k`}
+              tickFormatter={(value) => `Rwf ${(value / 1000).toFixed(1)}k`}
             />
             <Tooltip
               contentStyle={{
@@ -236,8 +233,8 @@ export function SalesTrendChart({ sales = [], expenses = [], className }: SalesT
               }}
               labelStyle={{ color: "#475569", fontWeight: 600 }}
               formatter={(value: number, name: string) => {
-                const label = name === "sales" ? t("chartSalesLabel") : t("expenses");
-                return [`rwf ${value.toLocaleString()}`, label];
+                const label = name === "income" ? t("income") : t("expenses");
+                return [`Rwf ${value.toLocaleString()}`, label];
               }}
             />
             <Legend
@@ -250,8 +247,8 @@ export function SalesTrendChart({ sales = [], expenses = [], className }: SalesT
               )}
             />
             <Bar
-              dataKey="sales"
-              name={t("chartSalesLabel")}
+              dataKey="income"
+              name={t("income")}
               fill={REVENUE_BLUE}
               radius={[6, 6, 0, 0]}
             />

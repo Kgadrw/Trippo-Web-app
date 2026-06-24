@@ -185,7 +185,7 @@ function RowActions({
         <Button
           type="button"
           size="sm"
-          className="h-8 px-3 text-xs gap-1 bg-primary text-white hover:bg-blue-700 rounded-md"
+          className="h-8 px-3 text-xs gap-1 bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 rounded-md"
           onClick={() => onRowSave!(row._rowId)}
           disabled={status === "saving"}
         >
@@ -482,7 +482,7 @@ export function SpreadsheetEditor({
           <Button
             type="button"
             size="sm"
-            className="gap-1.5 h-9 bg-primary text-white hover:bg-blue-700"
+            className="gap-1.5 h-9 bg-sky-400 text-white hover:bg-sky-500 border border-sky-400"
             onClick={() => void onSave()}
             disabled={isSaving}
           >

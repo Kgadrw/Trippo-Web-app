@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { displayCurrencyCode } from "@/lib/currency";
 import { Crown, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -11,7 +12,7 @@ type Props = {
 export function SubscriptionPaywall({ plan }: Props) {
   const { t } = useTranslation();
   const amount = plan?.amount ?? 10000;
-  const currency = plan?.currency || "RWF";
+  const currency = displayCurrencyCode(plan?.currency);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">

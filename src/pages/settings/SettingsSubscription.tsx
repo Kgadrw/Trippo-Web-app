@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { subscriptionApi } from "@/lib/api";
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 import { cn, formatDateWithTime } from "@/lib/utils";
+import { displayCurrencyCode } from "@/lib/currency";
 
 type PaymentPlan = {
   active: boolean;
@@ -147,7 +148,7 @@ export default function SettingsSubscription() {
       <SettingsSubpageHeader
         icon={CreditCard}
         title="Subscription"
-        description="Pay 10,000 RWF per month with MTN Mobile Money to keep Trippo active."
+        description="Pay 10,000 Rwf per month with MTN Mobile Money to keep Trippo active."
       />
 
       <Separator className="mb-4 bg-blue-200" />
@@ -165,7 +166,7 @@ export default function SettingsSubscription() {
                 <p className="text-sm font-semibold text-gray-900">Monthly plan</p>
                 <p className="text-2xl font-bold text-gray-900 tabular-nums mt-1">
                   {(plan?.amount ?? 10000).toLocaleString()}{" "}
-                  <span className="text-sm font-medium text-gray-600">{plan?.currency || "RWF"}</span>
+                  <span className="text-sm font-medium text-gray-600">{displayCurrencyCode(plan?.currency)}</span>
                 </p>
               </div>
               <Badge className={cn("capitalize", statusColor)}>{plan?.status || "active"}</Badge>
@@ -204,7 +205,7 @@ export default function SettingsSubscription() {
               )}
               {mtn.sandbox && !mtn.mock && (
                 <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                  Sandbox mode: payments are charged in RWF. Use MTN sandbox test MSISDN{" "}
+                  Sandbox mode: payments are charged in Rwf. Use MTN sandbox test MSISDN{" "}
                   <strong>46733123454</strong> to simulate a successful payment.
                 </p>
               )}
@@ -236,7 +237,7 @@ export default function SettingsSubscription() {
                 ) : (
                   <>
                     <CreditCard size={16} />
-                    Pay {(plan?.amount ?? 10000).toLocaleString()} RWF with MoMo
+                    Pay {(plan?.amount ?? 10000).toLocaleString()} Rwf with MoMo
                   </>
                 )}
               </Button>

@@ -5,16 +5,17 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 rounded-lg",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 rounded-none",
   {
     variants: {
       variant: {
-        default: "bg-primary text-white hover:bg-blue-700 hover:text-white",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        default: "bg-sky-400 text-white hover:bg-sky-500 hover:text-white border border-sky-400",
+        destructive: "bg-red-500 text-white hover:bg-red-600 border border-red-500",
+        cancel: "bg-red-500 text-white hover:bg-red-600 border border-red-500",
+        outline: "border border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-900",
+        secondary: "bg-sky-100 text-sky-900 border border-sky-200 hover:bg-sky-200",
+        ghost: "text-sky-700 hover:bg-sky-50 hover:text-sky-800",
+        link: "text-sky-600 underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { PUBLIC_API_BASE_URL } from "@/lib/api";
+import { getSubdomainUrl } from "@/hooks/useSubdomain";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -25,10 +26,11 @@ function useQueryParam(name: string) {
   return useMemo(() => new URLSearchParams(search).get(name) || "", [search, name]);
 }
 
+import { displayCurrencyCode } from "@/lib/currency";
+
 function formatMoney(amount?: number, currency?: string) {
   if (amount === undefined || amount === null || Number.isNaN(Number(amount))) return "-";
-  const c = currency || "RWF";
-  return `${Number(amount).toLocaleString()} ${c}`;
+  return `${Number(amount).toLocaleString()} ${displayCurrencyCode(currency)}`;
 }
 
 export default function VerifyTicket() {
@@ -290,12 +292,12 @@ export default function VerifyTicket() {
 
                 {isLoggedIn ? (
                   <div className="pt-2">
-                    <Link to="/sales">
+                    <a href={getSubdomainUrl("bookfy")}>
                       <Button variant="outline" className="w-full gap-2">
-                        Open Sales
+                        Open Bookfy
                         <ExternalLink className="h-4 w-4" />
                       </Button>
-                    </Link>
+                    </a>
                   </div>
                 ) : null}
               </div>

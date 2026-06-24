@@ -139,15 +139,15 @@ export function getPaymentUserMessage(
     INSUFFICIENT_BALANCE: {
       en:
         total && amount
-          ? `Your mobile money wallet does not have enough money. You need about ${total.toLocaleString()} RWF (${amount.toLocaleString()} RWF plus fees). Top up your wallet and try again.${promptSuffix}`
+          ? `Your mobile money wallet does not have enough money. You need about ${total.toLocaleString()} Rwf (${amount.toLocaleString()} Rwf plus fees). Top up your wallet and try again.${promptSuffix}`
           : `Your mobile money wallet does not have enough money for this payment. Top up your wallet and try again.${promptSuffix}`,
       rw:
         total && amount
-          ? `Amafaranga kuri MoMo ntahagije. Ukeneye hafi ${total.toLocaleString()} RWF (${amount.toLocaleString()} RWF n'inyongera). Ongera amafaranga hanyuma ugerageze.${promptSuffix}`
+          ? `Amafaranga kuri MoMo ntahagije. Ukeneye hafi ${total.toLocaleString()} Rwf (${amount.toLocaleString()} Rwf n'inyongera). Ongera amafaranga hanyuma ugerageze.${promptSuffix}`
           : `Amafaranga kuri MoMo ntahagije wishyura. Ongera amafaranga hanyuma ugerageze.${promptSuffix}`,
       fr:
         total && amount
-          ? `Votre portefeuille mobile n'a pas assez d'argent. Il vous faut environ ${total.toLocaleString()} RWF (${amount.toLocaleString()} RWF + frais). Rechargez puis réessayez.${promptSuffix}`
+          ? `Votre portefeuille mobile n'a pas assez d'argent. Il vous faut environ ${total.toLocaleString()} Rwf (${amount.toLocaleString()} Rwf + frais). Rechargez puis réessayez.${promptSuffix}`
           : `Votre portefeuille mobile n'a pas assez d'argent pour ce paiement. Rechargez puis réessayez.${promptSuffix}`,
     },
     CASHIN_FAILED: {

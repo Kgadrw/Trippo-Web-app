@@ -130,7 +130,7 @@ export const UpcomingSchedulesWidget = ({ schedules, clients, getClientName }: S
                     )}
                     {schedule.amount && (
                       <span className="font-medium text-gray-900">
-                        {schedule.amount.toLocaleString()} RWF
+                        {schedule.amount.toLocaleString()} Rwf
                       </span>
                     )}
                   </div>
@@ -242,7 +242,7 @@ export const OverdueSchedulesWidget = ({ schedules, clients, getClientName }: Sc
                     )}
                     {schedule.amount && (
                       <span className="font-medium">
-                        {schedule.amount.toLocaleString()} RWF
+                        {schedule.amount.toLocaleString()} Rwf
                       </span>
                     )}
                   </div>
@@ -283,7 +283,7 @@ export const RecentClientsWidget = ({ clients }: { clients: any[] }) => {
         </div>
         <p className="text-sm text-gray-500 text-center py-4">No clients yet</p>
         <Button
-          onClick={() => navigate("/clients")}
+          onClick={() => navigate("/schedules")}
           variant="outline"
           className="w-full border-gray-300 text-gray-700"
         >
@@ -301,7 +301,7 @@ export const RecentClientsWidget = ({ clients }: { clients: any[] }) => {
           Recent Clients
         </h3>
         <Button
-          onClick={() => navigate("/clients")}
+          onClick={() => navigate("/schedules")}
           variant="ghost"
           className="text-xs text-gray-600 h-auto p-1"
         >
@@ -315,7 +315,7 @@ export const RecentClientsWidget = ({ clients }: { clients: any[] }) => {
             <div
               key={clientId}
               className="p-3 rounded border border-gray-200 transition-colors hover:bg-gray-50 cursor-pointer"
-              onClick={() => navigate("/clients")}
+              onClick={() => navigate("/schedules")}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">

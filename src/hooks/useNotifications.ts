@@ -55,7 +55,7 @@ export function useAdminNotifications() {
   const isAdmin = localStorage.getItem('profit-pilot-is-admin') === 'true';
 
   useEffect(() => {
-    if (!isAdmin || !user || !notificationService.isAllowed()) {
+    if (!isAdmin || !user) {
       return;
     }
 
@@ -149,7 +149,7 @@ export function useLowStockNotifications() {
 
   useEffect(() => {
     // Wait for user to be loaded
-    if (!user || !userId || isAdmin || !notificationService.isAllowed()) {
+    if (!user || !userId || isAdmin) {
       // Clear tracking if user logged out
       if (!userId && lastNotifiedProducts.current.size > 0) {
         lastNotifiedProducts.current.clear();
@@ -177,7 +177,7 @@ export function useLowStockNotifications() {
   }, [user, isAdmin, products, userId, isLoading]);
 
   useEffect(() => {
-    if (!user || !userId || isAdmin || !notificationService.isAllowed()) {
+    if (!user || !userId || isAdmin) {
       return;
     }
 
@@ -296,7 +296,7 @@ export function useScheduleNotifications() {
   });
 
   useEffect(() => {
-    if (!user || !userId || isAdmin || !notificationService.isAllowed()) {
+    if (!user || !userId || isAdmin) {
       return;
     }
 
@@ -388,7 +388,7 @@ export function useSaleNotifications() {
   });
 
   useEffect(() => {
-    if (!user || !userId || !notificationService.isAllowed()) {
+    if (!user || !userId) {
       return;
     }
 
@@ -488,7 +488,7 @@ export function useProductNotifications() {
   });
 
   useEffect(() => {
-    if (!user || !userId || !notificationService.isAllowed()) {
+    if (!user || !userId) {
       return;
     }
 
@@ -549,10 +549,94 @@ export function useProductNotifications() {
 }
 
 /**
+ * Notify user about upcoming or overdue bills, taxes, and payroll
+ */
+export function useFinanceDueNotifications() {
+  const userId = localStorage.getItem('profit-pilot-user-id');
+  const isAdmin = localStorage.getItem('profit-pilot-is-admin') === 'true';
+  const lastNotified = useRef<Set<string>>(new Set());
+
+  const { items: bills } = useApi<{ dueDate: string; title?: string; amount: number; status?: string }>({
+    endpoint: 'bills',
+    defaultValue: [],
+  });
+  const { items: taxes } = useApi<{ dueDate: string; title?: string; amount: number; status?: string }>({
+    endpoint: 'taxes',
+    defaultValue: [],
+  });
+  const { items: payrolls } = useApi<{ paymentDate: string; amount: number; status?: string; employeeName?: string }>({
+    endpoint: 'payrolls',
+    defaultValue: [],
+  });
+
+  useEffect(() => {
+    if (!userId || isAdmin) return;
+
+    const checkDueItems = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const in30 = new Date(today);
+      in30.setDate(in30.getDate() + 30);
+
+      const notify = async (key: string, title: string, body: string) => {
+        if (lastNotified.current.has(key)) return;
+        await notificationService.showNotification('general', {
+          title,
+          body,
+          tag: key,
+          data: { type: 'finance_due', key },
+        });
+        lastNotified.current.add(key);
+      };
+
+      for (const bill of bills) {
+        if ((bill.status || 'pending') !== 'pending') continue;
+        const due = new Date(bill.dueDate);
+        due.setHours(0, 0, 0, 0);
+        const id = `bill-${bill.dueDate}-${bill.title}`;
+        if (due < today) {
+          await notify(id, 'Overdue bill', `${bill.title || 'Bill'} is past due`);
+        } else if (due <= in30) {
+          await notify(`${id}-soon`, 'Bill due soon', `${bill.title || 'Bill'} due within 30 days`);
+        }
+      }
+
+      for (const tax of taxes) {
+        if ((tax.status || 'pending') === 'paid') continue;
+        const due = new Date(tax.dueDate);
+        due.setHours(0, 0, 0, 0);
+        const id = `tax-${tax.dueDate}-${tax.title}`;
+        if (due < today) {
+          await notify(id, 'Overdue tax', `${tax.title || 'Tax'} is past due`);
+        } else if (due <= in30) {
+          await notify(`${id}-soon`, 'Tax due soon', `${tax.title || 'Tax'} due within 30 days`);
+        }
+      }
+
+      for (const payroll of payrolls) {
+        if ((payroll.status || 'pending') === 'paid') continue;
+        const due = new Date(payroll.paymentDate);
+        due.setHours(0, 0, 0, 0);
+        const id = `payroll-${payroll.paymentDate}`;
+        if (due < today) {
+          await notify(id, 'Payroll overdue', 'A payroll payment is past due');
+        } else if (due <= in30) {
+          await notify(`${id}-soon`, 'Payroll due soon', 'Payroll payment due within 30 days');
+        }
+      }
+    };
+
+    void checkDueItems();
+    const interval = setInterval(() => void checkDueItems(), 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [userId, isAdmin, bills, taxes, payrolls]);
+}
+
+/**
  * Main hook that combines all notification checks
  */
 export function useNotifications() {
-  // Policy: users should only receive notifications sent by admin.
-  // So we only keep admin-side notifications (e.g., new user registrations).
   useAdminNotifications();
+  useLowStockNotifications();
+  useFinanceDueNotifications();
 }

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { CurrencyAmount } from "@/lib/currency";
 import { useTranslation } from "@/hooks/useTranslation";
 
 type SalesExpenseGaugeProps = {
@@ -107,7 +108,7 @@ export function SalesExpenseGauge({
                   {salesCount.toLocaleString()}
                 </p>
                 <p className="text-[10px] text-gray-500 mt-1 tabular-nums">
-                  {salesTotal.toLocaleString()} rwf
+                  {salesTotal.toLocaleString()} Rwf
                 </p>
               </div>
               <div className="px-3 py-3 text-center rounded-lg bg-red-50">
@@ -115,7 +116,7 @@ export function SalesExpenseGauge({
                 <p className="text-2xl font-bold tabular-nums kpi-value-loss mt-1">
                   {expensesTotal.toLocaleString()}
                 </p>
-                <p className="text-[10px] text-gray-500 mt-1">rwf</p>
+                <p className="text-[10px] text-gray-500 mt-1">Rwf</p>
               </div>
             </div>
 
@@ -124,12 +125,12 @@ export function SalesExpenseGauge({
                 <span className="font-medium text-gray-600">{t("netFlow")}</span>
                 <span
                   className={cn(
-                    "text-lg font-bold tabular-nums",
+                    "text-lg font-bold tabular-nums inline-flex items-baseline gap-1",
                     net >= 0 ? "kpi-value-profit" : "kpi-value-loss",
                   )}
                 >
                   {net >= 0 ? "+" : ""}
-                  {net.toLocaleString()} rwf
+                  <CurrencyAmount amount={net} codeClassName="opacity-70" />
                 </span>
               </div>
               <p className="text-[10px] text-gray-500 mt-1 tabular-nums text-right">

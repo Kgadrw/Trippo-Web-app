@@ -12,6 +12,397 @@ export interface Translations {
   workers: string;
   worker: string;
   expenses: string;
+  income: string;
+  finance: string;
+  incomeStatements: string;
+  incomeSources: string;
+  incomeSource: string;
+  incomeSourcePlaceholder: string;
+  incomeBySource: string;
+  expenditure: string;
+  totalIncome: string;
+  totalExpenditure: string;
+  totalPayroll: string;
+  currentBalance: string;
+  payroll: string;
+  recordPayroll: string;
+  editPayroll: string;
+  employeeName: string;
+  payPeriod: string;
+  payrollStatus: string;
+  paid: string;
+  pending: string;
+  noPayrollYet: string;
+  payrollEmptyHint: string;
+  payrollRecorded: string;
+  payrollRecordedDesc: string;
+  payrollRemovedDesc: string;
+  savePayrollFailed: string;
+  deletePayrollFailed: string;
+  payrollNameAmountRequired: string;
+  bills: string;
+  recordBill: string;
+  editBill: string;
+  billTitle: string;
+  billExamplePlaceholder: string;
+  billNameAmountRequired: string;
+  billRecorded: string;
+  billRecordedDesc: string;
+  billRemovedDesc: string;
+  saveBillFailed: string;
+  deleteBillFailed: string;
+  markBillPaidFailed: string;
+  noBillsYet: string;
+  billsEmptyHint: string;
+  billPaid: string;
+  billPaidDesc: string;
+  billPaidHint: string;
+  billStatus: string;
+  pendingBills: string;
+  paidBills: string;
+  allBills: string;
+  markAsPaid: string;
+  vendor: string;
+  vendorPlaceholder: string;
+  taxes: string;
+  recordTax: string;
+  editTax: string;
+  taxTitle: string;
+  taxType: string;
+  taxAuthority: string;
+  taxAuthorityPlaceholder: string;
+  taxPeriod: string;
+  taxExamplePlaceholder: string;
+  taxNameAmountRequired: string;
+  taxRecorded: string;
+  taxRecordedDesc: string;
+  taxRemovedDesc: string;
+  saveTaxFailed: string;
+  deleteTaxFailed: string;
+  markTaxPaidFailed: string;
+  noTaxesYet: string;
+  taxesEmptyHint: string;
+  taxPaid: string;
+  taxPaidDesc: string;
+  taxPaidHint: string;
+  outstandingTaxes: string;
+  dueWithin30Days: string;
+  taxObligations: string;
+  bankDeposits: string;
+  recordDeposit: string;
+  editDeposit: string;
+  depositTitle: string;
+  depositDate: string;
+  depositExamplePlaceholder: string;
+  depositNameAmountRequired: string;
+  depositCustomPeriodRequired: string;
+  depositRecorded: string;
+  depositRecordedDesc: string;
+  depositUpdated: string;
+  depositUpdatedDesc: string;
+  depositRemovedDesc: string;
+  saveDepositFailed: string;
+  deleteDepositFailed: string;
+  noDepositsYet: string;
+  depositsEmptyHint: string;
+  budgetPeriod: string;
+  budgetPeriodMonthly: string;
+  budgetPeriodQuarterly: string;
+  budgetPeriodYearly: string;
+  budgetPeriodCustom: string;
+  budgetPeriodHint: string;
+  budgetCovers: string;
+  viewBudgetFor: string;
+  totalDeposited: string;
+  usedBalance: string;
+  availableBalance: string;
+  availableBalanceHint: string;
+  activeDeposits: string;
+  periodStart: string;
+  periodEnd: string;
+  depositReferencePlaceholder: string;
+  bankAccount: string;
+  transactionTypeDeposit: string;
+  loans: string;
+  addLoan: string;
+  editLoan: string;
+  loanTitle: string;
+  loanTitlePlaceholder: string;
+  lender: string;
+  lenderPlaceholder: string;
+  loanType: string;
+  loanTypeBusiness: string;
+  loanTypeWorkingCapital: string;
+  loanTypeEquipment: string;
+  loanTypeVehicle: string;
+  loanTypeLineOfCredit: string;
+  loanTypeOther: string;
+  principalAmount: string;
+  installmentAmount: string;
+  interestRate: string;
+  termMonths: string;
+  paymentFrequency: string;
+  maturityDate: string;
+  nextDueDate: string;
+  remainingBalance: string;
+  loanStatus: string;
+  loanStatusActive: string;
+  loanStatusOverdue: string;
+  loanStatusPaidOff: string;
+  loanAccountNumber: string;
+  collateral: string;
+  collateralPlaceholder: string;
+  contactPerson: string;
+  contactPhone: string;
+  recordLoanPayment: string;
+  paymentHistory: string;
+  paymentAmount: string;
+  paymentDate: string;
+  principalPortion: string;
+  interestPortion: string;
+  loanRequiredFields: string;
+  loanRecorded: string;
+  loanRecordedDesc: string;
+  loanUpdated: string;
+  loanUpdatedDesc: string;
+  loanRemovedDesc: string;
+  saveLoanFailed: string;
+  deleteLoanFailed: string;
+  recordLoanPaymentFailed: string;
+  loanPaymentRecorded: string;
+  loanPaymentRecordedDesc: string;
+  loanPaymentAmountRequired: string;
+  loanPaymentExpenseHint: string;
+  loanDeleteHasPayments: string;
+  noLoansYet: string;
+  loansEmptyHint: string;
+  totalOutstanding: string;
+  dueThisMonth: string;
+  loanPaymentsDue: string;
+  overdueLoans: string;
+  activeLoans: string;
+  totalPaidOnLoans: string;
+  noPaymentsYet: string;
+  customers: string;
+  addCustomer: string;
+  editCustomer: string;
+  customerName: string;
+  customer: string;
+  selectCustomer: string;
+  customerCreated: string;
+  customerCreatedDesc: string;
+  customerUpdated: string;
+  customerUpdatedDesc: string;
+  customerRemovedDesc: string;
+  saveCustomerFailed: string;
+  deleteCustomerFailed: string;
+  customerNameRequired: string;
+  noCustomersYet: string;
+  customersEmptyHint: string;
+  viewStatement: string;
+  downloadStatement: string;
+  loadCustomerActivityFailed: string;
+  vendors: string;
+  addVendor: string;
+  editVendor: string;
+  vendorName: string;
+  selectVendor: string;
+  vendorCreated: string;
+  vendorCreatedDesc: string;
+  vendorUpdated: string;
+  vendorUpdatedDesc: string;
+  vendorRemovedDesc: string;
+  saveVendorFailed: string;
+  deleteVendorFailed: string;
+  vendorNameRequired: string;
+  noVendorsYet: string;
+  vendorsEmptyHint: string;
+  loadVendorActivityFailed: string;
+  accounts: string;
+  addAccount: string;
+  editAccount: string;
+  accountName: string;
+  accountType: string;
+  accountCreated: string;
+  accountCreatedDesc: string;
+  accountUpdated: string;
+  accountUpdatedDesc: string;
+  accountRemovedDesc: string;
+  saveAccountFailed: string;
+  deleteAccountFailed: string;
+  accountNameRequired: string;
+  noAccountsYet: string;
+  accountsEmptyHint: string;
+  openingBalance: string;
+  transferFunds: string;
+  fromAccount: string;
+  toAccount: string;
+  selectAccount: string;
+  paymentAccount: string;
+  noAccountSelected: string;
+  financialStatements: string;
+  financialStatementsHint: string;
+  profitLoss: string;
+  balanceSheet: string;
+  cashFlow: string;
+  dashHelpReceivables: string;
+  dashHelpPayables: string;
+  dashHelpCashFlow: string;
+  dashHelpIncomeExpense: string;
+  dashHelpTopExpenses: string;
+  dashHelpMonthlyKpis: string;
+  dashHelpUpcomingBills: string;
+  dashHelpRecentTransactions: string;
+  helpIncome: string;
+  helpCustomers: string;
+  helpInvoices: string;
+  helpVendors: string;
+  helpBankDeposits: string;
+  helpAccounts: string;
+  helpFinancialStatements: string;
+  helpBankReconciliation: string;
+  helpCategoryBudgets: string;
+  helpLoans: string;
+  helpBills: string;
+  helpTaxes: string;
+  helpExpenditure: string;
+  helpPayroll: string;
+  helpTransactions: string;
+  helpProducts: string;
+  helpSales: string;
+  helpDocuments: string;
+  helpReports: string;
+  helpAutomations: string;
+  helpCalendar: string;
+  helpTeamOverview: string;
+  helpTeamTasks: string;
+  helpTeamFinanceTasks: string;
+  helpTeamMembers: string;
+  loadStatementsFailed: string;
+  asOfDate: string;
+  generateReport: string;
+  totalExpenses: string;
+  netProfit: string;
+  assets: string;
+  cashAndBank: string;
+  accountsReceivable: string;
+  inventoryValue: string;
+  totalAssets: string;
+  liabilitiesAndEquity: string;
+  accountsPayable: string;
+  loanLiabilities: string;
+  totalLiabilities: string;
+  equity: string;
+  operatingCashIn: string;
+  operatingCashOut: string;
+  netOperatingCash: string;
+  financingDeposits: string;
+  netChangeInCash: string;
+  bankReconciliation: string;
+  bankReconciliationHint: string;
+  closingBalance: string;
+  reconciledCount: string;
+  unreconciledCount: string;
+  reconciled: string;
+  noReconciliationEntries: string;
+  transactionType: string;
+  refresh: string;
+  transfer: string;
+  transferComplete: string;
+  transferCompleteDesc: string;
+  transferFailed: string;
+  transferInvalid: string;
+  categoryBudgets: string;
+  addCategoryBudget: string;
+  categoryBudgetRequired: string;
+  budgetCreated: string;
+  budgetCreatedDesc: string;
+  saveBudgetFailed: string;
+  deleteBudgetFailed: string;
+  budgetRemovedDesc: string;
+  loadBudgetSummaryFailed: string;
+  totalBudget: string;
+  totalActual: string;
+  viewPeriod: string;
+  budget: string;
+  actual: string;
+  budgetRules: string;
+  noBudgetsYet: string;
+  budgetsEmptyHint: string;
+  noSalesYet: string;
+  salesEmptyHint: string;
+  saleRequiredFields: string;
+  saveSaleFailed: string;
+  balanceDue: string;
+  totalPaid: string;
+  email: string;
+  phone: string;
+  invoices: string;
+  createInvoice: string;
+  editInvoice: string;
+  invoiceTitle: string;
+  invoiceNumber: string;
+  invoiceStatus: string;
+  invoiceStatus_draft: string;
+  invoiceStatus_sent: string;
+  invoiceStatus_paid: string;
+  invoiceStatus_overdue: string;
+  unpaidInvoices: string;
+  noInvoicesYet: string;
+  invoicesEmptyHint: string;
+  invoiceRequiredFields: string;
+  invoiceCreated: string;
+  invoiceCreatedDesc: string;
+  invoiceUpdated: string;
+  invoiceUpdatedDesc: string;
+  invoiceRemovedDesc: string;
+  saveInvoiceFailed: string;
+  deleteInvoiceFailed: string;
+  markInvoiceSentFailed: string;
+  markInvoicePaidFailed: string;
+  invoiceSent: string;
+  invoiceSentDesc: string;
+  invoicePaid: string;
+  invoicePaidDesc: string;
+  recurringInvoiceCreated: string;
+  recurringInvoiceCreatedDesc: string;
+  lineItems: string;
+  addLine: string;
+  unitPrice: string;
+  description: string;
+  issueDate: string;
+  paymentTerms: string;
+  paymentTermsPlaceholder: string;
+  recurringInvoice: string;
+  markAsSent: string;
+  downloadPdf: string;
+  referenceNumber: string;
+  referenceNumberPlaceholder: string;
+  dueDate: string;
+  overdue: string;
+  transactions: string;
+  noTransactionsYet: string;
+  transactionTypeIncome: string;
+  transactionTypeExpense: string;
+  transactionTypePayroll: string;
+  recordIncome: string;
+  editIncome: string;
+  incomeTitle: string;
+  incomeExamplePlaceholder: string;
+  incomeNameAmountRequired: string;
+  incomeRecorded: string;
+  incomeRecordedDesc: string;
+  saveIncomeFailed: string;
+  incomeRemovedDesc: string;
+  deleteIncomeFailed: string;
+  noIncomeYet: string;
+  incomeEmptyHint: string;
+  uploadReceipt: string;
+  changeReceipt: string;
+  viewReceipt: string;
+  receipt: string;
+  receiptUploadHint: string;
+  other: string;
   billing: string;
   sales: string;
   reports: string;
@@ -31,6 +422,8 @@ export interface Translations {
   saving: string;
   cancel: string;
   delete: string;
+  deleteConfirmTitle: string;
+  deleteConfirmDesc: string;
   edit: string;
   add: string;
   name: string;
@@ -84,6 +477,10 @@ export interface Translations {
   card: string;
   airtelPay: string;
   bankTransfer: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankAccountNamePlaceholder: string;
+  bankAccountNumberPlaceholder: string;
   
   // Reports
   totalRevenue: string;
@@ -177,6 +574,15 @@ export interface Translations {
   // Dashboard
   todaysRevenue: string;
   todaysProfit: string;
+  todaysExpenses: string;
+  todaysExpenseCount: string;
+  weekExpenses: string;
+  weekExpenseCount: string;
+  monthExpenses: string;
+  monthExpenseCount: string;
+  yearExpenses: string;
+  yearExpenseCount: string;
+  expensesRecorded: string;
   weekRevenue: string;
   weekProfit: string;
   monthRevenue: string;
@@ -514,6 +920,7 @@ export interface Translations {
   activityExpenseLabel: string;
   activityEmptyHint: string;
   viewMoreInSales: string;
+  viewMoreInExpenses: string;
   invalidQuantityShort: string;
   onlyItemsAvailable: string;
   chartSalesLabel: string;
@@ -657,6 +1064,26 @@ export interface Translations {
   topServices: string;
   exportComplete: string;
   exportFailed: string;
+  reportOverview: string;
+  reportSalesSection: string;
+  reportFinanceSection: string;
+  reportInventorySection: string;
+  platformSummary: string;
+  platformReportsSubtitle: string;
+  outstanding: string;
+  active: string;
+  noIncomeFound: string;
+  noDataForPeriod: string;
+  uncategorized: string;
+  retailValue: string;
+  noProductsFound: string;
+  salesPerformanceTitle: string;
+  salesPerformanceEmptyHint: string;
+  revenueMix: string;
+  revenueTrend: string;
+  sold: string;
+  positiveBalance: string;
+  negativeBalance: string;
 
   // Sales extras
   filterByDate: string;
@@ -834,6 +1261,17 @@ export interface Translations {
   logoutConfirmDesc: string;
   profileSectionTitle: string;
   editProfileDesc: string;
+  profilePictureChange: string;
+  profilePictureRemove: string;
+  profilePictureHint: string;
+  profilePictureInvalidType: string;
+  profilePictureTooLarge: string;
+  profilePictureUploadedTitle: string;
+  profilePictureUploadedDesc: string;
+  profilePictureRemovedTitle: string;
+  profilePictureRemovedDesc: string;
+  workspaceMembersAvatars: string;
+  workspaceMembersOthers: string;
   validationErrorTitle: string;
   invalidEmailTitle: string;
   invalidEmailDescMsg: string;
@@ -923,6 +1361,154 @@ export interface Translations {
   statusCompleted: string;
   statusCancelled: string;
 
+  // Business calendar
+  businessCalendarTitle: string;
+  businessCalendarSubtitle: string;
+  calLoadFailed: string;
+  calLoadingActivity: string;
+  calTitleRequired: string;
+  calEventUpdated: string;
+  calEventCreated: string;
+  calSaveFailed: string;
+  calEventDeleted: string;
+  calDeleteFailed: string;
+  calEventCompleted: string;
+  calFilterType: string;
+  calAllTypes: string;
+  calViewItem: string;
+  calSourceEvent: string;
+  calSourceSale: string;
+  calSourceIncome: string;
+  calSourceExpense: string;
+  calSourceBill: string;
+  calSourceTax: string;
+  calSourceInvoice: string;
+  calSourcePayroll: string;
+  calSourceDeposit: string;
+  calToday: string;
+  calViewDay: string;
+  calViewWeek: string;
+  calViewMonth: string;
+  calViewYear: string;
+  calAddEvent: string;
+  calEditEvent: string;
+  calAutomationLegend: string;
+  calSelectedDay: string;
+  calNoEventsDay: string;
+  calCompleted: string;
+  calCancelled: string;
+  calMarkComplete: string;
+  calAutomationItem: string;
+  calViewAutomation: string;
+  calEventTitle: string;
+  calEventTitlePlaceholder: string;
+  calEventType: string;
+  calEventDate: string;
+  calAllDay: string;
+  calStartTime: string;
+  calEndTime: string;
+  calLocation: string;
+  calLocationPlaceholder: string;
+  calDescription: string;
+  calStatus: string;
+  calStatusScheduled: string;
+  calReminder: string;
+  calReminderNone: string;
+  calReminder15: string;
+  calReminder60: string;
+  calReminderDay: string;
+  calDeleteTitle: string;
+  calDeleteDesc: string;
+  calEventTypeMeeting: string;
+  calEventTypeActivity: string;
+  calEventTypeAppointment: string;
+  calEventTypeDeadline: string;
+  calEventTypeEvent: string;
+  calEventTypeReminder: string;
+  calEventTypeOther: string;
+
+  // Team / project management
+  team: string;
+  teamOverview: string;
+  teamAllTasks: string;
+  teamFinanceTasks: string;
+  teamMembers: string;
+  teamOverviewTitle: string;
+  teamOverviewSubtitle: string;
+  teamTotalTasks: string;
+  teamCompletionRate: string;
+  teamActiveMembers: string;
+  teamMembersHint: string;
+  teamInProgress: string;
+  teamInProgressHint: string;
+  teamProgressByMember: string;
+  teamNoMemberProgress: string;
+  teamUnknownMember: string;
+  teamRecentCompletions: string;
+  teamNoRecentCompletions: string;
+  teamManageTasks: string;
+  teamManageMembers: string;
+  teamTasksSubtitle: string;
+  teamAssignTask: string;
+  teamEditTask: string;
+  teamFilterStatus: string;
+  teamFilterMember: string;
+  teamNoTasks: string;
+  teamDone: string;
+  teamTaskTitle: string;
+  teamAssignee: string;
+  teamStatus: string;
+  teamPriority: string;
+  teamDueDate: string;
+  teamMarkComplete: string;
+  teamCompleteTask: string;
+  teamCompletionNote: string;
+  teamCompletionNotePlaceholder: string;
+  teamCompletionNotifyHint: string;
+  teamDepartment: string;
+  teamMonth: string;
+  teamSelectMember: string;
+  teamStatusTodo: string;
+  teamStatusInProgress: string;
+  teamStatusDone: string;
+  teamDeptGeneral: string;
+  teamDeptFinance: string;
+  teamDeptOperations: string;
+  teamDeptSales: string;
+  teamDeptMarketing: string;
+  teamDeptHr: string;
+  teamLoadFailed: string;
+  teamTitleRequired: string;
+  teamAssigneeRequired: string;
+  teamTaskUpdated: string;
+  teamTaskCreated: string;
+  teamTaskCompleted: string;
+  teamTaskDeleted: string;
+  teamSaveFailed: string;
+  teamDeleteFailed: string;
+  teamMembersSubtitle: string;
+  teamAddMember: string;
+  teamEditMember: string;
+  teamNoMembers: string;
+  teamJobTitle: string;
+  teamInactive: string;
+  teamMemberNameRequired: string;
+  teamMemberUpdated: string;
+  teamMemberCreated: string;
+  teamMemberDeleted: string;
+  teamImportFromPayroll: string;
+  teamImportFromPayrollTitle: string;
+  teamImportFromPayrollSubtitle: string;
+  teamImportFromPayrollEmpty: string;
+  teamImportFromPayrollAllExist: string;
+  teamImportFromPayrollSelectAll: string;
+  teamImportFromPayrollImport: string;
+  teamImportFromPayrollSuccess: string;
+  teamImportFromPayrollAlreadyMember: string;
+  teamImportFromPayrollRecords: string;
+  teamImportFromPayrollNote: string;
+  teamImportFromPayrollFailed: string;
+
   // Schedules / email automations
   emailAutomationsTitle: string;
   emailAutomationsSubtitle: string;
@@ -964,6 +1550,26 @@ export interface Translations {
   tryAdjustFilters: string;
   createAutomation: string;
   createFirstAutomationHint: string;
+  automationTypeLabel: string;
+  automationTypeFilter: string;
+  allAutomationTypes: string;
+  automationTypePaymentReminder: string;
+  automationTypePaymentLink: string;
+  automationTypeInvoice: string;
+  automationTypeReport: string;
+  automationTypePayroll: string;
+  automationTypeTaxBill: string;
+  automationTypeFollowUp: string;
+  automationTypeCustom: string;
+  automationPurposeHint: string;
+  automationTitlePhPaymentReminder: string;
+  automationTitlePhPaymentLink: string;
+  automationTitlePhInvoice: string;
+  automationTitlePhReport: string;
+  automationTitlePhPayroll: string;
+  automationTitlePhTaxBill: string;
+  automationTitlePhFollowUp: string;
+  automationTitlePhCustom: string;
   editScheduleModal: string;
   createScheduleModal: string;
   editScheduleDesc: string;
@@ -1059,13 +1665,437 @@ export interface Translations {
 export const translations: Partial<Record<Language, Partial<Translations>>> = {
   en: {
     // Navigation
-    dashboard: "Dashboard",
+    dashboard: "Overview",
     products: "Products",
     services: "Services",
     inventories: "Inventories",
     workers: "Workers",
     worker: "Worker",
     expenses: "Expenses",
+    income: "Income",
+    finance: "Finance",
+    incomeStatements: "Income",
+    incomeSources: "Income",
+    incomeSource: "Income Source",
+    incomeSourcePlaceholder: "e.g. Sales, Services, Rent...",
+    incomeBySource: "Income by Source",
+    expenditure: "Expenditure",
+    totalIncome: "Total Income",
+    totalExpenditure: "Total Expenditure",
+    totalPayroll: "Total Payroll",
+    currentBalance: "Current Balance",
+    payroll: "Payroll",
+    recordPayroll: "Record Payroll",
+    editPayroll: "Edit Payroll",
+    employeeName: "Employee",
+    payPeriod: "Pay Period",
+    payrollStatus: "Status",
+    paid: "Paid",
+    pending: "Pending",
+    noPayrollYet: "No payroll recorded yet",
+    payrollEmptyHint: "Track salary payments to see total payroll outflow.",
+    payrollRecorded: "Payroll Recorded",
+    payrollRecordedDesc: "Payroll saved successfully.",
+    payrollRemovedDesc: "Payroll removed.",
+    savePayrollFailed: "Failed to save payroll.",
+    deletePayrollFailed: "Failed to delete payroll.",
+    payrollNameAmountRequired: "Please provide employee name, amount, and pay period.",
+    bills: "Bills",
+    recordBill: "Add Bill",
+    editBill: "Edit Bill",
+    billTitle: "Bill Title",
+    billExamplePlaceholder: "e.g. Rent, Electricity, Supplier invoice...",
+    billNameAmountRequired: "Please provide bill title and valid amount.",
+    billRecorded: "Bill Added",
+    billRecordedDesc: "Bill saved. It will appear as pending until paid.",
+    billRemovedDesc: "Bill removed.",
+    saveBillFailed: "Failed to save bill.",
+    deleteBillFailed: "Failed to delete bill.",
+    markBillPaidFailed: "Failed to mark bill as paid.",
+    noBillsYet: "No bills yet",
+    billsEmptyHint: "Track bills you need to pay. Once paid, they become expenditures.",
+    billPaid: "Bill Paid",
+    billPaidDesc: "Bill marked as paid and recorded as an expenditure.",
+    billPaidHint: "This will create an expenditure and mark the bill as paid.",
+    billStatus: "Status",
+    pendingBills: "Pending",
+    paidBills: "Paid",
+    allBills: "All Bills",
+    markAsPaid: "Mark as Paid",
+    vendor: "Vendor",
+    vendorPlaceholder: "Who to pay",
+    taxes: "Tax",
+    recordTax: "Add Tax",
+    editTax: "Edit Tax",
+    taxTitle: "Tax Title",
+    taxType: "Tax Type",
+    taxAuthority: "Tax Authority",
+    taxAuthorityPlaceholder: "e.g. RRA",
+    taxPeriod: "Tax Period",
+    taxExamplePlaceholder: "e.g. Q1 VAT, January PAYE...",
+    taxNameAmountRequired: "Please provide tax title, type, and valid amount.",
+    taxRecorded: "Tax Added",
+    taxRecordedDesc: "Tax obligation saved. Pay before the due date to avoid penalties.",
+    taxRemovedDesc: "Tax obligation removed.",
+    saveTaxFailed: "Failed to save tax.",
+    deleteTaxFailed: "Failed to delete tax.",
+    markTaxPaidFailed: "Failed to mark tax as paid.",
+    noTaxesYet: "No tax obligations yet",
+    taxesEmptyHint: "List taxes your business owes so you can pay on time and avoid penalties.",
+    taxPaid: "Tax Paid",
+    taxPaidDesc: "Tax marked as paid and recorded as an expenditure.",
+    taxPaidHint: "This will create an expenditure and mark the tax as paid.",
+    outstandingTaxes: "Outstanding Taxes",
+    dueWithin30Days: "Due Within 30 Days",
+    taxObligations: "obligations",
+    bankDeposits: "Bank Deposits",
+    recordDeposit: "Record Deposit",
+    editDeposit: "Edit Deposit",
+    depositTitle: "Deposit Title",
+    depositDate: "Deposit Date",
+    depositExamplePlaceholder: "e.g. Monthly operating budget, Q1 capital...",
+    depositNameAmountRequired: "Please provide a title and deposit amount.",
+    depositCustomPeriodRequired: "Please set both start and end dates for a custom budget period.",
+    depositRecorded: "Deposit Recorded",
+    depositRecordedDesc: "Bank deposit saved. It is now part of your available budget.",
+    depositUpdated: "Deposit Updated",
+    depositUpdatedDesc: "Bank deposit updated successfully.",
+    depositRemovedDesc: "Bank deposit removed.",
+    saveDepositFailed: "Failed to save bank deposit.",
+    deleteDepositFailed: "Failed to delete bank deposit.",
+    noDepositsYet: "No bank deposits yet",
+    depositsEmptyHint: "Record money deposited to your bank so you can track available budget against spending.",
+    budgetPeriod: "Budget Period",
+    budgetPeriodMonthly: "Monthly",
+    budgetPeriodQuarterly: "Quarterly",
+    budgetPeriodYearly: "Yearly",
+    budgetPeriodCustom: "Custom",
+    budgetPeriodHint: "How long this deposit should cover your spending plan.",
+    budgetCovers: "Covers",
+    viewBudgetFor: "View budget for",
+    totalDeposited: "Total Deposited",
+    usedBalance: "Used Balance",
+    availableBalance: "Available Balance",
+    availableBalanceHint: "Deposited minus expenditure and payroll in this period",
+    activeDeposits: "active deposits",
+    periodStart: "Period Start",
+    periodEnd: "Period End",
+    depositReferencePlaceholder: "Bank slip or transfer reference",
+    bankAccount: "Bank Account",
+    transactionTypeDeposit: "Bank Deposit",
+    loans: "Loans",
+    addLoan: "Add Loan",
+    editLoan: "Edit Loan",
+    loanTitle: "Loan Name",
+    loanTitlePlaceholder: "e.g. Business expansion loan",
+    lender: "Lender",
+    lenderPlaceholder: "e.g. Bank of Kigali",
+    loanType: "Loan Type",
+    loanTypeBusiness: "Business Loan",
+    loanTypeWorkingCapital: "Working Capital",
+    loanTypeEquipment: "Equipment",
+    loanTypeVehicle: "Vehicle",
+    loanTypeLineOfCredit: "Line of Credit",
+    loanTypeOther: "Other",
+    principalAmount: "Principal",
+    installmentAmount: "Installment",
+    interestRate: "Interest Rate",
+    termMonths: "Term (months)",
+    paymentFrequency: "Payment Frequency",
+    maturityDate: "Maturity Date",
+    nextDueDate: "Next Due Date",
+    remainingBalance: "Remaining",
+    loanStatus: "Status",
+    loanStatusActive: "Active",
+    loanStatusOverdue: "Overdue",
+    loanStatusPaidOff: "Paid Off",
+    loanAccountNumber: "Loan Account #",
+    collateral: "Collateral",
+    collateralPlaceholder: "Asset pledged as security",
+    contactPerson: "Contact Person",
+    contactPhone: "Contact Phone",
+    recordLoanPayment: "Record Payment",
+    paymentHistory: "Payment History",
+    paymentAmount: "Payment Amount",
+    paymentDate: "Payment Date",
+    principalPortion: "Principal",
+    interestPortion: "Interest",
+    loanRequiredFields: "Please provide loan name, lender, principal, and installment amount.",
+    loanRecorded: "Loan Added",
+    loanRecordedDesc: "Loan saved. Track payments and remaining balance here.",
+    loanUpdated: "Loan Updated",
+    loanUpdatedDesc: "Loan details updated successfully.",
+    loanRemovedDesc: "Loan removed.",
+    saveLoanFailed: "Failed to save loan.",
+    deleteLoanFailed: "Failed to delete loan.",
+    recordLoanPaymentFailed: "Failed to record loan payment.",
+    loanPaymentRecorded: "Payment Recorded",
+    loanPaymentRecordedDesc: "Payment saved and added to your expenditures.",
+    loanPaymentAmountRequired: "Please enter a valid payment amount.",
+    loanPaymentExpenseHint: "This payment will be recorded as an expenditure under the loan category.",
+    loanDeleteHasPayments: "Cannot delete a loan that already has payments. Mark it paid off instead.",
+    noLoansYet: "No loans yet",
+    loansEmptyHint: "Add business loans to track installments, remaining balance, and payment history.",
+    totalOutstanding: "Total Outstanding",
+    dueThisMonth: "Due This Month",
+    loanPaymentsDue: "payments due",
+    overdueLoans: "overdue loans",
+    activeLoans: "active loans",
+    totalPaidOnLoans: "Total Paid",
+    noPaymentsYet: "No payments recorded yet",
+    customers: "Customers",
+    addCustomer: "Add Customer",
+    editCustomer: "Edit Customer",
+    customerName: "Customer Name",
+    customer: "Customer",
+    selectCustomer: "Select customer",
+    customerCreated: "Customer Added",
+    customerCreatedDesc: "Customer profile saved.",
+    customerUpdated: "Customer Updated",
+    customerUpdatedDesc: "Customer profile updated.",
+    customerRemovedDesc: "Customer removed.",
+    saveCustomerFailed: "Failed to save customer.",
+    deleteCustomerFailed: "Failed to delete customer.",
+    customerNameRequired: "Customer name is required.",
+    noCustomersYet: "No customers yet",
+    customersEmptyHint: "Add customers who pay your business to track balances and invoices.",
+    viewStatement: "View Statement",
+    downloadStatement: "Download Statement PDF",
+    loadCustomerActivityFailed: "Failed to load customer activity.",
+    vendors: "Vendors",
+    addVendor: "Add Vendor",
+    editVendor: "Edit Vendor",
+    vendorName: "Vendor Name",
+    selectVendor: "Select vendor",
+    vendorCreated: "Vendor Added",
+    vendorCreatedDesc: "Vendor profile saved.",
+    vendorUpdated: "Vendor Updated",
+    vendorUpdatedDesc: "Vendor profile updated.",
+    vendorRemovedDesc: "Vendor removed.",
+    saveVendorFailed: "Failed to save vendor.",
+    deleteVendorFailed: "Failed to delete vendor.",
+    vendorNameRequired: "Vendor name is required.",
+    noVendorsYet: "No vendors yet",
+    vendorsEmptyHint: "Add suppliers you pay to track bills and payment history.",
+    loadVendorActivityFailed: "Failed to load vendor activity.",
+    accounts: "Accounts",
+    addAccount: "Add Account",
+    editAccount: "Edit Account",
+    accountName: "Account Name",
+    accountType: "Account Type",
+    accountCreated: "Account Added",
+    accountCreatedDesc: "Cash or bank account saved.",
+    accountUpdated: "Account Updated",
+    accountUpdatedDesc: "Account details updated.",
+    accountRemovedDesc: "Account archived.",
+    saveAccountFailed: "Failed to save account.",
+    deleteAccountFailed: "Failed to delete account.",
+    accountNameRequired: "Account name is required.",
+    noAccountsYet: "No accounts yet",
+    accountsEmptyHint: "Add cash, bank, MoMo, or Airtel accounts to track balances.",
+    openingBalance: "Opening Balance",
+    transferFunds: "Transfer Funds",
+    fromAccount: "From Account",
+    toAccount: "To Account",
+    selectAccount: "Select account",
+    paymentAccount: "Payment account",
+    noAccountSelected: "No account selected",
+    financialStatements: "Financial Statements",
+    financialStatementsHint: "Profit & loss, balance sheet, and cash flow for your business.",
+    profitLoss: "Profit & Loss",
+    balanceSheet: "Balance Sheet",
+    cashFlow: "Cash Flow",
+    dashHelpReceivables:
+      "Money customers owe you. Tracks unpaid invoices (or income you recorded). Current = not yet due; Overdue = past the due date. Tap + New to add income or create an invoice.",
+    dashHelpPayables:
+      "Money you owe vendors and suppliers. Total shows all unpaid bills. Current = not yet overdue; Overdue = past the due date. Tap + New to record a bill.",
+    dashHelpCashFlow:
+      "Money moving in and out for the selected fiscal year. Green = income received; red = expenses paid. Opening and closing cash show your position at the start and end of the year.",
+    dashHelpIncomeExpense:
+      "Monthly money in vs money out for the selected year. Cash = when paid or received; Accrual = includes unpaid bills and invoices by due date. Details below show each source.",
+    dashHelpTopExpenses:
+      "Your largest expense categories for the selected year. Use this to see where most of your spending goes.",
+    dashHelpMonthlyKpis:
+      "Quick snapshot for the current month — all money in (sales, income, invoices, deposits, loans) vs all money out (expenditure, payroll, bills, taxes).",
+    dashHelpUpcomingBills:
+      "Bills due in the next 30 days. Tap View all to manage bills, mark paid, or record new ones.",
+    dashHelpRecentTransactions:
+      "Latest income and expense activity across your accounts. Tap View all for the full transaction list.",
+    helpIncome:
+      "Record money your business receives — sales, services, or other income. Each entry can include payment method, account, and a receipt.",
+    helpCustomers:
+      "Keep a list of customers you sell to or invoice. Use customers when creating invoices or tracking who owes you money.",
+    helpInvoices:
+      "Create and send invoices to customers. Track unpaid, current, and overdue amounts until payment is received.",
+    helpVendors:
+      "Suppliers and companies you buy from. Link vendors to bills so you know who you owe and what you purchased.",
+    helpBankDeposits:
+      "Record cash or mobile money moved into a bank account. Helps reconcile physical cash with your bank balance.",
+    helpAccounts:
+      "Cash, bank, and mobile money accounts where money is held. Income and expenses can be assigned to an account.",
+    helpFinancialStatements:
+      "Profit & loss, balance sheet, and cash flow reports for a date range. Export PDFs for your records or accountant.",
+    helpBankReconciliation:
+      "Match account transactions against your bank records. Mark items as reconciled when they appear on your statement.",
+    helpCategoryBudgets:
+      "Set spending limits by category for a month or year. Compare actual expenses to your budget to stay on track.",
+    helpLoans:
+      "Track money borrowed or lent — principal, repayments, and remaining balance.",
+    helpBills:
+      "Bills you owe vendors. Record due dates, mark as paid, and see current vs overdue payables.",
+    helpTaxes:
+      "Tax obligations and payments — amounts due, filing dates, and what you have already paid.",
+    helpExpenditure:
+      "Day-to-day business spending. Categorize expenses and attach receipts for accurate records.",
+    helpPayroll:
+      "Employee and contractor payments. Record pay runs, amounts, and payment dates.",
+    helpTransactions:
+      "All money movements across accounts — income, expenses, transfers, and payroll in one list.",
+    helpProducts:
+      "Your product catalog — names, prices, stock levels, and categories. Stock updates when you record sales.",
+    helpSales:
+      "Record product or service sales. Revenue and profit are tracked using your product costs and prices.",
+    helpDocuments:
+      "Store company files — contracts, licenses, receipts, and other documents in one place.",
+    helpReports:
+      "Exportable reports for sales, finance, and inventory. Filter by day, week, month, or year and download PDF or Excel.",
+    helpAutomations:
+      "Schedule emails and reminders to customers — follow-ups, promotions, and recurring messages.",
+    helpCalendar:
+      "See income, expenses, bills, taxes, payroll, and custom events on a calendar. Plan around due dates and cash needs.",
+    helpTeamOverview:
+      "Monthly snapshot of team tasks — completion rate, active members, and who is working on what.",
+    helpTeamTasks:
+      "Assign tasks to team members, set due dates, and track status from to-do through done.",
+    helpTeamFinanceTasks:
+      "Finance department tasks — monthly close, reconciliations, tax filings, and other finance work items.",
+    helpTeamMembers:
+      "People on your team — names, roles, departments, and contact details for task assignment.",
+    loadStatementsFailed: "Failed to load financial statements",
+    asOfDate: "As of date",
+    generateReport: "Generate report",
+    totalExpenses: "Total expenses",
+    netProfit: "Net profit",
+    assets: "Assets",
+    cashAndBank: "Cash & bank",
+    accountsReceivable: "Accounts receivable",
+    inventoryValue: "Inventory value",
+    totalAssets: "Total assets",
+    liabilitiesAndEquity: "Liabilities & equity",
+    accountsPayable: "Accounts payable",
+    loanLiabilities: "Loan liabilities",
+    totalLiabilities: "Total liabilities",
+    equity: "Equity",
+    operatingCashIn: "Operating cash in",
+    operatingCashOut: "Operating cash out",
+    netOperatingCash: "Net operating cash",
+    financingDeposits: "Financing deposits",
+    netChangeInCash: "Net change in cash",
+    bankReconciliation: "Bank Reconciliation",
+    bankReconciliationHint: "Match account transactions against your bank records.",
+    closingBalance: "Closing balance",
+    reconciledCount: "Reconciled",
+    unreconciledCount: "Unreconciled",
+    reconciled: "Reconciled",
+    noReconciliationEntries: "No transactions in this period for the selected account.",
+    transactionType: "Type",
+    refresh: "Refresh",
+    transfer: "Transfer",
+    transferComplete: "Transfer Complete",
+    transferCompleteDesc: "Funds moved between accounts.",
+    transferFailed: "Transfer failed.",
+    transferInvalid: "Select accounts and enter a valid amount.",
+    categoryBudgets: "Category Budgets",
+    addCategoryBudget: "Add Category Budget",
+    categoryBudgetRequired: "Category and budget amount are required.",
+    budgetCreated: "Budget Added",
+    budgetCreatedDesc: "Category budget saved.",
+    saveBudgetFailed: "Failed to save budget.",
+    deleteBudgetFailed: "Failed to delete budget.",
+    budgetRemovedDesc: "Budget rule removed.",
+    loadBudgetSummaryFailed: "Failed to load budget summary.",
+    totalBudget: "Total Budget",
+    totalActual: "Total Spent",
+    viewPeriod: "View period",
+    budget: "Budget",
+    actual: "Actual",
+    budgetRules: "Budget Rules",
+    noBudgetsYet: "No category budgets yet",
+    budgetsEmptyHint: "Set spending limits by expense category.",
+    noSalesYet: "No sales recorded yet",
+    salesEmptyHint: "Record product sales to track revenue and stock.",
+    saleRequiredFields: "Select a product and quantity.",
+    saveSaleFailed: "Failed to record sale.",
+    balanceDue: "Balance Due",
+    totalPaid: "Total Paid",
+    email: "Email",
+    phone: "Phone",
+    invoices: "Invoices",
+    createInvoice: "Create Invoice",
+    editInvoice: "Edit Invoice",
+    invoiceTitle: "Invoice Title",
+    invoiceNumber: "Invoice #",
+    invoiceStatus: "Status",
+    invoiceStatus_draft: "Draft",
+    invoiceStatus_sent: "Sent",
+    invoiceStatus_paid: "Paid",
+    invoiceStatus_overdue: "Overdue",
+    unpaidInvoices: "Unpaid Invoices",
+    noInvoicesYet: "No invoices yet",
+    invoicesEmptyHint: "Create invoices to bill customers and track payments.",
+    invoiceRequiredFields: "Please provide a title and at least one line item.",
+    invoiceCreated: "Invoice Created",
+    invoiceCreatedDesc: "Invoice saved as draft.",
+    invoiceUpdated: "Invoice Updated",
+    invoiceUpdatedDesc: "Invoice updated successfully.",
+    invoiceRemovedDesc: "Invoice removed.",
+    saveInvoiceFailed: "Failed to save invoice.",
+    deleteInvoiceFailed: "Failed to delete invoice.",
+    markInvoiceSentFailed: "Failed to mark invoice as sent.",
+    markInvoicePaidFailed: "Failed to mark invoice as paid.",
+    invoiceSent: "Invoice Sent",
+    invoiceSentDesc: "Invoice marked as sent.",
+    invoicePaid: "Invoice Paid",
+    invoicePaidDesc: "Payment recorded and added to income.",
+    recurringInvoiceCreated: "Recurring Invoice",
+    recurringInvoiceCreatedDesc: "Next recurring invoice draft created.",
+    lineItems: "Line Items",
+    addLine: "Add line",
+    unitPrice: "Unit Price",
+    description: "Description",
+    issueDate: "Issue Date",
+    paymentTerms: "Payment Terms",
+    paymentTermsPlaceholder: "e.g. Due within 14 days",
+    recurringInvoice: "Recurring invoice",
+    markAsSent: "Mark as Sent",
+    downloadPdf: "Download PDF",
+    referenceNumber: "Reference Number",
+    referenceNumberPlaceholder: "Filing or payment reference",
+    dueDate: "Due Date",
+    overdue: "Overdue",
+    transactions: "Transactions",
+    noTransactionsYet: "No transactions yet",
+    transactionTypeIncome: "Income",
+    transactionTypeExpense: "Expense",
+    transactionTypePayroll: "Payroll",
+    recordIncome: "Record Income",
+    editIncome: "Edit Income",
+    incomeTitle: "Income Title",
+    incomeExamplePlaceholder: "e.g. Client payment, Sales deposit...",
+    incomeNameAmountRequired: "Please provide income title and valid amount.",
+    incomeRecorded: "Income Recorded",
+    incomeRecordedDesc: "Income saved successfully.",
+    saveIncomeFailed: "Failed to save income.",
+    incomeRemovedDesc: "Income removed.",
+    deleteIncomeFailed: "Failed to delete income.",
+    noIncomeYet: "No income recorded yet",
+    incomeEmptyHint: "Record money coming into your business to grow your balance.",
+    uploadReceipt: "Upload receipt",
+    changeReceipt: "Change file",
+    viewReceipt: "View receipt",
+    receipt: "Receipt",
+    receiptUploadHint: "Image or PDF, max 5 MB",
+    other: "Other",
     billing: "Billing",
     sales: "Sales",
     reports: "Reports",
@@ -1084,6 +2114,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     updating: "Updating...",
     saving: "Saving...",
     cancel: "Cancel",
+    close: "Close",
     delete: "Delete",
     edit: "Edit",
     add: "Add",
@@ -1138,6 +2169,10 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     card: "Card",
     airtelPay: "Airtel Pay",
     bankTransfer: "Bank Transfer",
+    bankAccountName: "Bank / account name",
+    bankAccountNumber: "Account number",
+    bankAccountNamePlaceholder: "e.g. Bank of Kigali",
+    bankAccountNumberPlaceholder: "e.g. 1234567890",
     
     // Reports
     totalRevenue: "Total Revenue",
@@ -1231,6 +2266,15 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     // Dashboard
     todaysRevenue: "Today's Revenue",
     todaysProfit: "Today's Profit",
+    todaysExpenses: "Today's Expenses",
+    todaysExpenseCount: "Today's Expense Count",
+    weekExpenses: "This Week's Expenses",
+    weekExpenseCount: "This Week's Expense Count",
+    monthExpenses: "This Month's Expenses",
+    monthExpenseCount: "This Month's Expense Count",
+    yearExpenses: "This Year's Expenses",
+    yearExpenseCount: "This Year's Expense Count",
+    expensesRecorded: "expenses recorded",
     weekRevenue: "This Week's Revenue",
     weekProfit: "This Week's Profit",
     monthRevenue: "This Month's Revenue",
@@ -1352,9 +2396,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     selectProductFirst: "Select product first",
     item: "item",
     allPrices: "All Prices",
-    filterPriceUnder5k: "Under 5,000 RWF",
-    filterPrice5kTo20k: "5,000 – 20,000 RWF",
-    filterPriceOver20k: "Over 20,000 RWF",
+    filterPriceUnder5k: "Under 5,000 Rwf",
+    filterPrice5kTo20k: "5,000 – 20,000 Rwf",
+    filterPriceOver20k: "Over 20,000 Rwf",
     allRoles: "All Roles",
     allDisciplines: "All Discipline",
     allAttendance: "All Attendance",
@@ -1399,8 +2443,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     custom: "Custom",
     exportPdf: "Export PDF",
     exportExcel: "Export Excel",
-    salesTrend: "Sales Trend",
-    salesTrendLast7Days: "Sales Trend (Last 7 Days)",
+    salesTrend: "Income & Expenses",
+    salesTrendLast7Days: "Income & Expenses (Last 7 Days)",
     topProducts: "Top Products",
     salesByCategory: "Sales by Category",
     paymentMethods: "Payment Methods",
@@ -1505,7 +2549,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     workerNotFound: "Worker Not Found",
     selectValidWorker: "Please select a valid worker.",
     serviceRecorded: "Service Recorded",
-    serviceRecordedDesc: "{product} by {worker} for RWF {amount}",
+    serviceRecordedDesc: "{product} by {worker} for Rwf {amount}",
     enterQuantityDesc: "Please enter quantity.",
     invalidQuantity: "Invalid Quantity",
     invalidQuantityDesc: "Please enter a valid quantity greater than 0.",
@@ -1528,8 +2572,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     saveExpenseFailed: "Failed to save expense.",
     activitySaleLabel: "Sale",
     activityExpenseLabel: "Expense",
-    activityEmptyHint: "Recent sales and expenses will appear here",
+    activityEmptyHint: "Recent expenses will appear here",
     viewMoreInSales: "View more in Sales",
+    viewMoreInExpenses: "View more in Expenses",
     invalidQuantityShort: "Invalid quantity",
     onlyItemsAvailable: "Only {stock} {items} available",
     chartSalesLabel: "Sales",
@@ -1542,8 +2587,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     daySat: "Sat",
     pricePerItem: "Price per item",
     priceForWholePackageLabel: "Price for whole package",
-    priceWholePackageCalc: "Price per item: {base} rwf × {qty} = {total} rwf (whole package)",
-    priceFromPackageCalc: "Price per item: {perItem} rwf (from {base} rwf ÷ {qty})",
+    priceWholePackageCalc: "Price per item: {base} Rwf × {qty} = {total} Rwf (whole package)",
+    priceFromPackageCalc: "Price per item: {perItem} Rwf (from {base} Rwf ÷ {qty})",
     maximumQuantity: "Maximum Quantity",
     stockLabel: "Stock",
     boxOf: "Box of {qty}",
@@ -1551,13 +2596,437 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
   },
   rw: {
     // Navigation
-    dashboard: "Ahabanza",
+    dashboard: "Incamake",
     products: "Ibicuruzwa",
     services: "Serivisi",
     inventories: "Ibicuruzwa",
     workers: "Abakozi",
     worker: "Umukozi",
     expenses: "Ibyasohotse",
+    income: "Amafaranga yinjiye",
+    finance: "Imari",
+    incomeStatements: "Amafaranga yinjiye",
+    incomeSources: "Amafaranga yinjiye",
+    incomeSource: "Inkomoko",
+    incomeSourcePlaceholder: "nka: Ubucuruzi, Serivisi...",
+    incomeBySource: "Amafaranga ukurikije inkomoko",
+    expenditure: "Ibyasohotse",
+    totalIncome: "Amafaranga yinjiye yose",
+    totalExpenditure: "Ibyasohotse byose",
+    totalPayroll: "Imishahara yose",
+    currentBalance: "Asigaye",
+    payroll: "Imishahara",
+    recordPayroll: "Andika umushahara",
+    editPayroll: "Hindura umushahara",
+    employeeName: "Umukozi",
+    payPeriod: "Ukwezi kw'ishyura",
+    payrollStatus: "Imiterere",
+    paid: "Yishyuwe",
+    pending: "Irategereje",
+    noPayrollYet: "Nta mishahara yanditswe",
+    payrollEmptyHint: "Andika imishahara kugira ngo ubone amafaranga yasohotse.",
+    payrollRecorded: "Umushahara wanditswe",
+    payrollRecordedDesc: "Umushahara wabitswe neza.",
+    payrollRemovedDesc: "Umushahara wakuweho.",
+    savePayrollFailed: "Kubika umushahara byanze.",
+    deletePayrollFailed: "Gusiba umushahara byanze.",
+    payrollNameAmountRequired: "Andika izina ry'umukozi, amafaranga, n'ukwezi.",
+    bills: "Inyemezabuguzi",
+    recordBill: "Ongeraho inyemezabuguzi",
+    editBill: "Hindura inyemezabuguzi",
+    billTitle: "Izina ry'inyemezabuguzi",
+    billExamplePlaceholder: "nka: Ubukode, Amashanyarazi...",
+    billNameAmountRequired: "Andika izina n'amafaranga nyayo.",
+    billRecorded: "Inyemezabuguzi yongeweho",
+    billRecordedDesc: "Yabitswe. Izagaragara nk'itegereje kugeza wishyura.",
+    billRemovedDesc: "Inyemezabuguzi yakuweho.",
+    saveBillFailed: "Kubika inyemezabuguzi byanze.",
+    deleteBillFailed: "Gusiba inyemezabuguzi byanze.",
+    markBillPaidFailed: "Kwemeza ko wishyuye byanze.",
+    noBillsYet: "Nta nyemezabuguzi birabaho",
+    billsEmptyHint: "Andika ibyo ugomba kwishyura. Niwishyura, biba ibyasohotse.",
+    billPaid: "Yishyuwe",
+    billPaidDesc: "Yemejwe ko yishyuwe kandi yanditswe mu byasohotse.",
+    billPaidHint: "Ibi bizakora ikiguzi kandi byemeze ko wishyuye.",
+    billStatus: "Imiterere",
+    pendingBills: "Zitegereje",
+    paidBills: "Zishyuwe",
+    allBills: "Zose",
+    markAsPaid: "Emeza ko yishyuwe",
+    vendor: "Uwutanga serivisi",
+    vendorPlaceholder: "Uwishyura",
+    taxes: "Imisoro",
+    recordTax: "Ongeraho Umusoro",
+    editTax: "Hindura Umusoro",
+    taxTitle: "Izina ry'Umusoro",
+    taxType: "Ubwoko bw'Umusoro",
+    taxAuthority: "Ikigo cy'Imisoro",
+    taxAuthorityPlaceholder: "urugero RRA",
+    taxPeriod: "Igihe cy'Umusoro",
+    taxExamplePlaceholder: "urugero VAT Q1, PAYE Mutarama...",
+    taxNameAmountRequired: "Shyiramo izina, ubwoko n'amafaranga y'umusoro.",
+    taxRecorded: "Umusoro Wanditswe",
+    taxRecordedDesc: "Umusoro wabitswe. Wishyure mbere y'itariki ntarengwa.",
+    taxRemovedDesc: "Umusoro wavanywe.",
+    saveTaxFailed: "Kubika umusoro byanze.",
+    deleteTaxFailed: "Gusiba umusoro byanze.",
+    markTaxPaidFailed: "Gushyira umusoro nk'uwishyuwe byanze.",
+    noTaxesYet: "Nta misoro yanditswe",
+    taxesEmptyHint: "Andika imisoro ubucuruzi bwawe bukwiye kugira ngo wishyure ku gihe.",
+    taxPaid: "Umusoro Wishyuwe",
+    taxPaidDesc: "Umusoro wishyuwe kandi wanditswe mu mafaranga yasohotse.",
+    taxPaidHint: "Ibi bizongeramo amafaranga yasohotse kandi umusoro uzashyirwa nk'uwishyuwe.",
+    outstandingTaxes: "Imisoro Isigaye",
+    dueWithin30Days: "Igihe ntarengwa mu minsi 30",
+    taxObligations: "ibisabwa",
+    bankDeposits: "Amafaranga yashyizwe mu banki",
+    recordDeposit: "Andika amafaranga yashyizwe",
+    editDeposit: "Hindura amafaranga yashyizwe",
+    depositTitle: "Izina ry'amafaranga",
+    depositDate: "Itariki yashyizwaho",
+    depositExamplePlaceholder: "urugero: Ingengo y'imari y'ukwezi...",
+    depositNameAmountRequired: "Andika izina n'amafaranga yashyizwe.",
+    depositCustomPeriodRequired: "Shyiraho itariki yo gutangira n'iyo kurangira.",
+    depositRecorded: "Amafaranga yanditswe",
+    depositRecordedDesc: "Amafaranga yashyizwe mu banki yabitswe. Ari ingengo y'imari iboneka.",
+    depositUpdated: "Byavuguruwe",
+    depositUpdatedDesc: "Amafaranga yashyizwe mu banki byavuguruwe neza.",
+    depositRemovedDesc: "Amafaranga yashyizwe mu banki yakuweho.",
+    saveDepositFailed: "Kubika byanze.",
+    deleteDepositFailed: "Gusiba byanze.",
+    noDepositsYet: "Nta mafaranga yashyizwe mu banki",
+    depositsEmptyHint: "Andika amafaranga yashyizwe mu banki kugira ngo ukurikire ingengo y'imari.",
+    budgetPeriod: "Igihe cy'ingengo y'imari",
+    budgetPeriodMonthly: "Ukwezi",
+    budgetPeriodQuarterly: "Igihembwe",
+    budgetPeriodYearly: "Umwaka",
+    budgetPeriodCustom: "Icyitegererezo",
+    budgetPeriodHint: "Igihe iyi depositi igomba gufasha mu gucunga amafaranga.",
+    budgetCovers: "Irakora kugeza",
+    viewBudgetFor: "Reba ingengo y'imari ya",
+    totalDeposited: "Byose Byashyizwe",
+    usedBalance: "Byakoreshejwe",
+    availableBalance: "Asigaye",
+    availableBalanceHint: "Byashyizwe bakuweho ibyasohotse n'imishahara muri iki gihe",
+    activeDeposits: "depositi zikora",
+    periodStart: "Itangira",
+    periodEnd: "Irangira",
+    depositReferencePlaceholder: "Nomero y'inyemezabwishyu cyangwa kohereza",
+    bankAccount: "Konti ya banki",
+    transactionTypeDeposit: "Amafaranga mu banki",
+    loans: "Inguzanyo",
+    addLoan: "Ongeraho inguzanyo",
+    editLoan: "Hindura inguzanyo",
+    loanTitle: "Izina ry'inguzanyo",
+    loanTitlePlaceholder: "urugero: Inguzanyo yo kwagura ubucuruzi",
+    lender: "Utanga inguzanyo",
+    lenderPlaceholder: "urugero: Bank of Kigali",
+    loanType: "Ubwoko bw'inguzanyo",
+    loanTypeBusiness: "Inguzanyo y'ubucuruzi",
+    loanTypeWorkingCapital: "Amafaranga y'imikorere",
+    loanTypeEquipment: "Ibikoresho",
+    loanTypeVehicle: "Imodoka",
+    loanTypeLineOfCredit: "Umurongo w'inguzanyo",
+    loanTypeOther: "Ibindi",
+    principalAmount: "Inguzanyo y'ibanze",
+    installmentAmount: "Ubwishyu buri gihe",
+    interestRate: "Igipimo cy'inyungu",
+    termMonths: "Igihe (amezi)",
+    paymentFrequency: "Inshuro zo kwishyura",
+    maturityDate: "Itariki irangira",
+    nextDueDate: "Itariki ikurikira",
+    remainingBalance: "Asigaye",
+    loanStatus: "Imiterere",
+    loanStatusActive: "Irakora",
+    loanStatusOverdue: "Yarenze igihe",
+    loanStatusPaidOff: "Yarishyuwe",
+    loanAccountNumber: "Nomero ya konti y'inguzanyo",
+    collateral: "Ingwate",
+    collateralPlaceholder: "Umutungo washyizweho ingwate",
+    contactPerson: "Umuntu wo guhamagara",
+    contactPhone: "Telefone",
+    recordLoanPayment: "Andika ubwishyu",
+    paymentHistory: "Amateka y'ubwishyu",
+    paymentAmount: "Amafaranga yishyuwe",
+    paymentDate: "Itariki yo kwishyura",
+    principalPortion: "Inguzanyo y'ibanze",
+    interestPortion: "Inyungu",
+    loanRequiredFields: "Andika izina, utanga inguzanyo, inguzanyo y'ibanze n'ubwishyu.",
+    loanRecorded: "Inguzanyo yanditswe",
+    loanRecordedDesc: "Inguzanyo yabitswe. Kurikirana ubwishyu n'asigaye hano.",
+    loanUpdated: "Byavuguruwe",
+    loanUpdatedDesc: "Inguzanyo yavuguruwe neza.",
+    loanRemovedDesc: "Inguzanyo yakuweho.",
+    saveLoanFailed: "Kubika byanze.",
+    deleteLoanFailed: "Gusiba byanze.",
+    recordLoanPaymentFailed: "Kwandika ubwishyu byanze.",
+    loanPaymentRecorded: "Ubwishyu bwanditswe",
+    loanPaymentRecordedDesc: "Ubwishyu bwabitswe kandi bwongewe mu byasohotse.",
+    loanPaymentAmountRequired: "Andika amafaranga y'ubwishyu.",
+    loanPaymentExpenseHint: "Ubu bwishyu buzandikwa nk'ikiguzi mu byiciro by'inguzanyo.",
+    loanDeleteHasPayments: "Ntushobora gusiba inguzanyo ifite ubwishyu. Byarangiye byishyuwe.",
+    noLoansYet: "Nta nguzanyo",
+    loansEmptyHint: "Ongeraho inguzanyo z'ubucuruzi kugira ngo ukurikire ubwishyu n'asigaye.",
+    totalOutstanding: "Byose Bisigaye",
+    dueThisMonth: "Bikenewe Uku Kwezi",
+    loanPaymentsDue: "ubwishyu bukenewe",
+    overdueLoans: "inguzanyo zarenze igihe",
+    activeLoans: "inguzanyo zikora",
+    totalPaidOnLoans: "Byose Byishyuwe",
+    noPaymentsYet: "Nta bwishyu bwanditswe",
+    customers: "Abakiriya",
+    addCustomer: "Ongeraho umukiriya",
+    editCustomer: "Hindura umukiriya",
+    customerName: "Izina ry'umukiriya",
+    customer: "Umukiriya",
+    selectCustomer: "Hitamo umukiriya",
+    customerCreated: "Umukiriya yongewe",
+    customerCreatedDesc: "Umukiriya wabitswe.",
+    customerUpdated: "Byavuguruwe",
+    customerUpdatedDesc: "Umukiriya yavuguruwe.",
+    customerRemovedDesc: "Umukiriya yakuweho.",
+    saveCustomerFailed: "Kubika byanze.",
+    deleteCustomerFailed: "Gusiba byanze.",
+    customerNameRequired: "Andika izina ry'umukiriya.",
+    noCustomersYet: "Nta bakiriya",
+    customersEmptyHint: "Ongeraho abakiriya kugira ngo ukurikire amafaranga n'invoices.",
+    viewStatement: "Reba statement",
+    downloadStatement: "Kuramo statement PDF",
+    loadCustomerActivityFailed: "Kubona amakuru byanze.",
+    vendors: "Abatanga",
+    addVendor: "Ongeraho uwutanga",
+    editVendor: "Hindura uwutanga",
+    vendorName: "Izina ry'uwutanga",
+    selectVendor: "Hitamo uwutanga",
+    vendorCreated: "Uwutanga yongewe",
+    vendorCreatedDesc: "Uwutanga wabitswe.",
+    vendorUpdated: "Byavuguruwe",
+    vendorUpdatedDesc: "Uwutanga yavuguruwe.",
+    vendorRemovedDesc: "Uwutanga yakuweho.",
+    saveVendorFailed: "Kubika byanze.",
+    deleteVendorFailed: "Gusiba byanze.",
+    vendorNameRequired: "Andika izina ry'uwutanga.",
+    noVendorsYet: "Nta batanga",
+    vendorsEmptyHint: "Ongeraho abatanga kugira ngo ukurikire amafaranga n'amateka yo kwishyura.",
+    loadVendorActivityFailed: "Kubona amakuru byanze.",
+    accounts: "Konti",
+    addAccount: "Ongeraho konti",
+    editAccount: "Hindura konti",
+    accountName: "Izina rya konti",
+    accountType: "Ubwoko bwa konti",
+    accountCreated: "Konti yongewe",
+    accountCreatedDesc: "Konti yabitswe.",
+    accountUpdated: "Byavuguruwe",
+    accountUpdatedDesc: "Konti yavuguruwe.",
+    accountRemovedDesc: "Konti yakuweho.",
+    saveAccountFailed: "Kubika byanze.",
+    deleteAccountFailed: "Gusiba byanze.",
+    accountNameRequired: "Andika izina rya konti.",
+    noAccountsYet: "Nta konti",
+    accountsEmptyHint: "Ongeraho konti za cash, banki, MoMo cyangwa Airtel.",
+    openingBalance: "Amafaranga yambere",
+    transferFunds: "Kohereza amafaranga",
+    fromAccount: "Kuva kuri konti",
+    toAccount: "Kujya kuri konti",
+    selectAccount: "Hitamo konti",
+    paymentAccount: "Konti yishyurwa",
+    noAccountSelected: "Nta konti yatoranyijwe",
+    financialStatements: "Imyanzuro y'imari",
+    financialStatementsHint: "Inyungu n'igihombo, impapuro z'imari, n'imigendekere y'amafaranga.",
+    profitLoss: "Inyungu n'igihombo",
+    balanceSheet: "Impapuro z'imari",
+    cashFlow: "Imigendekere y'amafaranga",
+    dashHelpReceivables:
+      "Amafaranga abakiriya bagufitiye. Bikurikirana inyemezabuguzi zitishyuwe (cyangwa amafaranga winjije). By'ubu = ntibirageze; Byarenze igihe = byarenze itariki yo kwishyura. Kanda + New wongere amafaranga winjije cyangwa inyemezabuguzi.",
+    dashHelpPayables:
+      "Amafaranga utishyura abacuruzi. Igiteranyo cyerekana fagitire zose zitishyuwe. By'ubu = ntizirenze igihe; Byarenze igihe = zirenze itariki yo kwishyura. Kanda + New wandike fagitire.",
+    dashHelpCashFlow:
+      "Imigendekere y'amafaranga mu mwaka w'imari wahisemo. Icyatsi = amafaranga winjije; Ibara ry'umutuku = amafaranga yasohotse. Amafaranga yo gutangira no kurangiza byerekana uko wifashe mu ntangiriro n'impera z'umwaka.",
+    dashHelpIncomeExpense:
+      "Amafaranga winjije n'ayasohotse buri kwezi. Cash = igihe amafaranga yinjiye cyangwa yasohotse; Accrual = igihe byanditswe. Igiteranyo ntikirimo imisoro.",
+    dashHelpTopExpenses:
+      "Ibyiciro by'ingenzi byo kwishyura mu mwaka wahisemo. Bikugufasha kumenya aho amafaranga menshi yagiye.",
+    dashHelpMonthlyKpis:
+      "Incamake y'ukwezi kuriki — inyungu zinjiye, ibyo wishyuye, inyungu, n'imisoro isigaye.",
+    dashHelpUpcomingBills:
+      "Amafaranga agomba kwishyurwa mu minsi 30 iri imbere. Kanda View all kugira ngo uyobore amafaranga.",
+    dashHelpRecentTransactions:
+      "Ibikorwa bya vuba by'inyungu n'ibyo wishyura. Kanda View all urebe urutonde rwose.",
+    helpIncome:
+      "Andika amafaranga ubucuruzi bwakira — ibicuruzwa, serivisi, cyangwa indi nyungu. Buri byanditswe birashobora kugira uburyo bwo kwishyura, konti, n'inyemezabwishyu.",
+    helpCustomers:
+      "Bika urutonde rw'abakiriya ugurira cyangwa utanga invoice. Koresha abakiriya mu gukora invoices no gukurikirana abagufitiye.",
+    helpInvoices:
+      "Kora no kohereza invoices ku bakiriya. Kurikirana amafaranga atarishyurwa, ari mu gihe, n'ayarenze igihe.",
+    helpVendors:
+      "Abatanga ibicuruzwa n'amakoperative ugura kuri bo. Huza abatanga n'amafaranga kugira ngo umenye uwo ufitiye.",
+    helpBankDeposits:
+      "Andika amafaranga cyangwa mobile money yinjiye mu konti ya banki. Bifasha guhuza cash n'uburinganire bwa banki.",
+    helpAccounts:
+      "Konti za cash, banki, na mobile money aho amafaranga abikwa. Inyungu n'ibyo wishyura birashobora guhabwa konti.",
+    helpFinancialStatements:
+      "Raporo z'inyungu n'igihombo, balance sheet, na cash flow ku gihe cyagenwe. Kuramo PDF ku bw'inyandiko cyangwa umucungamari.",
+    helpBankReconciliation:
+      "Huza ibikorwa bya konti n'inyandiko za banki. Shyira akamenyetso ko byahujwe iyo byagaragaye ku statement.",
+    helpCategoryBudgets:
+      "Shyiraho imipaka yo kwishyura ku byiciro ku kwezi cyangwa umwaka. Gereranya ibyo wishyuye n'ingengo y'imari.",
+    helpLoans:
+      "Kurikirana amafaranga yinjijwe cyangwa yatanzwe — ingingo, kwishyura, n'asigaye.",
+    helpBills:
+      "Amafaranga ufitiye abatanga. Andika itariki yo kwishyura, shyira akamenyetso ko byishyuwe, urebe ibiri mu gihe n'ibirenze.",
+    helpTaxes:
+      "Inshingano n'ubwishyu bw'imisoro — amafaranga akenewe, itariki zo gutanga, n'ibyo wamaze kwishyura.",
+    helpExpenditure:
+      "Ibikorwa bya buri munsi byo kwishyura. Shyira mu byiciro kandi ongeraho inyemezabwishyu.",
+    helpPayroll:
+      "Kwishyura abakozi n'abakora ku gahato. Andika amafaranga n'itariki zo kwishyura.",
+    helpTransactions:
+      "Imihindagurikire y'amafaranga muri konti zose — inyungu, ibyo wishyura, transfers, na payroll.",
+    helpProducts:
+      "Urutonde rw'ibicuruzwa — amazina, ibiciro, stock, n'ibyiciro. Stock ihinduka iyo wanditse ibicuruzwa.",
+    helpSales:
+      "Andika ibicuruzwa cyangwa serivisi byagurishijwe. Inyungu n'inyungu zikurikiranwa ukoresheje ibiciro by'ibicuruzwa.",
+    helpDocuments:
+      "Bika inyandiko z'ikigo — amasezerano, uruhushya, inyemezabwishyu, n'indi nyandiko.",
+    helpReports:
+      "Raporo zishobora gukurwamo za sales, imari, na stock. Hitamo umunsi, icyumweru, ukwezi cyangwa umwaka.",
+    helpAutomations:
+      "Tegura email n'ibutsa ku bakiriya — gukurikirana, promosiyo, n'ubutumwa buhoraho.",
+    helpCalendar:
+      "Reba inyungu, ibyo wishyura, amafaranga, imisoro, payroll, n'ibikorwa ku kalendari. Tegura ukurikije amatariki.",
+    helpTeamOverview:
+      "Incamake y'ibikorwa by'itsinda ku kwezi — igipimo cyo kurangiza, abanyamuryango, n'uko bigenda.",
+    helpTeamTasks:
+      "Shyira ibikorwa ku banyamuryango, shyiraho itariki, ukurikirane uko bigenda kuva todo kugeza done.",
+    helpTeamFinanceTasks:
+      "Ibikorwa by'ishami ry'imari — gufunga ukwezi, reconciliation, gutanga imisoro, n'ibindi.",
+    helpTeamMembers:
+      "Abantu bo mu itsinda — amazina, imirimo, amashami, n'amakuru yo guhamagara.",
+    loadStatementsFailed: "Byanze gupakira imyanzuro y'imari",
+    asOfDate: "Ku itariki",
+    generateReport: "Kora raporo",
+    totalExpenses: "Amafaranga yose yasohotse",
+    netProfit: "Inyungu rusange",
+    assets: "Umutungo",
+    cashAndBank: "Amafaranga na banki",
+    accountsReceivable: "Abakiriye",
+    inventoryValue: "Agaciro k'ibicuruzwa",
+    totalAssets: "Umutungo wose",
+    liabilitiesAndEquity: "Inyongera n'ubwishingizi",
+    accountsPayable: "Abishyurwa",
+    loanLiabilities: "Inguzanyo zisigaye",
+    totalLiabilities: "Inyongera yose",
+    equity: "Ubwishingizi",
+    operatingCashIn: "Amafaranga yinjiye mu bikorwa",
+    operatingCashOut: "Amafaranga yasohotse mu bikorwa",
+    netOperatingCash: "Amafaranga asigaye mu bikorwa",
+    financingDeposits: "Amafaranga yashyizwe mu banki",
+    netChangeInCash: "Impinduka y'amafaranga",
+    bankReconciliation: "Guhuza na banki",
+    bankReconciliationHint: "Huza ibikorwa bya konti n'inyandiko za banki.",
+    closingBalance: "Amafaranga asigaye",
+    reconciledCount: "Byahujwe",
+    unreconciledCount: "Bitarahuza",
+    reconciled: "Byahujwe",
+    noReconciliationEntries: "Nta bikorwa muri iyi minsi kuri iyi konti.",
+    transactionType: "Ubwoko",
+    refresh: "Ongera ugerageze",
+    transfer: "Kohereza",
+    transferComplete: "Byoherejwe",
+    transferCompleteDesc: "Amafaranga yoherejwe hagati ya konti.",
+    transferFailed: "Kohereza byanze.",
+    transferInvalid: "Hitamo konti n'amafaranga.",
+    categoryBudgets: "Ingengo y'imari",
+    addCategoryBudget: "Ongeraho ingengo",
+    categoryBudgetRequired: "Andika category n'amafaranga.",
+    budgetCreated: "Ingengo yongewe",
+    budgetCreatedDesc: "Ingengo y'imari yabitswe.",
+    saveBudgetFailed: "Kubika byanze.",
+    deleteBudgetFailed: "Gusiba byanze.",
+    budgetRemovedDesc: "Ingengo yakuweho.",
+    loadBudgetSummaryFailed: "Kubona incamake byanze.",
+    totalBudget: "Ingengo yose",
+    totalActual: "Byakoreshejwe",
+    viewPeriod: "Igihe",
+    budget: "Ingengo",
+    actual: "Byakoreshejwe",
+    budgetRules: "Amategeko y'ingengo",
+    noBudgetsYet: "Nta ngengo",
+    budgetsEmptyHint: "Shyiraho imipaka y'amafaranga ku category.",
+    noSalesYet: "Nta bucuruzi",
+    salesEmptyHint: "Andika ubucuruzi kugira ngo ukurikire amafaranga n'stoki.",
+    saleRequiredFields: "Hitamo icuruzwa n'umubare.",
+    saveSaleFailed: "Kwandika ubucuruzi byanze.",
+    balanceDue: "Asigaye",
+    totalPaid: "Byishyuwe",
+    email: "Imeli",
+    phone: "Telefone",
+    invoices: "Invoices",
+    createInvoice: "Kora invoice",
+    editInvoice: "Hindura invoice",
+    invoiceTitle: "Izina rya invoice",
+    invoiceNumber: "Invoice #",
+    invoiceStatus: "Imiterere",
+    invoiceStatus_draft: "Draft",
+    invoiceStatus_sent: "Yoherejwe",
+    invoiceStatus_paid: "Yishyuwe",
+    invoiceStatus_overdue: "Yarenze igihe",
+    unpaidInvoices: "Invoices zitishyuwe",
+    noInvoicesYet: "Nta invoices",
+    invoicesEmptyHint: "Kora invoices kugira ngo wishyure abakiriya.",
+    invoiceRequiredFields: "Andika izina n'ibintu by'invoice.",
+    invoiceCreated: "Invoice yakoze",
+    invoiceCreatedDesc: "Invoice yabitswe.",
+    invoiceUpdated: "Byavuguruwe",
+    invoiceUpdatedDesc: "Invoice yavuguruwe.",
+    invoiceRemovedDesc: "Invoice yakuweho.",
+    saveInvoiceFailed: "Kubika byanze.",
+    deleteInvoiceFailed: "Gusiba byanze.",
+    markInvoiceSentFailed: "Kohereza byanze.",
+    markInvoicePaidFailed: "Kwemeza kwishyura byanze.",
+    invoiceSent: "Yoherejwe",
+    invoiceSentDesc: "Invoice yemejwe ko yoherejwe.",
+    invoicePaid: "Yishyuwe",
+    invoicePaidDesc: "Kwishyura kwanditswe mu mafranga yinjiye.",
+    recurringInvoiceCreated: "Invoice isubiramo",
+    recurringInvoiceCreatedDesc: "Invoice ikurikira yakoze.",
+    lineItems: "Ibintu",
+    addLine: "Ongeraho umurongo",
+    unitPrice: "Igiciro kimwe",
+    description: "Ibisobanuro",
+    issueDate: "Itariki yatanzwe",
+    paymentTerms: "Amabwiriza yo kwishyura",
+    paymentTermsPlaceholder: "urugero: mu minsi 14",
+    recurringInvoice: "Invoice isubiramo",
+    markAsSent: "Emeza ko yoherejwe",
+    downloadPdf: "Kuramo PDF",
+    referenceNumber: "Nomero y'Icyitonderwa",
+    referenceNumberPlaceholder: "Nomero yo gutanga cyangwa kwishyura",
+    dueDate: "Itariki yo kwishyura",
+    overdue: "Yarenze igihe",
+    transactions: "Ibikorwa",
+    noTransactionsYet: "Nta bikorwa by'imari birabaho",
+    transactionTypeIncome: "Amafaranga yinjiye",
+    transactionTypeExpense: "Ikiguzi",
+    transactionTypePayroll: "Umushahara",
+    recordIncome: "Andika amafaranga yinjiye",
+    editIncome: "Hindura amafaranga yinjiye",
+    incomeTitle: "Izina ry'amafaranga",
+    incomeExamplePlaceholder: "nka: Kwishyurwa n'umukiriya...",
+    incomeNameAmountRequired: "Andika izina n'amafaranga nyayo.",
+    incomeRecorded: "Amafaranga yanditswe",
+    incomeRecordedDesc: "Amafaranga yinjiye yabitswe neza.",
+    saveIncomeFailed: "Kubika amafaranga byanze.",
+    incomeRemovedDesc: "Amafaranga yakuweho.",
+    deleteIncomeFailed: "Gusiba byanze.",
+    noIncomeYet: "Nta mafaranga yinjiye",
+    incomeEmptyHint: "Andika amafaranga ubucuruzi bwakira kugira ngo ubone asigaye.",
+    uploadReceipt: "Shyiraho inyemezabwishyu",
+    changeReceipt: "Hindura dosiye",
+    viewReceipt: "Reba inyemezabwishyu",
+    receipt: "Inyemezabwishyu",
+    receiptUploadHint: "Ifoto cyangwa PDF, max 5 MB",
+    other: "Ibindi",
     billing: "Kwishyura",
     sales: "Ibyakozwe",
     reports: "Raporo",
@@ -1576,6 +3045,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     updating: "Birimo guhindura...",
     saving: "Birimo kubika...",
     cancel: "Kureka",
+    close: "Funga",
     delete: "Siba",
     edit: "Hindura",
     add: "Ongeraho",
@@ -1630,6 +3100,10 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     card: "Kariye",
     airtelPay: "Airtel Pay",
     bankTransfer: "Kohereza mu banki",
+    bankAccountName: "Izina rya banki / konti",
+    bankAccountNumber: "Nomero ya konti",
+    bankAccountNamePlaceholder: "urugero Bank of Kigali",
+    bankAccountNumberPlaceholder: "urugero 1234567890",
     
     // Reports
     totalRevenue: "Amafaranga yose",
@@ -1723,6 +3197,15 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     // Dashboard
     todaysRevenue: "Amafaranga y'u munsi",
     todaysProfit: "Inyungu y'u munsi",
+    todaysExpenses: "Ibyasohotse uyu munsi",
+    todaysExpenseCount: "Umubare w'ibyasohotse uyu munsi",
+    weekExpenses: "Ibyasohotse icyumweru",
+    weekExpenseCount: "Umubare w'ibyasohotse icyumweru",
+    monthExpenses: "Ibyasohotse uku kwezi",
+    monthExpenseCount: "Umubare w'ibyasohotse uku kwezi",
+    yearExpenses: "Ibyasohotse uku mwaka",
+    yearExpenseCount: "Umubare w'ibyasohotse uku mwaka",
+    expensesRecorded: "ibyasohotse byanditswe",
     weekRevenue: "Amafaranga y'icyumweru",
     weekProfit: "Inyungu y'icyumweru",
     monthRevenue: "Amafaranga y'uku kwezi",
@@ -1819,9 +3302,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     selectProductFirst: "Hitamo icuruzwa mbere",
     item: "kintu",
     allPrices: "Ibiciro byose",
-    filterPriceUnder5k: "Munsi ya 5,000 RWF",
-    filterPrice5kTo20k: "5,000 – 20,000 RWF",
-    filterPriceOver20k: "Hejuru ya 20,000 RWF",
+    filterPriceUnder5k: "Munsi ya 5,000 Rwf",
+    filterPrice5kTo20k: "5,000 – 20,000 Rwf",
+    filterPriceOver20k: "Hejuru ya 20,000 Rwf",
     allRoles: "Inshingano zose",
     allDisciplines: "Imyitwarire yose",
     allAttendance: "Kwitabira kwose",
@@ -1866,8 +3349,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     custom: "Bihagije",
     exportPdf: "Kohereza PDF",
     exportExcel: "Kohereza Excel",
-    salesTrend: "Ibiheruka gukorwa (mu minsi 7)",
-    salesTrendLast7Days: "Ibiheruka gukorwa (mu minsi 7)",
+    salesTrend: "Amafarango yinjiye n'ibyasohotse",
+    salesTrendLast7Days: "Amafarango yinjiye n'ibyasohotse (mu minsi 7)",
     topProducts: "Ibicuruzwa by'ibanze",
     salesByCategory: "Ubucuruzi by'ubwoko",
     paymentMethods: "Uburyo bwo kwishyura",
@@ -1972,7 +3455,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     workerNotFound: "Umukozi ntaboneka",
     selectValidWorker: "Hitamo umukozi wemewe.",
     serviceRecorded: "Serivisi yanditswe",
-    serviceRecordedDesc: "{product} yakozwe na {worker} ku RWF {amount}",
+    serviceRecordedDesc: "{product} yakozwe na {worker} ku Rwf {amount}",
     enterQuantityDesc: "Andika umubare.",
     invalidQuantity: "Umubare utari wo",
     invalidQuantityDesc: "Andika umubare nyawo urenze 0.",
@@ -1995,8 +3478,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     saveExpenseFailed: "Kwandika ikiguzi byanze.",
     activitySaleLabel: "Serivisi",
     activityExpenseLabel: "Ikiguzi",
-    activityEmptyHint: "Serivisi n'ibyakoreshejwe bizagaragara hano",
+    activityEmptyHint: "Ibyasohotse biheruka bizagaragara hano",
     viewMoreInSales: "Reba byinshi muri Sales",
+    viewMoreInExpenses: "Reba byinshi muri Ibyasohotse",
     invalidQuantityShort: "Umubare utari wo",
     onlyItemsAvailable: "Hari gusa {stock} {items}",
     chartSalesLabel: "Ubucuruzi",
@@ -2009,8 +3493,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     daySat: "Ku wa 6",
     pricePerItem: "Igiciro ku kintu",
     priceForWholePackageLabel: "Igiciro cy'ipaki yose",
-    priceWholePackageCalc: "Igiciro ku kintu: {base} rwf × {qty} = {total} rwf (ipaki yose)",
-    priceFromPackageCalc: "Igiciro ku kintu: {perItem} rwf (kuva {base} rwf ÷ {qty})",
+    priceWholePackageCalc: "Igiciro ku kintu: {base} Rwf × {qty} = {total} Rwf (ipaki yose)",
+    priceFromPackageCalc: "Igiciro ku kintu: {perItem} Rwf (kuva {base} Rwf ÷ {qty})",
     maximumQuantity: "Umubare ntarengwa",
     stockLabel: "Ibihari",
     boxOf: "Agafuka ka {qty}",
@@ -2018,13 +3502,436 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
   },
   fr: {
     // Navigation
-    dashboard: "Tableau de bord",
+    dashboard: "Aperçu",
     products: "Services",
     services: "Services",
     inventories: "Stocks",
     workers: "Travailleurs",
     worker: "Travailleur",
     expenses: "Dépenses",
+    income: "Revenus",
+    finance: "Finances",
+    incomeStatements: "Revenus",
+    incomeSources: "Revenus",
+    incomeSource: "Source de revenu",
+    incomeSourcePlaceholder: "ex. : Ventes, Services...",
+    incomeBySource: "Revenus par source",
+    expenditure: "Dépenses",
+    totalIncome: "Revenus totaux",
+    totalExpenditure: "Dépenses totales",
+    totalPayroll: "Paie totale",
+    currentBalance: "Solde actuel",
+    payroll: "Paie",
+    recordPayroll: "Enregistrer la paie",
+    editPayroll: "Modifier la paie",
+    employeeName: "Employé",
+    payPeriod: "Période de paie",
+    payrollStatus: "Statut",
+    paid: "Payé",
+    pending: "En attente",
+    noPayrollYet: "Aucune paie enregistrée",
+    payrollEmptyHint: "Suivez les salaires pour voir les sorties de paie.",
+    payrollRecorded: "Paie enregistrée",
+    payrollRecordedDesc: "Paie enregistrée avec succès.",
+    payrollRemovedDesc: "Paie supprimée.",
+    savePayrollFailed: "Échec de l'enregistrement de la paie.",
+    deletePayrollFailed: "Échec de la suppression de la paie.",
+    payrollNameAmountRequired: "Indiquez l'employé, le montant et la période.",
+    bills: "Factures",
+    recordBill: "Ajouter une facture",
+    editBill: "Modifier la facture",
+    billTitle: "Titre de la facture",
+    billExamplePlaceholder: "ex. : Loyer, Électricité, Fournisseur...",
+    billNameAmountRequired: "Indiquez le titre et un montant valide.",
+    billRecorded: "Facture ajoutée",
+    billRecordedDesc: "Enregistrée. Elle reste en attente jusqu'au paiement.",
+    billRemovedDesc: "Facture supprimée.",
+    saveBillFailed: "Échec de l'enregistrement de la facture.",
+    deleteBillFailed: "Échec de la suppression de la facture.",
+    markBillPaidFailed: "Échec du marquage comme payée.",
+    noBillsYet: "Aucune facture pour l'instant",
+    billsEmptyHint: "Suivez les factures à payer. Une fois payées, elles deviennent des dépenses.",
+    billPaid: "Facture payée",
+    billPaidDesc: "Marquée comme payée et enregistrée en dépense.",
+    billPaidHint: "Cela créera une dépense et marquera la facture comme payée.",
+    billStatus: "Statut",
+    pendingBills: "En attente",
+    paidBills: "Payées",
+    allBills: "Toutes",
+    markAsPaid: "Marquer comme payée",
+    vendor: "Fournisseur",
+    vendorPlaceholder: "À qui payer",
+    taxes: "Impôts",
+    recordTax: "Ajouter un impôt",
+    editTax: "Modifier l'impôt",
+    taxTitle: "Titre de l'impôt",
+    taxType: "Type d'impôt",
+    taxAuthority: "Autorité fiscale",
+    taxAuthorityPlaceholder: "ex. RRA",
+    taxPeriod: "Période fiscale",
+    taxExamplePlaceholder: "ex. TVA T1, PAYE janvier...",
+    taxNameAmountRequired: "Veuillez indiquer le titre, le type et un montant valide.",
+    taxRecorded: "Impôt ajouté",
+    taxRecordedDesc: "Obligation fiscale enregistrée. Payez avant la date d'échéance.",
+    taxRemovedDesc: "Obligation fiscale supprimée.",
+    saveTaxFailed: "Échec de l'enregistrement de l'impôt.",
+    deleteTaxFailed: "Échec de la suppression de l'impôt.",
+    markTaxPaidFailed: "Échec du marquage comme payé.",
+    noTaxesYet: "Aucune obligation fiscale",
+    taxesEmptyHint: "Listez les impôts dus pour payer à temps et éviter les pénalités.",
+    taxPaid: "Impôt payé",
+    taxPaidDesc: "Impôt marqué comme payé et enregistré en dépense.",
+    taxPaidHint: "Cela créera une dépense et marquera l'impôt comme payé.",
+    outstandingTaxes: "Impôts en cours",
+    dueWithin30Days: "Échéance sous 30 jours",
+    taxObligations: "obligations",
+    bankDeposits: "Dépôts bancaires",
+    recordDeposit: "Enregistrer un dépôt",
+    editDeposit: "Modifier le dépôt",
+    depositTitle: "Titre du dépôt",
+    depositDate: "Date du dépôt",
+    depositExamplePlaceholder: "ex. : Budget mensuel, capital T1...",
+    depositNameAmountRequired: "Veuillez indiquer un titre et un montant.",
+    depositCustomPeriodRequired: "Veuillez définir les dates de début et de fin.",
+    depositRecorded: "Dépôt enregistré",
+    depositRecordedDesc: "Le dépôt bancaire est enregistré et fait partie de votre budget disponible.",
+    depositUpdated: "Dépôt mis à jour",
+    depositUpdatedDesc: "Le dépôt bancaire a été mis à jour.",
+    depositRemovedDesc: "Dépôt bancaire supprimé.",
+    saveDepositFailed: "Échec de l'enregistrement du dépôt.",
+    deleteDepositFailed: "Échec de la suppression du dépôt.",
+    noDepositsYet: "Aucun dépôt bancaire",
+    depositsEmptyHint: "Enregistrez l'argent déposé en banque pour suivre le budget disponible face aux dépenses.",
+    budgetPeriod: "Période budgétaire",
+    budgetPeriodMonthly: "Mensuel",
+    budgetPeriodQuarterly: "Trimestriel",
+    budgetPeriodYearly: "Annuel",
+    budgetPeriodCustom: "Personnalisé",
+    budgetPeriodHint: "Durée pendant laquelle ce dépôt couvre vos dépenses prévues.",
+    budgetCovers: "Couvre",
+    viewBudgetFor: "Voir le budget pour",
+    totalDeposited: "Total déposé",
+    usedBalance: "Solde utilisé",
+    availableBalance: "Solde disponible",
+    availableBalanceHint: "Dépôts moins dépenses et paie sur cette période",
+    activeDeposits: "dépôts actifs",
+    periodStart: "Début de période",
+    periodEnd: "Fin de période",
+    depositReferencePlaceholder: "Référence du virement ou reçu bancaire",
+    bankAccount: "Compte bancaire",
+    transactionTypeDeposit: "Dépôt bancaire",
+    loans: "Prêts",
+    addLoan: "Ajouter un prêt",
+    editLoan: "Modifier le prêt",
+    loanTitle: "Nom du prêt",
+    loanTitlePlaceholder: "ex. : Prêt d'expansion",
+    lender: "Prêteur",
+    lenderPlaceholder: "ex. : Bank of Kigali",
+    loanType: "Type de prêt",
+    loanTypeBusiness: "Prêt commercial",
+    loanTypeWorkingCapital: "Fonds de roulement",
+    loanTypeEquipment: "Équipement",
+    loanTypeVehicle: "Véhicule",
+    loanTypeLineOfCredit: "Ligne de crédit",
+    loanTypeOther: "Autre",
+    principalAmount: "Capital",
+    installmentAmount: "Mensualité",
+    interestRate: "Taux d'intérêt",
+    termMonths: "Durée (mois)",
+    paymentFrequency: "Fréquence de paiement",
+    maturityDate: "Date d'échéance finale",
+    nextDueDate: "Prochaine échéance",
+    remainingBalance: "Restant dû",
+    loanStatus: "Statut",
+    loanStatusActive: "Actif",
+    loanStatusOverdue: "En retard",
+    loanStatusPaidOff: "Remboursé",
+    loanAccountNumber: "N° de compte prêt",
+    collateral: "Garantie",
+    collateralPlaceholder: "Actif mis en garantie",
+    contactPerson: "Personne de contact",
+    contactPhone: "Téléphone",
+    recordLoanPayment: "Enregistrer un paiement",
+    paymentHistory: "Historique des paiements",
+    paymentAmount: "Montant du paiement",
+    paymentDate: "Date de paiement",
+    principalPortion: "Capital",
+    interestPortion: "Intérêts",
+    loanRequiredFields: "Veuillez indiquer le nom, le prêteur, le capital et la mensualité.",
+    loanRecorded: "Prêt ajouté",
+    loanRecordedDesc: "Prêt enregistré. Suivez les paiements et le solde restant ici.",
+    loanUpdated: "Prêt mis à jour",
+    loanUpdatedDesc: "Détails du prêt mis à jour.",
+    loanRemovedDesc: "Prêt supprimé.",
+    saveLoanFailed: "Échec de l'enregistrement du prêt.",
+    deleteLoanFailed: "Échec de la suppression du prêt.",
+    recordLoanPaymentFailed: "Échec de l'enregistrement du paiement.",
+    loanPaymentRecorded: "Paiement enregistré",
+    loanPaymentRecordedDesc: "Paiement enregistré et ajouté aux dépenses.",
+    loanPaymentAmountRequired: "Veuillez saisir un montant de paiement valide.",
+    loanPaymentExpenseHint: "Ce paiement sera enregistré comme dépense dans la catégorie prêt.",
+    loanDeleteHasPayments: "Impossible de supprimer un prêt avec des paiements enregistrés.",
+    noLoansYet: "Aucun prêt",
+    loansEmptyHint: "Ajoutez vos prêts pour suivre les mensualités, le solde restant et l'historique.",
+    totalOutstanding: "Total restant dû",
+    dueThisMonth: "Échéance ce mois",
+    loanPaymentsDue: "paiements dus",
+    overdueLoans: "prêts en retard",
+    activeLoans: "prêts actifs",
+    totalPaidOnLoans: "Total remboursé",
+    noPaymentsYet: "Aucun paiement enregistré",
+    customers: "Clients",
+    addCustomer: "Ajouter un client",
+    editCustomer: "Modifier le client",
+    customerName: "Nom du client",
+    customer: "Client",
+    selectCustomer: "Sélectionner un client",
+    customerCreated: "Client ajouté",
+    customerCreatedDesc: "Profil client enregistré.",
+    customerUpdated: "Client mis à jour",
+    customerUpdatedDesc: "Profil client mis à jour.",
+    customerRemovedDesc: "Client supprimé.",
+    saveCustomerFailed: "Échec de l'enregistrement du client.",
+    deleteCustomerFailed: "Échec de la suppression du client.",
+    customerNameRequired: "Le nom du client est requis.",
+    noCustomersYet: "Aucun client",
+    customersEmptyHint: "Ajoutez vos clients pour suivre soldes et factures.",
+    viewStatement: "Voir le relevé",
+    downloadStatement: "Télécharger le relevé PDF",
+    loadCustomerActivityFailed: "Échec du chargement de l'activité client.",
+    vendors: "Fournisseurs",
+    addVendor: "Ajouter un fournisseur",
+    editVendor: "Modifier le fournisseur",
+    vendorName: "Nom du fournisseur",
+    selectVendor: "Sélectionner un fournisseur",
+    vendorCreated: "Fournisseur ajouté",
+    vendorCreatedDesc: "Profil fournisseur enregistré.",
+    vendorUpdated: "Fournisseur mis à jour",
+    vendorUpdatedDesc: "Profil fournisseur mis à jour.",
+    vendorRemovedDesc: "Fournisseur supprimé.",
+    saveVendorFailed: "Échec de l'enregistrement du fournisseur.",
+    deleteVendorFailed: "Échec de la suppression du fournisseur.",
+    vendorNameRequired: "Le nom du fournisseur est requis.",
+    noVendorsYet: "Aucun fournisseur",
+    vendorsEmptyHint: "Ajoutez vos fournisseurs pour suivre factures et paiements.",
+    loadVendorActivityFailed: "Échec du chargement de l'activité fournisseur.",
+    accounts: "Comptes",
+    addAccount: "Ajouter un compte",
+    editAccount: "Modifier le compte",
+    accountName: "Nom du compte",
+    accountType: "Type de compte",
+    accountCreated: "Compte ajouté",
+    accountCreatedDesc: "Compte enregistré.",
+    accountUpdated: "Compte mis à jour",
+    accountUpdatedDesc: "Compte mis à jour.",
+    accountRemovedDesc: "Compte archivé.",
+    saveAccountFailed: "Échec de l'enregistrement du compte.",
+    deleteAccountFailed: "Échec de la suppression du compte.",
+    accountNameRequired: "Le nom du compte est requis.",
+    noAccountsYet: "Aucun compte",
+    accountsEmptyHint: "Ajoutez des comptes espèces, banque, MoMo ou Airtel.",
+    openingBalance: "Solde d'ouverture",
+    transferFunds: "Transférer des fonds",
+    fromAccount: "Du compte",
+    toAccount: "Vers le compte",
+    selectAccount: "Sélectionner un compte",
+    paymentAccount: "Compte de paiement",
+    noAccountSelected: "Aucun compte sélectionné",
+    financialStatements: "États financiers",
+    financialStatementsHint: "Compte de résultat, bilan et flux de trésorerie.",
+    profitLoss: "Compte de résultat",
+    balanceSheet: "Bilan",
+    cashFlow: "Flux de trésorerie",
+    dashHelpReceivables:
+      "Argent que vos clients vous doivent. Suit les factures impayées (ou revenus enregistrés). En cours = pas encore échu ; En retard = après la date d'échéance. Appuyez sur + Nouveau pour ajouter un revenu ou une facture.",
+    dashHelpPayables:
+      "Argent que vous devez aux fournisseurs. Le total affiche toutes les factures impayées. En cours = pas encore en retard ; En retard = après la date d'échéance. Appuyez sur + Nouveau pour enregistrer une facture.",
+    dashHelpCashFlow:
+      "Entrées et sorties d'argent pour l'exercice sélectionné. Vert = revenus encaissés ; rouge = dépenses payées. Les soldes d'ouverture et de clôture montrent votre position en début et fin d'année.",
+    dashHelpIncomeExpense:
+      "Revenus vs dépenses par mois. Trésorerie = quand l'argent est reçu ou payé ; Exercice = quand c'est enregistré. Les totaux excluent les taxes.",
+    dashHelpTopExpenses:
+      "Vos plus grandes catégories de dépenses pour l'année sélectionnée. Voyez où va la majorité de vos dépenses.",
+    dashHelpMonthlyKpis:
+      "Aperçu du mois en cours — revenus encaissés, dépenses payées, profit et taxes restantes.",
+    dashHelpUpcomingBills:
+      "Factures à payer dans les 30 prochains jours. Voir tout pour gérer et enregistrer des factures.",
+    dashHelpRecentTransactions:
+      "Dernières entrées et sorties sur vos comptes. Voir tout pour la liste complète.",
+    helpIncome:
+      "Enregistrez l'argent reçu par l'entreprise — ventes, services ou autres revenus. Chaque entrée peut inclure mode de paiement, compte et reçu.",
+    helpCustomers:
+      "Liste des clients à qui vous vendez ou facturez. Utilisez-les pour les factures et le suivi des créances.",
+    helpInvoices:
+      "Créez et envoyez des factures. Suivez les montants impayés, en cours et en retard jusqu'au paiement.",
+    helpVendors:
+      "Fournisseurs et entreprises auprès desquels vous achetez. Liez-les aux factures fournisseurs.",
+    helpBankDeposits:
+      "Enregistrez les espèces ou mobile money déposés en banque. Aide à rapprocher la caisse du solde bancaire.",
+    helpAccounts:
+      "Comptes caisse, banque et mobile money. Les revenus et dépenses peuvent être affectés à un compte.",
+    helpFinancialStatements:
+      "Compte de résultat, bilan et flux de trésorerie sur une période. Export PDF pour vos archives ou comptable.",
+    helpBankReconciliation:
+      "Rapprochez les opérations du compte avec votre relevé bancaire. Marquez les lignes réconciliées.",
+    helpCategoryBudgets:
+      "Fixez des plafonds de dépenses par catégorie pour un mois ou une année. Comparez au réel.",
+    helpLoans:
+      "Suivez les emprunts ou prêts — capital, remboursements et solde restant.",
+    helpBills:
+      "Factures fournisseurs à payer. Dates d'échéance, marquage payé, montants en cours et en retard.",
+    helpTaxes:
+      "Obligations et paiements fiscaux — montants dus, dates de déclaration et déjà payés.",
+    helpExpenditure:
+      "Dépenses courantes de l'entreprise. Catégorisez et joignez des reçus.",
+    helpPayroll:
+      "Paiements salariés et prestataires. Enregistrez les montants et dates de paie.",
+    helpTransactions:
+      "Tous les mouvements entre comptes — revenus, dépenses, virements et paie.",
+    helpProducts:
+      "Catalogue produits — noms, prix, stocks et catégories. Le stock se met à jour lors des ventes.",
+    helpSales:
+      "Enregistrez ventes de produits ou services. Revenus et marges selon vos coûts et prix.",
+    helpDocuments:
+      "Stockez les fichiers de l'entreprise — contrats, licences, reçus et autres documents.",
+    helpReports:
+      "Rapports exportables ventes, finance et stock. Filtrez par jour, semaine, mois ou année en PDF ou Excel.",
+    helpAutomations:
+      "Planifiez e-mails et rappels clients — relances, promotions et messages récurrents.",
+    helpCalendar:
+      "Visualisez revenus, dépenses, factures, taxes, paie et événements sur un calendrier.",
+    helpTeamOverview:
+      "Vue mensuelle des tâches — taux d'achèvement, membres actifs et répartition du travail.",
+    helpTeamTasks:
+      "Assignez des tâches, fixez des échéances et suivez le statut de à faire à terminé.",
+    helpTeamFinanceTasks:
+      "Tâches du service finance — clôture mensuelle, rapprochements, déclarations fiscales, etc.",
+    helpTeamMembers:
+      "Membres de l'équipe — noms, rôles, départements et coordonnées pour l'assignation.",
+    loadStatementsFailed: "Échec du chargement des états financiers",
+    asOfDate: "À la date du",
+    generateReport: "Générer le rapport",
+    totalExpenses: "Total des dépenses",
+    netProfit: "Résultat net",
+    assets: "Actifs",
+    cashAndBank: "Trésorerie et banque",
+    accountsReceivable: "Créances clients",
+    inventoryValue: "Valeur des stocks",
+    totalAssets: "Total actif",
+    liabilitiesAndEquity: "Passif et capitaux propres",
+    accountsPayable: "Dettes fournisseurs",
+    loanLiabilities: "Dettes d'emprunt",
+    totalLiabilities: "Total passif",
+    equity: "Capitaux propres",
+    operatingCashIn: "Encaissements d'exploitation",
+    operatingCashOut: "Décaissements d'exploitation",
+    netOperatingCash: "Trésorerie nette d'exploitation",
+    financingDeposits: "Dépôts de financement",
+    netChangeInCash: "Variation nette de trésorerie",
+    bankReconciliation: "Rapprochement bancaire",
+    bankReconciliationHint: "Rapprochez les transactions du compte avec vos relevés bancaires.",
+    closingBalance: "Solde de clôture",
+    reconciledCount: "Rapprochées",
+    unreconciledCount: "Non rapprochées",
+    reconciled: "Rapproché",
+    noReconciliationEntries: "Aucune transaction sur cette période pour ce compte.",
+    transactionType: "Type",
+    refresh: "Actualiser",
+    transfer: "Transférer",
+    transferComplete: "Transfert effectué",
+    transferCompleteDesc: "Fonds déplacés entre comptes.",
+    transferFailed: "Échec du transfert.",
+    transferInvalid: "Sélectionnez les comptes et un montant valide.",
+    categoryBudgets: "Budgets par catégorie",
+    addCategoryBudget: "Ajouter un budget",
+    categoryBudgetRequired: "Catégorie et montant requis.",
+    budgetCreated: "Budget ajouté",
+    budgetCreatedDesc: "Budget enregistré.",
+    saveBudgetFailed: "Échec de l'enregistrement du budget.",
+    deleteBudgetFailed: "Échec de la suppression du budget.",
+    budgetRemovedDesc: "Règle de budget supprimée.",
+    loadBudgetSummaryFailed: "Échec du chargement du résumé budget.",
+    totalBudget: "Budget total",
+    totalActual: "Total dépensé",
+    viewPeriod: "Période",
+    budget: "Budget",
+    actual: "Réel",
+    budgetRules: "Règles de budget",
+    noBudgetsYet: "Aucun budget par catégorie",
+    budgetsEmptyHint: "Définissez des limites par catégorie de dépenses.",
+    noSalesYet: "Aucune vente enregistrée",
+    salesEmptyHint: "Enregistrez les ventes pour suivre revenus et stock.",
+    saleRequiredFields: "Sélectionnez un produit et une quantité.",
+    saveSaleFailed: "Échec de l'enregistrement de la vente.",
+    balanceDue: "Solde dû",
+    totalPaid: "Total payé",
+    email: "E-mail",
+    phone: "Téléphone",
+    invoices: "Factures",
+    createInvoice: "Créer une facture",
+    editInvoice: "Modifier la facture",
+    invoiceTitle: "Titre de la facture",
+    invoiceNumber: "Facture n°",
+    invoiceStatus: "Statut",
+    invoiceStatus_draft: "Brouillon",
+    invoiceStatus_sent: "Envoyée",
+    invoiceStatus_paid: "Payée",
+    invoiceStatus_overdue: "En retard",
+    unpaidInvoices: "Factures impayées",
+    noInvoicesYet: "Aucune facture",
+    invoicesEmptyHint: "Créez des factures pour vos clients et suivez les paiements.",
+    invoiceRequiredFields: "Veuillez indiquer un titre et au moins une ligne.",
+    invoiceCreated: "Facture créée",
+    invoiceCreatedDesc: "Facture enregistrée en brouillon.",
+    invoiceUpdated: "Facture mise à jour",
+    invoiceUpdatedDesc: "Facture mise à jour.",
+    invoiceRemovedDesc: "Facture supprimée.",
+    saveInvoiceFailed: "Échec de l'enregistrement de la facture.",
+    deleteInvoiceFailed: "Échec de la suppression de la facture.",
+    markInvoiceSentFailed: "Échec de l'envoi de la facture.",
+    markInvoicePaidFailed: "Échec du paiement de la facture.",
+    invoiceSent: "Facture envoyée",
+    invoiceSentDesc: "Facture marquée comme envoyée.",
+    invoicePaid: "Facture payée",
+    invoicePaidDesc: "Paiement enregistré dans les revenus.",
+    recurringInvoiceCreated: "Facture récurrente",
+    recurringInvoiceCreatedDesc: "Prochaine facture récurrente créée.",
+    lineItems: "Lignes",
+    addLine: "Ajouter une ligne",
+    unitPrice: "Prix unitaire",
+    issueDate: "Date d'émission",
+    paymentTerms: "Conditions de paiement",
+    paymentTermsPlaceholder: "ex. : Paiement sous 14 jours",
+    recurringInvoice: "Facture récurrente",
+    markAsSent: "Marquer comme envoyée",
+    downloadPdf: "Télécharger PDF",
+    referenceNumber: "Numéro de référence",
+    referenceNumberPlaceholder: "Référence de déclaration ou paiement",
+    dueDate: "Date d'échéance",
+    overdue: "En retard",
+    transactions: "Transactions",
+    noTransactionsYet: "Aucune transaction pour l'instant",
+    transactionTypeIncome: "Revenu",
+    transactionTypeExpense: "Dépense",
+    transactionTypePayroll: "Paie",
+    recordIncome: "Enregistrer un revenu",
+    editIncome: "Modifier le revenu",
+    incomeTitle: "Titre du revenu",
+    incomeExamplePlaceholder: "ex. : Paiement client, dépôt...",
+    incomeNameAmountRequired: "Indiquez le titre et un montant valide.",
+    incomeRecorded: "Revenu enregistré",
+    incomeRecordedDesc: "Revenu enregistré avec succès.",
+    saveIncomeFailed: "Impossible d'enregistrer le revenu.",
+    incomeRemovedDesc: "Revenu supprimé.",
+    deleteIncomeFailed: "Impossible de supprimer le revenu.",
+    noIncomeYet: "Aucun revenu enregistré",
+    incomeEmptyHint: "Enregistrez l'argent entrant pour suivre votre solde.",
+    uploadReceipt: "Joindre un reçu",
+    changeReceipt: "Changer le fichier",
+    viewReceipt: "Voir le reçu",
+    receipt: "Reçu",
+    receiptUploadHint: "Image ou PDF, max 5 Mo",
+    other: "Autre",
     billing: "Facturation",
     sales: "Ventes",
     reports: "Rapports",
@@ -2094,10 +4001,23 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     card: "Carte",
     airtelPay: "Airtel Money",
     bankTransfer: "Virement bancaire",
+    bankAccountName: "Nom de la banque / compte",
+    bankAccountNumber: "Numéro de compte",
+    bankAccountNamePlaceholder: "ex. Bank of Kigali",
+    bankAccountNumberPlaceholder: "ex. 1234567890",
     
     // Dashboard KPIs (time periods)
     todaysRevenue: "Revenu d'aujourd'hui",
     todaysProfit: "Bénéfice (net) d'aujourd'hui",
+    todaysExpenses: "Dépenses d'aujourd'hui",
+    todaysExpenseCount: "Nombre de dépenses aujourd'hui",
+    weekExpenses: "Dépenses de la semaine",
+    weekExpenseCount: "Nombre de dépenses cette semaine",
+    monthExpenses: "Dépenses du mois",
+    monthExpenseCount: "Nombre de dépenses ce mois",
+    yearExpenses: "Dépenses de l'année",
+    yearExpenseCount: "Nombre de dépenses cette année",
+    expensesRecorded: "dépenses enregistrées",
     weekRevenue: "Revenu de la semaine",
     weekProfit: "Bénéfice (net) de la semaine",
     monthRevenue: "Revenu du mois",
@@ -2144,7 +4064,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     noActivity: "Aucune activité",
     noRecentActivity: "Aucune activité récente",
     details: "Détails",
-    amountRwf: "Montant (RWF)",
+    amountRwf: "Montant (Rwf)",
     searchProductsAndServices: "Rechercher produits et services...",
     packageLabel: "Paquet",
     productOrService: "Produit / Service",
@@ -2239,7 +4159,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     workerNotFound: "Travailleur introuvable",
     selectValidWorker: "Veuillez sélectionner un travailleur valide.",
     serviceRecorded: "Service enregistré",
-    serviceRecordedDesc: "{product} par {worker} pour {amount} RWF",
+    serviceRecordedDesc: "{product} par {worker} pour {amount} Rwf",
     enterQuantityDesc: "Veuillez saisir la quantité.",
     invalidQuantity: "Quantité invalide",
     invalidQuantityDesc: "Veuillez saisir une quantité valide supérieure à 0.",
@@ -2262,8 +4182,9 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     saveExpenseFailed: "Impossible d'enregistrer la dépense.",
     activitySaleLabel: "Vente",
     activityExpenseLabel: "Dépense",
-    activityEmptyHint: "Les ventes et dépenses récentes apparaîtront ici",
+    activityEmptyHint: "Les dépenses récentes apparaîtront ici",
     viewMoreInSales: "Voir plus dans Ventes",
+    viewMoreInExpenses: "Voir plus dans Dépenses",
     invalidQuantityShort: "Quantité invalide",
     onlyItemsAvailable: "Seulement {stock} {items} disponible(s)",
     chartSalesLabel: "Ventes",
@@ -2276,8 +4197,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     daySat: "Sam",
     pricePerItem: "Prix à l'unité",
     priceForWholePackageLabel: "Prix du paquet entier",
-    priceWholePackageCalc: "Prix à l'unité : {base} rwf × {qty} = {total} rwf (paquet entier)",
-    priceFromPackageCalc: "Prix à l'unité : {perItem} rwf (de {base} rwf ÷ {qty})",
+    priceWholePackageCalc: "Prix à l'unité : {base} Rwf × {qty} = {total} Rwf (paquet entier)",
+    priceFromPackageCalc: "Prix à l'unité : {perItem} Rwf (de {base} Rwf ÷ {qty})",
     maximumQuantity: "Quantité maximale",
     stockLabel: "Stock",
     boxOf: "Paquet de {qty}",

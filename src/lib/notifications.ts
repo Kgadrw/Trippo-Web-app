@@ -206,7 +206,7 @@ class NotificationService {
       tag: 'new-user',
       requireInteraction: true,
       data: {
-        route: '/admin',
+        route: '/admin-dashboard',
         type: 'new_user',
       },
     });
@@ -275,7 +275,7 @@ class NotificationService {
   ): Promise<void> {
     await this.showNotification('new_sale', {
       title: 'Sale Recorded',
-      body: `${quantity} ${quantity === 1 ? 'item' : 'items'} of ${productName} sold for rwf ${revenue.toLocaleString()}`,
+      body: `${quantity} ${quantity === 1 ? 'item' : 'items'} of ${productName} sold for Rwf ${revenue.toLocaleString()}`,
       icon: '/logo.png',
       tag: `sale-${Date.now()}`,
       requireInteraction: false,

@@ -1,40 +1,30 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Banknote, Download, Package, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { playInfoBeep, initAudio } from "@/lib/sound";
 import { useApi } from "@/hooks/useApi";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { exportPlatformReportPdf } from "@/lib/reportPdf";
 import * as XLSX from "xlsx";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { periodToggleClass } from "@/lib/fieldStyles";
-import { SalesExpensesPeriodChart } from "@/components/dashboard/SalesExpensesPeriodChart";
-import { SalesExpenseGauge } from "@/components/dashboard/SalesExpenseGauge";
-import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import {
-  ComposedChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  getReportDateRangeLabel,
+  isInReportPeriod,
+  parseDateMs,
+  filterByReportPeriod,
+} from "@/lib/reportPeriod";
+import { ReportSectionTabs, type ReportSection } from "@/components/reports/ReportSectionTabs";
+import { HelpTip } from "@/components/ui/help-tip";
+import { PlatformOverviewSection, type PlatformStats } from "@/components/reports/PlatformOverviewSection";
+import { FinanceReportsSection, type FinanceRow } from "@/components/reports/FinanceReportsSection";
+import { InventoryReportsSection, type ProductRow } from "@/components/reports/InventoryReportsSection";
+import { SalesRevenueReportsSection } from "@/components/reports/SalesRevenueReportsSection";
 
 interface Product {
   id?: number;
@@ -69,10 +59,76 @@ interface Expense {
   category?: string;
 }
 
+interface Income {
+  id?: number;
+  _id?: string;
+  title?: string;
+  amount: number;
+  date: string;
+}
+
+interface Payroll {
+  id?: number;
+  _id?: string;
+  title?: string;
+  amount: number;
+  paymentDate: string;
+  status?: string;
+}
+
+interface Bill {
+  id?: number;
+  _id?: string;
+  title?: string;
+  amount: number;
+  dueDate: string;
+  status?: string;
+  paidAt?: string;
+}
+
+interface Tax {
+  id?: number;
+  _id?: string;
+  title?: string;
+  amount: number;
+  dueDate: string;
+  status?: string;
+  paidAt?: string;
+}
+
+interface Invoice {
+  id?: number;
+  _id?: string;
+  title?: string;
+  amount: number;
+  dueDate: string;
+  status?: string;
+  paidAt?: string;
+}
+
+interface BankDeposit {
+  id?: number;
+  _id?: string;
+  title: string;
+  amount: number;
+  depositDate: string;
+}
+
+interface Loan {
+  id?: number;
+  _id?: string;
+  title: string;
+  lender?: string;
+  remainingBalance: number;
+  status?: string;
+  nextDueDate?: string;
+}
+
 const Reports = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const {
+    items: products,
     isLoading: productsLoading,
   } = useApi<Product>({
     endpoint: "products",
@@ -115,72 +171,42 @@ const Reports = () => {
     endpoint: "expenses",
     defaultValue: [],
   });
+  const { items: incomes, isLoading: incomesLoading } = useApi<Income>({
+    endpoint: "incomes",
+    defaultValue: [],
+  });
+  const { items: payrolls, isLoading: payrollsLoading } = useApi<Payroll>({
+    endpoint: "payrolls",
+    defaultValue: [],
+  });
+  const { items: bills, isLoading: billsLoading } = useApi<Bill>({
+    endpoint: "bills",
+    defaultValue: [],
+  });
+  const { items: taxes, isLoading: taxesLoading } = useApi<Tax>({
+    endpoint: "taxes",
+    defaultValue: [],
+  });
+  const { items: invoices, isLoading: invoicesLoading } = useApi<Invoice>({
+    endpoint: "invoices",
+    defaultValue: [],
+  });
+  const { items: bankDeposits, isLoading: bankDepositsLoading } = useApi<BankDeposit>({
+    endpoint: "bankDeposits",
+    defaultValue: [],
+  });
+  const { items: loans, isLoading: loansLoading } = useApi<Loan>({
+    endpoint: "loans",
+    defaultValue: [],
+  });
 
   const [reportType, setReportType] = useState("weekly");
+  const [reportSection, setReportSection] = useState<ReportSection>("overview");
   const [barberPeriod, setBarberPeriod] = useState<"today" | "week" | "month" | "year">("today");
 
-  const getSaleTimeMs = (sale: Sale) => {
-    const d = new Date((sale as any).timestamp || sale.date);
-    const ms = d.getTime();
-    return Number.isNaN(ms) ? null : ms;
-  };
+  const getSaleTimeMs = (sale: Sale) => parseDateMs((sale as any).timestamp || sale.date);
 
-  const getExpenseTimeMs = (expense: Expense) => {
-    const d = new Date(expense.date);
-    const ms = d.getTime();
-    return Number.isNaN(ms) ? null : ms;
-  };
-
-  const getReportPeriodRange = (type: string): { start: Date; end: Date } => {
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(now);
-    end.setHours(23, 59, 59, 999);
-
-    if (type === "daily") {
-      return { start, end };
-    }
-
-    if (type === "weekly") {
-      start.setDate(start.getDate() - start.getDay());
-      return { start, end };
-    }
-
-    if (type === "monthly") {
-      start.setDate(1);
-      return { start, end };
-    }
-
-    if (type === "yearly") {
-      start.setMonth(0, 1);
-      return { start, end };
-    }
-
-    return { start, end };
-  };
-
-  const isInReportPeriod = (ms: number, type: string) => {
-    const { start, end } = getReportPeriodRange(type);
-    return ms >= start.getTime() && ms <= end.getTime();
-  };
-
-  const getReportDateRangeLabel = (type: string) => {
-    const { start, end } = getReportPeriodRange(type);
-    if (type === "daily") {
-      return start.toLocaleDateString();
-    }
-    if (type === "weekly") {
-      return `${start.toLocaleDateString()} – ${end.toLocaleDateString()}`;
-    }
-    if (type === "monthly") {
-      return start.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    }
-    if (type === "yearly") {
-      return String(start.getFullYear());
-    }
-    return start.toLocaleDateString();
-  };
+  const getExpenseTimeMs = (expense: Expense) => parseDateMs(expense.date);
 
   type PeriodKey =
     | { type: "daily"; key: string; label: string; sortKey: string }
@@ -242,6 +268,221 @@ const Reports = () => {
     });
   }, [expenses, reportType]);
 
+  const filteredIncomes = useMemo(
+    () => filterByReportPeriod(incomes, reportType, (item) => parseDateMs(item.date)),
+    [incomes, reportType],
+  );
+
+  const filteredPayrolls = useMemo(
+    () =>
+      filterByReportPeriod(payrolls, reportType, (item) => parseDateMs(item.paymentDate)).filter(
+        (item) => item.status !== "cancelled",
+      ),
+    [payrolls, reportType],
+  );
+
+  const filteredBills = useMemo(
+    () => filterByReportPeriod(bills, reportType, (item) => parseDateMs(item.dueDate)),
+    [bills, reportType],
+  );
+
+  const filteredTaxes = useMemo(
+    () => filterByReportPeriod(taxes, reportType, (item) => parseDateMs(item.dueDate)),
+    [taxes, reportType],
+  );
+
+  const filteredInvoices = useMemo(
+    () => filterByReportPeriod(invoices, reportType, (item) => parseDateMs(item.dueDate)),
+    [invoices, reportType],
+  );
+
+  const filteredBankDeposits = useMemo(
+    () => filterByReportPeriod(bankDeposits, reportType, (item) => parseDateMs(item.depositDate)),
+    [bankDeposits, reportType],
+  );
+
+  const filteredLoans = useMemo(
+    () =>
+      filterByReportPeriod(loans, reportType, (item) =>
+        parseDateMs(item.nextDueDate || ""),
+      ).filter((item) => item.status !== "paid_off"),
+    [loans, reportType],
+  );
+
+  const formatReportDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  const financeIncomeRows = useMemo<FinanceRow[]>(
+    () =>
+      filteredIncomes.map((item, index) => ({
+        id: String(item._id || item.id || index),
+        title: item.title || t("income"),
+        date: formatReportDate(item.date),
+        amount: item.amount || 0,
+      })),
+    [filteredIncomes, t],
+  );
+
+  const financePayrollRows = useMemo<FinanceRow[]>(
+    () =>
+      filteredPayrolls.map((item, index) => ({
+        id: String(item._id || item.id || index),
+        title: item.title || t("payroll"),
+        date: formatReportDate(item.paymentDate),
+        amount: item.amount || 0,
+        status: item.status,
+      })),
+    [filteredPayrolls, t],
+  );
+
+  const financeBillRows = useMemo<FinanceRow[]>(
+    () =>
+      filteredBills.map((item, index) => ({
+        id: String(item._id || item.id || index),
+        title: item.title || t("billTitle"),
+        date: formatReportDate(item.dueDate),
+        amount: item.amount || 0,
+        status: item.status,
+      })),
+    [filteredBills, t],
+  );
+
+  const financeTaxRows = useMemo<FinanceRow[]>(
+    () =>
+      filteredTaxes.map((item, index) => ({
+        id: String(item._id || item.id || index),
+        title: item.title || t("taxTitle"),
+        date: formatReportDate(item.dueDate),
+        amount: item.amount || 0,
+        status: item.status,
+      })),
+    [filteredTaxes, t],
+  );
+
+  const financeInvoiceRows = useMemo<FinanceRow[]>(
+    () =>
+      filteredInvoices.map((item, index) => ({
+        id: String(item._id || item.id || index),
+        title: item.title || t("invoiceTitle"),
+        date: formatReportDate(item.dueDate),
+        amount: item.amount || 0,
+        status: item.status,
+      })),
+    [filteredInvoices, t],
+  );
+
+  const financeDepositRows = useMemo<FinanceRow[]>(
+    () =>
+      filteredBankDeposits.map((item, index) => ({
+        id: String(item._id || item.id || index),
+        title: item.title,
+        date: formatReportDate(item.depositDate),
+        amount: item.amount || 0,
+      })),
+    [filteredBankDeposits],
+  );
+
+  const financeLoanRows = useMemo<FinanceRow[]>(
+    () =>
+      filteredLoans.map((item, index) => ({
+        id: String(item._id || item.id || index),
+        title: item.title,
+        date: formatReportDate(item.nextDueDate || ""),
+        amount: item.remainingBalance || 0,
+        status: item.status,
+        extra: item.lender,
+      })),
+    [filteredLoans],
+  );
+
+  const inventoryProductRows = useMemo<ProductRow[]>(() => {
+    return products.map((product, index) => {
+      const minStock = (product as any).minStock ?? 5;
+      const stock = product.stock || 0;
+      const costPrice = product.costPrice || 0;
+      return {
+        id: String(product._id || product.id || index),
+        name: product.name,
+        category: product.category || "",
+        stock,
+        minStock,
+        costPrice,
+        sellingPrice: product.sellingPrice || 0,
+        inventoryValue: costPrice * stock,
+        isLowStock: stock > 0 && stock <= minStock,
+      };
+    });
+  }, [products]);
+
+  const platformStats = useMemo<PlatformStats>(() => {
+    const salesRevenue = filteredSales.reduce((sum, s) => sum + (s.revenue || 0), 0);
+    const salesProfit = filteredSales.reduce((sum, s) => sum + (s.profit || 0), 0);
+    const expenseTotal = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const incomeTotal = filteredIncomes.reduce((sum, i) => sum + (i.amount || 0), 0);
+    const payrollTotal = filteredPayrolls.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const billsPaid = filteredBills
+      .filter((b) => b.status === "paid")
+      .reduce((sum, b) => sum + (b.amount || 0), 0);
+    const billsOutstanding = filteredBills
+      .filter((b) => b.status !== "paid")
+      .reduce((sum, b) => sum + (b.amount || 0), 0);
+    const taxesPaid = filteredTaxes
+      .filter((tx) => tx.status === "paid")
+      .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    const taxesOutstanding = filteredTaxes
+      .filter((tx) => tx.status !== "paid")
+      .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    const invoicesPaid = filteredInvoices
+      .filter((inv) => inv.status === "paid")
+      .reduce((sum, inv) => sum + (inv.amount || 0), 0);
+    const invoicesOutstanding = filteredInvoices
+      .filter((inv) => inv.status !== "paid")
+      .reduce((sum, inv) => sum + (inv.amount || 0), 0);
+    const bankDepositsTotal = filteredBankDeposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+    const activeLoans = loans.filter((loan) => loan.status !== "paid_off").length;
+    const loanBalance = loans
+      .filter((loan) => loan.status !== "paid_off")
+      .reduce((sum, loan) => sum + (loan.remainingBalance || 0), 0);
+    const lowStockCount = inventoryProductRows.filter((p) => p.isLowStock || p.stock <= 0).length;
+    const inventoryValue = inventoryProductRows.reduce((sum, p) => sum + p.inventoryValue, 0);
+
+    return {
+      salesRevenue,
+      salesProfit,
+      expenses: expenseTotal,
+      netFromSales: salesProfit - expenseTotal,
+      income: incomeTotal,
+      payroll: payrollTotal,
+      billsPaid,
+      billsOutstanding,
+      taxesPaid,
+      taxesOutstanding,
+      invoicesPaid,
+      invoicesOutstanding,
+      bankDeposits: bankDepositsTotal,
+      loanBalance,
+      activeLoans,
+      productCount: products.length,
+      lowStockCount,
+      inventoryValue,
+    };
+  }, [
+    filteredSales,
+    filteredExpenses,
+    filteredIncomes,
+    filteredPayrolls,
+    filteredBills,
+    filteredTaxes,
+    filteredInvoices,
+    filteredBankDeposits,
+    loans,
+    inventoryProductRows,
+    products.length,
+  ]);
+
   const barberPeriodSales = useMemo(() => {
     const now = new Date();
     const start = new Date(now);
@@ -287,93 +528,7 @@ const Reports = () => {
     return Object.values(aggregated).sort((a, b) => b.revenue - a.revenue);
   }, [filteredSales]);
 
-  // Prepare sales over time data based on report type
-  const salesOverTimeData = useMemo(() => {
-    const timeMap: Record<string, { date: string; revenue: number; profit: number; quantity: number; label: string; monthDay: string }> = {};
-    
-    if (reportType === "daily") {
-      // Add sales data to the corresponding days
-      filteredSales.forEach(sale => {
-        const saleDate = sale.date;
-        if (timeMap[saleDate]) {
-          timeMap[saleDate].revenue += sale.revenue;
-          timeMap[saleDate].profit += sale.profit;
-          timeMap[saleDate].quantity += sale.quantity;
-        } else {
-          // Create entries for all sales dates
-          const date = new Date(saleDate);
-          const month = date.toLocaleDateString('en-US', { month: 'short' });
-          const day = date.getDate();
-          
-          if (!timeMap[saleDate]) {
-            timeMap[saleDate] = {
-              date: saleDate,
-              revenue: 0,
-              profit: 0,
-              quantity: 0,
-              label: `${month} ${day}`,
-              monthDay: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-            };
-          }
-          timeMap[saleDate].revenue += sale.revenue;
-          timeMap[saleDate].profit += sale.profit;
-          timeMap[saleDate].quantity += sale.quantity;
-        }
-      });
-    } else if (reportType === "weekly") {
-      // Weekly: Aggregate by weeks
-      filteredSales.forEach(sale => {
-        const date = new Date(sale.date);
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
-        const weekKey = weekStart.toISOString().split("T")[0];
-        
-        if (!timeMap[weekKey]) {
-          const weekEnd = new Date(weekStart);
-          weekEnd.setDate(weekStart.getDate() + 6);
-          timeMap[weekKey] = {
-            date: weekKey,
-            revenue: 0,
-            profit: 0,
-            quantity: 0,
-            label: `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-            monthDay: `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-          };
-        }
-        timeMap[weekKey].revenue += sale.revenue;
-        timeMap[weekKey].profit += sale.profit;
-        timeMap[weekKey].quantity += sale.quantity;
-      });
-    } else if (reportType === "monthly") {
-      // Monthly: Aggregate by months
-      filteredSales.forEach(sale => {
-        const date = new Date(sale.date);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        
-        if (!timeMap[monthKey]) {
-          const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-          timeMap[monthKey] = {
-            date: monthKey,
-            revenue: 0,
-            profit: 0,
-            quantity: 0,
-            label: monthName,
-            monthDay: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          };
-        }
-        timeMap[monthKey].revenue += sale.revenue;
-        timeMap[monthKey].profit += sale.profit;
-        timeMap[monthKey].quantity += sale.quantity;
-      });
-    }
-
-    // Convert to array and sort
-    return Object.values(timeMap)
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredSales, reportType]);
-
   const totalRevenue = salesByProduct.reduce((sum, item) => sum + item.revenue, 0);
-  const totalCost = salesByProduct.reduce((sum, item) => sum + item.cost, 0);
   const grossProfit = salesByProduct.reduce((sum, item) => sum + item.profit, 0);
   const totalExpenses = filteredExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
   const totalProfit = grossProfit - totalExpenses;
@@ -381,19 +536,6 @@ const Reports = () => {
   const bestSelling = salesByProduct.length > 0 
     ? salesByProduct.reduce((best, item) => item.quantity > best.quantity ? item : best)
     : { product: "N/A", quantity: 0 };
-
-  const salesByBarber = useMemo(() => {
-    const map: Record<string, { barber: string; services: number; revenue: number }> = {};
-    barberPeriodSales.forEach((sale) => {
-      const barber = sale.workerName || "Unassigned";
-      if (!map[barber]) {
-        map[barber] = { barber, services: 0, revenue: 0 };
-      }
-      map[barber].services += sale.quantity || 1;
-      map[barber].revenue += sale.revenue || 0;
-    });
-    return Object.values(map).sort((a, b) => b.revenue - a.revenue);
-  }, [barberPeriodSales]);
 
   const salesExpensesByPeriod = useMemo(() => {
     const map = new Map<
@@ -547,71 +689,54 @@ const Reports = () => {
     [filteredSales.length, salesExpensesPeriodTotals],
   );
 
+  const revenueMix = useMemo(() => {
+    let products = 0;
+    let services = 0;
+    filteredSales.forEach((s) => {
+      if (s.saleType === "service" || s.workerName) {
+        services += s.revenue || 0;
+      } else {
+        products += s.revenue || 0;
+      }
+    });
+    return { products, services };
+  }, [filteredSales]);
+
+  const revenueTrendData = useMemo(
+    () =>
+      salesExpensesByPeriod.map((row) => ({
+        label: row.label,
+        revenue: row.salesRevenue || 0,
+        profit: row.salesProfit || 0,
+      })),
+    [salesExpensesByPeriod],
+  );
+
   const totalLabel = t("total");
 
-  const addHeader = (doc: jsPDF, pageWidth: number, margin: number, reportTypeLabel?: string, dateRangeLabel?: string) => {
-    let logoX = margin;
-    const logoHeight = 6;
-    const logoY = 12;
-
-    try {
-      const logoElement = document.querySelector('img[src="/logo.png"]') as HTMLImageElement;
-      if (logoElement && logoElement.complete) {
-        const canvas = document.createElement("canvas");
-        canvas.width = logoElement.naturalWidth || 32;
-        canvas.height = logoElement.naturalHeight || 32;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(logoElement, 0, 0);
-          const imgData = canvas.toDataURL("image/png");
-          doc.addImage(imgData, "PNG", margin, logoY, logoHeight, logoHeight);
-          logoX = margin + logoHeight + 2;
-        }
-      }
-    } catch {
-      // Logo optional
-    }
-
-    doc.setTextColor(55, 65, 81);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    const textY = logoY + logoHeight / 2 + 2;
-    doc.text("trippo", logoX, textY);
-
-    if (reportTypeLabel && dateRangeLabel) {
-      const fullInfoText = `Report Type: ${reportTypeLabel.charAt(0).toUpperCase() + reportTypeLabel.slice(1)}  •  Date Range: ${dateRangeLabel}  •  Generated: ${new Date().toLocaleString()}`;
-      doc.setFontSize(8);
-      doc.setTextColor(107, 114, 128);
-      const textWidth = doc.getTextWidth(fullInfoText);
-      doc.text(fullInfoText, pageWidth - margin - textWidth, textY);
-    }
-
-    doc.setDrawColor(229, 231, 235);
-    doc.line(margin, 20, pageWidth - margin, 20);
-    doc.setTextColor(0, 0, 0);
-  };
-
-  const addFooter = (
-    doc: jsPDF,
-    pageWidth: number,
-    pageHeight: number,
-    margin: number,
-    currentPage?: number,
-    totalPages?: number,
-  ) => {
-    const footerY = pageHeight - 15;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 100, 100);
-    doc.text("Generated by Trippo", margin, footerY);
-    const rightText =
-      currentPage && totalPages
-        ? `Page ${currentPage} of ${totalPages} | ${new Date().toLocaleDateString()}`
-        : new Date().toLocaleDateString();
-    doc.text(rightText, pageWidth - margin, footerY, { align: "right" });
-    doc.setTextColor(0, 0, 0);
+  const exportToPDF = () => {
+    exportPlatformReportPdf({
+      reportType,
+      dateRangeLabel: getReportDateRangeLabel(reportType),
+      barberPeriod,
+      totalLabel,
+      totalRevenue,
+      totalExpenses,
+      totalProfit,
+      totalQuantity,
+      bestSelling,
+      platformStats,
+      salesExpensesByPeriod,
+      salesExpensesPeriodTotals,
+      salesByProduct,
+      workerBreakdown: barberServiceBreakdown,
+      financeIncomeRows,
+      financePayrollRows,
+      financeBillRows,
+      financeTaxRows,
+      financeInvoiceRows,
+      inventoryProductRows,
+    });
   };
 
   const handleExport = (format: string) => {
@@ -641,166 +766,6 @@ const Reports = () => {
     }
   };
 
-  const appendPdfTable = (
-    doc: jsPDF,
-    title: string,
-    head: string[][],
-    body: (string | number)[][],
-    yPosition: number,
-    margin: number,
-    pageWidth: number,
-    pageHeight: number,
-    reportTypeLabel: string,
-  ) => {
-    if (body.length === 0) return yPosition;
-
-    if (yPosition > 250) {
-      doc.addPage();
-      addHeader(doc, pageWidth, margin, reportType, reportTypeLabel);
-      yPosition = 30;
-    }
-
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "normal");
-    doc.text(title, margin, yPosition);
-    yPosition += 8;
-
-    autoTable(doc, {
-      startY: yPosition,
-      head,
-      body,
-      theme: "striped",
-      headStyles: { fillColor: [107, 114, 128], textColor: 255, fontStyle: "normal" },
-      alternateRowStyles: { fillColor: [249, 250, 251] },
-      styles: { fontSize: 9, textColor: [31, 41, 55] },
-      margin: { left: margin, right: margin },
-      didDrawPage: () => {
-        addHeader(doc, pageWidth, margin, reportType, reportTypeLabel);
-        addFooter(doc, pageWidth, pageHeight, margin);
-      },
-    });
-
-    return (doc as any).lastAutoTable.finalY + 12;
-  };
-
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    const margin = 14;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const dateRangeLabel = getReportDateRangeLabel(reportType);
-
-    addHeader(doc, pageWidth, margin, reportType, dateRangeLabel);
-
-    let yPosition = 30;
-
-    const summaryHeaders = [
-      "Total Revenue",
-      "Total Expenses",
-      "Net Profit",
-      "Quantity Sold",
-      "Best Service",
-      "Best Qty",
-    ];
-
-    const summaryValues = [
-      `rwf ${totalRevenue.toLocaleString()}`,
-      `rwf ${totalExpenses.toLocaleString()}`,
-      `rwf ${totalProfit.toLocaleString()}`,
-      totalQuantity.toString(),
-      bestSelling.product.length > 15 ? `${bestSelling.product.substring(0, 15)}...` : bestSelling.product,
-      `${bestSelling.quantity}`,
-    ];
-
-    yPosition = appendPdfTable(
-      doc,
-      "Summary",
-      [summaryHeaders],
-      [summaryValues],
-      yPosition,
-      margin,
-      pageWidth,
-      pageHeight,
-      dateRangeLabel,
-    );
-
-    const salesExpensesRows = salesExpensesByPeriod.map((row) => {
-      const net = (row.salesProfit || 0) - (row.expenses || 0);
-      return [
-        row.label,
-        `rwf ${row.salesRevenue.toLocaleString()}`,
-        `rwf ${row.expenses.toLocaleString()}`,
-        `${net >= 0 ? "+" : ""}rwf ${net.toLocaleString()}`,
-      ];
-    });
-
-    if (salesExpensesRows.length > 0) {
-      salesExpensesRows.push([
-        totalLabel,
-        `rwf ${salesExpensesPeriodTotals.revenue.toLocaleString()}`,
-        `rwf ${salesExpensesPeriodTotals.expenses.toLocaleString()}`,
-        `${salesExpensesPeriodTotals.net >= 0 ? "+" : ""}rwf ${salesExpensesPeriodTotals.net.toLocaleString()}`,
-      ]);
-    }
-
-    yPosition = appendPdfTable(
-      doc,
-      `Sales & Expenses (${reportType})`,
-      [["Period", "Revenue", "Expenses", "Net"]],
-      salesExpensesRows,
-      yPosition,
-      margin,
-      pageWidth,
-      pageHeight,
-      dateRangeLabel,
-    );
-
-    const serviceRows = salesByProduct.map((item) => [
-      item.product,
-      item.quantity.toString(),
-      `rwf ${item.revenue.toLocaleString()}`,
-    ]);
-
-    yPosition = appendPdfTable(
-      doc,
-      "Service Performance",
-      [["Service", "Quantity", "Revenue"]],
-      serviceRows,
-      yPosition,
-      margin,
-      pageWidth,
-      pageHeight,
-      dateRangeLabel,
-    );
-
-    const workerRows = barberServiceBreakdown.map((row) => [
-      row.barber,
-      row.services.toString(),
-      row.topServices.join(", ") || "—",
-      `rwf ${row.revenue.toLocaleString()}`,
-    ]);
-
-    appendPdfTable(
-      doc,
-      `Worker Performance (${barberPeriod})`,
-      [["Worker", "Services", "Top Services", "Revenue"]],
-      workerRows,
-      yPosition,
-      margin,
-      pageWidth,
-      pageHeight,
-      dateRangeLabel,
-    );
-
-    const totalPages = doc.internal.pages.length - 1;
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      addFooter(doc, pageWidth, pageHeight, margin, i, totalPages);
-    }
-
-    doc.save(`Trippo_Report_${reportType}_${new Date().toISOString().slice(0, 10)}.pdf`);
-  };
-
   const exportToExcel = () => {
     const workbook = XLSX.utils.book_new();
 
@@ -818,6 +783,15 @@ const Reports = () => {
       ["Total Quantity Sold", totalQuantity],
       ["Best Service", bestSelling.product],
       ["Best Service Quantity", bestSelling.quantity],
+      [""],
+      ["Platform — Sales Revenue", platformStats.salesRevenue],
+      ["Platform — Income", platformStats.income],
+      ["Platform — Payroll", platformStats.payroll],
+      ["Platform — Bills Paid", platformStats.billsPaid],
+      ["Platform — Taxes Paid", platformStats.taxesPaid],
+      ["Platform — Bank Deposits", platformStats.bankDeposits],
+      ["Platform — Inventory Value", platformStats.inventoryValue],
+      ["Platform — Low Stock Items", platformStats.lowStockCount],
     ];
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryData), "Summary");
 
@@ -861,6 +835,67 @@ const Reports = () => {
       "Workers",
     );
 
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Title", "Date", "Amount"],
+        ...financeIncomeRows.map((row) => [row.title, row.date, row.amount]),
+      ]),
+      "Income",
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Title", "Date", "Status", "Amount"],
+        ...financePayrollRows.map((row) => [row.title, row.date, row.status || "", row.amount]),
+      ]),
+      "Payroll",
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Title", "Due Date", "Status", "Amount"],
+        ...financeBillRows.map((row) => [row.title, row.date, row.status || "", row.amount]),
+      ]),
+      "Bills",
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Title", "Due Date", "Status", "Amount"],
+        ...financeTaxRows.map((row) => [row.title, row.date, row.status || "", row.amount]),
+      ]),
+      "Taxes",
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Title", "Due Date", "Status", "Amount"],
+        ...financeInvoiceRows.map((row) => [row.title, row.date, row.status || "", row.amount]),
+      ]),
+      "Invoices",
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Product", "Category", "Stock", "Cost", "Selling", "Inventory Value"],
+        ...inventoryProductRows.map((row) => [
+          row.name,
+          row.category,
+          row.stock,
+          row.costPrice,
+          row.sellingPrice,
+          row.inventoryValue,
+        ]),
+      ]),
+      "Inventory",
+    );
+
     XLSX.writeFile(workbook, `Trippo_Report_${reportType}_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
@@ -868,7 +903,7 @@ const Reports = () => {
   const ReportsSkeleton = () => (
     <AppLayout title={t("reports")}>
       <div className="space-y-4 pb-4">
-        <div className="rounded-lg bg-white p-5">
+        <div className="p-5">
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex gap-3">
@@ -881,14 +916,14 @@ const Reports = () => {
             ))}
           </div>
         </div>
-        <div className="rounded-lg bg-white p-5">
+        <div className="p-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-10 w-full rounded-md" />
             ))}
           </div>
         </div>
-        <div className="rounded-lg bg-white p-4">
+        <div className="p-4">
           <Skeleton className="mb-4 h-4 w-48" />
           <Skeleton className="h-80 w-full rounded" />
         </div>
@@ -896,7 +931,17 @@ const Reports = () => {
     </AppLayout>
   );
 
-  if (productsLoading || salesLoading) {
+  if (
+    productsLoading ||
+    salesLoading ||
+    incomesLoading ||
+    payrollsLoading ||
+    billsLoading ||
+    taxesLoading ||
+    invoicesLoading ||
+    bankDepositsLoading ||
+    loansLoading
+  ) {
     return <ReportsSkeleton />;
   }
 
@@ -909,484 +954,121 @@ const Reports = () => {
           ? t("month")
           : t("periodYear");
   const reportPeriodLabel = getReportDateRangeLabel(reportType);
-  const topBarber = salesByBarber[0];
 
   return (
     <AppLayout title={t("reports")}>
       <div className="flex flex-col min-h-0 w-full space-y-4 pb-4">
         {/* Filters */}
-        <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
-              <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1 sm:flex-row sm:items-center">
-                <Label className="text-xs font-normal text-muted-foreground shrink-0">
-                  {t("period")}
-                </Label>
-                <ToggleGroup
-                  type="single"
-                  value={reportType}
-                  onValueChange={(v) => v && setReportType(v)}
-                  className="flex flex-wrap gap-1.5"
-                  variant="default"
-                  size="sm"
-                >
-                  <ToggleGroupItem value="daily" className={periodToggleClass}>
-                    {t("day")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="weekly" className={periodToggleClass}>
-                    {t("week")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="monthly" className={periodToggleClass}>
-                    {t("month")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="yearly" className={periodToggleClass}>
-                    {t("periodYear")}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-lg font-semibold text-gray-600">{t("reports")}</h2>
+              <HelpTip text={t("helpReports")} />
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => handleExport("pdf")}>
-                <Download className="h-3.5 w-3.5" />
-                {t("exportPdf")}
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => handleExport("excel")}>
-                <Download className="h-3.5 w-3.5" />
-                {t("exportExcel")}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile: sales vs expenses gauge for selected period */}
-        <div className="lg:hidden bg-white rounded-lg overflow-hidden">
-          {salesLoading ? (
-            <div className="p-4 space-y-4">
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-48 w-full rounded-full" />
-              <Skeleton className="h-4 w-full" />
-            </div>
-          ) : (
-            <SalesExpenseGauge
-              salesCount={gaugeStats.salesCount}
-              salesTotal={gaugeStats.salesTotal}
-              expensesTotal={gaugeStats.expensesTotal}
-            />
-          )}
-        </div>
-
-        {/* Sales & Expenses table (by day/week/month) */}
-        <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
-          <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3">
-          <h3 className="mb-1 text-sm font-semibold text-gray-900">
-            {t("salesExpensesSummary")}
-          </h3>
-          <p className="mb-3 text-xs text-muted-foreground">
-            {t("revenue")}, {t("expenses")}, {t("net")} · {reportTypeLabel} · {reportPeriodLabel}
-          </p>
-
-          {salesExpensesChartData.length > 0 ? (
-            <SalesExpensesPeriodChart
-              data={salesExpensesChartData}
-              className="mb-6"
-              labelInterval={
-                reportType === "daily"
-                  ? Math.max(0, Math.floor(salesExpensesChartData.length / 12) - 1)
-                  : 0
-              }
-            />
-          ) : null}
-
-          {salesExpensesByPeriod.length > 0 ? (
-            <>
-            <DesktopDataTable>
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("period")}
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("revenue")}
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("expenses")}
-                    </th>
-                    <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                      {t("net")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white">
-                  {salesExpensesByPeriod.map((row, index) => {
-                    const net = (row.salesProfit || 0) - (row.expenses || 0);
-                    return (
-                      <tr
-                        key={row.key}
-                        className={cn(
-                          "border-b border-gray-200",
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50",
-                        )}
-                      >
-                        <td className="py-4 px-6 text-sm text-gray-900 whitespace-nowrap">
-                          {row.label}
-                        </td>
-                        <td className="py-4 px-6 text-sm text-gray-700 whitespace-nowrap tabular-nums">
-                          {row.salesRevenue.toLocaleString()} rwf
-                        </td>
-                        <td className="py-4 px-6 text-sm text-red-600 whitespace-nowrap tabular-nums">
-                          {row.expenses.toLocaleString()} rwf
-                        </td>
-                        <td
-                          className={cn(
-                            "py-4 px-6 text-sm font-semibold whitespace-nowrap tabular-nums",
-                            net >= 0 ? "text-emerald-700" : "text-red-700"
-                          )}
-                        >
-                          {net >= 0 ? "+" : ""}
-                          {net.toLocaleString()} rwf
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr className="border-t border-gray-200 bg-blue-50/70">
-                    <td className="py-4 px-6 text-sm font-semibold text-gray-800">{totalLabel}</td>
-                    <td className="py-4 px-6 text-sm font-semibold text-gray-900 tabular-nums">
-                      {salesExpensesPeriodTotals.revenue.toLocaleString()} rwf
-                    </td>
-                    <td className="py-4 px-6 text-sm font-semibold text-red-600 tabular-nums">
-                      {salesExpensesPeriodTotals.expenses.toLocaleString()} rwf
-                    </td>
-                    <td
-                      className={cn(
-                        "py-4 px-6 text-sm font-semibold tabular-nums",
-                        salesExpensesPeriodTotals.net >= 0 ? "text-emerald-700" : "text-red-700",
-                      )}
-                    >
-                      {salesExpensesPeriodTotals.net >= 0 ? "+" : ""}
-                      {salesExpensesPeriodTotals.net.toLocaleString()} rwf
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </DesktopDataTable>
-            <MobileDataList>
-              {salesExpensesByPeriod.map((row, index) => {
-                const net = (row.salesProfit || 0) - (row.expenses || 0);
-                return (
-                  <MobileListCard key={row.key} index={index}>
-                    <p className="text-sm font-semibold text-gray-900">{row.label}</p>
-                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <span className="text-gray-500 block">{t("revenue")}</span>
-                        <span className="font-medium text-gray-700 tabular-nums">{row.salesRevenue.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 block">{t("expenses")}</span>
-                        <span className="font-medium text-red-600 tabular-nums">{row.expenses.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 block">{t("net")}</span>
-                        <span className={cn("font-semibold tabular-nums", net >= 0 ? "text-emerald-700" : "text-red-700")}>
-                          {net >= 0 ? "+" : ""}{net.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </MobileListCard>
-                );
-              })}
-              <MobileListCard className="bg-blue-50/70">
-                <p className="text-sm font-semibold text-gray-800 mb-2">{totalLabel}</p>
-                <div className="grid grid-cols-3 gap-2 text-xs font-semibold tabular-nums">
-                  <span className="text-gray-900">{salesExpensesPeriodTotals.revenue.toLocaleString()}</span>
-                  <span className="text-red-600">{salesExpensesPeriodTotals.expenses.toLocaleString()}</span>
-                  <span className={salesExpensesPeriodTotals.net >= 0 ? "text-emerald-700" : "text-red-700"}>
-                    {salesExpensesPeriodTotals.net >= 0 ? "+" : ""}
-                    {salesExpensesPeriodTotals.net.toLocaleString()}
-                  </span>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
+                <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1 sm:flex-row sm:items-center">
+                  <Label className="text-xs font-normal text-muted-foreground shrink-0">
+                    {t("period")}
+                  </Label>
+                  <ToggleGroup
+                    type="single"
+                    value={reportType}
+                    onValueChange={(v) => v && setReportType(v)}
+                    className="flex flex-wrap gap-1.5"
+                    variant="default"
+                    size="sm"
+                  >
+                    <ToggleGroupItem value="daily" className={periodToggleClass}>
+                      {t("day")}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="weekly" className={periodToggleClass}>
+                      {t("week")}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="monthly" className={periodToggleClass}>
+                      {t("month")}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="yearly" className={periodToggleClass}>
+                      {t("periodYear")}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
-              </MobileListCard>
-            </MobileDataList>
-            </>
-          ) : (
-            <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
-              {t("noSalesData")}
-            </p>
-          )}
-          </div>
-        </div>
-
-        {/* Overview chart: profit vs expenses */}
-        <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5">
-          <h3 className="mb-1 text-sm font-semibold text-gray-900">
-            {t("profitExpensesChart")}
-          </h3>
-          <p className="mb-4 text-xs text-muted-foreground">
-            {t("profit")} · {t("expenses")} · {reportTypeLabel} · {reportPeriodLabel}
-          </p>
-          {profitExpensesChartData.length > 0 ? (
-            <div className="w-full overflow-x-auto">
-              <ResponsiveContainer width="100%" minWidth={300} height={380}>
-                <ComposedChart
-                  data={profitExpensesChartData}
-                  margin={{ top: 8, right: 12, left: 4, bottom: reportType === "daily" ? 72 : 56 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="period"
-                    tick={{ fontSize: reportType === "daily" ? 9 : 11, fill: "#6b7280" }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={reportType === "daily" ? 100 : 80}
-                    interval={
-                      reportType === "daily"
-                        ? Math.max(0, Math.floor(profitExpensesChartData.length / 12) - 1)
-                        : 0
-                    }
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    tick={{ fontSize: 11, fill: "#6b7280" }}
-                    tickFormatter={(value) => {
-                      if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-                      if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
-                      return `${value}`;
-                    }}
-                    label={{
-                      value: "Rwf",
-                      angle: -90,
-                      position: "insideLeft",
-                      style: { fill: "#9ca3af", fontSize: 11 },
-                    }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#ffffff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "6px",
-                      padding: "10px",
-                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    }}
-                    labelStyle={{ color: "#374151", fontWeight: 600, marginBottom: "4px" }}
-                    formatter={(value: number, name: string) => {
-                      if (name === "profit") return [`rwf ${value.toLocaleString()}`, t("profit")];
-                      if (name === "expenses")
-                        return [
-                          `rwf ${value.toLocaleString()}`,
-                          t("expenses"),
-                        ];
-                      return [value, name];
-                    }}
-                  />
-                  <Legend wrapperStyle={{ paddingTop: "16px" }} />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="profit"
-                    fill="#10b981"
-                    name={t("profit")}
-                    radius={[2, 2, 0, 0]}
-                    maxBarSize={48}
-                  />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="expenses"
-                    fill="#ef4444"
-                    name={t("expenses")}
-                    radius={[2, 2, 0, 0]}
-                    maxBarSize={48}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              {t("noSalesData")}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
-            <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3">
-            <h3 className="mb-1 text-sm font-semibold text-gray-900">
-              {t("servicePerformance")}
-            </h3>
-            <p className="mb-3 text-xs text-muted-foreground">
-              {t("topServices")} · {t("revenue")} · {reportPeriodLabel}
-            </p>
-            {salesByProduct.length > 0 ? (
-              <>
-              <DesktopDataTable>
-                <table className="w-full border-collapse">
-                  <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("services")}
-                      </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("quantity")}</th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {salesByProduct.slice(0, 10).map((row, index) => (
-                      <tr
-                        key={row.product}
-                        className={cn(
-                          "border-b border-gray-200",
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50",
-                        )}
-                      >
-                        <td className="py-4 px-6 text-sm text-gray-900">{row.product}</td>
-                        <td className="py-4 px-6 text-sm text-gray-700 tabular-nums">{row.quantity}</td>
-                        <td className="py-4 px-6 text-sm font-semibold text-gray-700 tabular-nums">{row.revenue.toLocaleString()} rwf</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </DesktopDataTable>
-              <MobileDataList>
-                {salesByProduct.slice(0, 10).map((row, index) => (
-                  <MobileListCard key={row.product} index={index}>
-                    <p className="text-sm font-semibold text-gray-900 truncate">{row.product}</p>
-                    <div className="mt-2 flex items-center justify-between text-xs">
-                      <span className="text-gray-500">{t("quantity")}: <span className="font-medium text-gray-700 tabular-nums">{row.quantity}</span></span>
-                      <span className="font-semibold text-gray-700 tabular-nums">{row.revenue.toLocaleString()} rwf</span>
-                    </div>
-                  </MobileListCard>
-                ))}
-              </MobileDataList>
-              </>
-            ) : (
-              <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
-                {t("noServicesFound")}
-              </p>
-            )}
-            </div>
-          </div>
-
-          <div className="lg:bg-white lg:rounded-lg lg:overflow-hidden">
-            <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h3 className="mb-1 text-sm font-semibold text-gray-900">
-                  {t("workers")}
-                </h3>
               </div>
-              <ToggleGroup
-                type="single"
-                value={barberPeriod}
-                onValueChange={(v) => v && setBarberPeriod(v as any)}
-                className="flex flex-wrap gap-1.5 shrink-0"
-                variant="default"
-                size="sm"
-              >
-                <ToggleGroupItem value="today" className={periodToggleClass}>
-                  {t("periodToday")}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="week" className={periodToggleClass}>
-                  {t("periodWeek")}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="month" className={periodToggleClass}>
-                  {t("periodMonth")}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="year" className={periodToggleClass}>
-                  {t("periodYear")}
-                </ToggleGroupItem>
-              </ToggleGroup>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => handleExport("pdf")}>
+                  <Download className="h-3.5 w-3.5" />
+                  {t("exportPdf")}
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => handleExport("excel")}>
+                  <Download className="h-3.5 w-3.5" />
+                  {t("exportExcel")}
+                </Button>
+              </div>
             </div>
-            <p className="mb-3 text-xs text-muted-foreground">
-              {topBarber
-                ? `${topBarber.barber} · rwf ${topBarber.revenue.toLocaleString()}`
-                : t("noWorkersFound")}
-            </p>
-            {barberServiceBreakdown.length > 0 ? (
-              <>
-              <DesktopDataTable>
-                <table className="w-full border-collapse">
-                  <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("worker")}
-                      </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("services")}
-                      </th>
-                      <th className="text-left text-sm font-semibold text-gray-700 py-4 px-6">
-                        {t("topServices")}
-                      </th>
-                      <th className="text-right text-sm font-semibold text-gray-700 py-4 px-6">{t("revenue")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {barberServiceBreakdown.map((row, index) => (
-                      <tr
-                        key={row.barber}
-                        className={cn(
-                          "border-b border-gray-200",
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50",
-                        )}
-                      >
-                        <td className="py-4 px-6 text-sm text-gray-900">{row.barber}</td>
-                        <td className="py-4 px-6 text-sm text-gray-700 tabular-nums">
-                          <span className="inline-flex items-center gap-1">
-                            {row.services > 0 ? (
-                              <ArrowUpRight size={14} className="text-emerald-600" />
-                            ) : (
-                              <ArrowDownLeft size={14} className="text-red-600" />
-                            )}
-                            {row.services}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-sm text-gray-700 max-w-xs">
-                          {row.topServices.length > 0 ? (
-                            <span className="line-clamp-2">{row.topServices.join(", ")}</span>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-6 text-sm font-semibold text-gray-700 tabular-nums text-right">
-                          <span className="inline-flex items-center justify-end gap-1">
-                            {row.revenue > 0 ? (
-                              <ArrowUpRight size={14} className="text-emerald-600" />
-                            ) : (
-                              <ArrowDownLeft size={14} className="text-red-600" />
-                            )}
-                            {row.revenue.toLocaleString()} rwf
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </DesktopDataTable>
-              <MobileDataList>
-                {barberServiceBreakdown.map((row, index) => (
-                  <MobileListCard key={row.barber} index={index}>
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-gray-900">{row.barber}</p>
-                      <span className="text-sm font-semibold text-gray-700 tabular-nums shrink-0">
-                        {row.revenue.toLocaleString()} rwf
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {t("services")}:{" "}
-                      <span className="font-medium text-gray-700 tabular-nums">{row.services}</span>
-                    </p>
-                    {row.topServices.length > 0 ? (
-                      <p className="mt-1 text-xs text-gray-600 line-clamp-2">{row.topServices.join(", ")}</p>
-                    ) : null}
-                  </MobileListCard>
-                ))}
-              </MobileDataList>
-              </>
-            ) : (
-              <p className="px-4 sm:px-5 pb-4 text-sm text-muted-foreground">
-                {t("noWorkersFound")}
-              </p>
-            )}
-            </div>
+
+            <ReportSectionTabs
+              value={reportSection}
+              onChange={setReportSection}
+              labels={{
+                overview: t("reportOverview"),
+                sales: t("reportSalesSection"),
+                finance: t("reportFinanceSection"),
+                inventory: t("reportInventorySection"),
+              }}
+            />
           </div>
         </div>
+
+        {reportSection === "overview" ? (
+          <PlatformOverviewSection
+            stats={platformStats}
+            reportTypeLabel={reportTypeLabel}
+            reportPeriodLabel={reportPeriodLabel}
+          />
+        ) : null}
+
+        {reportSection === "finance" ? (
+          <FinanceReportsSection
+            incomes={financeIncomeRows}
+            payrolls={financePayrollRows}
+            bills={financeBillRows}
+            taxes={financeTaxRows}
+            invoices={financeInvoiceRows}
+            bankDeposits={financeDepositRows}
+            loans={financeLoanRows}
+            reportPeriodLabel={reportPeriodLabel}
+          />
+        ) : null}
+
+        {reportSection === "inventory" ? (
+          <InventoryReportsSection products={inventoryProductRows} reportPeriodLabel={reportPeriodLabel} />
+        ) : null}
+
+        {reportSection === "sales" ? (
+          <SalesRevenueReportsSection
+            reportType={reportType}
+            reportTypeLabel={reportTypeLabel}
+            reportPeriodLabel={reportPeriodLabel}
+            barberPeriod={barberPeriod}
+            onBarberPeriodChange={setBarberPeriod}
+            totalRevenue={totalRevenue}
+            totalProfit={grossProfit}
+            totalExpenses={totalExpenses}
+            netProfit={totalProfit}
+            totalQuantity={totalQuantity}
+            transactionCount={filteredSales.length}
+            bestSelling={bestSelling}
+            revenueMix={revenueMix}
+            gaugeStats={gaugeStats}
+            salesExpensesChartData={salesExpensesChartData}
+            salesExpensesByPeriod={salesExpensesByPeriod}
+            salesExpensesPeriodTotals={salesExpensesPeriodTotals}
+            profitExpensesChartData={profitExpensesChartData}
+            salesByProduct={salesByProduct}
+            workerBreakdown={barberServiceBreakdown}
+            revenueTrendData={revenueTrendData}
+          />
+        ) : null}
       </div>
     </AppLayout>
   );

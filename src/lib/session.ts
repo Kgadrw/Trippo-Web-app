@@ -1,16 +1,17 @@
-import { getSubdomainUrl } from "@/hooks/useSubdomain";
+import { getSubdomainUrl, isBookfySubdomainHost } from "@/hooks/useSubdomain";
 
 const SESSION_KEYS = [
   "profit-pilot-user-id",
   "profit-pilot-user-name",
   "profit-pilot-user-email",
   "profit-pilot-business-name",
+  "profit-pilot-profile-picture-url",
   "profit-pilot-is-admin",
   "profit-pilot-authenticated",
 ] as const;
 
 export function isAppSubdomainHost(hostname: string = window.location.hostname): boolean {
-  return hostname.startsWith("admin.") || hostname.startsWith("dashboard.");
+  return hostname.startsWith("admin.") || isBookfySubdomainHost(hostname);
 }
 
 /** Clear auth session keys on the current origin. */

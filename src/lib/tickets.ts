@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
+import { displayCurrencyCode } from "@/lib/currency";
 
 export type TicketSale = {
   id?: string | number;
@@ -48,7 +49,7 @@ function formatDateTimeShort(input?: string): string {
 
 function formatMoney(amount: number, currency: string) {
   const n = Number(amount || 0);
-  return `${n.toLocaleString()} ${currency}`;
+  return `${n.toLocaleString()} ${displayCurrencyCode(currency)}`;
 }
 
 function canonicalPayment(method?: string): string {

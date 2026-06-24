@@ -324,9 +324,9 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
               yAxisId="left"
               tick={{ fontSize: 12, fill: '#6b7280' }} 
               tickFormatter={(value) => {
-                if (value >= 1000000) return `rwf ${(value / 1000000).toFixed(1)}M`;
-                if (value >= 1000) return `rwf ${(value / 1000).toFixed(0)}k`;
-                return `rwf ${value}`;
+                if (value >= 1000000) return `Rwf ${(value / 1000000).toFixed(1)}M`;
+                if (value >= 1000) return `Rwf ${(value / 1000).toFixed(0)}k`;
+                return `Rwf ${value}`;
               }} 
             />
             <YAxis 
@@ -338,7 +338,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
               formatter={(value: number, name: string) => {
                 if (name === 'quantity') return [value, t("quantity")];
                 return [
-                  `rwf ${value.toLocaleString()}`,
+                  `Rwf ${value.toLocaleString()}`,
                   name === "revenue" ? t("revenue") : t("profit"),
                 ];
               }}
@@ -367,9 +367,9 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
           <BarChart data={analysisData.topProductsBarData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis type="number" tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={(value) => {
-              if (value >= 1000000) return `rwf ${(value / 1000000).toFixed(1)}M`;
-              if (value >= 1000) return `rwf ${(value / 1000).toFixed(0)}k`;
-              return `rwf ${value}`;
+              if (value >= 1000000) return `Rwf ${(value / 1000000).toFixed(1)}M`;
+              if (value >= 1000) return `Rwf ${(value / 1000).toFixed(0)}k`;
+              return `Rwf ${value}`;
             }} />
             <YAxis 
               dataKey="name" 
@@ -379,8 +379,8 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("revenue")];
-                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("profit")];
+                if (name === 'revenue') return [`Rwf ${value.toLocaleString()}`, t("revenue")];
+                if (name === 'profit') return [`Rwf ${value.toLocaleString()}`, t("profit")];
                 return [value, t("quantity")];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
@@ -416,7 +416,7 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [`rwf ${value.toLocaleString()}`, '']}
+                formatter={(value: number) => [`Rwf ${value.toLocaleString()}`, '']}
                 contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
               />
             </PieChart>
@@ -474,15 +474,15 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             <YAxis 
               tick={{ fontSize: 12, fill: '#6b7280' }}
               tickFormatter={(value) => {
-                if (value >= 1000000) return `rwf ${(value / 1000000).toFixed(1)}M`;
-                if (value >= 1000) return `rwf ${(value / 1000).toFixed(0)}k`;
-                return `rwf ${value}`;
+                if (value >= 1000000) return `Rwf ${(value / 1000000).toFixed(1)}M`;
+                if (value >= 1000) return `Rwf ${(value / 1000).toFixed(0)}k`;
+                return `Rwf ${value}`;
               }}
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("revenue")];
-                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("profit")];
+                if (name === 'revenue') return [`Rwf ${value.toLocaleString()}`, t("revenue")];
+                if (name === 'profit') return [`Rwf ${value.toLocaleString()}`, t("profit")];
                 return [value, t("quantity")];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
@@ -510,15 +510,15 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             <YAxis 
               tick={{ fontSize: 12, fill: '#6b7280' }}
               tickFormatter={(value) => {
-                if (value >= 1000000) return `rwf ${(value / 1000000).toFixed(1)}M`;
-                if (value >= 1000) return `rwf ${(value / 1000).toFixed(0)}k`;
-                return `rwf ${value}`;
+                if (value >= 1000000) return `Rwf ${(value / 1000000).toFixed(1)}M`;
+                if (value >= 1000) return `Rwf ${(value / 1000).toFixed(0)}k`;
+                return `Rwf ${value}`;
               }}
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
                 return [
-                  `rwf ${value.toLocaleString()}`,
+                  `Rwf ${value.toLocaleString()}`,
                   name === "revenue" ? t("revenue") : t("profit"),
                 ];
               }}
@@ -559,15 +559,15 @@ export function MarketAnalysis({ sales, products, isLoading }: MarketAnalysisPro
             <YAxis 
               tick={{ fontSize: 12, fill: '#6b7280' }}
               tickFormatter={(value) => {
-                if (value >= 1000000) return `rwf ${(value / 1000000).toFixed(1)}M`;
-                if (value >= 1000) return `rwf ${(value / 1000).toFixed(0)}k`;
-                return `rwf ${value}`;
+                if (value >= 1000000) return `Rwf ${(value / 1000000).toFixed(1)}M`;
+                if (value >= 1000) return `Rwf ${(value / 1000).toFixed(0)}k`;
+                return `Rwf ${value}`;
               }}
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'revenue') return [`rwf ${value.toLocaleString()}`, t("revenue")];
-                if (name === 'profit') return [`rwf ${value.toLocaleString()}`, t("profit")];
+                if (name === 'revenue') return [`Rwf ${value.toLocaleString()}`, t("revenue")];
+                if (name === 'profit') return [`Rwf ${value.toLocaleString()}`, t("profit")];
                 return [value, t("quantity")];
               }}
               contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px' }}

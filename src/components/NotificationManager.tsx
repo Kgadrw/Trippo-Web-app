@@ -14,7 +14,7 @@ export function NotificationManager() {
   const lastUserIdRef = useRef<string | null>(null);
   const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
 
-  // Initialize notification checks (only if permission is granted)
+  // Initialize notification checks (persisted to DB; browser popups are optional)
   useNotifications();
 
   // Clear notifications when user changes
@@ -27,9 +27,9 @@ export function NotificationManager() {
     }
     
     if (!currentUserId && lastUserIdRef.current) {
-      // User logged out
-      console.log('[NotificationManager] User logged out, clearing notifications');
-      notificationStore.clearAll();
+      // User logged out — clear local cache only; keep notifications in the database
+      console.log('[NotificationManager] User logged out, clearing local notification cache');
+      notificationStore.clearForUser(lastUserIdRef.current);
     }
     
     lastUserIdRef.current = currentUserId;

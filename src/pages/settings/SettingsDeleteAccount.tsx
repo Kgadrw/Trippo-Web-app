@@ -22,7 +22,7 @@ import {
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 import { clearAllStores } from '@/lib/indexedDB';
 
-export default function SettingsDeleteAccount() {
+export default function SettingsDeleteAccount({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -45,6 +45,7 @@ export default function SettingsDeleteAccount() {
       localStorage.removeItem("profit-pilot-user-name");
       localStorage.removeItem("profit-pilot-user-email");
       localStorage.removeItem("profit-pilot-business-name");
+      localStorage.removeItem("profit-pilot-profile-picture-url");
       localStorage.removeItem("profit-pilot-is-admin");
       localStorage.removeItem("profit-pilot-authenticated");
       localStorage.removeItem("profit-pilot-pin");
@@ -83,13 +84,15 @@ export default function SettingsDeleteAccount() {
   };
 
   return (
-    <div className="px-4 pb-4 lg:px-6">
-      <SettingsSubpageHeader
-        icon={Trash2}
-        title={t("deleteAccount")}
-        tone="danger"
-        description={t("deleteAccountDesc")}
-      />
+    <div className={embedded ? "pb-4" : "px-4 pb-4 lg:px-6"}>
+      {!embedded ? (
+        <SettingsSubpageHeader
+          icon={Trash2}
+          title={t("deleteAccount")}
+          tone="danger"
+          description={t("deleteAccountDesc")}
+        />
+      ) : null}
 
       <div className="space-y-4 max-w-xl">
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">

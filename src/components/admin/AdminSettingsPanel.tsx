@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Save, Shield, CreditCard, Building2, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { displayCurrencyCode } from "@/lib/currency";
 import { ADMIN_PANEL_CLASS, ADMIN_TITLE_CLASS } from "@/components/admin/adminStyles";
 
 export type PlatformSettings = {
@@ -283,7 +284,7 @@ export function AdminSettingsPanel() {
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="subscription-amount" className="text-xs text-gray-600">
-              Subscription amount ({settings?.currency || "RWF"})
+              Subscription amount ({displayCurrencyCode(settings?.currency)})
             </Label>
             <Input
               id="subscription-amount"
@@ -294,7 +295,7 @@ export function AdminSettingsPanel() {
               onChange={(e) => patchForm({ subscriptionAmount: e.target.value })}
               className="h-10 bg-white"
             />
-            <p className="text-xs text-gray-400">Default is 10,000 RWF per month.</p>
+            <p className="text-xs text-gray-400">Default is 10,000 Rwf per month.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="trial-days" className="text-xs text-gray-600">

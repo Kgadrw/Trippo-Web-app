@@ -155,7 +155,7 @@ export function StockUpdateDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUpdating}>
+          <Button variant="cancel" onClick={() => onOpenChange(false)} disabled={isUpdating}>
             {t("cancel")}
           </Button>
           <Button onClick={() => void handleUpdate()} disabled={isUpdating}>

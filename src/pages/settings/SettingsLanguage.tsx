@@ -11,17 +11,19 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { useTranslation } from "@/hooks/useTranslation";
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 
-export default function SettingsLanguage() {
+export default function SettingsLanguage({ embedded = false }: { embedded?: boolean }) {
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
 
   return (
-    <div className="px-4 pb-4 lg:px-6">
-      <SettingsSubpageHeader
-        icon={Globe}
-        title={t("language")}
-        description={t("languagePageDesc")}
-      />
+    <div className={embedded ? "pb-4" : "px-4 pb-4 lg:px-6"}>
+      {!embedded ? (
+        <SettingsSubpageHeader
+          icon={Globe}
+          title={t("language")}
+          description={t("languagePageDesc")}
+        />
+      ) : null}
 
       <div className="space-y-1.5 max-w-xl">
         <Label className="text-xs font-medium flex items-center gap-1.5">

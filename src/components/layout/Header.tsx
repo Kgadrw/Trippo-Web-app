@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { User, Menu, Mail, Building2, X, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useSettingsModal } from "@/components/settings/settingsModalState";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -22,7 +22,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const { user } = useCurrentUser();
-  const navigate = useNavigate();
+  const { openSettings } = useSettingsModal();
   
   // Check if user is admin
   const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
@@ -116,7 +116,7 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
             </Avatar>
           </button>
           <button
-            onClick={() => navigate("/settings")}
+            onClick={() => openSettings()}
             className="p-1.5 hover:bg-muted rounded-lg transition-colors"
             title="Settings"
           >

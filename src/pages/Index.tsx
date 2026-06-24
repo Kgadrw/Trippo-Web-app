@@ -1,13 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { KPICard } from "@/components/dashboard/KPICard";
-import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
-import { SalesExpenseGauge } from "@/components/dashboard/SalesExpenseGauge";
-import { RecentSalesTable } from "@/components/dashboard/RecentSalesTable";
+import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
-import { RecordSaleModal } from "@/components/mobile/RecordSaleModal";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,48 +21,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Plus, Clock, FileText, UserRound, Wallet, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingUp, FileText, Wallet, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useApi } from "@/hooks/useApi";
 import { playSaleBeep, playErrorBeep } from "@/lib/sound";
-import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useTranslation } from "@/hooks/useTranslation";
-import { formatDateWithTime } from "@/lib/utils";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-
-interface Product {
-  id?: number;
-  _id?: string;
-  name: string;
-  category: string;
-  costPrice: number;
-  sellingPrice: number;
-  stock: number;
-  isPackage?: boolean;
-  packageQuantity?: number;
-  priceType?: "perQuantity" | "perPackage"; // "perQuantity" = price per individual item, "perPackage" = price for whole package
-  costPriceType?: "perQuantity" | "perPackage"; // "perQuantity" = cost price per individual item, "perPackage" = cost price for whole package
-  productType?: string;
-  minStock?: number;
-}
-
-interface Sale {
-  id?: number;
-  _id?: string;
-  product: string;
-  quantity: number;
-  revenue: number;
-  cost: number;
-  profit: number;
-  date: string;
-  timestamp?: string;
-  paymentMethod?: string;
-  saleType?: "product" | "service";
-  serviceName?: string;
-  workerId?: string;
-  workerName?: string;
-}
 
 interface Expense {
   id?: number;
@@ -79,271 +37,82 @@ interface Expense {
   note?: string;
 }
 
-type RevenuePeriod = "today" | "week" | "month" | "year";
-function getSaleTimeMs(sale: Sale): number | null {
-  if (sale.timestamp) {
-    const t = new Date(sale.timestamp).getTime();
-    if (!isNaN(t)) return t;
-  }
-  if (typeof sale.date === "string") {
-    const raw = sale.date.includes("T") ? sale.date : `${sale.date}T12:00:00`;
-    const t = new Date(raw).getTime();
-    if (!isNaN(t)) return t;
-  }
-  if (sale.date != null) {
-    const t = new Date(sale.date as string | number).getTime();
-    if (!isNaN(t)) return t;
-  }
-  return null;
-}
-
-function getExpenseTimeMs(expense: Expense): number | null {
-  if (!expense?.date) return null;
-  const d = expense.date;
-  if (typeof d === "string") {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-      const t = new Date(`${d}T12:00:00`).getTime();
-      return isNaN(t) ? null : t;
-    }
-    const t = new Date(d).getTime();
-    if (!isNaN(t)) return t;
-  }
-  const t = new Date(d as string | number).getTime();
-  return isNaN(t) ? null : t;
-}
-
-function endOfLocalDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
-}
-
-function startOfLocalDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function startOfWeekMonday(d: Date): Date {
-  const x = startOfLocalDay(d);
-  const day = x.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  x.setDate(x.getDate() + diff);
-  return x;
-}
-
-function getPeriodStart(period: RevenuePeriod, now: Date): Date {
-  switch (period) {
-    case "today":
-      return startOfLocalDay(now);
-    case "week":
-      return startOfWeekMonday(now);
-    case "month":
-      return new Date(now.getFullYear(), now.getMonth(), 1);
-    case "year":
-      return new Date(now.getFullYear(), 0, 1);
-  }
-}
-
-function getPreviousPeriodBounds(
-  period: RevenuePeriod,
-  now: Date,
-): { startMs: number; endMs: number } {
-  switch (period) {
-    case "today": {
-      const day = startOfLocalDay(now);
-      day.setDate(day.getDate() - 1);
-      const end = new Date(day);
-      end.setHours(23, 59, 59, 999);
-      return { startMs: day.getTime(), endMs: end.getTime() };
-    }
-    case "week": {
-      const thisWeekStart = startOfWeekMonday(now);
-      const prevWeekEnd = new Date(thisWeekStart.getTime() - 1);
-      prevWeekEnd.setHours(23, 59, 59, 999);
-      const prevWeekStart = startOfWeekMonday(prevWeekEnd);
-      return { startMs: prevWeekStart.getTime(), endMs: prevWeekEnd.getTime() };
-    }
-    case "month": {
-      const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-      return { startMs: prevMonthStart.getTime(), endMs: prevMonthEnd.getTime() };
-    }
-    case "year": {
-      const prevYearStart = new Date(now.getFullYear() - 1, 0, 1);
-      const prevYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
-      return { startMs: prevYearStart.getTime(), endMs: prevYearEnd.getTime() };
-    }
-  }
-}
-
-function computeStatsForRange(
-  sales: Sale[],
-  expenses: Expense[],
-  startMs: number,
-  endMs: number,
-) {
-  const filteredSales = sales.filter((sale) => {
-    const t = getSaleTimeMs(sale);
-    return t !== null && t >= startMs && t <= endMs;
-  });
-  const filteredExpenses = expenses.filter((expense) => {
-    const t = getExpenseTimeMs(expense);
-    return t !== null && t >= startMs && t <= endMs;
-  });
-
-  const totalItems = filteredSales.reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0);
-  const totalRevenue = filteredSales.reduce((sum, sale) => sum + (Number(sale.revenue) || 0), 0);
-  const grossProfit = filteredSales.reduce((sum, sale) => sum + (Number(sale.profit) || 0), 0);
-  const totalExpenses = filteredExpenses.reduce(
-    (sum, expense) => sum + (Number(expense.amount) || 0),
-    0,
-  );
-
-  return {
-    salesCount: filteredSales.length,
-    expensesCount: filteredExpenses.length,
-    totalItems,
-    totalRevenue,
-    totalExpenses,
-    totalProfit: grossProfit - totalExpenses,
-  };
-}
-
-export type KpiTrendDisplay = {
-  value: string;
-  positive: boolean;
-  flat: boolean;
-  hasComparison: boolean;
-  comparisonLabel?: string;
-};
-
-function formatKpiTrend(current: number, previous: number): KpiTrendDisplay {
-  const cur = Number.isFinite(current) ? current : 0;
-  const prev = Number.isFinite(previous) ? previous : 0;
-
-  // No prior-period baseline ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â first use or no historical activity to compare against.
-  if (prev === 0) {
-    return {
-      value: "0%",
-      positive: true,
-      flat: true,
-      hasComparison: false,
-    };
-  }
-
-  // Had prior activity but none in the current period ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a real decline.
-  if (cur === 0) {
-    return {
-      value: "-100%",
-      positive: false,
-      flat: false,
-      hasComparison: true,
-    };
-  }
-
-  const change = ((cur - prev) / Math.abs(prev)) * 100;
-  const rounded = Math.round(change);
-
-  if (rounded === 0) {
-    return {
-      value: "0%",
-      positive: true,
-      flat: true,
-      hasComparison: true,
-    };
-  }
-
-  const sign = rounded > 0 ? "+" : "";
-  return {
-    value: `${sign}${rounded}%`,
-    positive: rounded > 0,
-    flat: false,
-    hasComparison: true,
-  };
-}
-
-function withComparisonLabel(
-  trend: KpiTrendDisplay,
-  comparisonLabel: string,
-): KpiTrendDisplay {
-  return { ...trend, comparisonLabel };
-}
-
-function getComparisonLabel(period: RevenuePeriod, t: (key: string) => string) {
-  switch (period) {
-    case "today":
-      return t("vsYesterday");
-    case "week":
-      return t("vsLastWeek");
-    case "month":
-      return t("vsLastMonth");
-    case "year":
-      return t("vsLastYear");
-  }
-}
-
-function isServiceItem(p: Product) {
-  return (p.category || "").toLowerCase() === "service";
-}
-
 const Dashboard = () => {
-  const { t, language } = useTranslation();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useCurrentUser();
-  const greetingName = useMemo(() => {
-    const n = user?.name?.trim();
-    if (!n) return null;
-    return n.split(" ")[0] || n;
-  }, [user?.name]);
-
-  const [currentDateTime, setCurrentDateTime] = useState(() => new Date());
-  useEffect(() => {
-    const tick = () => setCurrentDateTime(new Date());
-    tick();
-    const id = window.setInterval(tick, 30_000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  const dateTimeLocale = language === "fr" ? "fr-FR" : language === "rw" ? "en-RW" : "en-US";
-  const greetingDate = currentDateTime.toLocaleDateString(dateTimeLocale, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  const greetingTime = currentDateTime.toLocaleTimeString(dateTimeLocale, {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: language !== "fr",
-  });
-  const {
-    items: products,
-    isLoading: productsLoading,
-    refresh: refreshProducts,
-  } = useApi<Product>({
-    endpoint: "products",
-    defaultValue: [],
-    onError: (error) => {
-      // Only log, don't show toast here - let the skeleton handle the loading state
-      console.error("Error loading products:", error);
-    },
-  });
-  const {
-    items: sales,
-    isLoading: salesLoading,
-    refresh: refreshSales,
-  } = useApi<Sale>({
-    endpoint: "sales",
-    defaultValue: [],
-    onError: (error) => {
-      // Only log, don't show toast here - let the skeleton handle the loading state
-      console.error("Error with sales:", error);
-    },
-  });
   const { items: expenses, add: addExpense, refresh: refreshExpenses, isLoading: expensesLoading } = useApi<Expense>({
     endpoint: "expenses",
+    defaultValue: [],
+  });
+  const { items: incomes, refresh: refreshIncomes, isLoading: incomesLoading } = useApi<{
+    title?: string;
+    date: string;
+    amount: number;
+  }>({
+    endpoint: "incomes",
+    defaultValue: [],
+  });
+  const { items: bills, refresh: refreshBills, isLoading: billsLoading } = useApi<{
+    title?: string;
+    dueDate: string;
+    amount: number;
+    status?: string;
+  }>({
+    endpoint: "bills",
+    defaultValue: [],
+  });
+  const { items: payrolls, refresh: refreshPayrolls, isLoading: payrollsLoading } = useApi<{
+    paymentDate: string;
+    amount: number;
+    status?: string;
+  }>({
+    endpoint: "payrolls",
+    defaultValue: [],
+  });
+  const { items: taxes, refresh: refreshTaxes, isLoading: taxesLoading } = useApi<{
+    title?: string;
+    dueDate: string;
+    amount: number;
+    status?: string;
+  }>({
+    endpoint: "taxes",
+    defaultValue: [],
+  });
+  const { items: invoices, refresh: refreshInvoices, isLoading: invoicesLoading } = useApi<{
+    title?: string;
+    dueDate: string;
+    amount: number;
+    status?: string;
+    paidAt?: string;
+  }>({
+    endpoint: "invoices",
+    defaultValue: [],
+  });
+  const { items: sales, refresh: refreshSales, isLoading: salesLoading } = useApi<{
+    date: string;
+    timestamp?: string;
+    revenue: number;
+  }>({
+    endpoint: "sales",
+    defaultValue: [],
+  });
+  const { items: bankDeposits, refresh: refreshBankDeposits, isLoading: bankDepositsLoading } = useApi<{
+    depositDate: string;
+    amount: number;
+  }>({
+    endpoint: "bankDeposits",
+    defaultValue: [],
+  });
+  const { items: loans, refresh: refreshLoans, isLoading: loansLoading } = useApi<{
+    principalAmount: number;
+    startDate: string;
+    remainingBalance?: number;
+    status?: string;
+    nextDueDate?: string;
+    payments?: Array<{ paymentDate: string; amount: number }>;
+  }>({
+    endpoint: "loans",
     defaultValue: [],
   });
   const [expensePresets, setExpensePresets] = useState<Array<{ title: string; amount?: number }>>(() => {
@@ -461,8 +230,8 @@ const Dashboard = () => {
       // ignore
     }
     toast({
-      title: t("saved"),
-      description: t("expensePresetSavedDesc"),
+      title: "Saved",
+      description: "Expense preset saved for quick reuse.",
     });
   };
 
@@ -471,26 +240,82 @@ const Dashboard = () => {
     return window.innerWidth < 1024;
   }, []);
 
-  // Refresh products and sales every time dashboard is opened (only once on mount)
+  // Refresh finance data every time dashboard is opened
   useEffect(() => {
-    console.log('[Dashboard] Page opened, forcing refresh of products and sales data');
-    // Force refresh products and sales to get real data from API (bypass cache)
-    refreshProducts(true);
-    refreshSales(true);
     refreshExpenses(true);
+    refreshIncomes(true);
+    refreshBills(true);
+    refreshPayrolls(true);
+    refreshTaxes(true);
+    refreshInvoices(true);
+    refreshSales(true);
+    refreshBankDeposits(true);
+    refreshLoans(true);
     window.dispatchEvent(new CustomEvent('page-opened'));
-    // Note: useApi hook will handle the actual refresh via the event listener
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount, not when refresh functions change
+  }, []);
 
-  // Keep gauge in sync when expenses change on other pages
+  // Keep chart in sync when finance data changes on other pages
   useEffect(() => {
     const handleExpensesRefresh = () => {
       void refreshExpenses(true);
     };
+    const handleIncomesRefresh = () => {
+      void refreshIncomes(true);
+    };
+    const handleBillsRefresh = () => {
+      void refreshBills(true);
+    };
+    const handlePayrollsRefresh = () => {
+      void refreshPayrolls(true);
+    };
+    const handleTaxesRefresh = () => {
+      void refreshTaxes(true);
+    };
+    const handleInvoicesRefresh = () => {
+      void refreshInvoices(true);
+    };
+    const handleSalesRefresh = () => {
+      void refreshSales(true);
+    };
+    const handleBankDepositsRefresh = () => {
+      void refreshBankDeposits(true);
+    };
+    const handleLoansRefresh = () => {
+      void refreshLoans(true);
+    };
     window.addEventListener("expenses-should-refresh", handleExpensesRefresh);
-    return () => window.removeEventListener("expenses-should-refresh", handleExpensesRefresh);
-  }, [refreshExpenses]);
+    window.addEventListener("incomes-should-refresh", handleIncomesRefresh);
+    window.addEventListener("bills-should-refresh", handleBillsRefresh);
+    window.addEventListener("payrolls-should-refresh", handlePayrollsRefresh);
+    window.addEventListener("taxes-should-refresh", handleTaxesRefresh);
+    window.addEventListener("invoices-should-refresh", handleInvoicesRefresh);
+    window.addEventListener("sales-should-refresh", handleSalesRefresh);
+    window.addEventListener("bank-deposits-should-refresh", handleBankDepositsRefresh);
+    window.addEventListener("loans-should-refresh", handleLoansRefresh);
+    window.addEventListener("finance-should-refresh", () => {
+      void refreshIncomes(true);
+      void refreshExpenses(true);
+      void refreshBills(true);
+      void refreshPayrolls(true);
+      void refreshTaxes(true);
+      void refreshInvoices(true);
+      void refreshSales(true);
+      void refreshBankDeposits(true);
+      void refreshLoans(true);
+    });
+    return () => {
+      window.removeEventListener("expenses-should-refresh", handleExpensesRefresh);
+      window.removeEventListener("incomes-should-refresh", handleIncomesRefresh);
+      window.removeEventListener("bills-should-refresh", handleBillsRefresh);
+      window.removeEventListener("payrolls-should-refresh", handlePayrollsRefresh);
+      window.removeEventListener("taxes-should-refresh", handleTaxesRefresh);
+      window.removeEventListener("invoices-should-refresh", handleInvoicesRefresh);
+      window.removeEventListener("sales-should-refresh", handleSalesRefresh);
+      window.removeEventListener("bank-deposits-should-refresh", handleBankDepositsRefresh);
+      window.removeEventListener("loans-should-refresh", handleLoansRefresh);
+    };
+  }, [refreshExpenses, refreshIncomes, refreshBills, refreshPayrolls, refreshTaxes, refreshInvoices, refreshSales, refreshBankDeposits, refreshLoans]);
   
   // Get today's date in YYYY-MM-DD format (consistent across all devices)
   const getTodayDate = () => {
@@ -507,141 +332,6 @@ const Dashboard = () => {
       setExpenseDate(getTodayDate());
     }
   }, [expenseDate]);
-  
-  // Calculate KPI values from real data - always uses fresh sales data
-  const todayStats = useMemo(() => {
-    const now = new Date();
-    const startMs = startOfLocalDay(now).getTime();
-    return computeStatsForRange(sales, expenses, startMs, now.getTime());
-  }, [sales, expenses]);
-
-  // Today's stats for gauge ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â full local day so dated expenses/sales from DB are included
-  const todayGaugeStats = useMemo(() => {
-    const now = new Date();
-    const startMs = startOfLocalDay(now).getTime();
-    const endMs = endOfLocalDay(now).getTime();
-    return computeStatsForRange(sales, expenses, startMs, endMs);
-  }, [sales, expenses]);
-
-  const yesterdayStats = useMemo(() => {
-    const now = new Date();
-    const { startMs, endMs } = getPreviousPeriodBounds("today", now);
-    return computeStatsForRange(sales, expenses, startMs, endMs);
-  }, [sales, expenses]);
-
-  const [mobileRevenuePeriod, setMobileRevenuePeriod] = useState<RevenuePeriod>("today");
-
-  const mobilePeriodStats = useMemo(() => {
-    const now = new Date();
-    const startMs = getPeriodStart(mobileRevenuePeriod, now).getTime();
-    return computeStatsForRange(sales, expenses, startMs, now.getTime());
-  }, [sales, expenses, mobileRevenuePeriod]);
-
-  const mobilePreviousPeriodStats = useMemo(() => {
-    const now = new Date();
-    const { startMs, endMs } = getPreviousPeriodBounds(mobileRevenuePeriod, now);
-    return computeStatsForRange(sales, expenses, startMs, endMs);
-  }, [sales, expenses, mobileRevenuePeriod]);
-
-  const mobileComparisonLabel = useMemo(
-    () => getComparisonLabel(mobileRevenuePeriod, t),
-    [mobileRevenuePeriod, t],
-  );
-
-  const mobileRevenueProfitLabels = useMemo(() => {
-    switch (mobileRevenuePeriod) {
-      case "today":
-        return { revenue: t("todaysRevenue"), profit: t("todaysProfit") };
-      case "week":
-        return { revenue: t("weekRevenue"), profit: t("weekProfit") };
-      case "month":
-        return { revenue: t("monthRevenue"), profit: t("monthProfit") };
-      case "year":
-        return { revenue: t("yearRevenue"), profit: t("yearProfit") };
-    }
-  }, [mobileRevenuePeriod, t]);
-  
-  const serviceStats = useMemo(() => {
-    const services = products.filter((p) => isServiceItem(p));
-    return { totalServices: services.length };
-  }, [products]);
-
-  const recentActivity = useMemo(() => {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    const startMs = startOfToday.getTime();
-    const endMs = endOfToday.getTime();
-
-    const saleEntries = sales
-      .filter((s) => {
-        const t = getSaleTimeMs(s);
-        if (t === null) return false;
-        return t >= startMs && t <= endMs;
-      })
-      .map((sale) => ({
-        id: `sale-${(sale as any)._id || sale.id || Math.random()}`,
-        type: "sale" as const,
-        title: sale.serviceName || sale.product,
-        subtitle: sale.workerName || "",
-        amount: sale.revenue || 0,
-        date: sale.timestamp || sale.date,
-        meta: sale.paymentMethod || "",
-      }));
-
-    const expenseEntries = expenses
-      .filter((e) => {
-        const t = getExpenseTimeMs(e);
-        if (t === null) return false;
-        return t >= startMs && t <= endMs;
-      })
-      .map((expense) => ({
-        id: `expense-${(expense as any)._id || expense.id || Math.random()}`,
-        type: "expense" as const,
-        title: expense.title,
-        amount: expense.amount || 0,
-        date: expense.date,
-        meta: expense.category || "",
-      }));
-
-    return [...saleEntries, ...expenseEntries]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 20);
-  }, [sales, expenses]);
-
-  // Listen for products updates from other pages (Products page, AddProduct, etc.)
-  useEffect(() => {
-    let debounceTimeout: NodeJS.Timeout | null = null;
-    const DEBOUNCE_DELAY = 300; // Reduced to 300ms for faster updates
-
-    const handleProductUpdate = () => {
-      // Clear any pending debounced refresh
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = null;
-      }
-      
-      // Always force refresh to get real data from API (bypass cache)
-      // Use shorter debounce for better UX - Products should update quickly
-      debounceTimeout = setTimeout(() => {
-        refreshProducts(true); // Force refresh to get fresh data
-        console.log('[Dashboard] Products refreshed after product created/updated');
-      }, DEBOUNCE_DELAY);
-    };
-
-    // Listen for custom event when products are updated
-    window.addEventListener('products-should-refresh', handleProductUpdate);
-
-    return () => {
-      window.removeEventListener('products-should-refresh', handleProductUpdate);
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-      }
-    };
-  }, [refreshProducts]);
-
-  const [saleModalOpen, setSaleModalOpen] = useState(false);
 
   const handleRecordExpense = async () => {
     if (isSavingExpense) return;
@@ -649,8 +339,8 @@ const Dashboard = () => {
     const amount = parseFloat(expenseAmount);
     if (!expenseTitle.trim() || isNaN(amount) || amount <= 0) {
       toast({
-        title: t("missingInformation"),
-        description: t("expenseNameAmountRequired"),
+        title: "Missing information",
+        description: "Please enter an expense name and a valid amount.",
         variant: "destructive",
       });
       return;
@@ -673,8 +363,8 @@ const Dashboard = () => {
       window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
       playSaleBeep();
       toast({
-        title: t("expenseRecorded"),
-        description: t("expenseRecordedDesc"),
+        title: "Expense recorded",
+        description: "Your expense has been saved successfully.",
       });
 
       setExpenseModalOpen(false);
@@ -686,8 +376,8 @@ const Dashboard = () => {
     } catch (error: any) {
       playErrorBeep();
       toast({
-        title: t("saveFailed"),
-        description: error?.message || t("saveExpenseFailed"),
+        title: "Save failed",
+        description: error?.message || "Could not save the expense. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -695,256 +385,43 @@ const Dashboard = () => {
     }
   };
 
-  const isLoading = productsLoading || salesLoading || expensesLoading;
+  const isLoading =
+    expensesLoading ||
+    incomesLoading ||
+    billsLoading ||
+    payrollsLoading ||
+    taxesLoading ||
+    invoicesLoading ||
+    salesLoading ||
+    bankDepositsLoading ||
+    loansLoading;
+  const [dashboardReady, setDashboardReady] = useState(false);
 
-  // KPI Card Skeleton Component
-  const KPICardSkeleton = ({ hideIcon }: { hideIcon?: boolean } = {}) => (
-    <div className="kpi-card">
-      <div className={cn("flex items-start", !hideIcon && "justify-between")}>
-        <div className={cn("space-y-2 flex-1 min-w-0", hideIcon && "w-full")}>
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-full max-w-[10rem]" />
-          <Skeleton className="h-3 w-16" />
-        </div>
-        {!hideIcon && (
-        <div className="ml-4 shrink-0">
-          <Skeleton className="w-12 h-12 rounded" />
-        </div>
-        )}
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    if (!isLoading) setDashboardReady(true);
+  }, [isLoading]);
 
-  // Chart Skeleton Component
-  const ChartSkeleton = () => (
-    <div className="bg-white p-4 sm:p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Skeleton className="w-5 h-5 rounded" />
-        <Skeleton className="h-6 w-48" />
-        </div>
-      <Skeleton className="h-64 w-full rounded" />
-    </div>
-  );
-
-  // Low Stock Alert Skeleton Component
-  const LowStockSkeleton = () => (
-    <div className="kpi-card">
-      <div className="flex items-center gap-2 mb-4">
-        <Skeleton className="w-10 h-10 rounded" />
-        <Skeleton className="h-6 w-32" />
-      </div>
-      <div className="space-y-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex items-center justify-between py-2 px-2">
-            <Skeleton className="h-4 w-32" />
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-6 w-16 rounded" />
-              <Skeleton className="h-7 w-7 rounded-full" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const mobilePeriodToggleClass = cn(
-    "text-[11px] px-1.5 h-9 font-medium rounded-xl border-0",
-    "bg-transparent text-gray-700",
-    "hover:bg-gray-50",
-    "data-[state=on]:bg-gray-100 data-[state=on]:text-gray-900",
-  );
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDashboardReady(true), 5000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   return (
     <AppLayout title={t("dashboard")}>
-      {/* Desktop: greeting + date/time (scrolls with page) */}
-      <div className="hidden lg:flex mb-6 -mt-6 items-center justify-between gap-4 pl-4 lg:pl-5">
-        <p className="min-w-0 text-lg leading-tight">
-          <span className="text-muted-foreground">{t("hello")}</span>{" "}
-          <span className="font-semibold text-foreground pl-1">
-            {greetingName ? greetingName : t("greetingFallback")}
-          </span>
-        </p>
-        <p className="shrink-0 flex items-center justify-end gap-3 text-sm leading-tight tabular-nums text-muted-foreground">
-          <span className="font-semibold text-foreground">{greetingTime}</span>
-          <span>{greetingDate}</span>
-        </p>
+      <div className="mb-6">
+        <DashboardOverview
+          incomes={incomes}
+          expenses={expenses}
+          bills={bills}
+          payrolls={payrolls}
+          taxes={taxes}
+          invoices={invoices}
+          sales={sales}
+          bankDeposits={bankDeposits}
+          loans={loans}
+          loading={!dashboardReady}
+        />
       </div>
-
-      {/* Mobile: KPI grid + period toggle */}
-      <div className="lg:hidden mb-6 space-y-3">
-        {isLoading ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <KPICardSkeleton key={i} />
-            ))}
-          </div>
-        ) : (
-          <>
-            <div className="p-2">
-            <ToggleGroup
-              type="single"
-              value={mobileRevenuePeriod}
-              onValueChange={(v) => v && setMobileRevenuePeriod(v as RevenuePeriod)}
-                className="grid grid-cols-4 gap-1.5 w-full"
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="today" className={mobilePeriodToggleClass}>
-                {t("periodToday")}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="week" className={mobilePeriodToggleClass}>
-                {t("periodWeek")}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="month" className={mobilePeriodToggleClass}>
-                {t("periodMonth")}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="year" className={mobilePeriodToggleClass}>
-                {t("periodYear")}
-              </ToggleGroupItem>
-            </ToggleGroup>
-              </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <KPICard
-                title={t("servicesToday")}
-                value={`${todayStats.totalItems}`}
-                subtitle={t("servicesRecorded")}
-                icon={ShoppingCart}
-                tone="inverted"
-                bgColor="bg-gradient-to-br from-sky-600 to-blue-700 border border-blue-600/30 shadow-sm"
-              />
-              <KPICard
-                title={mobileRevenueProfitLabels.revenue}
-                value={`${mobilePeriodStats.totalRevenue.toLocaleString()} rwf`}
-                icon={DollarSign}
-                tone="inverted"
-                bgColor="bg-gradient-to-br from-indigo-600 to-violet-700 border border-indigo-600/30 shadow-sm"
-              />
-              <KPICard
-                title={mobileRevenueProfitLabels.profit}
-                value={`${mobilePeriodStats.totalProfit.toLocaleString()} rwf`}
-                icon={TrendingUp}
-                tone="inverted"
-                bgColor={
-                  mobilePeriodStats.totalProfit >= 0
-                    ? "bg-gradient-to-br from-emerald-600 to-green-700 border border-emerald-600/30 shadow-sm"
-                    : "bg-gradient-to-br from-rose-600 to-red-700 border border-red-600/30 shadow-sm"
-                }
-              />
-              <KPICard
-                title={t("activeServices")}
-                value={`${serviceStats.totalServices}`}
-                subtitle={t("servicesInSystem")}
-                icon={Package}
-                tone="inverted"
-                bgColor="bg-gradient-to-br from-amber-500 to-orange-600 border border-orange-600/30 shadow-sm"
-              />
-              </div>
-          </>
-        )}
-      </div>
-
-      {/* Desktop: KPI Cards */}
-      <div className="hidden lg:block mb-6">
-        <div className="grid grid-cols-12 gap-4 items-start">
-          {/* Left: KPIs + chart (shared background) */}
-          <div className="col-span-9 p-4 space-y-4">
-        {isLoading ? (
-              <>
-          <div className="grid grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-                    <KPICardSkeleton key={i} hideIcon />
-            ))}
-          </div>
-                <div className="pt-2">
-                  <Skeleton className="h-6 w-48 mb-4" />
-                  <Skeleton className="h-64 w-full" />
-                </div>
-              </>
-        ) : (
-              <>
-          <div className="grid grid-cols-3 gap-4">
-            <KPICard
-              title={t("servicesToday")}
-              value={`${todayStats.totalItems}`}
-              subtitle={t("servicesRecorded")}
-              icon={ShoppingCart}
-                    hideIcon
-              trend={withComparisonLabel(
-                formatKpiTrend(todayStats.totalItems, yesterdayStats.totalItems),
-                t("vsYesterday"),
-              )}
-            />
-            <KPICard
-              title={t("todaysRevenue")}
-              value={`${todayStats.totalRevenue.toLocaleString()} rwf`}
-              icon={DollarSign}
-                    hideIcon
-              valueColor="kpi-value-revenue"
-              trend={withComparisonLabel(
-                formatKpiTrend(todayStats.totalRevenue, yesterdayStats.totalRevenue),
-                t("vsYesterday"),
-              )}
-            />
-            <KPICard
-              title={t("todaysProfit")}
-              value={`${todayStats.totalProfit.toLocaleString()} rwf`}
-              icon={TrendingUp}
-                    hideIcon
-              valueColor={todayStats.totalProfit >= 0 ? "kpi-value-profit" : "kpi-value-loss"}
-              trend={withComparisonLabel(
-                formatKpiTrend(todayStats.totalProfit, yesterdayStats.totalProfit),
-                t("vsYesterday"),
-              )}
-            />
-          </div>
-
-                <div className="pt-2">
-                  <SalesTrendChart sales={sales} expenses={expenses} className="bg-transparent border-0 shadow-none p-0" />
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Right: sales vs expenses speedometer */}
-          <div className="col-span-3 overflow-hidden min-h-[420px]">
-            {isLoading ? (
-              <div className="p-4 space-y-4">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-48 w-full rounded-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-            ) : (
-              <SalesExpenseGauge
-                salesCount={todayGaugeStats.salesCount}
-                salesTotal={todayGaugeStats.totalRevenue}
-                expensesTotal={todayGaugeStats.totalExpenses}
-                className="h-full"
-              />
-            )}
-            </div>
-            </div>
-
-        <div className="mt-8 pl-6 pr-4 lg:pl-8 lg:pr-5">
-          {isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : (
-            <RecentSalesTable
-              activities={recentActivity}
-              loading={isLoading || salesLoading}
-              maxRows={10}
-              className="w-full min-w-0"
-              onRecordSale={() => setSaleModalOpen(true)}
-            />
-          )}
-        </div>
-              </div>
-
 
       {/* Charts and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -954,67 +431,22 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
               <h3 className="text-base font-bold text-gray-900">
-              {t("quickActions")}
+              Quick Actions
               </h3>
             </div>
             <p className="text-xs text-gray-600 mb-4">
-              {t("quickActionsHint")}
+              Record expenses, view reports, and manage finance from here.
             </p>
             
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {/* Services */}
-              <Button
-                onClick={() => navigate("/products")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Package size={18} />
-                <span className="text-xs font-medium">
-                  {t("services")}
-                </span>
-              </Button>
-
-              {/* Record Service */}
-              <Button
-                onClick={() => setSaleModalOpen(true)}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Plus size={18} />
-                <span className="text-xs font-medium">
-                  {t("recordService")}
-                </span>
-              </Button>
-
-              {/* Barbers */}
-              <Button
-                onClick={() => navigate("/barbers")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <UserRound size={18} />
-                <span className="text-xs font-medium">
-                  {t("workers")}
-                </span>
-              </Button>
-
-              {/* View Sales */}
-              <Button
-                onClick={() => navigate("/sales")}
-                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <ShoppingCart size={18} />
-                <span className="text-xs font-medium">
-                  {t("sales")}
-                </span>
-              </Button>
-
-              {/* View Reports */}
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 onClick={() => navigate("/reports")}
                 className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm hover:shadow-md transition-all"
               >
                 <FileText size={18} />
                 <span className="text-xs font-medium">
-                  {t("reports")}
+                  Reports
                 </span>
               </Button>
 
@@ -1024,176 +456,45 @@ const Dashboard = () => {
               >
                 <Wallet size={18} />
                 <span className="text-xs font-medium">
-                  {t("recordExpense")}
+                  Record Expense
                 </span>
               </Button>
 
+              <Button
+                onClick={() => navigate("/products")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Package size={18} />
+                <span className="text-xs font-medium">
+                  Products
+                </span>
+              </Button>
+
+              <Button
+                onClick={() => navigate("/finance/expenditure")}
+                className="h-16 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Wallet size={18} />
+                <span className="text-xs font-medium">
+                  Expenditure
+                </span>
+              </Button>
             </div>
           </div>
         </div>
-        
-        {/* Salon-first mode: inventory low-stock panel hidden */}
-      </div>
-
-      {/* Recent Sales Table */}
-      <div className="mb-6 lg:hidden">
-        <div className="bg-white overflow-hidden">
-          <div className="p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-bold text-gray-900">
-                {t("latestActivity")}
-              </h3>
-            </div>
-          </div>
-          
-          {isLoading || salesLoading ? (
-            <div className="p-4">
-              <Skeleton className="h-12 w-full mb-2" />
-              <Skeleton className="h-12 w-full mb-2" />
-              <Skeleton className="h-12 w-full mb-2" />
-            </div>
-          ) : recentActivity.length > 0 ? (
-            <>
-              {/* Desktop Table View */}
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
-                        {t("typeLabel")}
-                      </th>
-                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
-                        {t("details")}
-                      </th>
-                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
-                        {t("amountRwf")}
-                      </th>
-                      <th className="text-left text-sm font-bold text-gray-700 py-4 px-6">
-                        {t("date")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {recentActivity.slice(0, 7).map((entry, index) => (
-                      <tr 
-                        key={entry.id || index}
-                        className={cn(
-                          index % 2 === 0 ? "bg-white" : "bg-white"
-                        )}
-                      >
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={cn(
-                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                                entry.type === "sale" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600",
-                              )}
-                            >
-                              {entry.type === "sale" ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
-                            </div>
-                            <span className={cn("text-sm font-semibold", entry.type === "sale" ? "text-emerald-700" : "text-red-700")}>
-                              {entry.type === "sale" ? t("activitySaleLabel") : t("activityExpenseLabel")}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="text-sm text-gray-900">{entry.title}</div>
-                          {entry.meta && (
-                            <div className="text-xs text-gray-500 mt-1">{entry.meta}</div>
-                          )}
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="text-sm font-semibold text-gray-900">
-                            {entry.type === "sale" ? "+" : "-"}{Number(entry.amount).toLocaleString()}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="text-sm text-gray-700">
-                            {formatDateWithTime(entry.date)}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile activity list: sales + expenses (row-style, like native apps) */}
-              <div className="lg:hidden">
-                <div>
-                  {recentActivity.slice(0, 7).map((entry, index) => {
-                    const isSale = entry.type === "sale";
-                    const label = isSale ? t("activitySaleLabel") : t("activityExpenseLabel");
-                    return (
-                      <button
-                        key={entry.id || index}
-                        type="button"
-                        className="w-full text-left px-4 py-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
-                      >
-                        <div className={cn(
-                          "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
-                          isSale ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600",
-                        )}>
-                          {isSale ? (
-                            <ArrowUp size={18} />
-                          ) : (
-                            <ArrowDown size={18} />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-foreground truncate">{entry.title}</span>
-                            </div>
-                          <div className="mt-0.5 text-xs text-muted-foreground truncate">
-                            {label} {formatDateWithTime(entry.date)}
-                            {entry.meta ? ` ${entry.meta}` : ""}
-                          </div>
-                        </div>
-                        <div className="text-sm font-semibold tabular-nums whitespace-nowrap text-gray-900">
-                          {isSale ? "+" : "-"}
-                          {Number(entry.amount).toLocaleString()} rwf
-                            </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="p-12 text-center">
-              <div className="flex flex-col items-center justify-center text-gray-400">
-                <ShoppingCart size={48} className="mb-4 opacity-50" />
-                <p className="text-base font-medium">
-                  {t("noRecentActivity")}
-                </p>
-                <p className="text-sm mt-1">
-                  {t("activityEmptyHint")}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-        {recentActivity.length > 7 && (
-          <div className="pt-3 lg:hidden">
-            <Button variant="outline" className="w-full" onClick={() => navigate("/sales")}>
-              {t("viewMoreInSales")}
-            </Button>
-          </div>
-        )}
       </div>
 
       <AddToHomeScreen />
 
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[560px] max-h-[min(70vh,100dvh-2rem)] sm:max-h-[85vh] overflow-y-auto overflow-x-hidden p-0 bg-white border-gray-200 rounded-xl sm:rounded-2xl shadow-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[560px] max-h-[min(70vh,100dvh-2rem)] sm:max-h-[85vh] overflow-y-auto overflow-x-hidden p-0 bg-white border-gray-200 shadow-xl">
           <div className="p-3 sm:p-4 min-w-0 max-w-full overflow-x-hidden">
           <DialogHeader className="pb-2 sm:pb-0">
-            <DialogTitle className="text-base sm:text-lg font-semibold">{t("recordExpense")}</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg font-semibold">Record Expense</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 sm:space-y-3 min-w-0">
             <div className="space-y-1 min-w-0">
-              <Label className="text-[11px] sm:text-xs">{t("expenseTitle")}</Label>
+              <Label className="text-[11px] sm:text-xs">Expense title</Label>
               <Input
                 value={expenseTitle}
                 onChange={(e) => {
@@ -1204,7 +505,7 @@ const Dashboard = () => {
                     setExpenseAmount(String(suggested));
                   }
                 }}
-                placeholder={t("expenseExamplePlaceholder")}
+                placeholder="e.g. Office supplies"
                 className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
               />
 
@@ -1214,7 +515,7 @@ const Dashboard = () => {
                   {expenseSuggestions.presetTitles.length > 0 && (
                     <div className="min-w-0">
                       <div className="text-[11px] font-semibold text-gray-600">
-                        {t("presets")}
+                        Presets
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {expenseSuggestions.presetTitles.map((title) => (
@@ -1236,7 +537,7 @@ const Dashboard = () => {
                   {expenseSuggestions.recent.length > 0 && (
                     <div className="min-w-0">
                       <div className="text-[11px] font-semibold text-gray-600">
-                        {t("recentExpenses")}
+                        Recent expenses
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {expenseSuggestions.recent.map((title) => (
@@ -1264,14 +565,14 @@ const Dashboard = () => {
                       onClick={saveExpensePreset}
                       disabled={!expenseTitle.trim()}
                     >
-                      {t("savePreset")}
+                      Save preset
                     </Button>
                   </div>
                 </div>
               )}
             </div>
             <div className="space-y-1 min-w-0">
-              <Label className="text-[11px] sm:text-xs">{t("amount")} (rwf)</Label>
+              <Label className="text-[11px] sm:text-xs">Amount (Rwf)</Label>
               <Input
                 type="number"
                 min="0"
@@ -1284,16 +585,16 @@ const Dashboard = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 min-w-0">
               <div className="space-y-1 min-w-0">
-                <Label className="text-[11px] sm:text-xs">{t("category")}</Label>
+                <Label className="text-[11px] sm:text-xs">Category</Label>
                 <Input
                   value={expenseCategory}
                   onChange={(e) => setExpenseCategory(e.target.value)}
-                  placeholder={t("expenseCategoryPlaceholder")}
+                  placeholder="e.g. general, transport"
                   className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
                 />
               </div>
               <div className="space-y-1 min-w-0">
-                <Label className="text-[11px] sm:text-xs">{t("date")}</Label>
+                <Label className="text-[11px] sm:text-xs">Date</Label>
                 <Input
                   type="date"
                   value={expenseDate}
@@ -1303,37 +604,31 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="space-y-1 min-w-0">
-              <Label className="text-[11px] sm:text-xs">{t("noteOptional")}</Label>
+              <Label className="text-[11px] sm:text-xs">Note (optional)</Label>
               <Textarea
                 value={expenseNote}
                 onChange={(e) => setExpenseNote(e.target.value)}
-                placeholder={t("expenseNotePlaceholder")}
+                placeholder="Add any extra details"
                 rows={isMobile ? 2 : 3}
                 className="text-sm sm:text-base min-h-[4.5rem] sm:min-h-0 w-full min-w-0 resize-none"
               />
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button variant="outline" onClick={() => setExpenseModalOpen(false)} className="h-9 sm:h-10 text-sm">
-              {t("cancel")}
+            <Button variant="cancel" onClick={() => setExpenseModalOpen(false)} className="h-9 sm:h-10 text-sm">
+              Cancel
             </Button>
             <Button
               onClick={handleRecordExpense}
-              className="h-9 sm:h-10 text-sm bg-primary text-white hover:bg-blue-700 hover:text-white"
+              className="h-9 sm:h-10 text-sm"
               disabled={isSavingExpense}
             >
-              {isSavingExpense ? t("saving") : t("saveExpense")}
+              {isSavingExpense ? "Saving..." : "Save expense"}
             </Button>
           </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
-      
-      {/* Record Sale Modal */}
-      <RecordSaleModal 
-        open={saleModalOpen} 
-        onOpenChange={setSaleModalOpen}
-      />
     </AppLayout>
   );
 };

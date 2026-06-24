@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 
@@ -48,12 +48,28 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 
-import { Trash2, Plus, Loader2, MoreVertical, Pencil, Search, ArrowUpDown, X, Receipt } from "lucide-react";
+import { Trash2, Plus, Loader2, MoreVertical, Pencil, Search, ArrowUpDown, ArrowDown, X, Receipt, FileText, Paperclip } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { cn, formatDateWithTime } from "@/lib/utils";
 import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
+import { usePageSearch } from "@/hooks/usePageSearch";
+import { ReceiptUploadField } from "@/components/finance/ReceiptUploadField";
+import { PaymentDetailsFields, buildFinancePaymentPayload } from "@/components/finance/PaymentDetailsFields";
+import { uploadReceipt, openReceiptInNewTab } from "@/lib/financeUpload";
+import {
+  FINANCE_TH_CLASS,
+  FINANCE_TD_CLASS,
+  formatFinanceTableDate,
+  formatPaymentMode,
+  FinanceDocumentRefCell,
+  FinanceTableCheckbox,
+  FinanceTableLoading,
+  FinanceTableShell,
+} from "@/components/finance/financeTable";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
 function expenseId(e: Expense): string {
   return String(e._id ?? e.id ?? "");
@@ -76,7 +92,12 @@ interface Expense {
   date: string;
 
   note?: string;
-
+  paymentMethod?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  accountId?: string;
+  receiptUrl?: string;
+  receiptFileName?: string;
 }
 
 type ExpenseSort = "default" | "date-desc" | "date-asc" | "title-asc" | "title-desc" | "amount-desc" | "amount-asc";
@@ -138,7 +159,7 @@ function compareExpenses(a: Expense, b: Expense, sort: ExpenseSort): number {
 
 
 
-export default function Expenses() {
+export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -151,32 +172,6 @@ export default function Expenses() {
 
   });
 
-
-
-  const lastVisibilityRefreshRef = useRef(0);
-  const VISIBILITY_REFRESH_MS = 30_000;
-
-  useEffect(() => {
-    const handleExpensesRefresh = () => {
-      void refresh(true);
-    };
-    const handleVisibility = () => {
-      if (document.visibilityState !== "visible") return;
-      const now = Date.now();
-      if (now - lastVisibilityRefreshRef.current < VISIBILITY_REFRESH_MS) return;
-      lastVisibilityRefreshRef.current = now;
-      void refresh(true);
-    };
-    window.addEventListener("expenses-should-refresh", handleExpensesRefresh);
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      window.removeEventListener("expenses-should-refresh", handleExpensesRefresh);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [refresh]);
-
-
-
   const [title, setTitle] = useState("");
 
   const [amount, setAmount] = useState("");
@@ -186,10 +181,28 @@ export default function Expenses() {
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   const [note, setNote] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | undefined>();
+  const [existingReceiptName, setExistingReceiptName] = useState<string | undefined>();
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const {
+    target: deleteTarget,
+    open: deleteOpen,
+    isDeleting: isDeleteDeleting,
+    setIsDeleting: setIsDeleteDeleting,
+    requestDelete,
+    takeTarget,
+    handleOpenChange: handleDeleteOpenChange,
+  } = useDeleteConfirm<Expense>();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [query, setQuery] = useState("");
+  const { query, setQuery } = usePageSearch();
 
   const [sortBy, setSortBy] = useState<ExpenseSort>("date-desc");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -276,7 +289,40 @@ export default function Expenses() {
 
   }, [expenses, query, sortBy, categoryFilter, dateFilter]);
 
+  const sortedExpensesEmbedded = useMemo(() => {
+    const list = [...expenses];
+    list.sort((a, b) => compareExpenses(a, b, "date-desc"));
+    return list;
+  }, [expenses]);
 
+  const allEmbeddedSelected =
+    sortedExpensesEmbedded.length > 0 &&
+    sortedExpensesEmbedded.every((e) => selectedIds.has(expenseId(e)));
+
+  const toggleEmbeddedSelectAll = () => {
+    if (allEmbeddedSelected) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(sortedExpensesEmbedded.map((e) => expenseId(e))));
+  };
+
+  const toggleEmbeddedSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleEmbeddedRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const sortOptionLabels: Record<ExpenseSort, string> = {
 
@@ -308,7 +354,13 @@ export default function Expenses() {
     setDate(new Date().toISOString().split("T")[0]);
 
     setNote("");
-
+    setPaymentMethod("cash");
+    setBankAccountName("");
+    setBankAccountNumber("");
+    setAccountId("");
+    setReceiptFile(null);
+    setExistingReceiptUrl(undefined);
+    setExistingReceiptName(undefined);
     setEditing(null);
 
     setAddMode("single");
@@ -342,6 +394,13 @@ export default function Expenses() {
     setDate(String(expense.date || "").slice(0, 10) || new Date().toISOString().split("T")[0]);
 
     setNote(expense.note || "");
+    setPaymentMethod(expense.paymentMethod || "cash");
+    setBankAccountName(expense.bankAccountName || "");
+    setBankAccountNumber(expense.bankAccountNumber || "");
+    setAccountId(expense.accountId || "");
+    setReceiptFile(null);
+    setExistingReceiptUrl(expense.receiptUrl);
+    setExistingReceiptName(expense.receiptFileName);
 
     setOpen(true);
 
@@ -406,26 +465,28 @@ export default function Expenses() {
     expenseDate: string,
 
     expenseNote?: string,
-
     base: Partial<Expense> = {},
-
+    extras: Partial<Expense> = {},
   ): Expense =>
-
     ({
-
       ...base,
-
+      ...extras,
       title: expenseTitle.trim(),
-
       amount: expenseAmount,
-
       category: expenseCategory.trim() || "general",
-
       date: buildExpenseDate(expenseDate),
-
       note: expenseNote?.trim() || undefined,
-
     }) as Expense;
+
+  const resolveReceipt = async () => {
+    if (receiptFile) {
+      return await uploadReceipt(receiptFile);
+    }
+    if (existingReceiptUrl) {
+      return { receiptUrl: existingReceiptUrl, receiptFileName: existingReceiptName || "" };
+    }
+    return { receiptUrl: undefined, receiptFileName: undefined };
+  };
 
 
 
@@ -454,10 +515,15 @@ export default function Expenses() {
       setIsSaving(true);
 
       try {
-
-        await update(buildExpensePayload(title, parsedAmount, category, date, note, editing));
-
-        await refresh(true);
+        const receipt = await resolveReceipt();
+        const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId);
+        await update(
+          buildExpensePayload(title, parsedAmount, category, date, note, editing, {
+            ...payment,
+            receiptUrl: receipt.receiptUrl,
+            receiptFileName: receipt.receiptFileName || undefined,
+          }),
+        );
 
         toast({ title: t("expenseRecorded"), description: t("changesSaved") });
 
@@ -465,7 +531,7 @@ export default function Expenses() {
 
         setOpen(false);
 
-        window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+        window.dispatchEvent(new CustomEvent("finance-should-refresh"));
 
       } catch (error: unknown) {
 
@@ -487,6 +553,7 @@ export default function Expenses() {
 
     if (addMode === "bulk") {
 
+      const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId);
       const expensesToAdd = bulkRows
 
         .map((row) => {
@@ -495,7 +562,7 @@ export default function Expenses() {
 
           if (!row.title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) return null;
 
-          return buildExpensePayload(row.title, parsedAmount, row.category, row.date, row.note);
+          return buildExpensePayload(row.title, parsedAmount, row.category, row.date, row.note, {}, payment);
 
         })
 
@@ -531,8 +598,6 @@ export default function Expenses() {
 
         }
 
-        await refresh(true);
-
         toast({
 
           title: t("expenseRecorded"),
@@ -545,7 +610,7 @@ export default function Expenses() {
 
         setOpen(false);
 
-        window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+        window.dispatchEvent(new CustomEvent("finance-should-refresh"));
 
       } catch (error: unknown) {
 
@@ -588,10 +653,15 @@ export default function Expenses() {
     setIsSaving(true);
 
     try {
-
-      await add(buildExpensePayload(title, parsedAmount, category, date, note));
-
-      await refresh(true);
+      const receipt = await resolveReceipt();
+      const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId);
+      await add(
+        buildExpensePayload(title, parsedAmount, category, date, note, {}, {
+          ...payment,
+          receiptUrl: receipt.receiptUrl,
+          receiptFileName: receipt.receiptFileName || undefined,
+        }),
+      );
 
       resetExpenseForm();
 
@@ -599,7 +669,7 @@ export default function Expenses() {
 
       toast({ title: t("expenseRecorded"), description: t("expenseRecordedDesc") });
 
-      window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+      window.dispatchEvent(new CustomEvent("finance-should-refresh"));
 
     } catch (error: unknown) {
 
@@ -617,27 +687,24 @@ export default function Expenses() {
 
 
 
-  const handleDelete = async (expense: Expense): Promise<boolean> => {
+  const handleDeleteConfirm = async () => {
+    const item = takeTarget();
+    if (!item) return;
 
-    if (!window.confirm(`Delete expense "${expense.title}"?`)) return false;
+    const id = String((item as { _id?: string; id?: number })._id ?? item.id ?? "");
 
-    const id = String((expense as { _id?: string; id?: number })._id ?? expense.id ?? "");
+    if (!id) return;
 
-    if (!id) return false;
-
+    setIsDeleteDeleting(true);
     setDeletingId(id);
 
     try {
 
-      await remove(expense as any);
-
-      await refresh(true);
+      await remove(item as any);
 
       toast({ title: t("deleted"), description: t("expenseRemovedDesc") });
 
-      window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
-      return true;
-
+      window.dispatchEvent(new CustomEvent("finance-should-refresh"));
     } catch (error: any) {
 
       toast({
@@ -649,11 +716,11 @@ export default function Expenses() {
         variant: "destructive",
 
       });
-      return false;
 
     } finally {
 
       setDeletingId(null);
+      setIsDeleteDeleting(false);
 
     }
 
@@ -669,7 +736,7 @@ export default function Expenses() {
   const filterControls = (
     <div className="space-y-3">
       <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-        <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+        <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
           <SelectValue placeholder={t("category")} />
         </SelectTrigger>
         <SelectContent>
@@ -682,7 +749,7 @@ export default function Expenses() {
         </SelectContent>
       </Select>
       <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as ExpenseDateFilter)}>
-        <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+        <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
           <SelectValue placeholder={t("date")} />
         </SelectTrigger>
         <SelectContent>
@@ -693,7 +760,7 @@ export default function Expenses() {
         </SelectContent>
       </Select>
       <Select value={sortBy} onValueChange={(v) => setSortBy(v as ExpenseSort)}>
-        <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+        <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
           <div className="flex items-center gap-2">
             <ArrowUpDown size={14} className="text-gray-400" />
             <SelectValue placeholder={t("sortBy")} />
@@ -715,7 +782,7 @@ export default function Expenses() {
             setCategoryFilter("all");
             setDateFilter("all");
           }}
-          className="h-10 rounded-lg w-full"
+          className="h-10 rounded-none w-full"
         >
           <X size={14} className="mr-1.5" />
           {t("clearFilters")}
@@ -726,7 +793,7 @@ export default function Expenses() {
 
   const addExpenseButton = (
     <Button
-      className="bg-primary text-white hover:bg-blue-700 hover:text-white gap-2 shrink-0 rounded-lg h-10 px-3"
+      className="gap-2 shrink-0 rounded-none h-10 px-3"
       onClick={openCreate}
     >
       <Plus size={18} />
@@ -747,18 +814,8 @@ export default function Expenses() {
         searchName="search-expenses"
       />
       <div className="hidden lg:flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`${t("search")} ${expensesTitle.toLowerCase()}...`}
-            className={searchBarInputClass}
-            autoComplete="off"
-          />
-        </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className={cn("w-[160px] h-10 rounded-lg shrink-0", filterSelectClass)}>
+          <SelectTrigger className={cn("w-[160px] h-10 rounded-none shrink-0", filterSelectClass)}>
             <SelectValue placeholder={t("category")} />
           </SelectTrigger>
           <SelectContent>
@@ -771,7 +828,7 @@ export default function Expenses() {
           </SelectContent>
         </Select>
         <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as ExpenseDateFilter)}>
-          <SelectTrigger className={cn("w-[170px] h-10 rounded-lg shrink-0", filterSelectClass)}>
+          <SelectTrigger className={cn("w-[170px] h-10 rounded-none shrink-0", filterSelectClass)}>
             <SelectValue placeholder={t("date")} />
           </SelectTrigger>
           <SelectContent>
@@ -782,7 +839,7 @@ export default function Expenses() {
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={(v) => setSortBy(v as ExpenseSort)}>
-          <SelectTrigger className={cn("w-[200px] h-10 rounded-lg shrink-0", filterSelectClass)}>
+          <SelectTrigger className={cn("w-[200px] h-10 rounded-none shrink-0", filterSelectClass)}>
             <div className="flex items-center gap-2">
               <ArrowUpDown size={14} className="text-gray-400" />
               <SelectValue placeholder={t("sortBy")} />
@@ -804,14 +861,14 @@ export default function Expenses() {
               setCategoryFilter("all");
               setDateFilter("all");
             }}
-            className="h-10 rounded-lg shrink-0"
+            className="h-10 rounded-none shrink-0"
           >
             <X size={14} className="mr-1.5" />
             {t("clearFilters")}
           </Button>
         )}
         <Button
-          className="bg-primary text-white hover:bg-blue-700 hover:text-white gap-2 shrink-0 rounded-lg h-10"
+          className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white gap-2 shrink-0 rounded-none h-10"
           onClick={openCreate}
         >
           <Plus size={16} />
@@ -836,6 +893,7 @@ export default function Expenses() {
             <th className={thClass}>{amountLabel}</th>
             <th className={thClass}>{dateLabel}</th>
             <th className={cn(thClass, compact ? "" : "hidden xl:table-cell")}>{noteLabel}</th>
+            <th className={cn(thClass, "hidden lg:table-cell")}>{t("receipt")}</th>
             <th className={cn(thClass, "text-right")}>{actionsLabel}</th>
           </tr>
         </thead>
@@ -865,8 +923,9 @@ export default function Expenses() {
                       </div>
                     </td>
                     <td className={tdClass}>
-                      <div className={cn("text-red-600 tabular-nums font-semibold", compact ? "text-xs" : "text-sm")}>
-                        {Number(expense.amount).toLocaleString()} rwf
+                      <div className={cn("inline-flex items-center gap-1 text-rose-600 tabular-nums font-semibold", compact ? "text-xs" : "text-sm")}>
+                        <ArrowDown size={14} className="shrink-0" aria-hidden />
+                        {Number(expense.amount).toLocaleString()} Rwf
                       </div>
                     </td>
                     <td className={tdClass}>
@@ -878,6 +937,20 @@ export default function Expenses() {
                       <div className={cn("text-gray-500 truncate max-w-[200px]", compact ? "text-xs" : "text-sm")}>
                         {expense.note || "—"}
                       </div>
+                    </td>
+                    <td className={cn(tdClass, "hidden lg:table-cell")}>
+                      {expense.receiptUrl ? (
+                        <button
+                          type="button"
+                          className="text-xs text-primary flex items-center gap-1 hover:underline"
+                          onClick={() => void openReceiptInNewTab(expense.receiptUrl!).catch(() => undefined)}
+                        >
+                          <FileText size={14} />
+                          {expense.receiptFileName || t("viewReceipt")}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
                     </td>
                     <td className={cn(tdClass, "text-right")}>
                       <DropdownMenu>
@@ -896,7 +969,7 @@ export default function Expenses() {
                             {t("edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => void handleDelete(expense)}
+                            onClick={() => requestDelete(expense)}
                             disabled={isDeletingThis}
                             className="text-red-600 focus:text-red-600 focus:bg-red-50"
                           >
@@ -910,11 +983,14 @@ export default function Expenses() {
                 );
               })}
               <tr className="border-t border-gray-200 bg-blue-50/70">
-                <td colSpan={2} className={cn(tdClass, "text-sm font-semibold text-gray-800")}>
+                <td colSpan={3} className={cn(tdClass, "text-sm font-semibold text-gray-800")}>
                   {t("total")}
                 </td>
-                <td className={cn(tdClass, "text-sm font-semibold text-red-600 tabular-nums")}>
-                  {total.toLocaleString()} rwf
+                <td className={cn(tdClass, "text-sm font-semibold text-rose-600 tabular-nums")}>
+                  <span className="inline-flex items-center gap-1">
+                    <ArrowDown size={14} className="shrink-0" aria-hidden />
+                    {total.toLocaleString()} Rwf
+                  </span>
                 </td>
                 <td colSpan={compact ? 2 : 3} />
               </tr>
@@ -934,10 +1010,135 @@ export default function Expenses() {
     );
   };
 
-  if (isLoading) {
+  const renderEmbeddedExpensesTable = () => {
+    if (isLoading) {
+      return <FinanceTableLoading />;
+    }
+
     return (
-      <AppLayout title={expensesTitle}>
-        <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] border-collapse">
+          <thead>
+            <tr>
+              <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
+                <FinanceTableCheckbox
+                  checked={allEmbeddedSelected}
+                  onCheckedChange={toggleEmbeddedSelectAll}
+                  ariaLabel="Select all"
+                />
+              </th>
+              <th className={FINANCE_TH_CLASS}>{t("date")}</th>
+              <th className={FINANCE_TH_CLASS}>{t("category")}</th>
+              <th className={FINANCE_TH_CLASS}>{`${t("expenditure")} #`}</th>
+              <th className={FINANCE_TH_CLASS}>{titleLabel}</th>
+              <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>{t("paymentMethod")}</th>
+              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("amount")}</th>
+              <th className={cn(FINANCE_TH_CLASS, "w-10 pr-4")} />
+            </tr>
+          </thead>
+          <tbody className="bg-white">
+            {sortedExpensesEmbedded.map((expense, index) => {
+              const id = expenseId(expense);
+              const isSelected = selectedIds.has(id);
+              const isDeletingThis = deletingId !== null && id === deletingId;
+
+              return (
+                <tr
+                  key={id || expense.title}
+                  className={cn(
+                    "transition-colors hover:bg-gray-50/80",
+                    isSelected && "bg-blue-50/40",
+                  )}
+                >
+                  <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
+                    <FinanceTableCheckbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleEmbeddedSelectRow(id)}
+                      ariaLabel={`Select ${expense.title}`}
+                    />
+                  </td>
+                  <td className={cn(FINANCE_TD_CLASS, "text-gray-700 tabular-nums")}>
+                    {formatFinanceTableDate(expense.date)}
+                  </td>
+                  <td className={cn(FINANCE_TD_CLASS, "text-gray-600")}>
+                    {expense.category || "general"}
+                  </td>
+                  <td className={FINANCE_TD_CLASS}>
+                    <FinanceDocumentRefCell
+                      entry={expense}
+                      fallbackPrefix="expense"
+                      id={id}
+                      index={index}
+                      readOnly
+                    />
+                  </td>
+                  <td className={cn(FINANCE_TD_CLASS, "font-semibold text-gray-900 max-w-[180px] truncate")}>
+                    {expense.title}
+                  </td>
+                  <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>
+                    {formatPaymentMode(expense.paymentMethod, t)}
+                  </td>
+                  <td className={cn(FINANCE_TD_CLASS, "text-right font-medium tabular-nums text-rose-600")}>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      <ArrowDown size={14} className="shrink-0" aria-hidden />
+                      {Number(expense.amount).toLocaleString()} Rwf
+                    </span>
+                  </td>
+                  <td className={cn(FINANCE_TD_CLASS, "pr-4 text-right")}>
+                    <div className="flex items-center justify-end gap-1">
+                      {expense.receiptUrl ? (
+                        <button
+                          type="button"
+                          className="p-1 text-gray-400 hover:text-gray-600"
+                          onClick={() => void openReceiptInNewTab(expense.receiptUrl!).catch(() => undefined)}
+                          aria-label={t("viewReceipt")}
+                        >
+                          <Paperclip size={15} />
+                        </button>
+                      ) : null}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-gray-400 hover:text-gray-700"
+                            disabled={isDeletingThis}
+                          >
+                            {isDeletingThis ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(expense)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => requestDelete(expense)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("delete")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  if (isLoading) {
+    const loadingBody = (
+      <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
           <div className="lg:bg-white lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
             <div className="lg:bg-white lg:border-b lg:border-gray-200 lg:px-4 lg:py-4 flex-shrink-0">
               {filterBar}
@@ -968,14 +1169,38 @@ export default function Expenses() {
             </div>
           </div>
         </div>
-      </AppLayout>
     );
+    if (embedded) {
+      return (
+        <>
+          <FinanceTableShell
+            title={t("expenditure")}
+            onAdd={openCreate}
+            addLabel={t("add")}
+            onRefresh={() => void handleEmbeddedRefresh()}
+            isRefreshing={isRefreshing}
+          >
+            <FinanceTableLoading />
+          </FinanceTableShell>
+        </>
+      );
+    }
+    return <AppLayout title={expensesTitle}>{loadingBody}</AppLayout>;
   }
 
-  return (
-
-    <AppLayout title={expensesTitle}>
-
+  const pageBody = (
+    <>
+      {embedded ? (
+        <FinanceTableShell
+          title={t("expenditure")}
+          onAdd={openCreate}
+          addLabel={t("add")}
+          onRefresh={() => void handleEmbeddedRefresh()}
+          isRefreshing={isRefreshing}
+        >
+          {renderEmbeddedExpensesTable()}
+        </FinanceTableShell>
+      ) : (
       <div className="flex flex-col min-h-0 pb-4 lg:pb-4">
 
       <div className="lg:bg-white lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden rounded-lg">
@@ -993,6 +1218,7 @@ export default function Expenses() {
           </div>
       </div>
       </div>
+      )}
 
       <Dialog
         open={open}
@@ -1020,7 +1246,7 @@ export default function Expenses() {
                 type="button"
                 variant={addMode === "single" ? "default" : "outline"}
                 onClick={() => setAddMode("single")}
-                className={cn(addMode === "single" && "bg-primary text-white hover:bg-blue-700 hover:text-white")}
+                className={cn(addMode === "single" && "bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white")}
                 disabled={isSaving}
               >
                 {t("saveExpense")}
@@ -1029,7 +1255,7 @@ export default function Expenses() {
                 type="button"
                 variant={addMode === "bulk" ? "default" : "outline"}
                 onClick={() => setAddMode("bulk")}
-                className={cn(addMode === "bulk" && "bg-primary text-white hover:bg-blue-700 hover:text-white")}
+                className={cn(addMode === "bulk" && "bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white")}
                 disabled={isSaving}
               >
                 {t("bulkAdd")}
@@ -1052,7 +1278,7 @@ export default function Expenses() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[11px] sm:text-xs">{t("amount")} (rwf)</Label>
+                    <Label className="text-[11px] sm:text-xs">{t("amount")} (Rwf)</Label>
                     <Input
                       type="number"
                       min="0"
@@ -1096,9 +1322,44 @@ export default function Expenses() {
                     />
                   </div>
                 </div>
+                <PaymentDetailsFields
+                  paymentMethod={paymentMethod}
+                  onPaymentMethodChange={setPaymentMethod}
+                  bankAccountName={bankAccountName}
+                  onBankAccountNameChange={setBankAccountName}
+                  bankAccountNumber={bankAccountNumber}
+                  onBankAccountNumberChange={setBankAccountNumber}
+                  accountId={accountId}
+                  onAccountIdChange={setAccountId}
+                  disabled={isSaving}
+                  labelClassName="text-[11px] sm:text-xs"
+                  selectTriggerClassName="h-9 sm:h-10 text-sm sm:text-base"
+                  inputClassName="h-9 sm:h-10 text-sm sm:text-base"
+                />
+                <ReceiptUploadField
+                  file={receiptFile}
+                  onFileChange={setReceiptFile}
+                  existingUrl={existingReceiptUrl}
+                  existingName={existingReceiptName}
+                  disabled={isSaving}
+                />
               </>
             ) : (
               <div className="space-y-3">
+                <PaymentDetailsFields
+                  paymentMethod={paymentMethod}
+                  onPaymentMethodChange={setPaymentMethod}
+                  bankAccountName={bankAccountName}
+                  onBankAccountNameChange={setBankAccountName}
+                  bankAccountNumber={bankAccountNumber}
+                  onBankAccountNumberChange={setBankAccountNumber}
+                  accountId={accountId}
+                  onAccountIdChange={setAccountId}
+                  disabled={isSaving}
+                  labelClassName="text-[11px] sm:text-xs"
+                  selectTriggerClassName="h-9 sm:h-10 text-sm sm:text-base"
+                  inputClassName="h-9 sm:h-10 text-sm sm:text-base"
+                />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <p className="text-sm text-muted-foreground">{t("addMultipleExpenses")}</p>
                   <Button
@@ -1175,11 +1436,11 @@ export default function Expenses() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
+            <Button variant="cancel" onClick={() => setOpen(false)} disabled={isSaving}>
               {t("cancel")}
             </Button>
             <Button
-              className="bg-primary text-white hover:bg-blue-700 hover:text-white min-w-[7rem]"
+              className="min-w-[7rem]"
               onClick={() => void handleSave()}
               disabled={isSaving}
             >
@@ -1199,10 +1460,26 @@ export default function Expenses() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppLayout>
 
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={handleDeleteOpenChange}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteConfirmDesc").replace("{name}", deleteTarget?.title ?? "")}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleteDeleting}
+      />
+    </>
   );
 
+  if (embedded) {
+    return pageBody;
+  }
+
+  return <AppLayout title={expensesTitle}>{pageBody}</AppLayout>;
 }
 
 

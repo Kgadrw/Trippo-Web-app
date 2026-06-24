@@ -70,7 +70,7 @@
     <!-- Preconnect for Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap" rel="stylesheet">
     
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json" />
@@ -159,7 +159,7 @@
           alt="Trippo Logo" 
           style="height: 64px; width: 64px; object-fit: contain; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;"
         />
-        <span style="font-size: 24px; font-weight: 400; color: #374151; text-transform: lowercase;">
+        <span style="font-size: 24px; font-weight: 400; color: #374151; text-transform: lowercase; font-family: 'Google Sans Flex', sans-serif;">
           trippo
         </span>
       </div>
@@ -185,6 +185,24 @@
     </style>
 
     <div id="root"></div>
+    <script>
+      // Failsafe: dismiss splash even if React fails to mount
+      (function () {
+        function dismissSplash() {
+          var splash = document.getElementById("splash-screen");
+          var root = document.getElementById("root");
+          if (root) root.classList.add("loaded");
+          document.body.classList.add("loaded");
+          if (!splash) return;
+          splash.style.transition = "opacity 0.2s ease-out";
+          splash.style.opacity = "0";
+          setTimeout(function () {
+            splash.remove();
+          }, 200);
+        }
+        setTimeout(dismissSplash, 6000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     
     <!-- Prevent layout shift by setting initial styles -->
@@ -195,6 +213,7 @@
         padding: 0;
         height: 100%;
         overflow-x: hidden;
+        font-family: "Google Sans Flex", sans-serif;
       }
       
       #root {

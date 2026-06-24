@@ -1,6 +1,6 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, saleApi, clientApi, scheduleApi, bookingApi, expenseApi } from "@/lib/api";
+import { productApi, saleApi, clientApi, vendorApi, accountApi, categoryBudgetApi, scheduleApi, bookingApi, expenseApi, incomeApi, payrollApi, billApi, taxApi, bankDepositApi, loanApi, invoiceApi, documentApi } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
 import { tryInitDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
@@ -8,9 +8,23 @@ import { apiCache } from "@/lib/apiCache";
 import { logger } from "@/lib/logger";
 import { websocketManager } from "@/lib/websocketManager";
 import { patchProductStock } from "@/lib/productStock";
+import {
+  filterByCurrentScope,
+  itemBelongsToCurrentScope,
+  getWorkspaceScopeKey,
+  STORED_DATA_SCOPE_KEY,
+  WORKSPACE_CHANGED_EVENT,
+  canAccessEndpointInWorkspace,
+} from "@/lib/workspace";
+import {
+  isRemoteWorkspaceActor,
+  matchesRealtimeRecord,
+  notifyWorkspaceActivity,
+} from "@/lib/workspaceRealtime";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 interface UseApiOptions<T> {
-  endpoint: 'products' | 'sales' | 'clients' | 'schedules' | 'bookings' | 'expenses';
+  endpoint: 'products' | 'sales' | 'clients' | 'vendors' | 'accounts' | 'categoryBudgets' | 'schedules' | 'bookings' | 'expenses' | 'incomes' | 'payrolls' | 'bills' | 'taxes' | 'bankDeposits' | 'loans' | 'invoices' | 'documents';
   defaultValue: T[];
   onError?: (error: Error) => void;
 }
@@ -26,9 +40,46 @@ type DataChangedDetail = {
 
 const DATA_CHANGED_EVENT = 'profit-pilot-data-changed';
 
+function getScopedCacheKey(endpoint: string): string {
+  return `/${endpoint}:${getWorkspaceScopeKey()}`;
+}
+
+function applyWorkspaceScope<T>(items: T[]): T[] {
+  return filterByCurrentScope(items);
+}
+
 function getRecordId(record: { _id?: string; id?: number | string }): string | null {
   const id = record._id ?? record.id;
   return id != null ? String(id) : null;
+}
+
+function collectRecordIds(record: { _id?: string; id?: number | string }): string[] {
+  const ids = new Set<string>();
+  const primary = getRecordId(record);
+  if (primary) ids.add(primary);
+  if (record._id != null) ids.add(String(record._id));
+  if (record.id != null) ids.add(String(record.id));
+  return [...ids];
+}
+
+function recordMatchesDeleteIds(
+  record: { _id?: string; id?: number | string },
+  deleteIds: Set<string>,
+): boolean {
+  return collectRecordIds(record).some((id) => deleteIds.has(id));
+}
+
+function deduplicateByRecordId<T>(items: T[]): T[] {
+  const seen = new Map<string, T>();
+  for (const item of items) {
+    const id = getRecordId(item as { _id?: string; id?: number | string });
+    if (!id) {
+      seen.set(`__no_id_${seen.size}`, item);
+      continue;
+    }
+    seen.set(id, item);
+  }
+  return [...seen.values()];
 }
 
 function sortSalesByNewest<T>(items: T[]): T[] {
@@ -41,6 +92,17 @@ function sortSalesByNewest<T>(items: T[]): T[] {
 
 function isMongoServerId(id: unknown): boolean {
   return typeof id === "string" && /^[a-f0-9]{24}$/i.test(id);
+}
+
+function isLikelyNetworkError(error: any): boolean {
+  return Boolean(
+    !navigator.onLine ||
+      error?.message?.includes("Failed to fetch") ||
+      error?.message?.includes("NetworkError") ||
+      error?.message?.includes("Network request failed") ||
+      error?.message?.includes("Cannot record sales while offline") ||
+      error?.response?.connectionError === true,
+  );
 }
 
 /** Mirror stock change in IndexedDB (background). UI updates via patchProductStock. */
@@ -167,15 +229,17 @@ export function useApi<T extends { _id?: string; id?: number }>({
   defaultValue,
   onError,
 }: UseApiOptions<T>) {
+  const { mode, activeWorkspace, canAccessPage } = useWorkspace();
   const [items, setItems] = useState<T[]>(defaultValue);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const hasErrorShownRef = useRef(false);
   const isLoadingDataRef = useRef(false);
   const pendingLoadRef = useRef<{ silent?: boolean; force?: boolean } | null>(null);
+  const itemsRef = useRef<T[]>(defaultValue);
   const syncManager = SyncManager.getInstance();
   /** Sales deleted locally; stale in-flight GETs may still include these rows — filter until server catches up */
-  const pendingDeletedSaleIdsRef = useRef<Set<string>>(new Set());
+  const pendingDeletedIdsRef = useRef<Set<string>>(new Set());
 
   // Map MongoDB _id to id for compatibility
   const mapItem = useCallback((item: any): T => {
@@ -186,23 +250,21 @@ export function useApi<T extends { _id?: string; id?: number }>({
   }, []);
 
   /** Remove pending-deleted sales rows and prune IDs once server no longer returns them */
-  const reconcileSalesListWithPendingDeletions = useCallback((mappedItems: T[]): T[] => {
-    if (endpoint !== "sales") return mappedItems;
-    const pending = pendingDeletedSaleIdsRef.current;
+  const reconcileListWithPendingDeletions = useCallback((mappedItems: T[]): T[] => {
+    const pending = pendingDeletedIdsRef.current;
+    if (pending.size === 0) return mappedItems;
     const idsInResponse = new Set(
-      mappedItems
-        .map((mi: any) => String((mi as any)._id ?? (mi as any).id))
-        .filter(Boolean)
+      mappedItems.flatMap((item) => collectRecordIds(item as { _id?: string; id?: number | string })),
     );
     for (const id of [...pending]) {
       if (!idsInResponse.has(id)) pending.delete(id);
     }
-    if (pending.size === 0) return mappedItems;
-    return mappedItems.filter((item: any) => {
-      const id = (item?._id ?? item?.id)?.toString();
-      return !id || !pending.has(id);
-    });
-  }, [endpoint]);
+    return deduplicateByRecordId(
+      mappedItems.filter(
+        (item) => !recordMatchesDeleteIds(item as { _id?: string; id?: number | string }, pending),
+      ),
+    );
+  }, []);
 
   // Load data from IndexedDB first, then try to sync with API
   // silent: if true, skip setting isLoading (keeps existing data visible during background refresh)
@@ -224,6 +286,21 @@ export function useApi<T extends { _id?: string; id?: number }>({
       setIsLoading(false);
       setError(new Error('User not authenticated. Please login.'));
       setItems(defaultValue);
+      return;
+    }
+
+    const hasEndpointAccess = canAccessEndpointInWorkspace(
+      mode,
+      activeWorkspace?.role ?? null,
+      activeWorkspace?.permissions ?? [],
+      endpoint,
+    );
+    const hasDashboardReadAccess =
+      mode === 'workspace' && canAccessPage('dashboard');
+    if (!hasEndpointAccess && !hasDashboardReadAccess) {
+      setItems(defaultValue);
+      setIsLoading(false);
+      isLoadingDataRef.current = false;
       return;
     }
 
@@ -253,7 +330,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
         try {
           await clearStore(storeName);
           // Clear cache as well
-          const cacheKey = `/${endpoint}`;
+          const cacheKey = getScopedCacheKey(endpoint);
           apiCache.invalidate(cacheKey);
         } catch (clearError) {
           // Log but don't fail - continue with API fetch
@@ -262,37 +339,74 @@ export function useApi<T extends { _id?: string; id?: number }>({
       }
       // Store current userId for future checks
       localStorage.setItem("profit-pilot-stored-user-id", userId);
+
+      const currentScope = getWorkspaceScopeKey();
+      const storedScope = localStorage.getItem(STORED_DATA_SCOPE_KEY);
+      if (storedScope && storedScope !== currentScope) {
+        try {
+          await clearStore(storeName);
+          apiCache.invalidate(getScopedCacheKey(endpoint));
+          setItems(defaultValue);
+        } catch (clearError) {
+          console.warn("Error clearing IndexedDB on workspace scope change:", clearError);
+        }
+      }
+      localStorage.setItem(STORED_DATA_SCOPE_KEY, currentScope);
       
       // ✅ Smart caching strategy: Load from IndexedDB first (fast), then refresh from API in background
       // This gives instant UI while ensuring fresh data
       // Sales, products, and expenses always fetch fresh from API (no stale cache)
       const isExpensesEndpoint = endpoint === 'expenses';
-      const shouldUseOfflineFirst = endpoint === 'products' || endpoint === 'sales' || isExpensesEndpoint;
+      const isIncomesEndpoint = endpoint === 'incomes';
+      const isPayrollsEndpoint = endpoint === 'payrolls';
+      const isBillsEndpoint = endpoint === 'bills';
+      const isTaxesEndpoint = endpoint === 'taxes';
+      const isBankDepositsEndpoint = endpoint === 'bankDeposits';
+      const isLoansEndpoint = endpoint === 'loans';
+      const isInvoicesEndpoint = endpoint === 'invoices';
+      const isDocumentsEndpoint = endpoint === 'documents';
       const isProductsEndpoint = endpoint === 'products';
-      const shouldAlwaysFetchFresh = isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint;
+      const isClientsEndpoint = endpoint === 'clients';
+      const isVendorsEndpoint = endpoint === 'vendors';
+      const isAccountsEndpoint = endpoint === 'accounts';
+      const isCategoryBudgetsEndpoint = endpoint === 'categoryBudgets';
+      const isSchedulesEndpoint = endpoint === 'schedules';
+      const isBookingsEndpoint = endpoint === 'bookings';
+      const isCatalogEndpoint =
+        isProductsEndpoint ||
+        isClientsEndpoint ||
+        isVendorsEndpoint ||
+        isAccountsEndpoint ||
+        isCategoryBudgetsEndpoint ||
+        isSchedulesEndpoint ||
+        isBookingsEndpoint;
+      const isMoneyEndpoint = isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint || isDocumentsEndpoint;
+      const shouldUseOfflineFirst = endpoint === 'products' || endpoint === 'sales' || isMoneyEndpoint;
+      const shouldAlwaysFetchFresh = isSalesEndpoint || isProductsEndpoint || isMoneyEndpoint || isCatalogEndpoint;
       
       // For all endpoints, try to load from IndexedDB first for instant UI
-      if (!isSalesEndpoint && !shouldUseOfflineFirst) {
+      if (!isSalesEndpoint && !shouldUseOfflineFirst && !isCatalogEndpoint) {
         // Load from IndexedDB first (offline-first) for non-sales, non-products endpoints
         // Filter by userId if products have userId field (for data isolation)
         const localItems = await getAllItems<T>(storeName);
         
-        // Filter items by userId if they have a userId field
-        const filteredItems = localItems.filter((item: any) => {
-          if (item.userId !== undefined) {
-            return item.userId === userId;
-          }
-          return true;
-        });
+        const filteredItems = applyWorkspaceScope(
+          localItems.filter((item: any) => {
+            if (item.userId !== undefined && item.userId !== userId) {
+              return false;
+            }
+            return itemBelongsToCurrentScope(item);
+          }),
+        );
         
         if (filteredItems.length > 0) {
-          const mappedItems = filteredItems.map(mapItem);
+          const mappedItems = reconcileListWithPendingDeletions(filteredItems.map(mapItem));
           setItems(mappedItems);
           setIsLoading(false);
         }
       
         // Check cache first to reduce API requests (for non-sales, non-products)
-      const cacheKey = `/${endpoint}`;
+      const cacheKey = getScopedCacheKey(endpoint);
       const cached = apiCache.get(cacheKey);
       
       // If we have valid cached data and no local changes, use cache
@@ -304,7 +418,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
         // If cache is fresh (less than 5 minutes old), use it (increased to reduce API calls)
         if (cacheAge < 5 * 60 * 1000) {
           const cachedItems = cached.data;
-          const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
+          const mappedItems = reconcileListWithPendingDeletions(
+            Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [],
+          );
           setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
           setIsLoading(false);
           isLoadingDataRef.current = false;
@@ -318,26 +434,28 @@ export function useApi<T extends { _id?: string; id?: number }>({
             try {
               const localItems = await getAllItems<T>(storeName);
 
-              const filteredItems = localItems.filter((item: any) => {
-                if (item.userId !== undefined) {
-                  return item.userId === userId;
-                }
-                return true;
-              });
+              const filteredItems = applyWorkspaceScope(
+                localItems.filter((item: any) => {
+                  if (item.userId !== undefined && item.userId !== userId) {
+                    return false;
+                  }
+                  return itemBelongsToCurrentScope(item);
+                }),
+              );
 
               if (filteredItems.length > 0) {
                 let mappedItems = filteredItems.map(mapItem);
                 if (isSalesEndpoint) {
-                  mappedItems = reconcileSalesListWithPendingDeletions(mappedItems);
+                  mappedItems = reconcileListWithPendingDeletions(mappedItems);
                   mappedItems.sort((a, b) => {
                     const aTime = (a as any).timestamp || (a as any).date;
                     const bTime = (b as any).timestamp || (b as any).date;
                     return new Date(bTime).getTime() - new Date(aTime).getTime();
                   });
-                } else if (isExpensesEndpoint) {
+                } else if (isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint) {
                   mappedItems.sort((a, b) => {
-                    const aTime = (a as any).date;
-                    const bTime = (b as any).date;
+                    const aTime = (a as any).dueDate || (a as any).paymentDate || (a as any).date;
+                    const bTime = (b as any).dueDate || (b as any).paymentDate || (b as any).date;
                     return new Date(bTime).getTime() - new Date(aTime).getTime();
                   });
                 }
@@ -379,9 +497,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
             } else if (!hadLocalData) {
               console.log(`[useApi] ${endpoint}: IndexedDB empty, fetching from API...`);
             }
-          } else {
-          // For other endpoints, check cache first to reduce API calls
-          const cacheKey = `/${endpoint}`;
+          } else if (!isCatalogEndpoint) {
+          const cacheKey = getScopedCacheKey(endpoint);
           const cached = apiCache.get(cacheKey);
           const lastSyncTime = localStorage.getItem("profit-pilot-last-sync");
           const hasLocalChanges = localStorage.getItem(`profit-pilot-${endpoint}-changed`) === "true";
@@ -391,7 +508,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
             const cacheAge = Date.now() - parseInt(lastSyncTime);
             if (cacheAge < 2 * 60 * 1000) { // 2 minutes cache
               const cachedItems = cached.data;
-              const mappedItems = Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [];
+              const mappedItems = applyWorkspaceScope(
+                Array.isArray(cachedItems) ? cachedItems.map(mapItem) : [],
+              );
               if (mappedItems.length > 0) {
                 // Sort by timestamp (newest first) for sales
                 if (isSalesEndpoint) {
@@ -441,20 +560,46 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await saleApi.getAll();
         } else if (endpoint === 'clients') {
           response = await clientApi.getAll();
+        } else if (endpoint === 'vendors') {
+          response = await vendorApi.getAll();
+        } else if (endpoint === 'accounts') {
+          response = await accountApi.getAll();
+        } else if (endpoint === 'categoryBudgets') {
+          response = await categoryBudgetApi.getAll();
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.getAll();
         } else if (endpoint === 'bookings') {
           response = await bookingApi.getAll();
         } else if (endpoint === 'expenses') {
           response = await expenseApi.getAll();
+        } else if (endpoint === 'incomes') {
+          response = await incomeApi.getAll();
+        } else if (endpoint === 'payrolls') {
+          response = await payrollApi.getAll();
+        } else if (endpoint === 'bills') {
+          response = await billApi.getAll();
+        } else if (endpoint === 'taxes') {
+          response = await taxApi.getAll();
+        } else if (endpoint === 'bankDeposits') {
+          response = await bankDepositApi.getAll();
+        } else if (endpoint === 'loans') {
+          response = await loanApi.getAll();
+        } else if (endpoint === 'invoices') {
+          response = await invoiceApi.getAll();
+        } else if (endpoint === 'documents') {
+          response = await documentApi.getAll();
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
         
-        // Verify userId hasn't changed during the request (prevent data leakage)
+        // Verify userId and workspace scope haven't changed during the request
         const currentUserId = localStorage.getItem("profit-pilot-user-id");
         if (currentUserId !== userId) {
           throw new Error('User changed during request');
+        }
+        const requestScope = getWorkspaceScopeKey();
+        if (requestScope !== currentScope) {
+          throw new Error('Workspace scope changed during request');
         }
         
         return response;
@@ -464,36 +609,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
         const response = await fetchAndUpdateFromAPI();
 
         if (response.data) {
-          const mappedItems = response.data.map(mapItem);
+          const mappedItems = applyWorkspaceScope(response.data.map(mapItem));
           
           // For sales and products, update IndexedDB with fresh server data
           if (isSalesEndpoint || shouldUseOfflineFirst) {
             // Sales: drop rows we already deleted locally (stale GET may still include them)
-            const reconciledItems = reconcileSalesListWithPendingDeletions(mappedItems);
-            console.log(`[useApi] ${endpoint}: Updating IndexedDB with fresh server data (${reconciledItems.length} items)...`);
-            
-            // Clear all existing items from IndexedDB first
-            try {
-              await clearStore(storeName);
-            } catch (clearError) {
-              console.warn(`[useApi] Error clearing IndexedDB for ${endpoint}:`, clearError);
-            }
-            
-            // Add all fresh server items with userId for data isolation
-            const itemsWithUserId = reconciledItems.map(item => ({
-              ...item,
-              userId: userId
-            })) as T[];
-            
-            for (const item of itemsWithUserId) {
-              try {
-                await addItem(storeName, item);
-              } catch (addError) {
-                console.warn(`[useApi] Error adding ${endpoint} item to IndexedDB:`, addError);
-              }
-            }
-            
-            // Sort by timestamp (newest first) for sales; by date for expenses
+            const reconciledItems = isSalesEndpoint
+              ? reconcileListWithPendingDeletions(mappedItems)
+              : reconcileListWithPendingDeletions(mappedItems);
+
+            // Sort by timestamp (newest first) for sales; by date for finance records
             let sortedItems = reconciledItems;
             if (isSalesEndpoint) {
               sortedItems = [...reconciledItems].sort((a, b) => {
@@ -501,15 +626,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 const bTime = (b as any).timestamp || (b as any).date;
                 return new Date(bTime).getTime() - new Date(aTime).getTime();
               });
-            } else if (isExpensesEndpoint) {
+            } else if (isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint) {
               sortedItems = [...reconciledItems].sort((a, b) => {
-                const aTime = (a as any).date;
-                const bTime = (b as any).date;
+                const aTime = (a as any).dueDate || (a as any).paymentDate || (a as any).date;
+                const bTime = (b as any).dueDate || (b as any).paymentDate || (b as any).date;
                 return new Date(bTime).getTime() - new Date(aTime).getTime();
               });
             }
-            
-            // Update UI — merge so a just-created row isn't wiped by a stale GET
+
+            // Update UI first — don't block on IndexedDB writes
             setItems((prevItems) => {
               if (isSalesEndpoint) {
                 const serverIds = new Set(
@@ -525,7 +650,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 return merged.length > 0 ? merged : defaultValue;
               }
 
-              if (isExpensesEndpoint) {
+              if (isMoneyEndpoint) {
                 const serverIds = new Set(
                   sortedItems
                     .map((i: any) => String(i._id ?? i.id ?? ""))
@@ -536,8 +661,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
                   return id && !serverIds.has(id);
                 });
                 const merged = [...sortedItems, ...missingFromServer].sort((a, b) => {
-                  const aTime = (a as any).date;
-                  const bTime = (b as any).date;
+                  const aTime = (a as any).dueDate || (a as any).paymentDate || (a as any).date;
+                  const bTime = (b as any).dueDate || (b as any).paymentDate || (b as any).date;
                   return new Date(bTime).getTime() - new Date(aTime).getTime();
                 });
                 return merged.length > 0 ? merged : defaultValue;
@@ -545,30 +670,44 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
               return sortedItems.length > 0 ? sortedItems : defaultValue;
             });
-            
-            // Cache the response for future use
-            const cacheKey = `/${endpoint}`;
+
+            const cacheKey = getScopedCacheKey(endpoint);
             apiCache.set(cacheKey, response.data);
-            
-            // Update last refresh time (prevents excessive background refreshes)
             localStorage.setItem(`profit-pilot-${endpoint}-last-refresh`, String(Date.now()));
             localStorage.setItem("profit-pilot-last-sync", String(Date.now()));
-            
-            // Clear the changed flag since we've synced
             localStorage.removeItem(`profit-pilot-${endpoint}-changed`);
-            
+
             console.log(`[useApi] ✓ ${endpoint} updated with ${sortedItems.length} fresh records from API`);
+
+            // Persist to IndexedDB in the background so the dashboard isn't stuck loading
+            void (async () => {
+              try {
+                await clearStore(storeName);
+                const itemsWithUserId = reconciledItems.map((item) => ({
+                  ...item,
+                  userId,
+                })) as T[];
+                for (const item of itemsWithUserId) {
+                  try {
+                    await addItem(storeName, item);
+                  } catch (addError) {
+                    console.warn(`[useApi] Error adding ${endpoint} item to IndexedDB:`, addError);
+                  }
+                }
+              } catch (clearError) {
+                console.warn(`[useApi] Error syncing ${endpoint} to IndexedDB:`, clearError);
+              }
+            })();
           } else {
             // For other endpoints, use merge approach
-            const cacheKey = `/${endpoint}`;
+            const cacheKey = getScopedCacheKey(endpoint);
             // Cache the response
             apiCache.set(cacheKey, response.data);
             // Clear the changed flag since we've synced
             localStorage.removeItem(`profit-pilot-${endpoint}-changed`);
             
-            // ✅ For products, replace all IndexedDB data with fresh server data (no merge)
-            // This ensures we don't show deleted products or stale data
-            if ((endpoint as string) === 'products') {
+            // Replace IndexedDB with fresh server data (no merge) for catalog entities
+            if (isCatalogEndpoint) {
               // Clear existing products first
               try {
                 await clearStore(storeName);
@@ -591,8 +730,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 }
               }
               
-              // Use server data directly (fresh from backend)
-              setItems(mappedItems.length > 0 ? mappedItems : defaultValue);
+              const freshItems = deduplicateByRecordId(
+                reconcileListWithPendingDeletions(mappedItems.map(mapItem)),
+              );
+              setItems(freshItems.length > 0 ? freshItems : defaultValue);
             } else {
               // For other endpoints, use merge approach
               // Update IndexedDB with server data (merge with local data, prevent duplicates)
@@ -691,14 +832,12 @@ export function useApi<T extends { _id?: string; id?: number }>({
               // Reload from IndexedDB to get the merged result, filtered by userId
               const allItems = await getAllItems<T>(storeName);
               const finalItems = allItems.filter((item: any) => {
-                // Only include items that belong to current user
-                if (item.userId !== undefined) {
-                  return item.userId === userId;
+                if (item.userId !== undefined && item.userId !== userId) {
+                  return false;
                 }
-                // If no userId, exclude for security (shouldn't happen after this update)
-                return false;
+                return itemBelongsToCurrentScope(item);
               });
-              const finalMappedItems = finalItems.map(mapItem);
+              const finalMappedItems = reconcileListWithPendingDeletions(finalItems.map(mapItem));
               
               setItems(finalMappedItems.length > 0 ? finalMappedItems : defaultValue);
             }
@@ -712,19 +851,19 @@ export function useApi<T extends { _id?: string; id?: number }>({
           apiError?.response?.connectionError || apiError?.response?.silent;
 
         // Sales/products/expenses always fetch fresh from API first — fall back to IndexedDB when offline
-        if (isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint) {
+        if (isSalesEndpoint || isProductsEndpoint || isMoneyEndpoint) {
           if (isConnectionFailure) {
             const localItems = await getAllItems<T>(storeName);
             if (localItems.length > 0) {
-              let mappedItems = localItems.map(mapItem);
+              let mappedItems = applyWorkspaceScope(localItems.map(mapItem));
               if (isSalesEndpoint) {
-                mappedItems = reconcileSalesListWithPendingDeletions(mappedItems);
+                mappedItems = reconcileListWithPendingDeletions(mappedItems);
                 mappedItems.sort((a, b) => {
                   const aTime = (a as any).timestamp || (a as any).date;
                   const bTime = (b as any).timestamp || (b as any).date;
                   return new Date(bTime).getTime() - new Date(aTime).getTime();
                 });
-              } else if (isExpensesEndpoint) {
+              } else if (isExpensesEndpoint || isIncomesEndpoint) {
                 mappedItems.sort((a, b) => {
                   const aTime = (a as any).date;
                   const bTime = (b as any).date;
@@ -735,7 +874,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
             } else {
               setItems(defaultValue);
             }
-          } else if (apiError?.status === 401) {
+          } else if (apiError?.status === 401 || apiError?.status === 403) {
             setItems(defaultValue);
           } else {
             setItems(defaultValue);
@@ -745,13 +884,13 @@ export function useApi<T extends { _id?: string; id?: number }>({
             try {
               const localItems = await getAllItems<T>(storeName);
               const filteredItems = localItems.filter((item: any) => {
-                if (item.userId !== undefined) {
-                  return item.userId === userId;
+                if (item.userId !== undefined && item.userId !== userId) {
+                  return false;
                 }
-                return true;
+                return itemBelongsToCurrentScope(item);
               });
               if (filteredItems.length > 0) {
-                setItems(filteredItems.map(mapItem));
+                setItems(applyWorkspaceScope(filteredItems.map(mapItem)));
               }
             } catch {
               // keep existing items
@@ -797,7 +936,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
         void loadData(pending);
       }
     }
-  }, [endpoint, defaultValue, mapItem, onError, syncManager, reconcileSalesListWithPendingDeletions]);
+  }, [endpoint, defaultValue, mapItem, onError, syncManager, reconcileListWithPendingDeletions, mode, activeWorkspace, canAccessPage]);
 
   // Track last load time to prevent excessive reloads
   const lastLoadTimeRef = useRef<number>(0);
@@ -807,19 +946,26 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES = 10000; // 10 seconds for products/sales to prevent loops
   
   // Products, sales, and expenses should always refresh on mount/page open
-  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales' || endpoint === 'expenses';
+  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales' || endpoint === 'clients' || endpoint === 'vendors' || endpoint === 'accounts' || endpoint === 'categoryBudgets' || endpoint === 'schedules' || endpoint === 'bookings' || endpoint === 'expenses' || endpoint === 'incomes' || endpoint === 'payrolls' || endpoint === 'bills' || endpoint === 'taxes' || endpoint === 'bankDeposits' || endpoint === 'loans' || endpoint === 'invoices' || endpoint === 'documents';
   const minReloadInterval = shouldAlwaysRefresh ? MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES : MIN_RELOAD_INTERVAL;
 
   // Update items length ref when items change
   useEffect(() => {
     itemsLengthRef.current = items.length;
-  }, [items.length]);
+    itemsRef.current = items;
+  }, [items]);
 
   // Sync this hook's state when another component mutates the same endpoint
   useEffect(() => {
     const handleDataChanged = (event: Event) => {
       const detail = (event as CustomEvent<DataChangedDetail>).detail;
-      if (!detail || detail.endpoint !== endpoint) return;
+      if (!detail) {
+        setItems(defaultValue);
+        void clearStore(endpoint).catch(() => undefined);
+        void loadData({ force: true });
+        return;
+      }
+      if (detail.endpoint !== endpoint) return;
 
       if (detail.action === 'create' && detail.item) {
         const mapped = mapItem(detail.item);
@@ -828,18 +974,28 @@ export function useApi<T extends { _id?: string; id?: number }>({
         const mapped = mapItem(detail.item);
         setItems((prev) => applyUpdateToList(prev, mapped));
       } else if (detail.action === 'delete' && detail.itemId) {
+        const pending = new Set([String(detail.itemId)]);
         setItems((prev) =>
-          prev.filter((i) => {
-            const id = getRecordId(i as { _id?: string; id?: number });
-            return id !== String(detail.itemId);
-          }),
+          prev.filter((i) => !recordMatchesDeleteIds(i as { _id?: string; id?: number | string }, pending)),
         );
       }
     };
 
     window.addEventListener(DATA_CHANGED_EVENT, handleDataChanged);
     return () => window.removeEventListener(DATA_CHANGED_EVENT, handleDataChanged);
-  }, [endpoint, mapItem]);
+  }, [endpoint, mapItem, loadData, defaultValue]);
+
+  useEffect(() => {
+    const handleWorkspaceChange = () => {
+      setItems(defaultValue);
+      void clearStore(endpoint).catch(() => undefined);
+      localStorage.removeItem(`profit-pilot-${endpoint}-last-refresh`);
+      void loadData({ force: true });
+    };
+
+    window.addEventListener(WORKSPACE_CHANGED_EVENT, handleWorkspaceChange);
+    return () => window.removeEventListener(WORKSPACE_CHANGED_EVENT, handleWorkspaceChange);
+  }, [endpoint, loadData, defaultValue]);
 
   // Patch product stock in memory when sales change inventory (instant UI)
   useEffect(() => {
@@ -1001,12 +1157,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
     window.addEventListener("storage", handleStorageChange);
     
-    // Also check periodically (in case localStorage is changed directly)
-    const interval = setInterval(checkUserId, 1000);
-
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
     };
   }, [items, defaultValue]);
 
@@ -1137,12 +1289,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           }
           return syncedItem as T;
         } catch (error: any) {
-          const isNetworkError = !navigator.onLine ||
-            error?.message?.includes('Failed to fetch') ||
-            error?.message?.includes('NetworkError') ||
-            error?.message?.includes('Network request failed') ||
-            error?.message?.includes('Cannot record sales while offline') ||
-            (error?.response?.connectionError === true);
+          const isNetworkError = isLikelyNetworkError(error);
 
           if (isNetworkError) {
             const offlineSale = mapItem(itemWithId);
@@ -1218,12 +1365,34 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await productApi.create(itemData);
         } else if (endpoint === 'clients') {
           response = await clientApi.create(itemData);
+        } else if (endpoint === 'vendors') {
+          response = await vendorApi.create(itemData);
+        } else if (endpoint === 'accounts') {
+          response = await accountApi.create(itemData);
+        } else if (endpoint === 'categoryBudgets') {
+          response = await categoryBudgetApi.create(itemData);
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.create(itemData);
         } else if (endpoint === 'bookings') {
           response = await bookingApi.create(itemData);
         } else if (endpoint === 'expenses') {
           response = await expenseApi.create(itemData);
+        } else if (endpoint === 'incomes') {
+          response = await incomeApi.create(itemData);
+        } else if (endpoint === 'payrolls') {
+          response = await payrollApi.create(itemData);
+        } else if (endpoint === 'bills') {
+          response = await billApi.create(itemData);
+        } else if (endpoint === 'taxes') {
+          response = await taxApi.create(itemData);
+        } else if (endpoint === 'bankDeposits') {
+          response = await bankDepositApi.create(itemData);
+        } else if (endpoint === 'loans') {
+          response = await loanApi.create(itemData);
+        } else if (endpoint === 'invoices') {
+          response = await invoiceApi.create(itemData);
+        } else if (endpoint === 'documents') {
+          response = await documentApi.create(itemData);
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -1357,28 +1526,27 @@ export function useApi<T extends { _id?: string; id?: number }>({
         dispatchDataChanged({ endpoint, action: 'create', item: syncedItem });
         return syncedItem as T;
       } catch (apiError: any) {
-        // Check if it's actually a connection/network error (not a server validation error)
-        const isNetworkError = !navigator.onLine || 
-                               apiError?.message?.includes('Failed to fetch') ||
-                               apiError?.message?.includes('NetworkError') ||
-                               apiError?.message?.includes('Network request failed') ||
-                               apiError?.message?.includes('Cannot record sales while offline') ||
-                               (apiError?.response?.connectionError === true);
+        const isNetworkError = isLikelyNetworkError(apiError);
         
+        const localKey = String(localId);
+
         // For products, don't queue for sync - roll back optimistic row and throw
         if (endpoint === 'products') {
-          const localKey = String(localId);
           setItems((prev) =>
             prev.filter((i) => getRecordId(i as { _id?: string; id?: number }) !== localKey),
           );
+          dispatchDataChanged({ endpoint, action: 'delete', itemId: localKey });
+          try {
+            const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
+            if (!isNaN(numericId)) {
+              await deleteItem(storeName, numericId);
+            }
+          } catch {}
           throw apiError;
         }
         
         // For other endpoints, queue for sync if it's a REAL network/connection error
         if (isNetworkError) {
-          const offlineItem = mapItem(itemWithId);
-          setItems((prev) => applyCreateToList(prev, offlineItem as T, endpoint));
-          dispatchDataChanged({ endpoint, action: 'create', item: offlineItem });
           // logger.log(`[useApi] Network error detected for ${endpoint}, queueing for sync:`, apiError);
           await syncManager.queueAction({
             type: "create",
@@ -1390,10 +1558,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
           silentError.response = { silent: true, connectionError: true };
           throw silentError;
         } else {
-          // Real API error (validation, server error, etc.) - show error but item is saved locally
-          // logger.error(`[useApi] API error for ${endpoint} (not network):`, apiError);
-          // Don't queue for sync - this is a real error that needs to be fixed
-          // The item is already saved locally, so user can retry
+          setItems((prev) =>
+            prev.filter((i) => getRecordId(i as { _id?: string; id?: number }) !== localKey),
+          );
+          dispatchDataChanged({ endpoint, action: 'delete', itemId: localKey });
+          try {
+            const numericId = typeof localId === 'string' ? parseInt(localId) : localId;
+            if (!isNaN(numericId)) {
+              await deleteItem(storeName, numericId);
+            }
+          } catch {}
           throw apiError;
         }
       }
@@ -1435,6 +1609,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
         userId: userId
       } as T;
 
+      const previousItem =
+        itemsRef.current.find((existing) => String((existing as any)._id || (existing as any).id) === String(itemId)) ||
+        null;
+
       // Save to IndexedDB first (offline-first)
       await updateItem(storeName, itemWithUserId);
       
@@ -1462,12 +1640,34 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await saleApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'clients') {
           response = await clientApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'vendors') {
+          response = await vendorApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'accounts') {
+          response = await accountApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'categoryBudgets') {
+          response = await categoryBudgetApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'schedules') {
           response = await scheduleApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'bookings') {
           response = await bookingApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'expenses') {
           response = await expenseApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'incomes') {
+          response = await incomeApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'payrolls') {
+          response = await payrollApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'bills') {
+          response = await billApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'taxes') {
+          response = await taxApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'bankDeposits') {
+          response = await bankDepositApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'loans') {
+          response = await loanApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'invoices') {
+          response = await invoiceApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'documents') {
+          response = await documentApi.update(itemId.toString(), itemData);
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -1504,17 +1704,25 @@ export function useApi<T extends { _id?: string; id?: number }>({
           return syncedItem as T;
         }
       } catch (apiError: any) {
-        // For sales and products, don't queue for sync - just throw the error
+        // For sales and products, don't queue for sync - restore previous server state
         if (endpoint === 'sales' || endpoint === 'products') {
+          if (previousItem) {
+            await updateItem(storeName, {
+              ...previousItem,
+              userId,
+            } as T);
+            setItems((prev) =>
+              prev.map((i) => {
+                const currentId = (i as any)._id || (i as any).id;
+                return currentId === itemId ? previousItem : i;
+              }),
+            );
+            dispatchDataChanged({ endpoint, action: 'update', item: previousItem });
+          }
           throw apiError;
         }
         
-        // Check if it's actually a connection/network error (not a server validation error)
-        const isNetworkError = !navigator.onLine || 
-                               apiError?.message?.includes('Failed to fetch') ||
-                               apiError?.message?.includes('NetworkError') ||
-                               apiError?.message?.includes('Network request failed') ||
-                               (apiError?.response?.connectionError === true);
+        const isNetworkError = isLikelyNetworkError(apiError);
         
         // Only queue for sync if it's a REAL network/connection error (for non-sales, non-products endpoints)
         if (isNetworkError) {
@@ -1529,9 +1737,19 @@ export function useApi<T extends { _id?: string; id?: number }>({
           silentError.response = { silent: true, connectionError: true };
           throw silentError;
         } else {
-          // Real API error (validation, server error, etc.) - show error but item is saved locally
-          // logger.error(`[useApi] API error for ${endpoint} update (not network):`, apiError);
-          // Don't queue for sync - this is a real error that needs to be fixed
+          if (previousItem) {
+            await updateItem(storeName, {
+              ...previousItem,
+              userId,
+            } as T);
+            setItems((prev) =>
+              prev.map((i) => {
+                const currentId = (i as any)._id || (i as any).id;
+                return currentId === itemId ? previousItem : i;
+              }),
+            );
+            dispatchDataChanged({ endpoint, action: 'update', item: previousItem });
+          }
           throw apiError;
         }
       }
@@ -1563,42 +1781,19 @@ export function useApi<T extends { _id?: string; id?: number }>({
         throw new Error('Item ID is required for delete');
       }
 
-      // Delete from IndexedDB first (offline-first)
-      // Find the item in IndexedDB by matching _id or id, then delete using the stored numeric id
-      try {
-        const allItems = await getAllItems<T>(storeName);
-        const itemToDelete = allItems.find((i: any) => {
-          const currentId = (i as any)._id || (i as any).id;
-          // Compare as strings to handle both string and number IDs
-          return String(currentId) === String(itemId);
-        });
-        
-        if (itemToDelete && (itemToDelete as any).id) {
-          // Delete using the numeric id stored in IndexedDB
-          await deleteItem(storeName, (itemToDelete as any).id);
-        } else {
-          // If item not found in IndexedDB, try direct numeric conversion as fallback
-          const numericId = typeof itemId === 'string' ? parseInt(itemId) : itemId;
-          if (!isNaN(numericId) && isFinite(numericId)) {
-            await deleteItem(storeName, numericId);
-          }
-        }
-      } catch (deleteError) {
-        // Log but don't fail - UI update will still happen
-        console.warn(`[useApi] Failed to delete from IndexedDB:`, deleteError);
-      }
-      
-      if (endpoint === "sales") {
-        pendingDeletedSaleIdsRef.current.add(String(itemId));
+      const previousItem =
+        itemsRef.current.find((existing) =>
+          recordMatchesDeleteIds(existing as { _id?: string; id?: number | string }, new Set([String(itemId)])),
+        ) || item;
+
+      const deleteIds = new Set(collectRecordIds(item as { _id?: string; id?: number | string }));
+      for (const id of deleteIds) {
+        pendingDeletedIdsRef.current.add(id);
       }
 
-      // Update UI immediately - normalize IDs for comparison
+      // Update UI immediately — don't wait for IndexedDB or API
       setItems((prev) =>
-        prev.filter((i) => {
-          const currentId = (i as any)._id || (i as any).id;
-          // Compare as strings to handle both string and number IDs
-          return String(currentId) !== String(itemId);
-        })
+        prev.filter((i) => !recordMatchesDeleteIds(i as { _id?: string; id?: number | string }, deleteIds)),
       );
       dispatchDataChanged({ endpoint, action: 'delete', itemId: String(itemId) });
 
@@ -1614,6 +1809,25 @@ export function useApi<T extends { _id?: string; id?: number }>({
       apiCache.invalidateStore(endpoint);
       localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
 
+      // Delete from IndexedDB (offline-first)
+      // Find the item in IndexedDB by matching _id or id, then delete using the stored numeric id
+      try {
+        const allItems = await getAllItems<T>(storeName);
+        const rowsToDelete = allItems.filter((i) =>
+          recordMatchesDeleteIds(i as { _id?: string; id?: number | string }, deleteIds),
+        );
+
+        for (const row of rowsToDelete) {
+          const numericKey = (row as { id?: number | string }).id;
+          if (typeof numericKey === "number" && Number.isFinite(numericKey)) {
+            await deleteItem(storeName, numericKey);
+          }
+        }
+      } catch (deleteError) {
+        // Log but don't fail - UI update will still happen
+        console.warn(`[useApi] Failed to delete from IndexedDB:`, deleteError);
+      }
+
       // Try to sync with backend (silently fail if offline)
       try {
         if (endpoint === 'products') {
@@ -1622,12 +1836,34 @@ export function useApi<T extends { _id?: string; id?: number }>({
           await saleApi.delete(itemId.toString());
         } else if (endpoint === 'clients') {
           await clientApi.delete(itemId.toString());
+        } else if (endpoint === 'vendors') {
+          await vendorApi.delete(itemId.toString());
+        } else if (endpoint === 'accounts') {
+          await accountApi.delete(itemId.toString());
+        } else if (endpoint === 'categoryBudgets') {
+          await categoryBudgetApi.delete(itemId.toString());
         } else if (endpoint === 'schedules') {
           await scheduleApi.delete(itemId.toString());
         } else if (endpoint === 'bookings') {
           await bookingApi.delete(itemId.toString());
         } else if (endpoint === 'expenses') {
           await expenseApi.delete(itemId.toString());
+        } else if (endpoint === 'incomes') {
+          await incomeApi.delete(itemId.toString());
+        } else if (endpoint === 'payrolls') {
+          await payrollApi.delete(itemId.toString());
+        } else if (endpoint === 'bills') {
+          await billApi.delete(itemId.toString());
+        } else if (endpoint === 'taxes') {
+          await taxApi.delete(itemId.toString());
+        } else if (endpoint === 'bankDeposits') {
+          await bankDepositApi.delete(itemId.toString());
+        } else if (endpoint === 'loans') {
+          await loanApi.delete(itemId.toString());
+        } else if (endpoint === 'invoices') {
+          await invoiceApi.delete(itemId.toString());
+        } else if (endpoint === 'documents') {
+          await documentApi.delete(itemId.toString());
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -1639,24 +1875,19 @@ export function useApi<T extends { _id?: string; id?: number }>({
           window.dispatchEvent(new CustomEvent('sales-should-refresh'));
         }
       } catch (apiError: any) {
-        // For sales and products, don't queue for sync - just log the error
+        // For sales and products, don't queue for sync - restore the removed item
         if (endpoint === 'sales' || endpoint === 'products') {
-          // logger.error(`[useApi] API error for ${endpoint} delete:`, apiError);
-          // Still dispatch event even if API call failed (item is already removed from UI)
-          if (endpoint === 'products') {
-            window.dispatchEvent(new CustomEvent('products-should-refresh'));
-          } else if (endpoint === 'sales') {
-            window.dispatchEvent(new CustomEvent('sales-should-refresh'));
-          }
-          return;
+          for (const id of deleteIds) pendingDeletedIdsRef.current.delete(id);
+          await addItem(storeName, {
+            ...previousItem,
+            userId,
+          } as T);
+          setItems((prev) => applyCreateToList(prev, previousItem as T, endpoint));
+          dispatchDataChanged({ endpoint, action: 'create', item: previousItem });
+          throw apiError;
         }
         
-        // Check if it's actually a connection/network error
-        const isNetworkError = !navigator.onLine || 
-                               apiError?.message?.includes('Failed to fetch') ||
-                               apiError?.message?.includes('NetworkError') ||
-                               apiError?.message?.includes('Network request failed') ||
-                               (apiError?.response?.connectionError === true);
+        const isNetworkError = isLikelyNetworkError(apiError);
         
         // Only queue for sync if it's a REAL network/connection error (for non-sales, non-products endpoints)
         if (isNetworkError) {
@@ -1667,8 +1898,14 @@ export function useApi<T extends { _id?: string; id?: number }>({
             data: item,
           });
         } else {
-          // Real API error - log but don't queue (item is already deleted locally)
-          // logger.error(`[useApi] API error for ${endpoint} delete (not network):`, apiError);
+          for (const id of deleteIds) pendingDeletedIdsRef.current.delete(id);
+          await addItem(storeName, {
+            ...previousItem,
+            userId,
+          } as T);
+          setItems((prev) => applyCreateToList(prev, previousItem as T, endpoint));
+          dispatchDataChanged({ endpoint, action: 'create', item: previousItem });
+          throw apiError;
         }
       }
     } catch (err) {
@@ -1822,7 +2059,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
     const isSalesEndpoint = endpoint === 'sales';
     const isProductsEndpoint = endpoint === 'products';
     const isExpensesEndpoint = endpoint === 'expenses';
-    const shouldForce = force || isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint;
+    const isIncomesEndpoint = endpoint === 'incomes';
+    const isPayrollsEndpoint = endpoint === 'payrolls';
+    const isBillsEndpoint = endpoint === 'bills';
+    const isTaxesEndpoint = endpoint === 'taxes';
+    const isBankDepositsEndpoint = endpoint === 'bankDeposits';
+    const isLoansEndpoint = endpoint === 'loans';
+    const isInvoicesEndpoint = endpoint === 'invoices';
+    const isDocumentsEndpoint = endpoint === 'documents';
+    const isMoneyEndpoint = isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint || isDocumentsEndpoint;
+    const shouldForce = force || isSalesEndpoint || isProductsEndpoint || isMoneyEndpoint;
     
     // Don't refresh if already loading (unless forced)
     if (isLoadingDataRef.current && !shouldForce) {
@@ -1850,7 +2096,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     }
     
     // For sales and products, always refresh immediately (bypass cooldown)
-    if (isSalesEndpoint || isProductsEndpoint || isExpensesEndpoint || timeSinceLastRefresh >= REFRESH_COOLDOWN || shouldForce) {
+    if (isSalesEndpoint || isProductsEndpoint || isMoneyEndpoint || timeSinceLastRefresh >= REFRESH_COOLDOWN || shouldForce) {
       // Refresh immediately (loadData already checks isLoadingDataRef)
       // Use silent mode for forced refreshes so existing data stays visible (no skeleton flash)
       lastRefreshTimeRef.current = Date.now();
@@ -1891,14 +2137,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
       
       // Filter items by userId for data isolation
       const filteredItems = localItems.filter((item: any) => {
-        if (item.userId !== undefined) {
-          return item.userId === userId;
+        if (item.userId !== undefined && item.userId !== userId) {
+          return false;
         }
-        return false; // Don't use items without userId for security
+        return itemBelongsToCurrentScope(item);
       });
       
       if (filteredItems.length > 0) {
-        const mappedItems = filteredItems.map(mapItem);
+        const mappedItems = applyWorkspaceScope(
+          filteredItems.map(mapItem),
+        );
         
         // For sales, sort by timestamp (newest first)
         if (endpoint === 'sales') {
@@ -1935,7 +2183,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           // For sales, re-sort after merge and drop local/server duplicates
           if (endpoint === 'sales') {
             merged = deduplicateSales(merged);
-            return reconcileSalesListWithPendingDeletions(merged);
+            return reconcileListWithPendingDeletions(merged);
           }
           
           return merged;
@@ -1946,7 +2194,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
     } catch (error) {
       console.warn(`[useApi] ${endpoint}: Error reloading from IndexedDB:`, error);
     }
-  }, [endpoint, mapItem, setItems, reconcileSalesListWithPendingDeletions]);
+  }, [endpoint, mapItem, setItems, reconcileListWithPendingDeletions]);
 
   // ✅ WebSocket integration - listen for real-time updates (ONLY when socket is open)
   useEffect(() => {
@@ -1957,89 +2205,110 @@ export function useApi<T extends { _id?: string; id?: number }>({
     console.log(`[useApi] Subscribing to WebSocket events for ${endpoint} (connection status: ${websocketManager.isConnected() ? 'connected' : 'not connected'})`);
     
     if (endpoint === 'products') {
-      // Subscribe to product WebSocket events
       const unsubscribeCreated = websocketManager.subscribe('product:created', (product) => {
-        console.log(`[useApi] WebSocket: Product created`, product);
-        // Optimistically add the product to the list
+        if (!matchesRealtimeRecord(product)) return;
+        if (isRemoteWorkspaceActor(product)) {
+          notifyWorkspaceActivity({
+            action: 'created',
+            resource: 'product',
+            actorName: product._actorName || 'Teammate',
+            label: product.name,
+          });
+        }
         if (product && product._id) {
+          const mapped = mapItem(product);
           setItems((prev) => {
-            // Check if product already exists (avoid duplicates)
             const exists = prev.some((p: any) => (p._id || p.id)?.toString() === product._id?.toString());
             if (exists) return prev;
-            return [product, ...prev];
+            return [mapped, ...prev];
           });
         } else {
-          // Fallback to refresh if product data is incomplete
           refresh(true);
         }
       });
-      
+
       const unsubscribeUpdated = websocketManager.subscribe('product:updated', (product) => {
-        console.log(`[useApi] WebSocket: Product updated`, product);
-        // Optimistically update the product in the list
+        if (!matchesRealtimeRecord(product)) return;
         if (product && product._id) {
-          setItems((prev) => 
-            prev.map((p: any) => 
-              (p._id || p.id)?.toString() === product._id?.toString() ? product : p
-            )
+          const mapped = mapItem(product);
+          setItems((prev) =>
+            prev.map((p: any) =>
+              (p._id || p.id)?.toString() === product._id?.toString() ? mapped : p,
+            ),
           );
         } else {
-          // Fallback to refresh if product data is incomplete
           refresh(true);
         }
       });
-      
+
       const unsubscribeDeleted = websocketManager.subscribe('product:deleted', (data) => {
-        console.log(`[useApi] WebSocket: Product deleted`, data);
-        // Optimistically remove the product from the list
+        if (!matchesRealtimeRecord(data)) return;
+        if (isRemoteWorkspaceActor(data)) {
+          notifyWorkspaceActivity({
+            action: 'deleted',
+            resource: 'product',
+            actorName: data._actorName || 'Teammate',
+          });
+        }
         if (data && data._id) {
-          setItems((prev) => 
-            prev.filter((p: any) => (p._id || p.id)?.toString() !== data._id?.toString())
+          setItems((prev) =>
+            prev.filter((p: any) => (p._id || p.id)?.toString() !== data._id?.toString()),
           );
         } else {
-          // Fallback to refresh if deletion data is incomplete
           refresh(true);
         }
       });
-      
+
       websocketUnsubscribes = [unsubscribeCreated, unsubscribeUpdated, unsubscribeDeleted];
     } else if (endpoint === 'sales') {
-      // Subscribe to sales WebSocket events for instant real-time updates
       const unsubscribeCreated = websocketManager.subscribe('sale:created', (sale) => {
-        console.log(`[useApi] WebSocket: Sale created - immediate update`, sale);
+        if (!matchesRealtimeRecord(sale)) return;
+        if (isRemoteWorkspaceActor(sale)) {
+          notifyWorkspaceActivity({
+            action: 'created',
+            resource: 'sale',
+            actorName: sale._actorName || 'Teammate',
+            label: sale.product || sale.serviceName,
+          });
+        }
         if (sale && (sale._id || sale.id)) {
-          setItems((prev) => deduplicateSales([sale as T, ...prev]));
+          setItems((prev) => deduplicateSales([mapItem(sale) as T, ...prev]));
         }
       });
-      
+
       const unsubscribeUpdated = websocketManager.subscribe('sale:updated', (sale) => {
-        console.log(`[useApi] WebSocket: Sale updated - immediate update`, sale);
-        // Immediately update the sale in the list
+        if (!matchesRealtimeRecord(sale)) return;
         if (sale && (sale._id || sale.id)) {
-          setItems((prev) => 
-            prev.map((s: any) => 
-              (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString() ? sale : s
-            )
+          setItems((prev) =>
+            prev.map((s: any) =>
+              (s._id || s.id)?.toString() === (sale._id || sale.id)?.toString() ? mapItem(sale) : s,
+            ),
           );
         } else {
-          // Fallback to immediate refresh if sale data is incomplete
           refresh(true);
         }
       });
-      
+
       const unsubscribeDeleted = websocketManager.subscribe('sale:deleted', (data) => {
-        console.log(`[useApi] WebSocket: Sale deleted - immediate update`, data);
+        if (!matchesRealtimeRecord(data)) return;
+        if (isRemoteWorkspaceActor(data)) {
+          notifyWorkspaceActivity({
+            action: 'deleted',
+            resource: 'sale',
+            actorName: data._actorName || 'Teammate',
+          });
+        }
         const delId = data && (data._id ?? data.id)?.toString();
         if (delId) {
-          pendingDeletedSaleIdsRef.current.delete(delId);
+          pendingDeletedIdsRef.current.delete(delId);
           setItems((prev) =>
-            prev.filter((s: any) => (s._id || s.id)?.toString() !== delId)
+            prev.filter((s: any) => (s._id || s.id)?.toString() !== delId),
           );
         } else {
           refresh(true);
         }
       });
-      
+
       websocketUnsubscribes = [unsubscribeCreated, unsubscribeUpdated, unsubscribeDeleted];
     }
     

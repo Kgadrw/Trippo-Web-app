@@ -6,7 +6,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { notificationService } from "@/lib/notifications";
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 
-export default function SettingsNotifications() {
+export default function SettingsNotifications({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -18,12 +18,14 @@ export default function SettingsNotifications() {
   }, []);
 
   return (
-    <div className="px-4 pb-4 lg:px-6">
-      <SettingsSubpageHeader
-        icon={Bell}
-        title={t("notificationsPageTitle")}
-        description={t("notificationsPageDesc")}
-      />
+    <div className={embedded ? "pb-4" : "px-4 pb-4 lg:px-6"}>
+      {!embedded ? (
+        <SettingsSubpageHeader
+          icon={Bell}
+          title={t("notificationsPageTitle")}
+          description={t("notificationsPageDesc")}
+        />
+      ) : null}
 
       <div className="space-y-6 max-w-xl">
         <div className="space-y-4">
@@ -102,7 +104,7 @@ export default function SettingsNotifications() {
                       });
                     }
                   }}
-                  className="bg-primary text-white hover:bg-blue-700 hover:text-white w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                  className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
                 >
                   <Bell size={14} />
                   {notificationPermission === "denied"

@@ -2,14 +2,19 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, Navigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileHeader } from "./MobileHeader";
+import { DesktopHeader } from "./DesktopHeader";
 import { MobileFixedBackground } from "./MobileFixedBackground";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Package, UserRound, ShoppingCart, Wallet, FileText, CreditCard, Settings } from "lucide-react";
+import { LayoutDashboard, Wallet, FileText, Settings } from "lucide-react";
+import { LowStockAlertDock } from "@/components/dashboard/LowStockAlert";
+import { MobilePageSearchBar } from "@/components/layout/PageSearchBar";
+import { usePageSearch } from "@/hooks/usePageSearch";
 import { useNavigate } from "react-router-dom";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
+import { WorkspacePageGuard } from "@/components/workspace/WorkspacePageGuard";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -17,13 +22,9 @@ interface AppLayoutProps {
 }
 
 const desktopMenuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Package, label: "Services", path: "/products" },
-  { icon: UserRound, label: "Workers", path: "/barbers" },
-  { icon: ShoppingCart, label: "Sales", path: "/sales" },
-  { icon: Wallet, label: "Expenses", path: "/expenses" },
+  { icon: LayoutDashboard, label: "Overview", path: "/" },
+  { icon: Wallet, label: "Finance", path: "/finance/income", matchPrefix: "/finance" },
   { icon: FileText, label: "Reports", path: "/reports" },
-  { icon: CreditCard, label: "Billing", path: "/billing" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
@@ -34,43 +35,34 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const { toast } = useToast();
   const { t, language } = useTranslation();
   const { loading: subLoading, hasAccess, isLocked } = useSubscriptionAccess();
+  const { enabled: pageSearchEnabled } = usePageSearch();
   const isBillingRoute = location.pathname.startsWith("/billing");
 
   const getDesktopNavLabel = (item: { label: string; path: string }) => {
-    if (item.path === "/products") return t("services");
-    if (item.path === "/barbers") return t("workers");
-    if (item.path === "/expenses") return t("expenses");
-    if (item.path === "/dashboard") return t("dashboard");
-    if (item.path === "/sales") return t("sales");
+    if (item.path.startsWith("/finance")) return t("finance");
+    if (item.path === "/") return t("dashboard");
     if (item.path === "/reports") return t("reports");
-    if (item.path === "/billing") return t("billing");
     if (item.path === "/settings") return t("settings");
     return item.label;
   };
 
-  // Load sidebar collapsed state from localStorage
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem("profit-pilot-sidebar-collapsed");
-    return saved === "true";
+    return saved !== "true";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sidebarHovered, setSidebarHovered] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
   const [isScrolling, setIsScrolling] = useState(false);
   const [showArrow, setShowArrow] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileSidebarExpanded, setMobileSidebarExpanded] = useState(false);
 
-  const sidebarExpandedOnDesktop =
-    !isMobile && ((sidebarHovered && sidebarCollapsed) || !sidebarCollapsed);
-
-  // Save sidebar collapsed state to localStorage whenever it changes (only on desktop)
+  // Save sidebar open state to localStorage whenever it changes (only on desktop)
   useEffect(() => {
     if (!isMobile) {
-      localStorage.setItem("profit-pilot-sidebar-collapsed", String(sidebarCollapsed));
+      localStorage.setItem("profit-pilot-sidebar-collapsed", String(!sidebarOpen));
     }
-  }, [sidebarCollapsed, isMobile]);
+  }, [sidebarOpen, isMobile]);
 
   // React Router does not reset scroll on navigation; without this, opening Dashboard
   // can land mid-page (e.g. at Record New Sale) from a preserved scroll position.
@@ -87,14 +79,12 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       const mobile = window.innerWidth < 1024;
       setIsMobile(mobile);
       if (mobile) {
-        // Only force collapse on mobile, don't save to localStorage
-        setSidebarCollapsed(true);
+        setSidebarOpen(false);
         setMobileMenuOpen(false);
       } else {
-        // On desktop, restore saved state
         const saved = localStorage.getItem("profit-pilot-sidebar-collapsed");
         if (saved !== null) {
-          setSidebarCollapsed(saved === "true");
+          setSidebarOpen(saved !== "true");
         }
       }
     };
@@ -198,17 +188,20 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       {/* Mobile Header - Only visible on mobile */}
       <div className="lg:hidden">
         <MobileHeader />
+        <MobilePageSearchBar className="fixed top-16 left-0 right-0 z-40" />
       </div>
+
+      {/* Desktop header */}
+      <DesktopHeader
+        sidebarOpen={sidebarOpen}
+        onSidebarToggle={() => setSidebarOpen((open) => !open)}
+      />
 
       {/* Desktop: sidebar navigation */}
       <div className="hidden lg:block">
         <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          open={sidebarOpen}
           onMobileClose={() => setMobileMenuOpen(false)}
-          onMobileToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-          onHoverChange={setSidebarHovered}
-          mobileExpanded={mobileSidebarExpanded}
         />
       </div>
 
@@ -216,15 +209,12 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       <div
         className={cn(
           "relative z-10 min-w-0 flex-1",
-          // On mobile, no margin (bottom nav instead of sidebar), add top padding for header
-          // On desktop, adjust based on sidebar state
-          // Use transition only for sidebar changes, not initial load
           isMobile
-            ? "ml-0 pt-16 pb-6"
+            ? cn("ml-0 pb-6", pageSearchEnabled ? "pt-[7.25rem]" : "pt-16")
             : cn(
-                "transition-all duration-300 lg:pt-6",
-                sidebarExpandedOnDesktop ? "lg:ml-52" : "lg:ml-14"
-              )
+                "transition-all duration-300 lg:pt-14",
+                sidebarOpen ? "lg:ml-52" : "lg:ml-0",
+              ),
         )}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -232,19 +222,21 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         style={{
           touchAction: "pan-y",
           ...(!isMobile && {
-            ["--content-left" as string]: sidebarExpandedOnDesktop
+            ["--content-left" as string]: sidebarOpen
               ? "calc(0.5rem + 13rem + 0.75rem)"
-              : "calc(0.5rem + 3.5rem + 0.75rem)",
+              : "0.5rem",
           }),
         }}
       >
-        <main className="p-6 pt-6">
+        <main className="p-4 pt-4 lg:p-6 lg:pt-4">
           {!subLoading && isLocked && !isBillingRoute ? (
             <Navigate to="/billing" replace />
           ) : null}
-          {children}
+          <WorkspacePageGuard>{children}</WorkspacePageGuard>
         </main>
       </div>
+
+      <LowStockAlertDock />
     </div>
   );
 }

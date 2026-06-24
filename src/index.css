@@ -17,17 +17,7 @@
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-    /* Prevent layout shift from font loading */
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-  }
-  
-  /* Raleway when loaded (dashboard / app UI) */
-  body.loaded {
-    font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
+    font-family: "Google Sans Flex", sans-serif;
   }
   
   #root {
@@ -80,23 +70,28 @@
   }
 
   /* iOS Safari date input fixes */
-  input[type="date"] {
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="time"] {
     -webkit-appearance: none;
     appearance: none;
     position: relative;
     color: rgb(17, 24, 39) !important; /* text-gray-900 */
-    background-color: white !important;
-    border: 1px solid rgb(209, 213, 219) !important; /* border-gray-300 */
-    border-radius: 0.5rem !important;
-    padding: 0.5rem 0.75rem !important;
-    padding-left: 2.25rem !important; /* pl-9 */
-    min-height: 2.5rem !important; /* h-10 */
-    width: 100% !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0.25rem !important;
+    min-height: 2.25rem !important;
+    width: auto !important;
+    box-shadow: none !important;
   }
 
-  input[type="date"]::-webkit-calendar-picker-indicator {
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator {
     position: absolute;
-    right: 0.75rem;
+    right: 0;
     top: 50%;
     transform: translateY(-50%);
     opacity: 1;
@@ -106,28 +101,45 @@
     z-index: 1;
   }
 
-  input[type="date"]:focus {
+  input[type="date"]:focus,
+  input[type="datetime-local"]:focus,
+  input[type="month"]:focus,
+  input[type="time"]:focus {
     outline: none;
-    border-color: rgb(107, 114, 128) !important; /* focus:border-gray-500 */
-    box-shadow: 0 0 0 1px rgb(107, 114, 128);
+    border: none !important;
+    box-shadow: none !important;
   }
 
   /* iOS Safari date input placeholder/text color fix */
-  input[type="date"]::-webkit-datetime-edit {
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="datetime-local"]::-webkit-datetime-edit,
+  input[type="month"]::-webkit-datetime-edit,
+  input[type="time"]::-webkit-datetime-edit {
     color: rgb(17, 24, 39) !important; /* text-gray-900 */
   }
 
-  input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="time"]::-webkit-datetime-edit-fields-wrapper {
     color: rgb(17, 24, 39) !important;
   }
 
-  input[type="date"]::-webkit-datetime-edit-text {
+  input[type="date"]::-webkit-datetime-edit-text,
+  input[type="datetime-local"]::-webkit-datetime-edit-text,
+  input[type="month"]::-webkit-datetime-edit-text,
+  input[type="time"]::-webkit-datetime-edit-text {
     color: rgb(107, 114, 128) !important; /* text-gray-500 */
   }
 
   input[type="date"]::-webkit-datetime-edit-month-field,
   input[type="date"]::-webkit-datetime-edit-day-field,
-  input[type="date"]::-webkit-datetime-edit-year-field {
+  input[type="date"]::-webkit-datetime-edit-year-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+  input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+  input[type="month"]::-webkit-datetime-edit-month-field,
+  input[type="month"]::-webkit-datetime-edit-year-field {
     color: rgb(17, 24, 39) !important;
   }
 
@@ -172,16 +184,16 @@
     /* Radius */
     --radius: 0.5rem;
 
-    /* Sidebar — same as primary button blue */
-    --sidebar-background: 221 83% 53%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 222 47% 11%;
-    --sidebar-primary-foreground: 221 83% 53%;
-    --sidebar-accent: 224 76% 48%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 221 70% 45%;
-    --sidebar-ring: 222 47% 11%;
-    --sidebar-muted: 221 40% 90%;
+    /* Sidebar & header — #F3F4F4 */
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 220 9% 20%;
+    --sidebar-primary: 220 9% 20%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 16% 96%;
+    --sidebar-accent-foreground: 220 9% 15%;
+    --sidebar-border: 220 13% 92%;
+    --sidebar-ring: 221 83% 53%;
+    --sidebar-muted: 220 9% 46%;
 
     /* Chart colors - Vibrant palette */
     --chart-1: 221 83% 53%;
@@ -218,8 +230,8 @@
     --border: 220 18% 26%;
     --input: 220 18% 26%;
     --ring: 221 83% 53%;
-    --sidebar-background: 224 76% 48%;
-    --sidebar-foreground: 222 47% 11%;
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 220 9% 20%;
   }
 
   * {
@@ -303,8 +315,22 @@
     @apply text-left text-sm font-bold text-foreground py-3 px-4 border-b-0 lg:border-b lg:border-border bg-card sticky top-16 z-10 shadow-none lg:shadow-sm;
   }
 
+  .data-table th,
   .data-table td {
     @apply py-4 px-4 text-sm border-b-0 lg:border-b lg:border-border text-foreground;
+  }
+
+  table [role="checkbox"] {
+    border: 1px solid rgb(209 213 219) !important;
+    border-radius: 0.25rem;
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  table [role="checkbox"][data-state="checked"] {
+    background-color: rgb(56 189 248) !important;
+    border-color: rgb(56 189 248) !important;
+    color: #ffffff !important;
   }
 
   .data-table tr:hover td {
@@ -324,11 +350,11 @@
   }
 
   .btn-primary {
-    @apply bg-primary text-white hover:bg-blue-700 hover:text-white shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-transparent rounded-lg cursor-pointer disabled:cursor-not-allowed;
+    @apply bg-sky-400 text-white hover:bg-sky-500 hover:text-white shadow-sm hover:shadow transition-all font-semibold px-4 py-2 border border-sky-400 rounded-none cursor-pointer disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:opacity-90 border border-transparent shadow-sm hover:shadow transition-all font-medium px-4 py-2 rounded-lg;
+    @apply bg-sky-100 text-sky-900 hover:bg-sky-200 border border-sky-200 shadow-sm hover:shadow transition-all font-medium px-4 py-2 rounded-none;
   }
 
   .input-field {
@@ -342,7 +368,40 @@
     background-color: #ffffff !important;
     color: rgb(17 24 39) !important;
     border: 1px solid rgb(209 213 219);
+    border-radius: 0 !important;
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  [role="dialog"] button[role="combobox"].plain-select-trigger,
+  [role="dialog"] button[role="combobox"].plain-select-trigger:focus,
+  [role="dialog"] button[role="combobox"].plain-select-trigger:focus-visible {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  [role="dialog"] input[type="date"],
+  [role="dialog"] input[type="datetime-local"],
+  [role="dialog"] input[type="month"],
+  [role="dialog"] input[type="time"] {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  [role="dialog"] input[type="date"]:focus-visible,
+  [role="dialog"] input[type="datetime-local"]:focus-visible,
+  [role="dialog"] input[type="month"]:focus-visible,
+  [role="dialog"] input[type="time"]:focus-visible {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  [role="dialog"] input[type="date"],
+  [role="dialog"] input[type="month"],
+  [role="dialog"] input[type="time"] {
+    border-radius: 0 !important;
   }
 
   [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"])::placeholder,
@@ -359,7 +418,7 @@
   }
 
   .sidebar-item {
-    @apply flex items-center justify-start text-left gap-3 px-3 py-2.5 text-white/90 font-normal hover:bg-white/15 hover:text-white transition-colors cursor-pointer rounded-md;
+    @apply flex items-center justify-start text-left gap-3 px-3 py-2.5 text-sm font-semibold text-gray-600 transition-colors cursor-pointer rounded-none;
   }
 
   @media (min-width: 1024px) and (max-width: 1279px), (min-width: 1024px) and (max-height: 820px) {
@@ -369,11 +428,19 @@
   }
 
   .sidebar-item-active {
-    @apply text-white font-normal bg-white/20 hover:bg-white/25 hover:text-white;
+    @apply bg-sky-400 text-white font-medium hover:bg-sky-500 hover:text-white;
   }
 
   .sidebar-item-active:hover {
-    @apply bg-white/25 text-white;
+    @apply bg-sky-500 text-white;
+  }
+
+  .sidebar-sub-item {
+    @apply block rounded-md py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900;
+  }
+
+  .sidebar-sub-item-active {
+    @apply font-semibold bg-sky-100 text-sky-800;
   }
 
   * {
@@ -476,4 +543,58 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* Square corners on all buttons app-wide */
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    border-radius: 0 !important;
+  }
+
+  /* Light blue for buttons using legacy primary classes */
+  button.bg-primary,
+  a.bg-primary[role="button"],
+  .btn-primary {
+    background-color: rgb(56 189 248) !important;
+    border-color: rgb(56 189 248) !important;
+    color: white !important;
+  }
+
+  button.bg-primary:hover,
+  a.bg-primary[role="button"]:hover,
+  .btn-primary:hover {
+    background-color: rgb(14 165 233) !important;
+    border-color: rgb(14 165 233) !important;
+    color: white !important;
+  }
+
+  /* Red styling for delete actions in menus */
+  [role="menuitem"].text-red-600,
+  [role="menuitem"].text-red-600:focus {
+    color: rgb(185 28 28) !important;
+    background-color: rgb(254 242 242) !important;
+  }
+
+  [role="menuitem"].text-red-600:hover,
+  [role="menuitem"].text-red-600[data-highlighted] {
+    color: rgb(153 27 27) !important;
+    background-color: rgb(254 226 226) !important;
+  }
+
+  .currency-code {
+    font-weight: 400 !important;
+  }
+
+  /* Softer gray for page/section titles (matches sidebar sub-items) */
+  h1.text-gray-900,
+  h2.text-gray-900,
+  h3.text-gray-900,
+  h4.text-gray-900,
+  h1.text-gray-800,
+  h2.text-gray-800,
+  h3.text-gray-800,
+  h4.text-gray-800 {
+    color: rgb(75 85 99);
   }

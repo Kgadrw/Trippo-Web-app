@@ -1,11 +1,10 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { LoginModal } from "@/components/LoginModal";
 import { User } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import { getSubdomainUrl } from "@/hooks/useSubdomain";
+import { getSubdomainUrl, isBookfySubdomainHost } from "@/hooks/useSubdomain";
 import { contentApi } from "@/lib/api";
 import { usePlatformContact } from "@/hooks/usePlatformContact";
 import { PlatformContactFooter } from "@/components/support/PlatformContactCard";
@@ -117,7 +116,6 @@ function buildFallbackHomepageContent(t: (key: string) => string): ResolvedHomep
 
 const Home = () => {
   const { t, language } = useTranslation();
-  const navigate = useNavigate();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
   const [homepageContent, setHomepageContent] = useState<ResolvedHomepageContent | null>(null);
@@ -155,10 +153,9 @@ const Home = () => {
     const isMainDomain = hostname === 'trippo.rw' || 
                          hostname === 'localhost' || 
                          hostname === '127.0.0.1' ||
-                         (hostname.includes('localhost') && !hostname.startsWith('admin.') && !hostname.startsWith('dashboard.'));
+                         (hostname.includes('localhost') && !hostname.startsWith('admin.') && !isBookfySubdomainHost(hostname));
     
-    // If somehow on subdomain, redirect to main domain
-    if (!isMainDomain && (hostname.startsWith('admin.') || hostname.startsWith('dashboard.'))) {
+    if (!isMainDomain && (hostname.startsWith('admin.') || isBookfySubdomainHost(hostname))) {
       window.location.replace(`${getSubdomainUrl(null)}?logout=1`);
       return;
     }
@@ -174,8 +171,8 @@ const Home = () => {
       window.location.replace(getSubdomainUrl("admin"));
       return;
     }
-    navigate("/dashboard", { replace: true });
-  }, [navigate]);
+    window.location.replace(getSubdomainUrl("bookfy"));
+  }, []);
 
   // Reset login modal state when user logs out (listen for auth changes)
   useEffect(() => {
@@ -195,7 +192,7 @@ const Home = () => {
       const userId = localStorage.getItem("profit-pilot-user-id");
       const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
       const currentPath = window.location.pathname;
-      const protectedRoutes = ['/dashboard', '/products', '/sales', '/reports', '/settings', '/admin-dashboard'];
+      const protectedRoutes = ['/dashboard', '/finance', '/income', '/expenses', '/reports', '/billing', '/settings', '/admin-dashboard'];
       const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));
 
       if (isProtectedRoute && (!userId || !authenticated)) {

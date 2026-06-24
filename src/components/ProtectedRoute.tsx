@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useSubdomain, getSubdomainUrl } from "@/hooks/useSubdomain";
+import { useSubdomain, getSubdomainUrl, isBookfySubdomainHost } from "@/hooks/useSubdomain";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -81,7 +81,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
         const userId = localStorage.getItem("profit-pilot-user-id");
         const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
         const currentPath = window.location.pathname;
-        const protectedRoutes = ['/dashboard', '/products', '/sales', '/reports', '/settings', '/admin-dashboard'];
+        const protectedRoutes = [
+          '/dashboard', '/finance', '/income', '/expenses', '/reports', '/billing', '/settings',
+          '/admin-dashboard', '/sales', '/products', '/documents', '/schedules',
+        ];
         const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));
 
         if (isProtectedRoute && (!userId || !authenticated)) {
@@ -121,7 +124,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     const homeHost = new URL(homeUrl).hostname;
     
     // Only redirect if we're on a subdomain
-    if (currentHost !== homeHost && (currentHost.includes('admin.') || currentHost.includes('dashboard.'))) {
+    if (currentHost !== homeHost && (currentHost.includes("admin.") || isBookfySubdomainHost(currentHost))) {
       // Clear stale session on main domain (separate localStorage per subdomain origin)
       window.location.replace(`${homeUrl}?logout=1`);
       return null;
@@ -141,7 +144,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     const homeHost = new URL(homeUrl).hostname;
     
     // Only redirect if we're on a subdomain
-    if (currentHost !== homeHost && (currentHost.includes('admin.') || currentHost.includes('dashboard.'))) {
+    if (currentHost !== homeHost && (currentHost.includes("admin.") || isBookfySubdomainHost(currentHost))) {
       window.location.replace(`${homeUrl}?logout=1`);
       return null;
     }
@@ -159,8 +162,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   if (!requireAdmin && subdomain === 'admin') {
     // Regular user should not be on admin subdomain, redirect to dashboard
-    const dashboardUrl = getSubdomainUrl('dashboard');
-    window.location.href = dashboardUrl;
+    const bookfyUrl = getSubdomainUrl("bookfy");
+    window.location.href = bookfyUrl;
     return null;
   }
 

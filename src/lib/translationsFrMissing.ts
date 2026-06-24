@@ -138,7 +138,7 @@ export const frMissing: Partial<Translations> = {
     custom: "Personnalisé",
     exportPdf: "Exporter PDF",
     exportExcel: "Exporter Excel",
-    salesTrend: "Tendance des ventes",
+    salesTrend: "Revenus et dépenses",
     topProducts: "Produits les plus vendus",
     salesByCategory: "Ventes par catégorie",
     paymentMethods: "Modes de paiement",

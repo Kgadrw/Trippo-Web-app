@@ -1,4 +1,4 @@
-﻿import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -51,14 +51,14 @@ export function MobileNumberPad({ value, onChange, onDone, className }: Props) {
           onClick={backspace}
           disabled={!value}
         >
-          ⌫
+          ?
         </Button>
       </div>
 
       {onDone && (
         <Button
           type="button"
-          className="mt-3 h-11 w-full rounded-xl bg-primary text-white hover:bg-blue-700 hover:text-white font-semibold"
+          className="mt-3 h-11 w-full rounded-xl bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white font-semibold"
           onClick={onDone}
         >
           Done

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { displayCurrencyCode } from "@/lib/currency";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,7 +134,7 @@ function NetworkOption({
   );
 }
 
-export default function Billing() {
+export default function Billing({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const { t, language } = useTranslation();
   const { contact } = usePlatformContact();
@@ -186,6 +187,7 @@ export default function Billing() {
   const packageName = plan?.planName ? `${plan.planName} Pack` : t("plusPack");
   const amount = plan?.amount ?? DEFAULT_SUBSCRIPTION_AMOUNT;
   const currency = plan?.currency || "RWF";
+  const currencyLabel = displayCurrencyCode(currency);
   const requiredTotal = Math.ceil(amount * 1.023);
   const paymentMessageOptions = {
     network,
@@ -466,8 +468,8 @@ export default function Billing() {
     }
   };
 
-  return (
-    <AppLayout title={t("billing")}>
+  const billingBody = (
+    <>
       <div className="flex flex-col min-h-0 w-full space-y-4 pb-4">
         {loading ? (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-20 lg:bg-white lg:rounded-lg">
@@ -493,88 +495,72 @@ export default function Billing() {
                 </p>
               </div>
             ) : null}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-            {/* Summary */}
-            <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-1">
-              <h1 className="text-lg font-semibold text-foreground">{t("billingSummary")}</h1>
-              <p className="text-sm text-muted-foreground pb-4">{t("billingSummarySubtitle")}</p>
+          <div
+            className={cn(
+              "grid gap-4 w-full",
+              !isPaidActive && (canPay || !paymentReady) ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1",
+            )}
+          >
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-1">
+                <h1 className="text-lg font-semibold text-foreground">{t("billingSummary")}</h1>
+                <p className="text-sm text-muted-foreground pb-4">{t("billingSummarySubtitle")}</p>
 
-              <div className="divide-y divide-border/60">
-                <SummaryRow label={`${t("billingPackage")}:`} value={packageName} />
-                <SummaryRow
-                  label={`${t("price")}:`}
-                  value={`${amount.toLocaleString()} ${currency}`}
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
-                <span className="text-sm font-semibold text-foreground">{t("total")}:</span>
-                <span className="text-lg font-bold text-foreground tabular-nums">
-                  {amount.toLocaleString()} {currency}
-                </span>
-              </div>
-
-              {isCancelled ? (
-                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1">
-                  <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
-                  {plan?.hasPlus && plan.nextDueDate ? (
-                    <p className="text-xs text-muted-foreground">
-                      {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate, language)}.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {t("billingNotBilledMonthly")}
-                    </p>
-                  )}
+                <div className="divide-y divide-border/60">
+                  <SummaryRow label={`${t("billingPackage")}:`} value={packageName} />
+                  <SummaryRow
+                    label={`${t("price")}:`}
+                    value={`${amount.toLocaleString()} ${currencyLabel}`}
+                  />
                 </div>
-              ) : canCancelPlan ? (
-                <div className="mt-4 pt-2">
-                  <Button
-                    type="button"
-                    className={cn(
-                      "w-full border border-destructive bg-background text-destructive",
-                      "hover:bg-destructive hover:text-white hover:border-destructive",
+
+                <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
+                  <span className="text-sm font-semibold text-foreground">{t("total")}:</span>
+                  <span className="text-lg font-bold text-foreground tabular-nums">
+                    {amount.toLocaleString()} {currencyLabel}
+                  </span>
+                </div>
+
+                {isCancelled ? (
+                  <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1">
+                    <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
+                    {plan?.hasPlus && plan.nextDueDate ? (
+                      <p className="text-xs text-muted-foreground">
+                        {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate, language)}.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {t("billingNotBilledMonthly")}
+                      </p>
                     )}
-                    onClick={() => setCancelDialogOpen(true)}
-                    disabled={paying || polling || cancelling}
-                  >
-                    {t("billingCancelPlan")}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Checkout */}
-            <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-5 relative min-h-[280px]">
-              {(paying || polling) && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[2px] px-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
-                  <p className="text-sm font-medium text-foreground text-center">{t("billingProcessing")}</p>
-                  <p className="text-xs text-muted-foreground text-center">
-                    {t("billingCheckPhoneApprove")}
-                  </p>
-                  {polling ? (
+                  </div>
+                ) : canCancelPlan ? (
+                  <div className="mt-4 pt-2">
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-1"
-                      onClick={() => void handlePay({ forceRetry: true })}
+                      className={cn(
+                        "w-full border border-destructive bg-background text-destructive",
+                        "hover:bg-destructive hover:text-white hover:border-destructive",
+                      )}
+                      onClick={() => setCancelDialogOpen(true)}
+                      disabled={paying || polling || cancelling}
                     >
-                      {t("billingSendNewPrompt")}
+                      {t("billingCancelPlan")}
                     </Button>
-                  ) : null}
-                </div>
-              )}
+                  </div>
+                ) : null}
+              </div>
 
               {isPaidActive ? (
-                <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden">
-                  <div className="p-4">
+                <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden lg:bg-white lg:rounded-lg">
+                  <div className="p-4 sm:p-5">
                     <div className="flex items-start gap-4">
                       <div className="shrink-0">
                         <img
                           src="/paid.png"
-                          alt="Payment successful"
+                          alt=""
+                          aria-hidden
                           className="h-14 w-14 sm:h-16 sm:w-16 object-contain"
                         />
                       </div>
@@ -601,7 +587,7 @@ export default function Billing() {
                             {t("billingPackage")}: {packageName}
                           </p>
                           <p className="text-xs text-green-800">
-                            {t("price")}: {amount.toLocaleString()} {currency}
+                            {t("price")}: {amount.toLocaleString()} {currencyLabel}
                           </p>
                         </div>
                       </div>
@@ -610,7 +596,7 @@ export default function Billing() {
                     {daysRemaining != null ? (
                       <div className="mt-4 rounded-xl border border-green-200/70 bg-white/60 p-3">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-green-900/80">Days remaining</span>
+                          <span className="font-medium text-green-900/80">{t("daysRemaining")}</span>
                           <span className="font-semibold tabular-nums text-green-900">
                             {daysRemaining.toLocaleString()} day{daysRemaining === 1 ? "" : "s"}
                           </span>
@@ -628,7 +614,33 @@ export default function Billing() {
                     ) : null}
                   </div>
                 </div>
-              ) : canPay && paymentReady ? (
+              ) : null}
+            </div>
+
+            {!isPaidActive ? (
+            <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-5 relative min-h-[280px]">
+              {(paying || polling) && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[2px] px-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
+                  <p className="text-sm font-medium text-foreground text-center">{t("billingProcessing")}</p>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {t("billingCheckPhoneApprove")}
+                  </p>
+                  {polling ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() => void handlePay({ forceRetry: true })}
+                    >
+                      {t("billingSendNewPrompt")}
+                    </Button>
+                  ) : null}
+                </div>
+              )}
+
+              {canPay && paymentReady ? (
                 <>
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">{t("billingSelectNetwork")}</h2>
@@ -730,6 +742,7 @@ export default function Billing() {
                 </div>
               ) : null}
             </div>
+            ) : null}
           </div>
           </div>
         )}
@@ -750,7 +763,7 @@ export default function Billing() {
               {t("billingKeepPlan")}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-red-500 text-white hover:bg-red-600 border border-red-500"
               disabled={cancelling}
               onClick={(e) => {
                 e.preventDefault();
@@ -769,6 +782,12 @@ export default function Billing() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </>
   );
+
+  if (embedded) {
+    return billingBody;
+  }
+
+  return <AppLayout title={t("billing")}>{billingBody}</AppLayout>;
 }

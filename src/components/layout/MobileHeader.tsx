@@ -1,199 +1,42 @@
-﻿import { useState, useEffect, useMemo } from "react";
-import { Bell, ArrowLeft, CheckCheck, ChevronDown, Package, AlertTriangle } from "lucide-react";
+import { useMemo } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useTranslation } from "@/hooks/useTranslation";
-import { notificationService } from "@/lib/notifications";
-import { notificationStore, StoredNotification } from "@/lib/notificationStore";
-import { cn } from "@/lib/utils";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { StockUpdateDialog } from "@/components/StockUpdateDialog";
-import { useApi } from "@/hooks/useApi";
 import { useSubdomain } from "@/hooks/useSubdomain";
+import { getDashboardPath } from "@/lib/appRoutes";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import { HeaderNotificationBell } from "./HeaderNotificationBell";
+import { HeaderSettingsMenu, HeaderSettingsIconButton } from "./HeaderSettingsMenu";
+import { HeaderAccountAvatar } from "./HeaderAccountAvatar";
+import { useSettingsModal } from "@/components/settings/settingsModalState";
+import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
+import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
+import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 
 interface MobileHeaderProps {
   onNotificationClick?: () => void;
 }
 
-interface Product {
-  id?: number;
-  _id?: string;
-  name: string;
-  stock: number;
-  minStock?: number;
-}
-
 export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
   const { user } = useCurrentUser();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const subdomain = useSubdomain();
   const { loading: subLoading, plan } = useSubscriptionAccess();
-  const [notificationOpen, setNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState<StoredNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [selectedNotification, setSelectedNotification] = useState<StoredNotification | null>(null);
-  const [stockUpdateDialogOpen, setStockUpdateDialogOpen] = useState(false);
-  
-  const {
-    items: products,
-    refresh: refreshProducts,
-  } = useApi<Product>({
-    endpoint: "products",
-    defaultValue: [],
-  });
 
-  // Get user initials for avatar - memoized to prevent shaking
-  const userInitials = useMemo(() => {
-    if (user?.name) {
-      const names = user.name.split(" ");
-      if (names.length >= 2) {
-        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-      }
-      return user.name.substring(0, 2).toUpperCase();
-    }
-    return "U";
-  }, [user?.name]);
+  const { openSettings } = useSettingsModal();
 
-  // Get first name only - memoized to prevent shaking
   const firstName = useMemo(() => {
-    if (user?.name) {
-      return user.name.split(" ")[0];
-    }
+    if (user?.name) return user.name.split(" ")[0];
     return "User";
   }, [user?.name]);
 
-  // Load notifications from cache and sync from backend
-  useEffect(() => {
-    const loadNotifications = () => {
-      const allNotifications = notificationStore.getAllNotifications();
-      setNotifications(allNotifications);
-      setUnreadCount(notificationStore.getUnreadCount());
-    };
-
-    // Load from cache immediately, then sync from backend
-    loadNotifications();
-    if (user) {
-      notificationStore.syncFromBackend();
-    }
-
-    // Listen for notification updates (from store sync or new notifications)
-    const handleNotificationUpdate = () => {
-      loadNotifications();
-    };
-
-    window.addEventListener('notifications-updated', handleNotificationUpdate);
-
-    const handleStorageChange = () => {
-      const currentUserId = localStorage.getItem('profit-pilot-user-id');
-      if (currentUserId) {
-        loadNotifications();
-        notificationStore.syncFromBackend();
-      } else {
-        setNotifications([]);
-        setUnreadCount(0);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('notifications-updated', handleNotificationUpdate);
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [user]);
-
-  const handleNotificationBellClick = () => {
-    const opening = !notificationOpen;
-    setNotificationOpen(opening);
-    setSelectedNotification(null);
-    onNotificationClick?.();
-    // Sync fresh data from backend whenever the panel is opened
-    if (opening) {
-      notificationStore.syncFromBackend();
-    }
-  };
-
-  const handleMarkAsRead = async (notificationId: string) => {
-    await notificationStore.markAsRead(notificationId);
-    // Update badge after marking as read
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        registration.active?.postMessage({ type: 'UPDATE_BADGE' });
-      } catch (error) {
-        console.error('Error updating badge:', error);
-      }
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    await notificationStore.markAllAsRead();
-    // Clear badge after marking all as read
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        registration.active?.postMessage({ type: 'CLEAR_BADGE' });
-      } catch (error) {
-        console.error('Error clearing badge:', error);
-      }
-    }
-  };
-
-  const handleNotificationClick = (notification: StoredNotification) => {
-    handleMarkAsRead(notification.id);
-    setSelectedNotification(notification);
-  };
-
-  const handleBackToList = () => {
-    setSelectedNotification(null);
-  };
-
-  const handleUpdateStock = () => {
-    if (selectedNotification?.data?.productId) {
-      setStockUpdateDialogOpen(true);
-    }
-  };
-
-  const handleStockUpdated = () => {
-    setStockUpdateDialogOpen(false);
-    setSelectedNotification(null);
-    refreshProducts();
-    // Reload notifications to update the list
-    const allNotifications = notificationStore.getAllNotifications();
-    setNotifications(allNotifications);
-    setUnreadCount(notificationStore.getUnreadCount());
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    
-    return date.toLocaleDateString();
-  };
-
-  // Show mobile "back to dashboard" only on inner app pages
   const showDashboardBack = useMemo(() => {
     const path = location.pathname;
     const isRootPath = path === "/" || path === "";
-    const isDashboardRoot = subdomain === "dashboard" && isRootPath;
+    const isDashboardRoot = subdomain === "bookfy" && isRootPath;
     const isAdminRoot = subdomain === "admin" && isRootPath;
     return !isDashboardRoot && !isAdminRoot;
   }, [location.pathname, subdomain]);
@@ -210,46 +53,42 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/30 bg-white/45 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden">
-      {/* Left side - Back (IMS inner pages) + Account Info */}
-      <div className="flex items-center gap-2 flex-1 min-w-0 sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         {showDashboardBack && (
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(getDashboardPath(subdomain))}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60"
             aria-label="Back to dashboard"
           >
             <ArrowLeft className="h-6 w-6" strokeWidth={2.25} />
           </button>
         )}
-        <Avatar className="h-10 w-10 rounded-full border-2 border-blue-600 flex-shrink-0 bg-white">
-          <AvatarFallback className="bg-white text-blue-600 font-bold border-0">
-            {userInitials}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <span className="text-sm text-muted-foreground">
-              {t("hello")},
-            </span>
-            <span className="text-sm font-semibold text-foreground truncate">
-              {firstName}
-            </span>
-            <ChevronDown 
-              className="h-4 w-4 text-foreground flex-shrink-0 cursor-pointer hover:text-muted-foreground" 
-              onClick={() => navigate("/settings")}
-            />
+        <button
+          type="button"
+          onClick={() => openSettings("profile")}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors hover:bg-white/60 sm:gap-3"
+          aria-label={t("profileSectionTitle")}
+        >
+          <UserProfileAvatar
+            name={user?.name}
+            profilePictureUrl={user?.profilePictureUrl}
+            className="h-10 w-10 shrink-0 rounded-full border-2 border-blue-600 bg-white"
+            fallbackClassName="border-0 bg-white font-bold text-blue-600"
+          />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-muted-foreground">{t("hello")},</span>
+              <span className="truncate text-sm font-semibold text-foreground">{firstName}</span>
+            </div>
+            {user?.businessName && (
+              <span className="truncate text-xs text-muted-foreground">{user.businessName}</span>
+            )}
           </div>
-          {user?.businessName && (
-            <span className="text-xs text-muted-foreground truncate">
-              {user.businessName}
-            </span>
-          )}
-        </div>
+        </button>
       </div>
 
-      {/* Right side - Billing + Notification */}
-      <div className="flex flex-shrink-0 items-center ml-2 gap-1">
+      <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
         {showBillingCrown ? (
           <button
             type="button"
@@ -257,239 +96,26 @@ export function MobileHeader({ onNotificationClick }: MobileHeaderProps) {
             className="p-1.5 transition-opacity hover:opacity-80"
             aria-label={t("billing")}
           >
-            <img
-              src="/plus.png"
-              alt="Trippo Plus"
-              className="h-9 w-9 object-contain"
-              loading="lazy"
-            />
+            <img src="/plus.png" alt="Trippo Plus" className="h-9 w-9 object-contain" loading="lazy" />
           </button>
         ) : null}
-        <button
-          onClick={handleNotificationBellClick}
-          className={cn(
-            "relative p-2 rounded-full transition-colors",
-            notificationService.isAllowed()
-              ? "text-foreground hover:bg-muted"
-              : "text-muted-foreground"
-          )}
-        >
-          <Bell size={22} />
-          {/* Notification indicator dot */}
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-[10px] font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>
-            </span>
-          )}
-        </button>
-
-        {/* Notification Sheet Modal */}
-        <Sheet open={notificationOpen} onOpenChange={setNotificationOpen}>
-          <SheetContent side="right" className="w-full sm:w-[400px] p-0">
-            <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <SheetTitle className="text-xl font-bold">Notifications</SheetTitle>
-                <div className="flex items-center gap-2">
-                  {/* Mark as Read Button - Only show when viewing a single unread notification */}
-                  {selectedNotification && !selectedNotification.read && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleMarkAsRead(selectedNotification.id)}
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                    >
-                      <CheckCheck size={14} className="mr-1" />
-                      Mark as read
-                    </Button>
-                  )}
-                  {/* Mark all read - Only show when in list view with unread notifications */}
-                  {!selectedNotification && notifications.length > 0 && unreadCount > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleMarkAllAsRead}
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                    >
-                      <CheckCheck size={14} className="mr-1" />
-                      Mark all read
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <SheetDescription className="text-xs text-gray-500">
-                {unreadCount > 0
-                  ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
-                  : notifications.length > 0
-                  ? 'All caught up!'
-                  : 'No notifications yet'}
-              </SheetDescription>
-            </SheetHeader>
-
-            <ScrollArea className="h-[calc(100vh-120px)]">
-              <div className="px-4 py-4">
-                {selectedNotification ? (
-                  /* Notification Detail View */
-                  <div className="space-y-4">
-                    {/* Back Button */}
-                    <button
-                      onClick={handleBackToList}
-                      className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
-                    >
-                      <ArrowLeft size={18} />
-                      <span className="text-sm font-medium">Back</span>
-                    </button>
-
-                    {/* Notification Details */}
-                    <div className={cn(
-                      "p-4 rounded-lg border",
-                      selectedNotification.read
-                        ? "bg-white border-gray-200"
-                        : "bg-blue-50 border-blue-200"
-                    )}>
-                      <div className="flex items-start gap-3 mb-4">
-                        <div className={cn(
-                          "p-2 rounded-lg",
-                          selectedNotification.type === 'low_stock' ? "bg-orange-100" : "bg-blue-100"
-                        )}>
-                          {selectedNotification.type === 'low_stock' ? (
-                            <AlertTriangle size={20} className="text-orange-600" />
-                          ) : (
-                            <Bell size={20} className="text-blue-600" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-base font-semibold text-gray-900">
-                              {selectedNotification.title}
-                            </h3>
-                            {!selectedNotification.read && (
-                              <span className="h-2 w-2 bg-blue-600 rounded-full flex-shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">
-                            {selectedNotification.body}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {formatTime(selectedNotification.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Actions for Low Stock Notifications */}
-                      {selectedNotification.type === 'low_stock' && selectedNotification.data?.productId && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <Package size={16} className="text-gray-500" />
-                              <span>
-                                <strong>Product:</strong> {selectedNotification.data.productName || 'Unknown Product'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <span>
-                                <strong>Current Stock:</strong> {selectedNotification.data.currentStock ?? 0}
-                              </span>
-                            </div>
-                            {selectedNotification.data.minStock !== undefined && (
-                              <div className="flex items-center gap-2 text-sm text-gray-700">
-                                <span>
-                                  <strong>Minimum Stock:</strong> {selectedNotification.data.minStock}
-                                </span>
-                              </div>
-                            )}
-                            <Button
-                              onClick={handleUpdateStock}
-                              className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
-                            >
-                              <Package size={16} className="mr-2" />
-                              Update Stock
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Action for other notification types */}
-                      {selectedNotification.type !== 'low_stock' && selectedNotification.data?.route && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <Button
-                            onClick={() => {
-                              navigate(selectedNotification.data.route);
-                              setNotificationOpen(false);
-                              setSelectedNotification(null);
-                            }}
-                            className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : notifications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Bell size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p className="text-sm font-medium text-gray-600 mb-1">No notifications</p>
-                    <p className="text-xs text-gray-500">
-                      You'll see alerts here when they arrive
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={cn(
-                          "p-4 rounded-lg border transition-colors cursor-pointer",
-                          notification.read
-                            ? "bg-white border-gray-200"
-                            : "bg-blue-50 border-blue-200"
-                        )}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Back Icon on Left */}
-                          <ArrowLeft size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="text-sm font-semibold text-gray-900">
-                                {notification.title}
-                              </h4>
-                              {!notification.read && (
-                                <span className="h-2 w-2 bg-blue-600 rounded-full flex-shrink-0" />
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                              {notification.body}
-                            </p>
-                            <p className="text-[10px] text-gray-400">
-                              {formatTime(notification.timestamp)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-            
-            {/* Stock Update Dialog */}
-            {selectedNotification?.type === 'low_stock' && selectedNotification.data?.productId && (
-              <StockUpdateDialog
-                productId={selectedNotification.data.productId}
-                productName={selectedNotification.data.productName}
-                currentStock={selectedNotification.data.currentStock}
-                open={stockUpdateDialogOpen}
-                onOpenChange={(open) => {
-                  setStockUpdateDialogOpen(open);
-                  if (!open) {
-                    handleStockUpdated();
-                  }
-                }}
-              />
-            )}
-          </SheetContent>
-        </Sheet>
+        <WorkspaceMemberAvatarStack className="mr-0.5" />
+        <WorkspaceHeaderMenu className="border-0 bg-transparent hover:bg-white/60" />
+        <HeaderNotificationBell
+          onNotificationClick={onNotificationClick}
+          iconSize={22}
+          buttonClassName="rounded-full hover:bg-muted"
+        />
+        <HeaderSettingsIconButton className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60" />
+        <HeaderSettingsMenu panel="profile">
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60"
+            aria-label={t("profileSectionTitle")}
+          >
+            <HeaderAccountAvatar className="h-10 w-10" iconSize={18} />
+          </button>
+        </HeaderSettingsMenu>
       </div>
     </header>
   );

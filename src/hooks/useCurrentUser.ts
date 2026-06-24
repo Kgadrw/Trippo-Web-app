@@ -5,11 +5,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const USER_NAME_KEY = "profit-pilot-user-name";
 const USER_EMAIL_KEY = "profit-pilot-user-email";
 const BUSINESS_NAME_KEY = "profit-pilot-business-name";
+const PROFILE_PICTURE_URL_KEY = "profit-pilot-profile-picture-url";
 
 export interface CurrentUser {
   name: string;
   email?: string;
   businessName?: string;
+  profilePictureUrl?: string;
 }
 
 // Global cache for user data - fetched once, shared across all components
@@ -25,12 +27,14 @@ const initializeUserData = (): CurrentUser | null => {
   const name = localStorage.getItem(USER_NAME_KEY);
   const email = localStorage.getItem(USER_EMAIL_KEY);
   const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
+  const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
 
   if (name) {
     globalUserCache = {
       name,
       email: email || undefined,
       businessName: businessName || undefined,
+      profilePictureUrl: profilePictureUrl || undefined,
     };
   } else {
     globalUserCache = null;
@@ -58,11 +62,13 @@ export const useCurrentUser = () => {
     const name = localStorage.getItem(USER_NAME_KEY);
     const email = localStorage.getItem(USER_EMAIL_KEY);
     const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
+    const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
 
     const newUser: CurrentUser | null = name ? {
       name,
       email: email || undefined,
       businessName: businessName || undefined,
+      profilePictureUrl: profilePictureUrl || undefined,
     } : null;
 
     // Only update state if user data actually changed (prevents unnecessary re-renders)
@@ -70,7 +76,8 @@ export const useCurrentUser = () => {
       if (
         prevUser?.name === newUser?.name &&
         prevUser?.email === newUser?.email &&
-        prevUser?.businessName === newUser?.businessName
+        prevUser?.businessName === newUser?.businessName &&
+        prevUser?.profilePictureUrl === newUser?.profilePictureUrl
       ) {
         // No change, return previous value to prevent re-render
         return prevUser;
@@ -101,18 +108,21 @@ export const useCurrentUser = () => {
       const name = localStorage.getItem(USER_NAME_KEY);
       const email = localStorage.getItem(USER_EMAIL_KEY);
       const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
+      const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
       
       const newUser: CurrentUser | null = name ? {
         name,
         email: email || undefined,
         businessName: businessName || undefined,
+        profilePictureUrl: profilePictureUrl || undefined,
       } : null;
 
       // Only update if data actually changed
       if (
         globalUserCache?.name !== newUser?.name ||
         globalUserCache?.email !== newUser?.email ||
-        globalUserCache?.businessName !== newUser?.businessName
+        globalUserCache?.businessName !== newUser?.businessName ||
+        globalUserCache?.profilePictureUrl !== newUser?.profilePictureUrl
       ) {
         globalUserCache = newUser;
         setUser(newUser);
@@ -156,6 +166,13 @@ export const useCurrentUser = () => {
         localStorage.removeItem(BUSINESS_NAME_KEY);
       }
     }
+    if (userData.profilePictureUrl !== undefined) {
+      if (userData.profilePictureUrl) {
+        localStorage.setItem(PROFILE_PICTURE_URL_KEY, userData.profilePictureUrl);
+      } else {
+        localStorage.removeItem(PROFILE_PICTURE_URL_KEY);
+      }
+    }
     
     // Verify userId hasn't changed after update (safety check)
     const userIdAfterUpdate = localStorage.getItem("profit-pilot-user-id");
@@ -168,11 +185,13 @@ export const useCurrentUser = () => {
     const name = localStorage.getItem(USER_NAME_KEY);
     const email = localStorage.getItem(USER_EMAIL_KEY);
     const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
+    const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
     
     const updatedUser: CurrentUser | null = name ? {
       name,
       email: email || undefined,
       businessName: businessName || undefined,
+      profilePictureUrl: profilePictureUrl || undefined,
     } : null;
     
     globalUserCache = updatedUser;
@@ -182,7 +201,8 @@ export const useCurrentUser = () => {
       if (
         prevUser?.name === updatedUser?.name &&
         prevUser?.email === updatedUser?.email &&
-        prevUser?.businessName === updatedUser?.businessName
+        prevUser?.businessName === updatedUser?.businessName &&
+        prevUser?.profilePictureUrl === updatedUser?.profilePictureUrl
       ) {
         return prevUser; // No change, prevent re-render
       }
@@ -198,6 +218,7 @@ export const useCurrentUser = () => {
     localStorage.removeItem(USER_NAME_KEY);
     localStorage.removeItem(USER_EMAIL_KEY);
     localStorage.removeItem(BUSINESS_NAME_KEY);
+    localStorage.removeItem(PROFILE_PICTURE_URL_KEY);
     globalUserCache = null;
     isUserDataInitialized = false;
     setUser(null);

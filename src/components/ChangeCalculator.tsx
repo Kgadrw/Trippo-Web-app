@@ -69,7 +69,7 @@ export function ChangeCalculator({ totalAmount }: ChangeCalculatorProps) {
           <div className="space-y-2">
             <Label className="text-gray-900 font-medium">Total Amount</Label>
             <div className="input-field bg-gray-50 border-gray-300 text-gray-900 font-semibold cursor-not-allowed">
-              {totalAmount.toLocaleString()} rwf
+              {totalAmount.toLocaleString()} Rwf
             </div>
           </div>
           
@@ -94,7 +94,7 @@ export function ChangeCalculator({ totalAmount }: ChangeCalculatorProps) {
               ? "bg-green-100 border-green-500 text-green-800" 
               : "bg-red-100 border-red-500 text-red-800"
           }`}>
-            {change >= 0 ? `${change.toLocaleString()} rwf` : "Insufficient payment"}
+            {change >= 0 ? `${change.toLocaleString()} Rwf` : "Insufficient payment"}
           </div>
         </div>
         

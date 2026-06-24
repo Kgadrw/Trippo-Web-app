@@ -69,7 +69,7 @@ export function SalesExpensesPeriodChart({
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#475569", fontSize: 12, fontWeight: 500 }}
-              tickFormatter={(value) => `rwf ${(value / 1000).toFixed(1)}k`}
+              tickFormatter={(value) => `Rwf ${(value / 1000).toFixed(1)}k`}
             />
             <Tooltip
               contentStyle={{
@@ -81,7 +81,7 @@ export function SalesExpensesPeriodChart({
               labelStyle={{ color: "#475569", fontWeight: 600 }}
               formatter={(value: number, name: string) => {
                 const label = name === "sales" ? t("revenue") : t("expenses");
-                return [`rwf ${value.toLocaleString()}`, label];
+                return [`Rwf ${value.toLocaleString()}`, label];
               }}
             />
             <Legend

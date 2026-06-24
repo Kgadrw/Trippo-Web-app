@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Download, Smartphone, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isBookfySubdomainHost } from "@/hooks/useSubdomain";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -38,7 +39,7 @@ export function AddToHomeScreen() {
 
     // Detect dashboard/admin subdomain context
     const host = window.location.hostname.toLowerCase();
-    setIsDashboardSubdomain(host.startsWith("dashboard.") || host.startsWith("admin."));
+    setIsDashboardSubdomain(isBookfySubdomainHost(host) || host.startsWith("admin."));
 
     // Listen for the beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e: Event) => {

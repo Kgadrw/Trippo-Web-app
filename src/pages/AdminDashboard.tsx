@@ -511,9 +511,9 @@ const AdminDashboard = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    // Format as RWF (Rwandan Franc)
-    // RWF doesn't use decimal places, so format as whole number
-    return `${amount.toLocaleString("en-US")} RWF`;
+    // Format as Rwf (Rwandan Franc)
+    // Rwf doesn't use decimal places, so format as whole number
+    return `${amount.toLocaleString("en-US")} Rwf`;
   };
 
   const formatDate = (dateString: string) => {
@@ -855,24 +855,20 @@ const AdminDashboard = () => {
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return;
 
-    setIsDeleting(true);
+    const user = userToDelete;
+    setDeleteDialogOpen(false);
+    setUserToDelete(null);
+    setUsers((prev) => prev.filter((u) => u._id !== user._id));
+
     try {
-      await adminApi.deleteUser(userToDelete._id);
-      
-      // Remove user from local state
-      setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
-      
-      // Reload dashboard data to update stats
-      await loadDashboardData();
-      
+      await adminApi.deleteUser(user._id);
+      void loadDashboardData();
       toast({
         title: "User Deleted",
-        description: `User "${userToDelete.name}" and all their data have been deleted successfully.`,
+        description: `User "${user.name}" and all their data have been deleted successfully.`,
       });
-      
-      setDeleteDialogOpen(false);
-      setUserToDelete(null);
     } catch (error: any) {
+      setUsers((prev) => [...prev, user]);
       console.error("Error deleting user:", error);
       toast({
         title: "Error",
@@ -1673,7 +1669,7 @@ const AdminDashboard = () => {
 
             <DialogFooter>
               <Button
-                variant="outline"
+                variant="cancel"
                 onClick={() => {
                   setEmailDialogOpen(false);
                   setEmailSubject("");
@@ -1774,7 +1770,7 @@ const AdminDashboard = () => {
 
             <DialogFooter>
               <Button
-                variant="outline"
+                variant="cancel"
                 onClick={() => {
                   setNotificationDialogOpen(false);
                   setNotificationTitle("");
@@ -1839,7 +1835,7 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Amount (RWF)</Label>
+                <Label>Amount (Rwf)</Label>
                 <Input value={billingAmount} onChange={(e) => setBillingAmount(e.target.value.replace(/[^\d]/g, ""))} />
               </div>
 
@@ -1858,7 +1854,7 @@ const AdminDashboard = () => {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setBillingDialogOpen(false)} disabled={isSavingBilling}>
+              <Button variant="cancel" onClick={() => setBillingDialogOpen(false)} disabled={isSavingBilling}>
                 Cancel
               </Button>
               <Button onClick={saveBilling} disabled={isSavingBilling || !billingUser}>

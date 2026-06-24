@@ -114,8 +114,10 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+import { displayCurrencyCode } from "@/lib/currency";
+
 function formatMoney(amount: number, currency = "RWF") {
-  return `${Number(amount || 0).toLocaleString()} ${currency}`;
+  return `${Number(amount || 0).toLocaleString()} ${displayCurrencyCode(currency)}`;
 }
 
 export function AdminPaymentsPanel() {

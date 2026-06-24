@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { filterByPageSearch } from "@/lib/pageSearch";
+import { usePageSearch } from "@/hooks/usePageSearch";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Input, searchBarInputClass } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -21,15 +23,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { HelpTip } from "@/components/ui/help-tip";
 import { 
   Plus, 
-  Search, 
   Pencil, 
   Trash2, 
   Calendar as CalendarIcon, 
   CheckCircle2, 
   Mail,
-  Clock, 
   Bell,
   User,
   Repeat,
@@ -42,7 +43,12 @@ import {
   ChevronLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MobileListSearchFilters } from "@/components/ui/mobile-list-search-filters";
+import { CurrencyAmount } from "@/lib/currency";
+import {
+  mobileFilterPanelClass,
+  mobileFilterToggleActiveClass,
+  mobileFilterToggleClass,
+} from "@/lib/fieldStyles";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { playUpdateBeep, playDeleteBeep, playErrorBeep } from "@/lib/sound";
@@ -59,6 +65,14 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { scheduleApi, clientApi } from "@/lib/api";
+import { FINANCE_TD_CLASS, FINANCE_TH_CLASS } from "@/components/finance/financeTable";
+import {
+  AUTOMATION_TYPE_LABEL_KEYS,
+  AUTOMATION_TYPE_TITLE_PH_KEYS,
+  AUTOMATION_TYPE_VALUES,
+  AutomationType,
+  normalizeAutomationType,
+} from "@/lib/automationTypes";
 
 interface Client {
   id?: number;
@@ -79,6 +93,7 @@ interface Schedule {
   clientId?: string | Client;
   dueDate: string | Date;
   frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  automationType?: AutomationType;
   amount?: number;
   status: 'pending' | 'completed' | 'cancelled';
   notifyUser: boolean;
@@ -101,6 +116,7 @@ interface ScheduleFormData {
   clientType: "debtor" | "worker" | "other";
   dueDate: string;
   frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  automationType: AutomationType;
   amount: string;
   notifyUser: boolean;
   notifyClient: boolean;
@@ -140,10 +156,10 @@ const Schedules = () => {
   });
 
   const [clients, setClients] = useState<Client[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [frequencyFilter, setFrequencyFilter] = useState<string>("all");
+  const [automationTypeFilter, setAutomationTypeFilter] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
@@ -186,9 +202,10 @@ const Schedules = () => {
     clientType: "other",
     dueDate: "",
     frequency: "once",
+    automationType: "payment_reminder",
     amount: "",
     notifyUser: true,
-    notifyClient: false,
+    notifyClient: true,
     userNotificationMessage: "",
     clientNotificationMessage: "",
     advanceNotificationDays: "0",
@@ -305,29 +322,7 @@ const Schedules = () => {
 
   const filteredClients = useMemo(() => {
     let filtered = clients;
-    
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((c) => {
-        const clientId = ((c as any)._id || c.id)?.toString() || "";
-        const clientMatches = 
-          c.name.toLowerCase().includes(query) ||
-          c.email?.toLowerCase().includes(query) ||
-          c.businessType?.toLowerCase().includes(query) ||
-          c.phone?.toLowerCase().includes(query);
-        
-        // Also check if any schedule for this client matches
-        const clientSchedules = getSchedulesForClient(clientId);
-        const scheduleMatches = clientSchedules.some((s) =>
-          s.title.toLowerCase().includes(query) ||
-          s.description?.toLowerCase().includes(query)
-      );
-    
-        return clientMatches || scheduleMatches;
-      });
-    }
 
-    // Filter by client
     if (clientFilter !== "all") {
       filtered = filtered.filter((c) => {
         const clientId = ((c as any)._id || c.id)?.toString();
@@ -336,7 +331,7 @@ const Schedules = () => {
     }
     
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, searchQuery, clientFilter, getSchedulesForClient]);
+  }, [clients, clientFilter]);
 
 
   const getClientName = (clientId?: string | Client) => {
@@ -499,9 +494,10 @@ const Schedules = () => {
         return date.toISOString().slice(0, 16);
       })(),
       frequency: "once",
+      automationType: "payment_reminder",
       amount: "",
       notifyUser: true,
-      notifyClient: false,
+      notifyClient: true,
       userNotificationMessage: "",
       clientNotificationMessage: "",
       advanceNotificationDays: "0",
@@ -552,6 +548,7 @@ const Schedules = () => {
         return `${year}-${month}-${day}T${hours}:${minutes}`;
       })(),
       frequency: schedule.frequency,
+      automationType: normalizeAutomationType((schedule as Schedule).automationType),
       amount: schedule.amount?.toString() || "",
       notifyUser: schedule.notifyUser,
       notifyClient: schedule.notifyClient,
@@ -735,6 +732,7 @@ const Schedules = () => {
         // Ensure full datetime is preserved with time component
         dueDate: new Date(formData.dueDate).toISOString(),
         frequency: formData.frequency,
+        automationType: formData.automationType,
         amount: formData.amount && formData.amount.trim() !== '' ? Number(formData.amount) : undefined,
         notifyUser: formData.notifyUser,
         notifyClient: formData.notifyClient,
@@ -784,7 +782,6 @@ const Schedules = () => {
           ...scheduleData,
         };
         await updateSchedule(updatedSchedule);
-        await refreshSchedules();
         playUpdateBeep();
         toast({
           title: t("scheduleUpdatedTitle"),
@@ -792,7 +789,6 @@ const Schedules = () => {
         });
       } else {
         await addSchedule(scheduleData);
-        await refreshSchedules();
         playUpdateBeep();
         toast({
           title: t("scheduleCreatedTitle"),
@@ -813,9 +809,10 @@ const Schedules = () => {
         clientType: "other",
         dueDate: "",
         frequency: "once",
+        automationType: "payment_reminder",
         amount: "",
         notifyUser: true,
-        notifyClient: false,
+        notifyClient: true,
         userNotificationMessage: "",
         clientNotificationMessage: "",
         advanceNotificationDays: "0",
@@ -882,17 +879,17 @@ const Schedules = () => {
 
   const handleDeleteConfirm = async () => {
     if (!scheduleToDelete) return;
-    
+    const schedule = scheduleToDelete;
+    setDeleteDialogOpen(false);
+    setScheduleToDelete(null);
+
     try {
-      await removeSchedule(scheduleToDelete);
-      await refreshSchedules();
+      await removeSchedule(schedule);
       playDeleteBeep();
       toast({
         title: t("scheduleDeletedTitle"),
         description: t("scheduleDeletedDesc"),
       });
-      setDeleteDialogOpen(false);
-      setScheduleToDelete(null);
     } catch (error) {
       playErrorBeep();
       toast({
@@ -905,35 +902,37 @@ const Schedules = () => {
 
   const handleDeleteClientConfirm = async () => {
     if (!clientToDelete) return;
-    
-    try {
-      const clientId = (clientToDelete as any)._id || clientToDelete.id;
-      const clientIdStr = clientId?.toString() || "";
-      const clientSchedules = getSchedulesForClient(clientIdStr);
-      
-      // Check if client has schedules
-      if (clientSchedules.length > 0) {
-        playErrorBeep();
-        toast({
-          title: t("cannotDeleteClientTitle"),
-          description: t("cannotDeleteClientSchedules").replace("{count}", String(clientSchedules.length)),
-          variant: "destructive",
-        });
-        setDeleteClientDialogOpen(false);
-        setClientToDelete(null);
-        return;
-      }
 
+    const client = clientToDelete;
+    const clientId = (client as any)._id || client.id;
+    const clientIdStr = clientId?.toString() || "";
+    const clientSchedules = getSchedulesForClient(clientIdStr);
+
+    if (clientSchedules.length > 0) {
+      playErrorBeep();
+      toast({
+        title: t("cannotDeleteClientTitle"),
+        description: t("cannotDeleteClientSchedules").replace("{count}", String(clientSchedules.length)),
+        variant: "destructive",
+      });
+      setDeleteClientDialogOpen(false);
+      setClientToDelete(null);
+      return;
+    }
+
+    setDeleteClientDialogOpen(false);
+    setClientToDelete(null);
+    setClients((prev) => prev.filter((c) => String((c as any)._id || c.id) !== clientIdStr));
+
+    try {
       await clientApi.delete(clientIdStr);
-      await loadClients();
       playDeleteBeep();
       toast({
         title: t("clientDeletedSuccess"),
         description: t("clientDeletedDesc"),
       });
-      setDeleteClientDialogOpen(false);
-      setClientToDelete(null);
     } catch (error: any) {
+      setClients((prev) => [...prev, client]);
       playErrorBeep();
       toast({
         title: t("deleteClientFailed"),
@@ -984,22 +983,22 @@ const Schedules = () => {
     return schedules.filter((s) => isOverdue(s.dueDate) && s.status === "pending");
   }, [schedules]);
 
+  const { query: pageSearchQuery } = usePageSearch();
+
   // Flat filtered schedule list for card grid
   const filteredSchedules = useMemo(() => {
-    let list = [...schedules];
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((s) => {
-        const clientName = getClientName(s.clientId).toLowerCase();
-        return (
-          s.title.toLowerCase().includes(q) ||
-          s.description?.toLowerCase().includes(q) ||
-          clientName.includes(q)
-        );
-      });
-    }
+    let list = filterByPageSearch(schedules, pageSearchQuery, (schedule) => {
+      const client = typeof schedule.clientId === "object" ? schedule.clientId : null;
+      return [
+        schedule.title,
+        schedule.description,
+        client?.name,
+        client?.email,
+        client?.phone,
+        schedule.status,
+        schedule.frequency,
+      ];
+    });
 
     // Status filter
     if (statusFilter !== "all") {
@@ -1035,6 +1034,11 @@ const Schedules = () => {
       list = list.filter((s) => s.frequency === frequencyFilter);
     }
 
+    // Automation type filter
+    if (automationTypeFilter !== "all") {
+      list = list.filter((s) => normalizeAutomationType((s as Schedule).automationType) === automationTypeFilter);
+    }
+
     // Client filter
     if (clientFilter !== "all") {
       list = list.filter((s) => {
@@ -1053,12 +1057,26 @@ const Schedules = () => {
     });
 
     return list;
-  }, [schedules, searchQuery, statusFilter, dateFilter, frequencyFilter, clientFilter]);
+  }, [schedules, statusFilter, dateFilter, frequencyFilter, automationTypeFilter, clientFilter, pageSearchQuery]);
 
   // Stats
   const activeCount = schedules.filter((s) => s.status === "pending").length;
   const completedCount = schedules.filter((s) => s.status === "completed").length;
   const overdueCount = overdueSchedules.length;
+  const hasActiveFilters =
+    statusFilter !== "all" ||
+    dateFilter !== "all" ||
+    frequencyFilter !== "all" ||
+    automationTypeFilter !== "all" ||
+    clientFilter !== "all";
+
+  const clearAllFilters = () => {
+    setStatusFilter("all");
+    setDateFilter("all");
+    setFrequencyFilter("all");
+    setAutomationTypeFilter("all");
+    setClientFilter("all");
+  };
 
   // Skeleton
   const SchedulesSkeleton = () => (
@@ -1071,9 +1089,17 @@ const Schedules = () => {
         <div className="grid grid-cols-3 gap-3">
           {[1,2,3].map(i=>(<div key={i} className="bg-white border border-gray-200 rounded-xl p-4"><Skeleton className="h-4 w-16 mb-2" /><Skeleton className="h-7 w-10" /></div>))}
         </div>
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[1,2,3,4].map(i=>(<div key={i} className="bg-white border border-gray-200 rounded-xl p-5"><Skeleton className="h-5 w-40 mb-3" /><Skeleton className="h-4 w-56 mb-4" /><div className="flex gap-2"><Skeleton className="h-6 w-16 rounded-full" /><Skeleton className="h-6 w-20 rounded-full" /></div></div>))}
+        <div className="overflow-hidden border border-gray-200 bg-white">
+          <div className="divide-y divide-gray-100">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </AppLayout>
@@ -1089,17 +1115,19 @@ const Schedules = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Mail size={22} className="text-blue-600" />
-              {t("emailAutomationsTitle")}
-            </h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                {t("emailAutomationsTitle")}
+              </h2>
+              <HelpTip text={t("helpAutomations")} />
+            </div>
             <p className="text-sm text-gray-500 mt-0.5">{t("emailAutomationsSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button onClick={openClientCreateModal} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 gap-2 flex-1 sm:flex-initial">
               <UserPlus size={16} /> {t("clientLabel")}
             </Button>
-            <Button onClick={openAddModal} className="bg-primary text-white hover:bg-blue-700 gap-2 flex-1 sm:flex-initial">
+            <Button onClick={openAddModal} className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 gap-2 flex-1 sm:flex-initial">
               <Plus size={16} /> {t("newAutomation")}
             </Button>
           </div>
@@ -1121,19 +1149,23 @@ const Schedules = () => {
           </button>
         </div>
 
-        {/* Search & Filters */}
+        {/* Filters */}
         <div className="flex flex-col gap-3">
-          <MobileListSearchFilters
-            searchValue={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder={t("searchAutomationsPlaceholder")}
-            showFilters={showFilters}
-            onToggleFilters={() => setShowFilters((v) => !v)}
-            searchName="search-schedules"
-            filters={
+          <div className="lg:hidden flex justify-end">
+            <Button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              variant="outline"
+              className={cn(mobileFilterToggleClass, showFilters && mobileFilterToggleActiveClass)}
+            >
+              <Filter size={18} />
+            </Button>
+          </div>
+          {showFilters ? (
+            <div className={cn("lg:hidden", mobileFilterPanelClass)}>
               <div className="space-y-3">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
                     <SelectValue placeholder={t("status")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1144,7 +1176,7 @@ const Schedules = () => {
                   </SelectContent>
                 </Select>
                 <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
                     <SelectValue placeholder={t("date")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1157,7 +1189,7 @@ const Schedules = () => {
                   </SelectContent>
                 </Select>
                 <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
                     <SelectValue placeholder={t("scheduleFrequencySection")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1169,8 +1201,21 @@ const Schedules = () => {
                     <SelectItem value="yearly">{t("freqYearly")}</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={automationTypeFilter} onValueChange={setAutomationTypeFilter}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
+                    <SelectValue placeholder={t("automationTypeLabel")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allAutomationTypes")}</SelectItem>
+                    {AUTOMATION_TYPE_VALUES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {t(AUTOMATION_TYPE_LABEL_KEYS[type])}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select value={clientFilter} onValueChange={setClientFilter}>
-                  <SelectTrigger className={cn("w-full h-10 rounded-lg", filterSelectClass)}>
+                  <SelectTrigger className={cn("w-full h-10 rounded-none", filterSelectClass)}>
                     <SelectValue placeholder={t("clientLabel")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1185,46 +1230,18 @@ const Schedules = () => {
                     })}
                   </SelectContent>
                 </Select>
-                {(statusFilter !== "all" || dateFilter !== "all" || frequencyFilter !== "all" || clientFilter !== "all") && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setStatusFilter("all");
-                      setDateFilter("all");
-                      setFrequencyFilter("all");
-                      setClientFilter("all");
-                    }}
-                    className="h-10 rounded-lg w-full"
-                  >
+                {hasActiveFilters ? (
+                  <Button type="button" variant="outline" onClick={clearAllFilters} className="h-10 rounded-none w-full">
                     <X size={14} className="mr-1.5" />
                     {t("clearFilters")}
                   </Button>
-                )}
+                ) : null}
               </div>
-            }
-          />
-          <div className="hidden lg:flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-              <Input
-                placeholder={t("searchAutomationsPlaceholder")}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={searchBarInputClass}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X size={16} />
-                </button>
-              )}
             </div>
+          ) : null}
+          <div className="hidden lg:flex flex-wrap items-center gap-3">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-40 h-9 text-sm shrink-0")}>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-none w-40 h-9 text-sm shrink-0")}>
                 <Filter size={14} className="mr-1.5 text-gray-400" />
                 <SelectValue placeholder={t("status")} />
               </SelectTrigger>
@@ -1236,7 +1253,7 @@ const Schedules = () => {
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-40 h-9 text-sm shrink-0")}>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-none w-40 h-9 text-sm shrink-0")}>
                 <CalendarIcon size={14} className="mr-1.5 text-gray-400" />
                 <SelectValue placeholder={t("date")} />
               </SelectTrigger>
@@ -1250,7 +1267,7 @@ const Schedules = () => {
               </SelectContent>
             </Select>
             <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
-              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-40 h-9 text-sm shrink-0")}>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-none w-40 h-9 text-sm shrink-0")}>
                 <Repeat size={14} className="mr-1.5 text-gray-400" />
                 <SelectValue placeholder={t("scheduleFrequencySection")} />
               </SelectTrigger>
@@ -1263,8 +1280,22 @@ const Schedules = () => {
                 <SelectItem value="yearly">{t("freqYearly")}</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={automationTypeFilter} onValueChange={setAutomationTypeFilter}>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-none w-44 h-9 text-sm shrink-0")}>
+                <Filter size={14} className="mr-1.5 text-gray-400" />
+                <SelectValue placeholder={t("automationTypeLabel")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allAutomationTypes")}</SelectItem>
+                {AUTOMATION_TYPE_VALUES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {t(AUTOMATION_TYPE_LABEL_KEYS[type])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className={cn(filterSelectClass, "rounded-lg w-44 h-9 text-sm shrink-0")}>
+              <SelectTrigger className={cn(filterSelectClass, "rounded-none w-44 h-9 text-sm shrink-0")}>
                 <User size={14} className="mr-1.5 text-gray-400" />
                 <SelectValue placeholder={t("clientLabel")} />
               </SelectTrigger>
@@ -1280,179 +1311,222 @@ const Schedules = () => {
                 })}
               </SelectContent>
             </Select>
-            {(statusFilter !== "all" || dateFilter !== "all" || frequencyFilter !== "all" || clientFilter !== "all") && (
+            {hasActiveFilters ? (
               <button
                 type="button"
-                onClick={() => {
-                  setStatusFilter("all");
-                  setDateFilter("all");
-                  setFrequencyFilter("all");
-                  setClientFilter("all");
-                }}
+                onClick={clearAllFilters}
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap shrink-0 self-center"
               >
                 {t("clearFilters")}
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Automation Cards Grid */}
-        {filteredSchedules.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            {filteredSchedules.map((schedule) => {
-              const scheduleId = (schedule as any)._id || schedule.id;
-              const overdue = isOverdue(schedule.dueDate) && schedule.status === "pending";
-              const daysUntil = getDaysUntilDue(schedule.dueDate);
-              const isToday = daysUntil === 0;
-              const clientInfo = getClientInfo(schedule.clientId);
-              const clientName = getClientName(schedule.clientId);
-              const clientEmail = clientInfo?.email || "";
-              const initial = clientName.charAt(0).toUpperCase();
-
-              return (
-                <div
-                  key={scheduleId}
-                  className={cn(
-                    "bg-white rounded-xl border p-4 sm:p-5 transition-all hover:shadow-md group",
-                    overdue ? "border-red-200 bg-red-50/30" :
-                    schedule.status === "completed" ? "border-green-200 bg-green-50/20 opacity-75" :
-                    "border-gray-200 hover:border-blue-200"
-                  )}
-                >
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      {/* Avatar */}
-                      <div className={cn(
-                        "w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
-                        overdue ? "bg-red-100 text-red-700" :
-                        schedule.status === "completed" ? "bg-green-100 text-green-700" :
-                        "bg-blue-100 text-blue-700"
-                      )}>
-                        {initial}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-gray-900 truncate">{schedule.title}</h3>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-xs text-gray-600 truncate">{clientName}</span>
-                          {clientEmail && <span className="text-xs text-gray-400 truncate hidden sm:inline">• {clientEmail}</span>}
-                        </div>
-                      </div>
-                    </div>
-                    {/* Actions */}
-                    <div className="flex items-center gap-0.5 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
-                      {schedule.status === "pending" && (
-                        <button onClick={() => handleCompleteClick(schedule)} className="p-1.5 text-green-600 rounded-lg hover:bg-green-50" title={t("completeAction")}>
-                          <CheckCircle2 size={15} />
-                        </button>
-                      )}
-                      <button onClick={() => openEditModal(schedule)} className="p-1.5 text-gray-500 rounded-lg hover:bg-gray-100" title={t("editAction")}>
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => handleDeleteClick(schedule)} className="p-1.5 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-600" title={t("deleteAction")}>
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  {schedule.description && (
-                    <p className="text-xs text-gray-500 mb-3 line-clamp-2">{schedule.description}</p>
-                  )}
-
-                  {/* Badges Row */}
-                  <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                    {/* Status */}
-                    <span className={cn(
-                      "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold",
-                      schedule.status === "completed" && "bg-green-100 text-green-700",
-                      schedule.status === "pending" && !overdue && "bg-blue-100 text-blue-700",
-                      schedule.status === "cancelled" && "bg-gray-100 text-gray-600",
-                      overdue && "bg-red-100 text-red-700"
-                    )}>
-                      {overdue ? t("statusOverdue") : schedule.status === "pending" ? t("statusActive") : schedule.status === "completed" ? t("statusCompleted") : t("statusCancelled")}
-                    </span>
-                    {/* Frequency */}
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-700">
-                      <Repeat size={10} />
-                      {schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}
-                    </span>
-                    {/* Notification indicators */}
-                    {schedule.notifyUser && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700">
-                        <Bell size={10} /> {t("notifyYou")}
-                      </span>
-                    )}
-                    {schedule.notifyClient && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-cyan-50 text-cyan-700">
-                        <Mail size={10} /> {t("notifyClientBadge")}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Footer: Due Date & Amount */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={13} className={cn(
-                        overdue ? "text-red-500" : isToday ? "text-blue-500" : "text-gray-400"
-                      )} />
-                      <span className={cn(
-                        "text-xs font-medium",
-                        overdue ? "text-red-600" : isToday ? "text-blue-600" : "text-gray-600"
-                      )}>
-                        {overdue
-                          ? t("daysOverdue").replace("{days}", String(Math.abs(daysUntil)))
-                          : isToday
-                          ? t("dueToday")
-                          : daysUntil === 1
+        {/* Automation Table */}
+        <div className="overflow-hidden bg-white border border-gray-200">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] border-collapse">
+              <thead>
+                <tr>
+                  <th className={cn(FINANCE_TH_CLASS, "pl-4")}>{t("scheduleTitleLabel")}</th>
+                  <th className={FINANCE_TH_CLASS}>{t("automationTypeLabel")}</th>
+                  <th className={FINANCE_TH_CLASS}>{t("clientLabel")}</th>
+                  <th className={FINANCE_TH_CLASS}>{t("dueDateTimeLabel")}</th>
+                  <th className={cn(FINANCE_TH_CLASS, "hidden md:table-cell")}>{t("scheduleFrequencySection")}</th>
+                  <th className={FINANCE_TH_CLASS}>{t("status")}</th>
+                  <th className={cn(FINANCE_TH_CLASS, "text-right hidden sm:table-cell")}>{t("amount")}</th>
+                  <th className={cn(FINANCE_TH_CLASS, "hidden lg:table-cell")}>{t("lastSent")}</th>
+                  <th className={cn(FINANCE_TH_CLASS, "w-28 pr-4 text-right")} />
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {filteredSchedules.length > 0 ? (
+                  filteredSchedules.map((schedule) => {
+                    const scheduleId = (schedule as any)._id || schedule.id;
+                    const overdue = isOverdue(schedule.dueDate) && schedule.status === "pending";
+                    const daysUntil = getDaysUntilDue(schedule.dueDate);
+                    const isToday = daysUntil === 0;
+                    const clientInfo = getClientInfo(schedule.clientId);
+                    const clientName = getClientName(schedule.clientId);
+                    const clientEmail = clientInfo?.email || "";
+                    const automationType = normalizeAutomationType((schedule as Schedule).automationType);
+                    const frequencyLabel =
+                      schedule.frequency === "once"
+                        ? t("freqOnce")
+                        : schedule.frequency === "daily"
+                          ? t("freqDaily")
+                          : schedule.frequency === "weekly"
+                            ? t("freqWeekly")
+                            : schedule.frequency === "monthly"
+                              ? t("freqMonthly")
+                              : t("freqYearly");
+                    const statusLabel = overdue
+                      ? t("statusOverdue")
+                      : schedule.status === "pending"
+                        ? t("statusActive")
+                        : schedule.status === "completed"
+                          ? t("statusCompleted")
+                          : t("statusCancelled");
+                    const dueLabel = overdue
+                      ? t("daysOverdue").replace("{days}", String(Math.abs(daysUntil)))
+                      : isToday
+                        ? t("dueToday")
+                        : daysUntil === 1
                           ? t("dueTomorrow")
                           : schedule.status === "completed"
-                          ? new Date(schedule.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                          : t("daysRemaining").replace("{days}", String(daysUntil))}
-                      </span>
-                      <span className="text-[10px] text-gray-400 hidden sm:inline">
-                        {new Date(schedule.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                    </div>
-                    {schedule.amount ? (
-                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                        {schedule.amount.toLocaleString()} RWF
-                      </span>
-                    ) : null}
-                  </div>
+                            ? new Date(schedule.dueDate).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })
+                            : t("daysRemaining").replace("{days}", String(daysUntil));
+                    const sendDate = new Date(schedule.dueDate);
+                    const lastNotified = (schedule as any).lastNotified as string | undefined;
 
-                  {/* Last notified */}
-                  {(schedule as any).lastNotified && (
-                    <div className="flex items-center gap-1.5 mt-2 text-[10px] text-green-600">
-                      <Mail size={10} />
-                      <span>{t("lastSent")} {new Date((schedule as any).lastNotified).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    return (
+                      <tr
+                        key={scheduleId}
+                        className={cn(
+                          "transition-colors hover:bg-gray-50/80",
+                          overdue && "bg-red-50/40",
+                          schedule.status === "completed" && "opacity-80",
+                        )}
+                      >
+                        <td className={cn(FINANCE_TD_CLASS, "pl-4 max-w-[220px]")}>
+                          <div className="font-semibold text-gray-900 truncate">{schedule.title}</div>
+                          {schedule.description ? (
+                            <div className="text-xs text-gray-500 truncate mt-0.5">{schedule.description}</div>
+                          ) : null}
+                        </td>
+                        <td className={FINANCE_TD_CLASS}>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 whitespace-nowrap">
+                            {t(AUTOMATION_TYPE_LABEL_KEYS[automationType])}
+                          </span>
+                        </td>
+                        <td className={cn(FINANCE_TD_CLASS, "max-w-[180px]")}>
+                          <div className="truncate text-gray-900">{clientName}</div>
+                          {clientEmail ? (
+                            <div className="truncate text-xs text-gray-500 mt-0.5">{clientEmail}</div>
+                          ) : null}
+                        </td>
+                        <td className={FINANCE_TD_CLASS}>
+                          <div className={cn("text-sm font-medium tabular-nums", overdue ? "text-red-600" : isToday ? "text-blue-600" : "text-gray-800")}>
+                            {dueLabel}
+                          </div>
+                          <div className="text-xs text-gray-500 tabular-nums mt-0.5">
+                            {sendDate.toLocaleString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </td>
+                        <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell text-gray-700")}>
+                          <span className="inline-flex items-center gap-1">
+                            <Repeat size={12} className="text-purple-500" />
+                            {frequencyLabel}
+                          </span>
+                        </td>
+                        <td className={FINANCE_TD_CLASS}>
+                          <span
+                            className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap",
+                              schedule.status === "completed" && "bg-green-100 text-green-700",
+                              schedule.status === "pending" && !overdue && "bg-blue-100 text-blue-700",
+                              schedule.status === "cancelled" && "bg-gray-100 text-gray-600",
+                              overdue && "bg-red-100 text-red-700",
+                            )}
+                          >
+                            {statusLabel}
+                          </span>
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {schedule.notifyUser ? (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-700">
+                                <Bell size={10} /> {t("notifyYou")}
+                              </span>
+                            ) : null}
+                            {schedule.notifyClient ? (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-cyan-700">
+                                <Mail size={10} /> {t("notifyClientBadge")}
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className={cn(FINANCE_TD_CLASS, "text-right hidden sm:table-cell tabular-nums")}>
+                          {schedule.amount ? (
+                            <span className="font-semibold text-green-700">
+                              <CurrencyAmount amount={schedule.amount} codeFirst codeClassName="text-green-700/70" />
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className={cn(FINANCE_TD_CLASS, "hidden lg:table-cell text-xs text-gray-600")}>
+                          {lastNotified
+                            ? new Date(lastNotified).toLocaleString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </td>
+                        <td className={cn(FINANCE_TD_CLASS, "pr-4")}>
+                          <div className="flex items-center justify-end gap-0.5">
+                            {schedule.status === "pending" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleCompleteClick(schedule)}
+                                className="p-1.5 text-green-600 rounded-lg hover:bg-green-50"
+                                title={t("completeAction")}
+                              >
+                                <CheckCircle2 size={15} />
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(schedule)}
+                              className="p-1.5 text-gray-500 rounded-lg hover:bg-gray-100"
+                              title={t("editAction")}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteClick(schedule)}
+                              className="p-1.5 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-600"
+                              title={t("deleteAction")}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={9} className="py-16 text-center">
+                      <p className="text-base font-semibold text-gray-700 mb-1">
+                        {hasActiveFilters ? t("noAutomationsFound") : t("noAutomationsYet")}
+                      </p>
+                      <p className="text-sm text-gray-500 mb-5 max-w-xs mx-auto">
+                        {hasActiveFilters ? t("tryAdjustFilters") : t("createFirstAutomationHint")}
+                      </p>
+                      {!hasActiveFilters ? (
+                        <Button onClick={openAddModal} className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 gap-2">
+                          <Plus size={16} /> {t("createAutomation")}
+                        </Button>
+                      ) : null}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <div className="text-center py-12 sm:py-20 bg-white rounded-xl border border-dashed border-gray-200">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
-              <Mail size={28} className="text-blue-400" />
-            </div>
-            <p className="text-base font-semibold text-gray-700 mb-1">
-              {searchQuery || statusFilter !== "all" || dateFilter !== "all" ? t("noAutomationsFound") : t("noAutomationsYet")}
-            </p>
-            <p className="text-sm text-gray-500 mb-5 max-w-xs mx-auto">
-              {searchQuery || statusFilter !== "all" || dateFilter !== "all"
-                ? t("tryAdjustFilters")
-                : t("createFirstAutomationHint")}
-            </p>
-            {!(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
-              <Button onClick={openAddModal} className="bg-primary text-white hover:bg-blue-700 gap-2">
-                <Plus size={16} /> {t("createAutomation")}
-              </Button>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Add/Edit Modal */}
@@ -1463,8 +1537,8 @@ const Schedules = () => {
         }
       }}>
         <DialogContent className="lg:bg-white bg-white/80 backdrop-blur-sm max-w-2xl w-[95vw] sm:w-full max-h-[90vh] sm:max-h-[85vh] overflow-y-auto mx-2 sm:mx-4">
-          <DialogHeader className="border-b border-blue-200 pb-3 sm:pb-4">
-            <DialogTitle className="text-lg sm:text-xl font-semibold text-blue-700">
+          <DialogHeader className="space-y-1 border-b border-gray-200 pb-3 sm:pb-4">
+            <DialogTitle className="text-base sm:text-lg font-semibold text-gray-900">
               {editingSchedule ? t("editScheduleModal") : t("createScheduleModal")}
             </DialogTitle>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">
@@ -1479,14 +1553,14 @@ const Schedules = () => {
                     <div className={cn(
                       "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold",
                       currentStep >= step 
-                        ? "bg-primary text-white" 
+                        ? "bg-gray-900 text-white" 
                         : "bg-gray-200 text-gray-600"
                     )}>
                       {step}
                     </div>
                     <span className={cn(
                       "text-[10px] sm:text-xs mt-0.5 sm:mt-1 text-center",
-                      currentStep >= step ? "text-blue-600 font-medium" : "text-gray-500"
+                      currentStep >= step ? "text-gray-900 font-medium" : "text-gray-500"
                     )}>
                       {step === 1 && t("stepBasic")}
                       {step === 2 && t("stepClient")}
@@ -1497,7 +1571,7 @@ const Schedules = () => {
                   {step < 4 && (
                     <div className={cn(
                       "h-0.5 flex-1 mx-1 sm:mx-2",
-                      currentStep > step ? "bg-blue-600" : "bg-gray-200"
+                      currentStep > step ? "bg-gray-900" : "bg-gray-200"
                     )} />
                   )}
                 </div>
@@ -1509,9 +1583,31 @@ const Schedules = () => {
             {/* Step 1: Basic Information */}
             {currentStep === 1 && (
             <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
-                <CalendarIcon size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("basicInformation")}</h3>
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <CalendarIcon size={16} className="text-gray-500" />
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900">{t("basicInformation")}</h3>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-900">{t("automationTypeLabel")}</Label>
+                <p className="text-xs text-gray-500">{t("automationPurposeHint")}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {AUTOMATION_TYPE_VALUES.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, automationType: type })}
+                      className={cn(
+                        "rounded-lg border px-2 py-2 text-left text-xs font-medium transition-colors",
+                        formData.automationType === type
+                          ? "border-gray-900 bg-gray-100 text-gray-900"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300",
+                      )}
+                    >
+                      {t(AUTOMATION_TYPE_LABEL_KEYS[type])}
+                    </button>
+                  ))}
+                </div>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -1522,8 +1618,8 @@ const Schedules = () => {
                   <Input
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder={t("scheduleTitlePh")}
-                    className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                    placeholder={t(AUTOMATION_TYPE_TITLE_PH_KEYS[formData.automationType] as "automationTitlePhCustom")}
+                    className="h-9 sm:h-10"
                   />
                   <p className="text-xs text-gray-500">{t("scheduleTitleHint")}</p>
                 </div>
@@ -1536,7 +1632,7 @@ const Schedules = () => {
                     type="datetime-local"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded h-10"
+                    className="h-9 sm:h-10"
                   />
                   <p className="text-xs text-gray-500">{t("dueDateHint")}</p>
                 </div>
@@ -1548,7 +1644,6 @@ const Schedules = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder={t("descriptionOptionalHint")}
-                  className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-gray-500 rounded"
                   rows={3}
                 />
                 <p className="text-xs text-gray-500">{t("descriptionOptionalHint")}</p>
@@ -1559,9 +1654,9 @@ const Schedules = () => {
             {/* Step 2: Client & Amount Section */}
             {currentStep === 2 && (
             <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
-                <User size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("clientPaymentDetails")}</h3>
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <User size={16} className="text-gray-500" />
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900">{t("clientPaymentDetails")}</h3>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -1573,7 +1668,7 @@ const Schedules = () => {
                     value={formData.clientName}
                     onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
                     placeholder={t("enterClientName")}
-                    className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                    className="h-9 sm:h-10"
                   />
                   </div>
 
@@ -1586,7 +1681,7 @@ const Schedules = () => {
                     value={formData.clientEmail}
                     onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
                     placeholder="client@example.com"
-                    className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                    className="h-9 sm:h-10"
                   />
                 </div>
 
@@ -1598,7 +1693,7 @@ const Schedules = () => {
                     value={formData.clientBusinessType}
                     onChange={(e) => setFormData({ ...formData, clientBusinessType: e.target.value })}
                     placeholder={t("businessTypePhShort")}
-                    className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                    className="h-9 sm:h-10"
                   />
                 </div>
 
@@ -1609,7 +1704,7 @@ const Schedules = () => {
                     value={formData.clientPhone}
                     onChange={(e) => setFormData({ ...formData, clientPhone: e.target.value })}
                     placeholder="+250 7xx xxx xxx"
-                    className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                    className="h-9 sm:h-10"
                   />
                 </div>
 
@@ -1619,7 +1714,7 @@ const Schedules = () => {
                     value={formData.clientType} 
                     onValueChange={(value: "debtor" | "worker" | "other") => setFormData({ ...formData, clientType: value })}
                   >
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10">
+                    <SelectTrigger className="h-9 sm:h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1631,7 +1726,7 @@ const Schedules = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-900">{t("amount")} (RWF)</Label>
+                  <Label className="text-sm font-medium text-gray-900">{t("amount")} (Rwf)</Label>
                   <Input
                     type="number"
                     min="0"
@@ -1639,7 +1734,7 @@ const Schedules = () => {
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     placeholder="0"
-                    className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                    className="h-9 sm:h-10"
                   />
                   <p className="text-xs text-gray-500">{t("amountOptionalHint")}</p>
                 </div>
@@ -1650,16 +1745,16 @@ const Schedules = () => {
             {/* Step 3: Schedule Frequency Section */}
             {currentStep === 3 && (
             <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
-                <Repeat size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("scheduleFrequencySection")}</h3>
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <Repeat size={16} className="text-gray-500" />
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900">{t("scheduleFrequencySection")}</h3>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-900">{t("scheduleFrequencySection")}</Label>
                   <Select value={formData.frequency} onValueChange={(value: any) => setFormData({ ...formData, frequency: value })}>
-                    <SelectTrigger className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10">
+                    <SelectTrigger className="h-9 sm:h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1686,7 +1781,7 @@ const Schedules = () => {
                       type="date"
                       value={formData.repeatUntil}
                       onChange={(e) => setFormData({ ...formData, repeatUntil: e.target.value })}
-                      className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded h-10"
+                      className="h-9 sm:h-10"
                     />
                     <p className="text-xs text-gray-500">{t("repeatUntilHint")}</p>
                   </div>
@@ -1698,18 +1793,18 @@ const Schedules = () => {
             {/* Step 4: Notification Settings Section */}
             {currentStep === 4 && (
             <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
-                <Bell size={16} className="sm:w-[18px] sm:h-[18px] text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-blue-700">{t("notificationSettings")}</h3>
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <Mail size={16} className="text-gray-500" />
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900">{t("notificationSettings")}</h3>
               </div>
               
               <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-3 bg-blue-50 border border-blue-200 rounded">
+                <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-3 bg-gray-50 border border-gray-200 rounded">
                   <Checkbox
                     id="notifyUser"
                     checked={formData.notifyUser}
                     onCheckedChange={(checked) => setFormData({ ...formData, notifyUser: checked === true })}
-                    className="mt-0.5 border-blue-400 hover:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 focus-visible:ring-blue-400"
+                    className="mt-0.5"
                   />
                   <div className="flex-1">
                     <Label htmlFor="notifyUser" className="cursor-pointer font-medium text-gray-900 text-sm">
@@ -1719,12 +1814,12 @@ const Schedules = () => {
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-3 bg-blue-50 border border-blue-200 rounded">
+                <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-3 bg-gray-50 border border-gray-200 rounded">
                   <Checkbox
                     id="notifyClient"
                     checked={formData.notifyClient}
                     onCheckedChange={(checked) => setFormData({ ...formData, notifyClient: checked === true })}
-                    className="mt-0.5 border-blue-400 hover:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 focus-visible:ring-blue-400"
+                    className="mt-0.5"
                   />
                   <div className="flex-1">
                     <Label htmlFor="notifyClient" className="cursor-pointer font-medium text-gray-900 text-sm">
@@ -1747,7 +1842,7 @@ const Schedules = () => {
                       value={formData.advanceNotificationDays}
                       onChange={(e) => setFormData({ ...formData, advanceNotificationDays: e.target.value })}
                       placeholder="0"
-                      className="bg-white border border-gray-300 text-gray-900 focus:border-gray-500 rounded h-10 w-24"
+                      className="h-9 sm:h-10 w-24"
                     />
                     <span className="text-sm text-gray-700">{t("daysBeforeDue")}</span>
                   </div>
@@ -1761,7 +1856,6 @@ const Schedules = () => {
                       value={formData.userNotificationMessage}
                       onChange={(e) => setFormData({ ...formData, userNotificationMessage: e.target.value })}
                       placeholder={t("customUserNotificationPh")}
-                      className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded"
                       rows={3}
                     />
                     <p className="text-xs text-gray-500">{t("customUserNotificationHint")}</p>
@@ -1775,7 +1869,6 @@ const Schedules = () => {
                       value={formData.clientNotificationMessage}
                       onChange={(e) => setFormData({ ...formData, clientNotificationMessage: e.target.value })}
                       placeholder={t("customClientNotificationPh")}
-                      className="lg:bg-white bg-white/80 backdrop-blur-sm border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded"
                       rows={3}
                     />
                     <p className="text-xs text-gray-500">{t("customClientNotificationHint")}</p>
@@ -1786,9 +1879,9 @@ const Schedules = () => {
             )}
           </div>
           
-          <DialogFooter className="border-t border-blue-200 pt-4 gap-2">
+          <DialogFooter className="border-t border-gray-200 pt-4 gap-2">
             <Button 
-              variant="outline" 
+              variant="cancel" 
               onClick={() => {
                 setIsModalOpen(false);
                 setEditingSchedule(null);
@@ -1804,16 +1897,17 @@ const Schedules = () => {
                   clientType: "other",
                   dueDate: "",
                   frequency: "once",
+                  automationType: "payment_reminder",
                   amount: "",
                   notifyUser: true,
-                  notifyClient: false,
+                  notifyClient: true,
                   userNotificationMessage: "",
                   clientNotificationMessage: "",
                   advanceNotificationDays: "0",
                   repeatUntil: "",
                 });
               }}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-700 text-sm sm:text-base px-3 sm:px-4"
+              className="text-sm sm:text-base px-3 sm:px-4"
             >
               {t("cancel")}
             </Button>
@@ -1833,7 +1927,7 @@ const Schedules = () => {
               {currentStep < totalSteps ? (
                 <Button 
                   onClick={nextStep} 
-                  className="bg-primary text-white hover:bg-blue-700 px-4 sm:px-6 text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
+                  className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 px-4 sm:px-6 text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
                 >
                   {t("next")}
                   <ChevronRight size={14} className="sm:w-4 sm:h-4 ml-1" />
@@ -1841,7 +1935,7 @@ const Schedules = () => {
               ) : (
             <Button 
               onClick={handleSave} 
-                  className="bg-primary text-white hover:bg-blue-700 px-4 sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
+                  className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 px-4 sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2 flex-1 sm:flex-initial"
                   disabled={!formData.clientName.trim() || !formData.clientEmail.trim() || !formData.clientBusinessType.trim()}
             >
               {editingSchedule ? t("updateScheduleBtn") : t("createScheduleBtn")}
@@ -1855,8 +1949,8 @@ const Schedules = () => {
       {/* Create Client Modal (inline from schedules) */}
       <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
         <DialogContent className="lg:bg-white bg-white/80 backdrop-blur-sm max-w-3xl max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="border-b border-blue-200 pb-4">
-            <DialogTitle className="text-xl font-semibold text-blue-700">
+          <DialogHeader className="space-y-1 border-b border-gray-200 pb-4">
+            <DialogTitle className="text-base sm:text-lg font-semibold text-gray-900">
               {editingClient ? t("editClientFromSchedules") : t("createClientModal")}
             </DialogTitle>
             <p className="text-sm text-gray-600 mt-1">
@@ -1874,7 +1968,7 @@ const Schedules = () => {
                   value={clientForm.name}
                   onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))}
                   placeholder={t("enterClientName")}
-                  className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                  className="h-9 sm:h-10"
                 />
               </div>
 
@@ -1886,7 +1980,7 @@ const Schedules = () => {
                   value={clientForm.businessType}
                   onChange={(e) => setClientForm((p) => ({ ...p, businessType: e.target.value }))}
                   placeholder={t("businessTypePhSchedule")}
-                  className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                  className="h-9 sm:h-10"
                 />
               </div>
             </div>
@@ -1901,7 +1995,7 @@ const Schedules = () => {
                   value={clientForm.email}
                   onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))}
                   placeholder="client@example.com"
-                  className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                  className="h-9 sm:h-10"
                 />
               </div>
 
@@ -1912,7 +2006,7 @@ const Schedules = () => {
                   value={clientForm.phone}
                   onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))}
                   placeholder="+250 7xx xxx xxx"
-                  className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10"
+                  className="h-9 sm:h-10"
                 />
               </div>
             </div>
@@ -1923,7 +2017,7 @@ const Schedules = () => {
                 value={clientForm.clientType}
                 onValueChange={(value: any) => setClientForm((p) => ({ ...p, clientType: value }))}
               >
-                <SelectTrigger className="bg-white border border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded h-10">
+                <SelectTrigger className="h-9 sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1940,15 +2034,14 @@ const Schedules = () => {
                 value={clientForm.notes}
                 onChange={(e) => setClientForm((p) => ({ ...p, notes: e.target.value }))}
                 placeholder={t("optionalNotesClient")}
-                className="bg-white border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded"
                 rows={3}
               />
             </div>
           </div>
 
-          <DialogFooter className="border-t border-blue-200 pt-4 gap-2">
+          <DialogFooter className="border-t border-gray-200 pt-4 gap-2">
             <Button
-              variant="outline"
+              variant="cancel"
               onClick={() => {
                 setIsClientModalOpen(false);
                 setEditingClient(null);
@@ -1961,14 +2054,13 @@ const Schedules = () => {
                   notes: "",
                 });
               }}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
               disabled={isCreatingClient}
             >
               {t("cancel")}
             </Button>
             <Button
               onClick={handleCreateClient}
-              className="bg-primary text-white hover:bg-blue-700 px-6"
+              className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 px-6"
               disabled={isCreatingClient}
             >
               {isCreatingClient 

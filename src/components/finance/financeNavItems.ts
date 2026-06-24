@@ -1,0 +1,17 @@
+export const financeNavItems = [
+  { key: "income", labelKey: "income" as const, helpKey: "helpIncome" as const, to: "/finance/income" },
+  { key: "customers", labelKey: "customers" as const, helpKey: "helpCustomers" as const, to: "/finance/customers" },
+  { key: "invoices", labelKey: "invoices" as const, helpKey: "helpInvoices" as const, to: "/finance/invoices" },
+  { key: "vendors", labelKey: "vendors" as const, helpKey: "helpVendors" as const, to: "/finance/vendors" },
+  { key: "bankDeposits", labelKey: "bankDeposits" as const, helpKey: "helpBankDeposits" as const, to: "/finance/deposits" },
+  { key: "accounts", labelKey: "accounts" as const, helpKey: "helpAccounts" as const, to: "/finance/accounts" },
+  { key: "statements", labelKey: "financialStatements" as const, helpKey: "helpFinancialStatements" as const, to: "/finance/statements" },
+  { key: "reconciliation", labelKey: "bankReconciliation" as const, helpKey: "helpBankReconciliation" as const, to: "/finance/reconciliation" },
+  { key: "budgets", labelKey: "categoryBudgets" as const, helpKey: "helpCategoryBudgets" as const, to: "/finance/budgets" },
+  { key: "loans", labelKey: "loans" as const, helpKey: "helpLoans" as const, to: "/finance/loans" },
+  { key: "bills", labelKey: "bills" as const, helpKey: "helpBills" as const, to: "/finance/bills" },
+  { key: "taxes", labelKey: "taxes" as const, helpKey: "helpTaxes" as const, to: "/finance/taxes" },
+  { key: "expenditure", labelKey: "expenditure" as const, helpKey: "helpExpenditure" as const, to: "/finance/expenditure" },
+  { key: "payroll", labelKey: "payroll" as const, helpKey: "helpPayroll" as const, to: "/finance/payroll" },
+  { key: "transactions", labelKey: "transactions" as const, helpKey: "helpTransactions" as const, to: "/finance/transactions" },
+];

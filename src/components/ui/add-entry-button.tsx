@@ -16,7 +16,7 @@ export function AddEntryButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "bg-primary hover:bg-blue-700 text-white gap-2 shrink-0 rounded-lg h-10 px-4 font-medium shadow-sm",
+        "bg-sky-400 hover:bg-sky-500 text-white gap-2 shrink-0 rounded-none h-10 px-4 font-medium shadow-sm border border-sky-400",
         className,
       )}
     >

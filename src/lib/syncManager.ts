@@ -1,7 +1,7 @@
 // Sync Manager for handling offline changes and auto-sync
 
 import { addItem, updateItem, deleteItem, getAllItems, clearStore } from "./indexedDB";
-import { productApi, saleApi, clientApi, scheduleApi, bookingApi } from "./api";
+import { productApi, saleApi, clientApi, vendorApi, scheduleApi, bookingApi } from "./api";
 import { logger } from "./logger";
 
 export interface SyncAction {
@@ -110,6 +110,8 @@ export class SyncManager {
             response = await saleApi.create(itemData);
           } else if (action.store === "clients") {
             response = await clientApi.create(itemData);
+          } else if (action.store === "vendors") {
+            response = await vendorApi.create(itemData);
           } else if (action.store === "schedules") {
             response = await scheduleApi.create(itemData);
           } else if (action.store === "bookings") {
@@ -133,6 +135,8 @@ export class SyncManager {
             throw new Error("Sales cannot be synced offline. Please update sales when online.");
           } else if (action.store === "clients") {
             response = await clientApi.update(itemId.toString(), itemData);
+          } else if (action.store === "vendors") {
+            response = await vendorApi.update(itemId.toString(), itemData);
           } else if (action.store === "schedules") {
             response = await scheduleApi.update(itemId.toString(), itemData);
           } else if (action.store === "bookings") {
@@ -156,6 +160,8 @@ export class SyncManager {
             throw new Error("Sales cannot be synced offline. Please delete sales when online.");
           } else if (action.store === "clients") {
             response = await clientApi.delete(deleteId.toString());
+          } else if (action.store === "vendors") {
+            response = await vendorApi.delete(deleteId.toString());
           } else if (action.store === "schedules") {
             response = await scheduleApi.delete(deleteId.toString());
           } else if (action.store === "bookings") {

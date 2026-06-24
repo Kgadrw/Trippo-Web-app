@@ -10,7 +10,7 @@ import { authApi } from "@/lib/api";
 import { playErrorBeep, playUpdateBeep, initAudio } from "@/lib/sound";
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 
-export default function SettingsBusiness() {
+export default function SettingsBusiness({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const { t } = useTranslation();
   const { user, updateUser } = useCurrentUser();
@@ -86,12 +86,14 @@ export default function SettingsBusiness() {
   };
 
   return (
-    <div className="px-4 pb-4 lg:px-6">
-      <SettingsSubpageHeader
-        icon={Building2}
-        title={t("businessInfo")}
-        description={t("businessInfoPageDesc")}
-      />
+    <div className={embedded ? "pb-4" : "px-4 pb-4 lg:px-6"}>
+      {!embedded ? (
+        <SettingsSubpageHeader
+          icon={Building2}
+          title={t("businessInfo")}
+          description={t("businessInfoPageDesc")}
+        />
+      ) : null}
 
       <div className="space-y-4 max-w-xl">
         <div className="space-y-1.5">
@@ -128,7 +130,7 @@ export default function SettingsBusiness() {
         <Button
           onClick={() => void handleSave()}
           disabled={saving}
-          className="bg-primary text-white hover:bg-blue-700 hover:text-white gap-2 h-10 px-5 text-sm font-semibold rounded-lg"
+          className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white gap-2 h-10 px-5 text-sm font-semibold rounded-lg"
         >
           <Save size={14} />
           {t("saveChanges")}

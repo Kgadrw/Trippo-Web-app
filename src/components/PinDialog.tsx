@@ -124,7 +124,7 @@ export const PinDialog = ({
               Verify PIN
             </Button>
             <Button
-              variant="outline"
+              variant="cancel"
               onClick={() => {
                 onOpenChange(false);
                 setPin("");

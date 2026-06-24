@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -10,24 +9,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
-import { getSubdomainUrl, useSubdomain } from "@/hooks/useSubdomain";
+import { getSubdomainUrl } from "@/hooks/useSubdomain";
 import { Lock, User, Mail, Phone } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getSavedLoginEmail, isRememberLoginEnabled, setLoginPrefs } from "@/lib/loginPrefs";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ApiError } from "@/lib/api";
+import { GoogleSignInSection } from "@/components/auth/GoogleSignInSection";
+import type { CredentialResponse } from "@react-oauth/google";
+
+const MIN_PASSWORD_LENGTH = 8;
+
+function isValidPassword(password: string): boolean {
+  return password.length >= MIN_PASSWORD_LENGTH;
+}
 
 interface LoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultTab?: "login" | "create";
-}
-
-function isDesktopViewport(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
 }
 
 function normalizeAccountPhone(phone: string): string {
@@ -44,17 +46,17 @@ function isValidAccountPhone(phone: string): boolean {
 }
 
 type RegistrationErrors = {
-  loginPin?: string;
-  createPin?: string;
-  confirmPin?: string;
+  loginPassword?: string;
+  createPassword?: string;
+  confirmPassword?: string;
   name?: string;
   email?: string;
   phone?: string;
   resetEmail?: string;
   otp?: string;
   registerOtp?: string;
-  newPin?: string;
-  confirmNewPin?: string;
+  newPassword?: string;
+  confirmNewPassword?: string;
 };
 
 function mapRegistrationApiErrors(error: unknown): RegistrationErrors {
@@ -70,41 +72,38 @@ function mapRegistrationApiErrors(error: unknown): RegistrationErrors {
     if (field === "name") mapped.name = message;
     else if (field === "email") mapped.email = message;
     else if (field === "phone") mapped.phone = message;
-    else if (field === "pin") mapped.createPin = message;
+    else if (field === "pin" || field === "password") mapped.createPassword = message;
     else if (field === "otp") mapped.registerOtp = message;
   }
   return mapped;
 }
 
 export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginModalProps) {
-  const navigate = useNavigate();
-  const subdomain = useSubdomain();
-  const { setPin } = usePinAuth(); // Still use setPin for backward compatibility
   const { toast } = useToast();
   const { t } = useTranslation();
   
   const [activeTab, setActiveTab] = useState<"login" | "create">(defaultTab);
-  const [loginPin, setLoginPin] = useState("");
-  const [createPin, setCreatePin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showForgotPin, setShowForgotPin] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [confirmNewPin, setConfirmNewPin] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [registerOtp, setRegisterOtp] = useState("");
   const [registerOtpSent, setRegisterOtpSent] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errors, setErrors] = useState<RegistrationErrors>({});
   
-  const loginPinRef = useRef<HTMLInputElement>(null);
-  const createPinRef = useRef<HTMLInputElement>(null);
+  const loginPasswordRef = useRef<HTMLInputElement>(null);
+  const createPasswordRef = useRef<HTMLInputElement>(null);
   const otpRef = useRef<HTMLInputElement>(null);
   const registerOtpRef = useRef<HTMLInputElement>(null);
 
@@ -112,57 +111,150 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
   useEffect(() => {
     if (open) {
       setActiveTab(defaultTab);
-      setLoginPin("");
-      setCreatePin("");
-      setConfirmPin("");
+      setLoginPassword("");
+      setCreatePassword("");
+      setConfirmPassword("");
       setName("");
       setEmail("");
       setPhone("");
       const remember = isRememberLoginEnabled();
       setRememberMe(remember);
       setLoginEmail(defaultTab === "login" && remember ? getSavedLoginEmail() : "");
-      setShowForgotPin(false);
+      setShowForgotPassword(false);
       setResetEmail("");
       setOtp("");
-      setNewPin("");
-      setConfirmNewPin("");
+      setNewPassword("");
+      setConfirmNewPassword("");
       setOtpSent(false);
       setRegisterOtp("");
       setRegisterOtpSent(false);
       setErrors({});
       
-      // Focus appropriate input
       setTimeout(() => {
-        if (defaultTab === "login" && loginPinRef.current) {
-          loginPinRef.current.focus();
-        } else if (defaultTab === "create" && createPinRef.current) {
-          createPinRef.current.focus();
+        if (defaultTab === "login" && loginPasswordRef.current) {
+          loginPasswordRef.current.focus();
+        } else if (defaultTab === "create" && createPasswordRef.current) {
+          createPasswordRef.current.focus();
         }
       }, 100);
     }
   }, [open, defaultTab]);
 
-  const handleLoginPinChange = (value: string) => {
-    const numericValue = value.replace(/\D/g, "").slice(0, 4);
-    setLoginPin(numericValue);
-    
-    // Show error ONLY if PIN is not equal to 4 digits and has a value
-    if (numericValue.length > 0 && numericValue.length !== 4) {
-      setErrors((prev) => ({ ...prev, loginPin: "PIN must be 4 digits" }));
-    } else {
-      // Clear error when PIN is exactly 4 digits or empty
-      setErrors((prev) => ({ ...prev, loginPin: undefined }));
+  const completeLogin = (
+    user: {
+      _id?: string;
+      id?: string;
+      name?: string;
+      email?: string;
+      businessName?: string;
+      profilePictureUrl?: string;
+    },
+    emailForRemember?: string,
+    welcome?: { title: string; description: string },
+  ) => {
+    if (user.name) {
+      localStorage.setItem("profit-pilot-user-name", user.name);
     }
-    
-    // Auto-submit when 4 digits are entered
-    if (numericValue.length === 4 && !isLoading) {
-      handleLogin();
+    if (user.email) {
+      localStorage.setItem("profit-pilot-user-email", user.email);
+    }
+    if (user.businessName && user.businessName.trim()) {
+      localStorage.setItem("profit-pilot-business-name", user.businessName.trim());
+    } else {
+      localStorage.removeItem("profit-pilot-business-name");
+    }
+    if (user.profilePictureUrl) {
+      localStorage.setItem("profit-pilot-profile-picture-url", user.profilePictureUrl);
+    } else {
+      localStorage.removeItem("profit-pilot-profile-picture-url");
+    }
+    if (user._id || user.id) {
+      localStorage.setItem("profit-pilot-user-id", user._id || user.id || "");
+    }
+
+    localStorage.setItem("profit-pilot-authenticated", "true");
+    window.dispatchEvent(new Event("pin-auth-changed"));
+    window.dispatchEvent(new Event("user-data-changed"));
+
+    toast({
+      title: welcome?.title || "Welcome back!",
+      description: welcome?.description || "You have successfully logged in.",
+    });
+
+    if (emailForRemember) {
+      setLoginPrefs(emailForRemember, rememberMe);
+    }
+
+    onOpenChange(false);
+
+    const authToken = btoa(JSON.stringify({
+      userId: user._id || user.id,
+      isAdmin: false,
+      authenticated: true,
+      name: user.name,
+      email: user.email,
+      businessName: user.businessName || "",
+    }));
+    const dashboardUrl = getSubdomainUrl("bookfy", `#auth=${authToken}`);
+    window.location.href = dashboardUrl;
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    const credential = credentialResponse.credential;
+    if (!credential) {
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const response = await authApi.googleAuth({ credential });
+
+      if (response.needsProfile) {
+        return;
+      }
+
+      if (response.user) {
+        const welcome = response.created
+          ? {
+              title: "Account created!",
+              description: response.merged
+                ? "Your Google account is now linked to your existing Trippo account."
+                : "Welcome to Trippo. Your Google account is connected.",
+            }
+          : response.merged
+            ? {
+                title: "Account linked",
+                description: "Your Google account is now linked. You can sign in with Google or your password.",
+              }
+            : undefined;
+
+        completeLogin(response.user, response.user.email, welcome);
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Google sign-in failed. Please try again.";
+      toast({
+        title: "Google sign-in failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleLogin = async () => {
-    if (loginPin.length !== 4) {
-      setErrors((prev) => ({ ...prev, loginPin: "PIN must be 4 digits" }));
+    if (!isValidPassword(loginPassword)) {
+      setErrors((prev) => ({
+        ...prev,
+        loginPassword: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+      }));
       return;
     }
 
@@ -172,7 +264,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     }
 
     setIsLoading(true);
-    setErrors((prev) => ({ ...prev, loginPin: undefined, email: undefined }));
+    setErrors((prev) => ({ ...prev, loginPassword: undefined, email: undefined }));
 
     try {
       const normalizedEmail = loginEmail.trim().toLowerCase();
@@ -187,13 +279,13 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         return;
       }
 
-      const response = await authApi.login({ 
-        pin: loginPin,
-        email: normalizedEmail
+      const response = await authApi.login({
+        password: loginPassword,
+        email: normalizedEmail,
       });
 
       if (response.user) {
-        if (response.isAdmin || response.user.email === 'admin') {
+        if (response.isAdmin || response.user.email === "admin") {
           setIsLoading(false);
           toast({
             title: "Use the admin portal",
@@ -203,84 +295,21 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           return;
         }
 
-        // Store PIN in localStorage for backward compatibility
-        setPin(loginPin);
-        
-        // Store user info and ID
-        if (response.user.name) {
-          localStorage.setItem("profit-pilot-user-name", response.user.name);
-        }
-        if (response.user.email) {
-          localStorage.setItem("profit-pilot-user-email", response.user.email);
-        }
-        // Only store businessName if it exists and is not empty
-        if (response.user.businessName && response.user.businessName.trim()) {
-          localStorage.setItem("profit-pilot-business-name", response.user.businessName.trim());
-        } else {
-          // Clear businessName if it's empty or undefined
-          localStorage.removeItem("profit-pilot-business-name");
-        }
-        // Store user ID for API requests
-        if (response.user._id || response.user.id) {
-          localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
-        }
-
-        // Set authentication flag in sessionStorage
-        localStorage.setItem("profit-pilot-authenticated", "true");
-        
-        // Dispatch authentication event
-        window.dispatchEvent(new Event("pin-auth-changed"));
-
-        // Trigger user data update event
-        window.dispatchEvent(new Event("user-data-changed"));
-
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in.",
-        });
-
-        setLoginPrefs(normalizedEmail, rememberMe);
-
-        onOpenChange(false);
-        // Desktop on main domain: stay on same origin so localStorage persists across visits
-        // Always redirect to dashboard subdomain
-        const authToken = btoa(JSON.stringify({
-          userId: response.user._id || response.user.id,
-          isAdmin: false,
-          authenticated: true,
-          name: response.user.name,
-          email: response.user.email,
-          businessName: response.user.businessName || ''
-        }));
-        const dashboardUrl = getSubdomainUrl('dashboard', `#auth=${authToken}`);
-        window.location.href = dashboardUrl;
+        completeLogin(response.user, normalizedEmail);
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.error || error.message || "Login failed. Please try again.";
-      setErrors((prev) => ({ ...prev, loginPin: errorMessage }));
-      setLoginPin("");
-      setTimeout(() => loginPinRef.current?.focus(), 100);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Login failed. Please try again.";
+      setErrors((prev) => ({ ...prev, loginPassword: errorMessage }));
+      setLoginPassword("");
+      setTimeout(() => loginPasswordRef.current?.focus(), 100);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleCreatePinChange = (value: string) => {
-    const numericValue = value.replace(/\D/g, "").slice(0, 4);
-    setCreatePin(numericValue);
-    
-    // Show error if PIN is less than 4 digits and has a value
-    if (numericValue.length > 0 && numericValue.length < 4) {
-      setErrors((prev) => ({ ...prev, createPin: "PIN must be 4 digits" }));
-    } else {
-      setErrors((prev) => ({ ...prev, createPin: undefined }));
-    }
-  };
-
-  const handleConfirmPinChange = (value: string) => {
-    const numericValue = value.replace(/\D/g, "").slice(0, 4);
-    setConfirmPin(numericValue);
-    setErrors((prev) => ({ ...prev, confirmPin: undefined }));
   };
 
   const validateRegistrationFields = () => {
@@ -302,14 +331,14 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       newErrors.phone = "Enter a valid phone number (e.g. 0781234567)";
     }
 
-    if (createPin.length !== 4) {
-      newErrors.createPin = "PIN must be 4 digits";
+    if (!isValidPassword(createPassword)) {
+      newErrors.createPassword = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
     }
 
-    if (confirmPin.length !== 4) {
-      newErrors.confirmPin = "Please confirm your PIN";
-    } else if (createPin !== confirmPin) {
-      newErrors.confirmPin = "PINs do not match";
+    if (!isValidPassword(confirmPassword)) {
+      newErrors.confirmPassword = "Please confirm your password";
+    } else if (createPassword !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
     }
 
     return newErrors;
@@ -377,64 +406,15 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: normalizeAccountPhone(phone.trim()),
-        pin: createPin,
+        password: createPassword,
         otp: registerOtp.trim(),
       });
 
       if (response.user) {
-        // Store PIN in localStorage for backward compatibility
-        setPin(createPin);
-        
-        // Store user info and ID
-        if (response.user.name) {
-          localStorage.setItem("profit-pilot-user-name", response.user.name);
-        }
-        if (response.user.email) {
-          localStorage.setItem("profit-pilot-user-email", response.user.email);
-        }
-        // Only store businessName if it exists and is not empty
-        if (response.user.businessName && response.user.businessName.trim()) {
-          localStorage.setItem("profit-pilot-business-name", response.user.businessName.trim());
-        } else {
-          // Clear businessName if it's empty or undefined
-          localStorage.removeItem("profit-pilot-business-name");
-        }
-        // Store user ID for API requests
-        if (response.user._id || response.user.id) {
-          localStorage.setItem("profit-pilot-user-id", response.user._id || response.user.id);
-        }
-
-        // Set authentication flag in sessionStorage
-        localStorage.setItem("profit-pilot-authenticated", "true");
-        
-        // Dispatch authentication event
-        window.dispatchEvent(new Event("pin-auth-changed"));
-        
-        // Trigger user data update event
-        window.dispatchEvent(new Event("user-data-changed"));
-
-        toast({
+        completeLogin(response.user, email.trim().toLowerCase(), {
           title: "Account created!",
           description: "Welcome to Trippo. Your account has been created successfully.",
         });
-
-        setLoginPrefs(email.trim().toLowerCase(), true);
-
-        onOpenChange(false);
-        if (subdomain === null && isDesktopViewport()) {
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-        const authToken = btoa(JSON.stringify({
-          userId: response.user._id || response.user.id,
-          isAdmin: false,
-          authenticated: true,
-          name: response.user.name,
-          email: response.user.email,
-          businessName: response.user.businessName || ''
-        }));
-        const dashboardUrl = getSubdomainUrl('dashboard', `#auth=${authToken}`);
-        window.location.href = dashboardUrl;
       }
     } catch (error: unknown) {
       const fieldErrors = mapRegistrationApiErrors(error);
@@ -458,10 +438,10 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
         setErrors((prev) => ({ ...prev, phone: errorMessage }));
       } else if (errorMessage.toLowerCase().includes("name")) {
         setErrors((prev) => ({ ...prev, name: errorMessage }));
-      } else if (errorMessage.includes("PIN")) {
-        setErrors((prev) => ({ ...prev, createPin: errorMessage }));
+      } else if (errorMessage.includes("password") || errorMessage.includes("Password")) {
+        setErrors((prev) => ({ ...prev, createPassword: errorMessage }));
       } else {
-        setErrors((prev) => ({ ...prev, createPin: errorMessage }));
+        setErrors((prev) => ({ ...prev, createPassword: errorMessage }));
       }
     } finally {
       setIsLoading(false);
@@ -489,7 +469,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     setErrors((prev) => ({ ...prev, resetEmail: undefined }));
 
     try {
-      const response = await authApi.forgotPin({ email: resetEmail.trim().toLowerCase() });
+      const response = await authApi.forgotPassword({ email: resetEmail.trim().toLowerCase() });
       
       if (response.message) {
         setOtpSent(true);
@@ -515,7 +495,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     }
   };
 
-  const handleResetPin = async () => {
+  const handleResetPassword = async () => {
     const newErrors: typeof errors = {};
 
     if (!otp.trim()) {
@@ -524,16 +504,14 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
       newErrors.otp = "OTP must be 6 digits";
     }
 
-    if (!newPin.trim()) {
-      newErrors.newPin = "New PIN is required";
-    } else if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
-      newErrors.newPin = "PIN must be 4 digits";
+    if (!isValidPassword(newPassword)) {
+      newErrors.newPassword = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
     }
 
-    if (!confirmNewPin.trim()) {
-      newErrors.confirmNewPin = "Please confirm your PIN";
-    } else if (confirmNewPin !== newPin) {
-      newErrors.confirmNewPin = "PINs do not match";
+    if (!isValidPassword(confirmNewPassword)) {
+      newErrors.confirmNewPassword = "Please confirm your password";
+    } else if (confirmNewPassword !== newPassword) {
+      newErrors.confirmNewPassword = "Passwords do not match";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -545,22 +523,22 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
     setErrors({});
 
     try {
-      const response = await authApi.resetPin({
+      const response = await authApi.resetPassword({
         email: resetEmail.trim().toLowerCase(),
         otp: otp.trim(),
-        newPin: newPin.trim(),
+        newPassword: newPassword.trim(),
       });
 
       if (response.message) {
         toast({
-          title: "PIN Reset Successful",
-          description: "Your PIN has been reset. You can now login with your new PIN.",
+          title: "Password reset successful",
+          description: "You can now sign in with your new password.",
         });
-        setShowForgotPin(false);
+        setShowForgotPassword(false);
         setResetEmail("");
         setOtp("");
-        setNewPin("");
-        setConfirmNewPin("");
+        setNewPassword("");
+        setConfirmNewPassword("");
         setOtpSent(false);
         setActiveTab("login");
         setLoginEmail(resetEmail.trim());
@@ -571,13 +549,13 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
           ? error.message
           : error instanceof Error
             ? error.message
-            : "Failed to reset PIN. Please try again.";
+            : "Failed to reset password. Please try again.";
       if (errorMessage.toLowerCase().includes("otp") || errorMessage.toLowerCase().includes("expired")) {
         setErrors((prev) => ({ ...prev, otp: errorMessage }));
       } else if (errorMessage.toLowerCase().includes("email")) {
         setErrors((prev) => ({ ...prev, resetEmail: errorMessage }));
       } else {
-        setErrors((prev) => ({ ...prev, newPin: errorMessage }));
+        setErrors((prev) => ({ ...prev, newPassword: errorMessage }));
       }
     } finally {
       setIsLoading(false);
@@ -599,7 +577,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
           {/* Login Tab */}
           <TabsContent value="login" className="space-y-4 mt-4">
-            {!showForgotPin ? (
+            {!showForgotPassword ? (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="login-email" className="flex items-center gap-2">
@@ -623,31 +601,27 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-pin" className="flex items-center gap-2">
+                  <Label htmlFor="login-password" className="flex items-center gap-2">
                     <Lock size={16} />
-                    {t("enterYourPin")}
+                    Password
                   </Label>
                   <Input
-                    id="login-pin"
-                    ref={loginPinRef}
+                    id="login-password"
+                    ref={loginPasswordRef}
                     type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={loginPin}
-                    onChange={(e) => handleLoginPinChange(e.target.value)}
+                    value={loginPassword}
+                    onChange={(e) => {
+                      setLoginPassword(e.target.value);
+                      setErrors((prev) => ({ ...prev, loginPassword: undefined }));
+                    }}
                     onKeyPress={(e) => handleKeyPress(e, handleLogin)}
-                    placeholder="Enter 4-digit PIN"
-                    className={
-                      loginPin.length === 4 && !errors.loginPin
-                        ? "border-green-500 ring-2 ring-green-500/20 focus:ring-green-500/40"
-                        : errors.loginPin && loginPin.length !== 4
-                        ? "border-red-500 ring-2 ring-red-500/20 focus:ring-red-500/40"
-                        : ""
-                    }
+                    placeholder="Enter your password"
+                    className={errors.loginPassword ? "border-red-500" : ""}
                     disabled={isLoading}
+                    autoComplete="current-password"
                   />
-                  {errors.loginPin && (errors.loginPin !== "PIN must be 4 digits" || loginPin.length !== 4) && (
-                    <p className="text-sm text-red-500">{errors.loginPin}</p>
+                  {errors.loginPassword && (
+                    <p className="text-sm text-red-500">{errors.loginPassword}</p>
                   )}
                 </div>
                 <div className="flex items-start gap-2">
@@ -663,21 +637,22 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 </div>
                 <Button
                   onClick={handleLogin}
-                  className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
-                  disabled={loginPin.length !== 4 || isLoading}
+                  className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
+                  disabled={!isValidPassword(loginPassword) || isLoading}
                 >
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
+                <GoogleSignInSection onSuccess={handleGoogleSuccess} disabled={isLoading} />
                 <div className="text-center">
                   <button
                     type="button"
                     onClick={() => {
-                      setShowForgotPin(true);
+                      setShowForgotPassword(true);
                       setResetEmail(loginEmail);
                     }}
                     className="text-sm text-blue-600 hover:text-blue-700 underline"
                   >
-                    {t("forgotPin")}
+                    Forgot password?
                   </button>
                 </div>
               </>
@@ -686,15 +661,15 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 {/* Forgot PIN Section */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{t("resetYourPin")}</h3>
+                    <h3 className="text-lg font-semibold">Reset your password</h3>
                     <button
                       type="button"
                       onClick={() => {
-                        setShowForgotPin(false);
+                        setShowForgotPassword(false);
                         setResetEmail("");
                         setOtp("");
-                        setNewPin("");
-                        setConfirmNewPin("");
+                        setNewPassword("");
+                        setConfirmNewPassword("");
                         setOtpSent(false);
                         setErrors({});
                       }}
@@ -729,7 +704,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                   </div>
                   <Button
                     onClick={handleSendOTP}
-                    className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
+                    className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
                     disabled={isLoading || !resetEmail.trim()}
                   >
                     {isLoading ? "Sending..." : "Send OTP"}
@@ -767,58 +742,59 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="new-pin" className="flex items-center gap-2">
+                    <Label htmlFor="new-password" className="flex items-center gap-2">
                       <Lock size={16} />
-                      New PIN (4 digits)
+                      New password
                     </Label>
                     <Input
-                      id="new-pin"
+                      id="new-password"
                       type="password"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={newPin}
+                      value={newPassword}
                       onChange={(e) => {
-                        const numericValue = e.target.value.replace(/\D/g, "").slice(0, 4);
-                        setNewPin(numericValue);
-                        setErrors((prev) => ({ ...prev, newPin: undefined }));
+                        setNewPassword(e.target.value);
+                        setErrors((prev) => ({ ...prev, newPassword: undefined }));
                       }}
-                      placeholder="Enter new 4-digit PIN"
-                      className={errors.newPin ? "border-red-500" : ""}
+                      placeholder="Enter new password"
+                      className={errors.newPassword ? "border-red-500" : ""}
+                      autoComplete="new-password"
                     />
-                    {errors.newPin && (
-                      <p className="text-sm text-red-500">{errors.newPin}</p>
+                    {errors.newPassword && (
+                      <p className="text-sm text-red-500">{errors.newPassword}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-new-pin" className="flex items-center gap-2">
+                    <Label htmlFor="confirm-new-password" className="flex items-center gap-2">
                       <Lock size={16} />
-                      Confirm New PIN
+                      Confirm new password
                     </Label>
                     <Input
-                      id="confirm-new-pin"
+                      id="confirm-new-password"
                       type="password"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={confirmNewPin}
+                      value={confirmNewPassword}
                       onChange={(e) => {
-                        const numericValue = e.target.value.replace(/\D/g, "").slice(0, 4);
-                        setConfirmNewPin(numericValue);
-                        setErrors((prev) => ({ ...prev, confirmNewPin: undefined }));
+                        setConfirmNewPassword(e.target.value);
+                        setErrors((prev) => ({ ...prev, confirmNewPassword: undefined }));
                       }}
-                      placeholder="Re-enter new PIN"
-                      className={errors.confirmNewPin ? "border-red-500" : ""}
-                      onKeyPress={(e) => handleKeyPress(e, handleResetPin)}
+                      placeholder="Re-enter new password"
+                      className={errors.confirmNewPassword ? "border-red-500" : ""}
+                      onKeyPress={(e) => handleKeyPress(e, handleResetPassword)}
+                      autoComplete="new-password"
                     />
-                    {errors.confirmNewPin && (
-                      <p className="text-sm text-red-500">{errors.confirmNewPin}</p>
+                    {errors.confirmNewPassword && (
+                      <p className="text-sm text-red-500">{errors.confirmNewPassword}</p>
                     )}
                   </div>
                   <Button
-                    onClick={handleResetPin}
+                    onClick={handleResetPassword}
                     className="w-full bg-green-600 text-white hover:bg-green-700"
-                    disabled={isLoading || otp.length !== 6 || newPin.length !== 4 || confirmNewPin.length !== 4}
+                    disabled={
+                      isLoading ||
+                      otp.length !== 6 ||
+                      !isValidPassword(newPassword) ||
+                      newPassword !== confirmNewPassword
+                    }
                   >
-                    {isLoading ? "Resetting PIN..." : "Reset PIN"}
+                    {isLoading ? "Resetting password..." : "Reset password"}
                   </Button>
                   <div className="text-center">
                     <button
@@ -826,8 +802,8 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                       onClick={() => {
                         setOtpSent(false);
                         setOtp("");
-                        setNewPin("");
-                        setConfirmNewPin("");
+                        setNewPassword("");
+                        setConfirmNewPassword("");
                         setErrors({});
                       }}
                       className="text-sm text-blue-600 hover:text-blue-700 underline"
@@ -912,44 +888,48 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="create-pin" className="flex items-center gap-2">
+              <Label htmlFor="create-password" className="flex items-center gap-2">
                 <Lock size={16} />
-                {t("setPin")} (4)
+                Password
               </Label>
               <Input
-                id="create-pin"
-                ref={createPinRef}
+                id="create-password"
+                ref={createPasswordRef}
                 type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={createPin}
-                onChange={(e) => handleCreatePinChange(e.target.value)}
-                placeholder="Enter 4-digit PIN"
-                className={errors.createPin ? "border-red-500" : ""}
+                value={createPassword}
+                onChange={(e) => {
+                  setCreatePassword(e.target.value);
+                  setErrors((prev) => ({ ...prev, createPassword: undefined }));
+                }}
+                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+                className={errors.createPassword ? "border-red-500" : ""}
+                autoComplete="new-password"
               />
-              {errors.createPin && (
-                <p className="text-sm text-red-500">{errors.createPin}</p>
+              {errors.createPassword && (
+                <p className="text-sm text-red-500">{errors.createPassword}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-pin" className="flex items-center gap-2">
+              <Label htmlFor="confirm-password" className="flex items-center gap-2">
                 <Lock size={16} />
-                {t("confirmPin")}
+                Confirm password
               </Label>
               <Input
-                id="confirm-pin"
+                id="confirm-password"
                 type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={confirmPin}
-                onChange={(e) => handleConfirmPinChange(e.target.value)}
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                }}
                 onKeyPress={(e) => handleKeyPress(e, handleCreateAccount)}
-                placeholder="Re-enter 4-digit PIN"
-                className={errors.confirmPin ? "border-red-500" : ""}
+                placeholder="Re-enter your password"
+                className={errors.confirmPassword ? "border-red-500" : ""}
+                autoComplete="new-password"
               />
-              {errors.confirmPin && (
-                <p className="text-sm text-red-500">{errors.confirmPin}</p>
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-500">{errors.confirmPassword}</p>
               )}
             </div>
 
@@ -992,10 +972,12 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
               </div>
             ) : null}
 
+            <GoogleSignInSection onSuccess={handleGoogleSuccess} disabled={isLoading} />
+
             {!registerOtpSent ? (
               <Button
                 onClick={() => void handleSendRegistrationOtp()}
-                className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
+                className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
                 disabled={isLoading}
               >
                 {isLoading ? t("sendingCode") : t("sendVerificationCode")}
@@ -1003,7 +985,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             ) : (
               <Button
                 onClick={() => void handleCreateAccount()}
-                className="w-full bg-primary text-white hover:bg-blue-700 hover:text-white"
+                className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
                 disabled={isLoading || registerOtp.length !== 6}
               >
                 {isLoading ? t("creatingAccount") : t("createAccount")}

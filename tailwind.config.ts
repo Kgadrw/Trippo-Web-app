@@ -14,7 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Raleway', 'system-ui', 'sans-serif'],
+        sans: ['"Google Sans Flex"', 'sans-serif'],
+        mono: ['"Google Sans Flex"', 'sans-serif'],
+        dashboard: ['"Google Sans Flex"', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
