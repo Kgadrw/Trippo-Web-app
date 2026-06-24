@@ -64,6 +64,7 @@ import {
   getMonthGrid,
   getMonthLabel,
   getViewRange,
+  getPlatformActivityRange,
   getViewTitle,
   getWeekDays,
   getWeekdayLabels,
@@ -202,6 +203,18 @@ export function BusinessCalendarTab() {
     ],
   );
 
+  const platformRange = useMemo(
+    () => getPlatformActivityRange(viewMode, selectedDay, viewYear, viewMonth),
+    [
+      viewMode,
+      viewYear,
+      viewMonth,
+      viewMode === "day" || viewMode === "week"
+        ? `${selectedDay.getFullYear()}-${selectedDay.getMonth()}-${selectedDay.getDate()}`
+        : "static",
+    ],
+  );
+
   const loadCalendarData = useCallback(async () => {
     const showBlockingLoader = !hasLoadedOnceRef.current;
     if (showBlockingLoader) {
@@ -244,7 +257,7 @@ export function BusinessCalendarTab() {
 
     setLoadingPlatform(true);
     try {
-      const { start, end } = viewRange;
+      const { start, end } = platformRange;
       const dateParams = {
         startDate: toDateInputValue(start),
         endDate: toDateInputValue(end),
@@ -285,7 +298,7 @@ export function BusinessCalendarTab() {
     } finally {
       setLoadingPlatform(false);
     }
-  }, [viewRange, typeFilter, t, toast]);
+  }, [viewRange, platformRange, typeFilter, t, toast]);
 
   useEffect(() => {
     void loadCalendarData();
@@ -339,7 +352,7 @@ export function BusinessCalendarTab() {
 
   const handleViewModeChange = (mode: CalendarViewMode) => {
     setViewMode(mode);
-    if (mode === "month") {
+    if (mode === "month" || mode === "day" || mode === "week") {
       setViewYear(selectedDay.getFullYear());
       setViewMonth(selectedDay.getMonth());
     } else if (mode === "year") {

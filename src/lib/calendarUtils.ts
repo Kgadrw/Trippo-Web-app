@@ -68,7 +68,8 @@ export function getWeekdayLabels() {
 
 export function eventOccursOnDay(eventStart: string | Date, day: Date) {
   const start = new Date(eventStart);
-  return isSameDay(start, day);
+  if (Number.isNaN(start.getTime())) return false;
+  return toDateInputValue(start) === toDateInputValue(day);
 }
 
 export function formatEventTime(event: { startDate: string; endDate?: string; allDay?: boolean }) {
@@ -136,6 +137,26 @@ export function getViewRange(
   switch (mode) {
     case "day":
       return getDayRange(selectedDay);
+    case "week":
+      return getWeekRange(selectedDay);
+    case "year":
+      return getYearRange(viewYear);
+    case "month":
+    default:
+      return getMonthRange(viewYear, viewMonth);
+  }
+}
+
+/** Wider range for sales/expenses/etc. — day view still needs the full month bucket. */
+export function getPlatformActivityRange(
+  mode: CalendarViewMode,
+  selectedDay: Date,
+  viewYear: number,
+  viewMonth: number,
+) {
+  switch (mode) {
+    case "day":
+      return getMonthRange(selectedDay.getFullYear(), selectedDay.getMonth());
     case "week":
       return getWeekRange(selectedDay);
     case "year":

@@ -161,8 +161,8 @@ export function AdminSidebar({
   return (
     <aside
       className={cn(
-        "hidden lg:flex fixed z-50 bg-sidebar transition-all duration-300 flex-col",
-        "left-0 top-0 h-screen",
+        "hidden lg:flex fixed z-50 bg-sidebar text-sidebar-foreground transition-all duration-300 flex-col",
+        "left-0 top-0 h-screen border-r border-sidebar-border",
         isExpanded ? "w-56" : "w-16",
       )}
       onMouseEnter={() => {
@@ -189,13 +189,13 @@ export function AdminSidebar({
         )}
       >
         {isExpanded && (
-          <span className="text-lg font-normal text-white lowercase truncate">Admin</span>
+          <span className="text-lg font-semibold text-gray-900 lowercase truncate">Admin</span>
         )}
         <div className="flex items-center gap-2">
           {onMobileToggle && (
             <button
               onClick={onMobileToggle}
-              className="p-2 hover:bg-white/15 text-white/90 hover:text-white transition-colors rounded lg:hidden"
+              className="p-2 hover:bg-sidebar-accent text-gray-600 hover:text-gray-900 transition-colors rounded lg:hidden"
             >
               <Menu size={20} />
             </button>
@@ -203,7 +203,7 @@ export function AdminSidebar({
           <button
             onClick={onToggle}
             className={cn(
-              "p-2 hover:bg-white/15 text-white/90 hover:text-white transition-colors rounded",
+              "p-2 hover:bg-sidebar-accent text-gray-600 hover:text-gray-900 transition-colors rounded",
               isMobile ? "block" : "hidden lg:block",
             )}
             title={
@@ -234,11 +234,11 @@ export function AdminSidebar({
         {adminMenuGroups.map((group) => (
           <div key={group.label} className="space-y-1">
             {isExpanded ? (
-              <p className="px-3 pt-1 pb-1 text-[10px] font-normal uppercase tracking-wider text-white/45">
+              <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                 {group.label}
               </p>
             ) : (
-              <div className="h-px bg-white/10 mx-2 my-2 first:hidden" aria-hidden />
+              <div className="h-px bg-sidebar-border mx-2 my-2 first:hidden" aria-hidden />
             )}
             {group.items.map((item) => {
               const isActive = activeSection === item.section;
@@ -256,14 +256,14 @@ export function AdminSidebar({
                   <item.icon
                     size={20}
                     strokeWidth={2.5}
-                    className={isActive ? "text-white" : "text-white/85"}
+                    className={isActive ? "text-white" : "text-gray-600"}
                   />
                   {isExpanded && (
                     <span
                       className={cn(
-                        "flex-1 text-left",
-                        isActive ? "text-white" : "text-white/90",
-                        isMobile ? "text-xs font-normal" : "text-sm font-normal",
+                        "flex-1 text-left font-semibold",
+                        isActive ? "text-white" : "text-gray-600",
+                        isMobile ? "text-xs" : "text-sm",
                       )}
                     >
                       {item.label}
@@ -276,25 +276,23 @@ export function AdminSidebar({
         ))}
       </nav>
 
-      <div className="p-2 border-t border-white/10">
+      <div className="p-2 border-t border-sidebar-border">
         <button
           onClick={() => setLogoutDialogOpen(true)}
           className={cn(
-            "sidebar-item w-full hover:bg-red-500/20 hover:text-red-200 transition-colors",
+            "sidebar-item w-full text-gray-700 hover:text-red-600 transition-colors",
             !isExpanded && "justify-start px-2",
           )}
           title={!isExpanded ? "Logout" : undefined}
         >
-          <LogOut size={20} className="text-white/85" />
+          <LogOut size={20} className="text-gray-600" />
           {isExpanded && (
-            <span className={cn(isMobile ? "text-xs font-normal" : "text-sm font-normal", "text-left")}>
+            <span className={cn(isMobile ? "text-xs" : "text-sm", "text-left font-semibold")}>
               Logout
             </span>
           )}
         </button>
       </div>
-
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-px bg-white/15" aria-hidden />
 
       <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
         <AlertDialogContent>
