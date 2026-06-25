@@ -36,7 +36,7 @@ export function GoogleSignInSection({ onSuccess, disabled = false }: GoogleSignI
           theme="outline"
           size="large"
           text="continue_with"
-          shape="rectangular"
+          shape="pill"
           width="100%"
         />
       </div>

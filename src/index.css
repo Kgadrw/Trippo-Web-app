@@ -553,6 +553,17 @@
     border-radius: 0 !important;
   }
 
+  .homepage button,
+  .homepage input[type="button"],
+  .homepage input[type="submit"],
+  .homepage input[type="reset"],
+  .login-modal button,
+  .login-modal input[type="button"],
+  .login-modal input[type="submit"],
+  .login-modal input[type="reset"] {
+    border-radius: 9999px !important;
+  }
+
   /* Light blue for buttons using legacy primary classes */
   button.bg-primary,
   a.bg-primary[role="button"],

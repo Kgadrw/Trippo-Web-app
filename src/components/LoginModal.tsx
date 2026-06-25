@@ -565,7 +565,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="login-modal sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">{t("welcomeToTrippo")}</DialogTitle>
         </DialogHeader>
@@ -638,7 +638,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                 </div>
                 <Button
                   onClick={handleLogin}
-                  className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
+                  className="w-full rounded-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
                   disabled={!isValidPassword(loginPassword) || isLoading}
                 >
                   {isLoading ? "Signing in..." : "Sign In"}
@@ -705,7 +705,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                   </div>
                   <Button
                     onClick={handleSendOTP}
-                    className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
+                    className="w-full rounded-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
                     disabled={isLoading || !resetEmail.trim()}
                   >
                     {isLoading ? "Sending..." : "Send OTP"}
@@ -787,7 +787,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
                   </div>
                   <Button
                     onClick={handleResetPassword}
-                    className="w-full bg-green-600 text-white hover:bg-green-700"
+                    className="w-full rounded-full bg-green-600 text-white hover:bg-green-700"
                     disabled={
                       isLoading ||
                       otp.length !== 6 ||
@@ -978,7 +978,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             {!registerOtpSent ? (
               <Button
                 onClick={() => void handleSendRegistrationOtp()}
-                className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
+                    className="w-full rounded-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
                 disabled={isLoading}
               >
                 {isLoading ? t("sendingCode") : t("sendVerificationCode")}
@@ -986,7 +986,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
             ) : (
               <Button
                 onClick={() => void handleCreateAccount()}
-                className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
+                    className="w-full rounded-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white"
                 disabled={isLoading || registerOtp.length !== 6}
               >
                 {isLoading ? t("creatingAccount") : t("createAccount")}
