@@ -152,7 +152,7 @@ export function HeaderNotificationBell({
       </button>
 
       <Sheet open={notificationOpen} onOpenChange={setNotificationOpen}>
-        <SheetContent side="right" className="w-full p-0 sm:w-[400px]">
+        <SheetContent side="right" className="w-full rounded-none p-0 sm:w-[400px]">
           <SheetHeader className="border-b border-gray-200 px-6 pb-4 pt-6">
             <div className="flex items-center justify-between">
               <SheetTitle className="text-xl font-bold">Notifications</SheetTitle>
@@ -205,7 +205,7 @@ export function HeaderNotificationBell({
 
                   <div
                     className={cn(
-                      "border p-4",
+                      "rounded-none border p-4",
                       selectedNotification.read
                         ? "border-gray-200 bg-white"
                         : "border-blue-200 bg-blue-50",
@@ -214,7 +214,7 @@ export function HeaderNotificationBell({
                     <div className="mb-4 flex items-start gap-3">
                       <div
                         className={cn(
-                          "p-2",
+                          "rounded-none p-2",
                           selectedNotification.type === "low_stock" ? "bg-orange-100" : "bg-blue-100",
                         )}
                       >
@@ -278,7 +278,7 @@ export function HeaderNotificationBell({
                       key={notification.id}
                       type="button"
                       className={cn(
-                        "w-full border p-4 text-left transition-colors",
+                        "w-full rounded-none border p-4 text-left transition-colors",
                         notification.read
                           ? "border-gray-200 bg-white"
                           : "border-blue-200 bg-blue-50",

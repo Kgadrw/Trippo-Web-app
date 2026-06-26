@@ -65,20 +65,20 @@ export function NotificationPermissionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-300">
-      <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-md mx-4 border-0 overflow-hidden animate-slide-down-fade">
+      <div className="relative mx-4 max-w-md overflow-hidden border border-gray-200 bg-white p-6 shadow-2xl animate-slide-down-fade">
         
         {/* Close button */}
         <button
           onClick={handleDecline}
-          className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100/80 rounded-full transition-all duration-200 z-10"
+          className="absolute top-4 right-4 z-10 p-1.5 text-gray-400 transition-all duration-200 hover:bg-gray-100/80 hover:text-gray-700"
         >
           <X size={18} />
         </button>
 
         <div className="relative z-10">
           {/* Icon */}
-          <div className="flex justify-center mb-4">
-            <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl shadow-lg">
+          <div className="mb-4 flex justify-center">
+            <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-4 shadow-lg">
               <Bell className="text-white" size={32} />
             </div>
           </div>
@@ -113,7 +113,7 @@ export function NotificationPermissionModal({
 
           {/* Permission status */}
           {permissionStatus === 'denied' && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <div className="mb-4 flex items-start gap-2 border border-red-200 bg-red-50 p-3">
               <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
               <div className="flex-1">
                 <p className="text-xs font-medium text-red-900">Notifications are blocked</p>
@@ -130,8 +130,8 @@ export function NotificationPermissionModal({
               onClick={handleRequestPermission}
               disabled={isRequesting || permissionStatus === 'granted'}
               className={cn(
-                "flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold",
-                permissionStatus === 'granted' && "opacity-50 cursor-not-allowed"
+                "flex-1 bg-gradient-to-r from-blue-600 to-purple-600 font-semibold text-white shadow-lg transition-all duration-300 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl",
+                permissionStatus === 'granted' && "cursor-not-allowed opacity-50"
               )}
             >
               {isRequesting ? (
@@ -151,7 +151,7 @@ export function NotificationPermissionModal({
             <Button
               onClick={handleDecline}
               variant="ghost"
-              className="flex-1 rounded-full hover:bg-red-100 hover:text-red-700 transition-all duration-200 font-medium"
+              className="flex-1 font-medium transition-all duration-200 hover:bg-red-100 hover:text-red-700"
             >
               Not Now
             </Button>

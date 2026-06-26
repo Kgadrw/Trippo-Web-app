@@ -38,7 +38,7 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
               {t("browserNotificationsBody")}
             </p>
 
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+            <div className="space-y-4 border border-gray-200 bg-gray-50 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-foreground">{t("notificationStatusLabel")}</p>
@@ -50,17 +50,17 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
                 </div>
                 <div className="flex items-center gap-2">
                   {notificationPermission === "granted" && (
-                    <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                    <div className="bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                       {t("statusEnabled")}
                     </div>
                   )}
                   {notificationPermission === "denied" && (
-                    <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                    <div className="bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
                       {t("statusBlocked")}
                     </div>
                   )}
                   {notificationPermission === "default" && (
-                    <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                    <div className="bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                       {t("statusNotSet")}
                     </div>
                   )}
@@ -104,7 +104,7 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
                       });
                     }
                   }}
-                  className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 hover:text-white w-full gap-2 h-10 shadow-sm hover:shadow transition-all font-semibold rounded-lg"
+                  className="h-10 w-full gap-2 border border-sky-400 bg-sky-400 font-semibold text-white shadow-sm transition-all hover:bg-sky-500 hover:text-white hover:shadow"
                 >
                   <Bell size={14} />
                   {notificationPermission === "denied"
