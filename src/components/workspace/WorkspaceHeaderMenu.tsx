@@ -162,7 +162,7 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
           {mode === 'workspace' && activeWorkspace && isWorkspaceAdmin ? (
             <DropdownMenuItem onClick={() => setManageOpen(true)} className="gap-2">
               <Settings2 size={14} />
-              Manage members
+              Manage workspace
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
@@ -236,6 +236,33 @@ function ManageWorkspaceDialog({
   ]);
   const [sending, setSending] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editedName, setEditedName] = useState(workspaceName);
+  const [savingName, setSavingName] = useState(false);
+
+  useEffect(() => {
+    if (open) setEditedName(workspaceName);
+  }, [open, workspaceName]);
+
+  const saveWorkspaceName = async () => {
+    const name = editedName.trim();
+    if (!name) {
+      toast({ title: 'Workspace name required', variant: 'destructive' });
+      return;
+    }
+    if (name === workspaceName) return;
+
+    setSavingName(true);
+    try {
+      await workspaceApi.update(workspaceId, { name });
+      toast({ title: 'Workspace name updated' });
+      onChanged();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update workspace name';
+      toast({ title: message, variant: 'destructive' });
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -338,13 +365,34 @@ function ManageWorkspaceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Manage {workspaceName}</DialogTitle>
+          <DialogTitle>Manage workspace</DialogTitle>
           <DialogDescription>
-            Invite teammates and control which pages they can access.
+            Update workspace details, invite teammates, and control page access.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+            <p className="text-sm font-medium text-gray-900">Workspace name</p>
+            <div className="flex gap-2">
+              <Input
+                id="edit-workspace-name"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                placeholder="e.g. Downtown Store"
+                onKeyDown={(e) => e.key === 'Enter' && void saveWorkspaceName()}
+                disabled={savingName}
+              />
+              <Button
+                size="sm"
+                onClick={() => void saveWorkspaceName()}
+                disabled={savingName || editedName.trim() === workspaceName || !editedName.trim()}
+              >
+                {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+              </Button>
+            </div>
+          </div>
+
           <div className="rounded-lg border border-gray-200 p-3 space-y-3">
             <p className="text-sm font-medium text-gray-900">Invite by email</p>
             <div className="flex gap-2">

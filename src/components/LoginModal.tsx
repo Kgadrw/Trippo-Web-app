@@ -565,7 +565,7 @@ export function LoginModal({ open, onOpenChange, defaultTab = "login" }: LoginMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="login-modal sm:max-w-[425px]">
+      <DialogContent className="login-modal max-h-[100dvh] overflow-y-auto overscroll-contain sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">{t("welcomeToTrippo")}</DialogTitle>
         </DialogHeader>

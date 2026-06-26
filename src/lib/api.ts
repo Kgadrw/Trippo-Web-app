@@ -1848,6 +1848,16 @@ export const workspaceApi = {
     });
   },
 
+  async update(
+    workspaceId: string,
+    data: { name: string },
+  ): Promise<ApiResponse & { workspace?: unknown }> {
+    return request(`/workspaces/${encodeURIComponent(workspaceId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
   async getMembers(workspaceId: string): Promise<ApiResponse> {
     return request(`/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: 'GET' });
   },
