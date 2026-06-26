@@ -409,20 +409,22 @@ export function DashboardOverview({
   }, [period]);
 
   const taxDue = useMemo(() => {
+    const { startMs, endMs } = periodRange;
     const today = startOfDay(new Date()).getTime();
     const pending = taxes.filter((tx) => (tx.status || "pending") === "pending");
-    const outstanding = pending.reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
-    const overdue = pending.filter((tx) => {
+    const inPeriod = pending.filter((tx) => {
+      const due = parseMs(tx.dueDate);
+      return due !== null && due >= startMs && due <= endMs;
+    });
+    const outstanding = inPeriod.reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
+    const overdue = inPeriod.filter((tx) => {
       const due = parseMs(tx.dueDate);
       return due !== null && due < today;
     });
     const overdueAmount = overdue.reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
-    const dueSoon = pending.filter((tx) => {
+    const dueSoon = inPeriod.filter((tx) => {
       const due = parseMs(tx.dueDate);
-      if (due === null || due < today) return false;
-      const limit = new Date();
-      limit.setDate(limit.getDate() + 30);
-      return due <= limit.getTime();
+      return due !== null && due >= today;
     });
     return {
       outstanding,
@@ -430,7 +432,16 @@ export function DashboardOverview({
       overdueCount: overdue.length,
       dueSoonCount: dueSoon.length,
     };
-  }, [taxes]);
+  }, [taxes, periodRange]);
+
+  const taxDueSublabel = useMemo(() => {
+    const dueSoonLabel =
+      period === "day" ? "due today" : period === "year" ? "due this year" : "due this month";
+    if (taxDue.overdueCount > 0) {
+      return `${taxDue.overdueCount} overdue · ${taxDue.dueSoonCount} ${dueSoonLabel}`;
+    }
+    return `${taxDue.dueSoonCount} ${dueSoonLabel}`;
+  }, [taxDue, period]);
 
   const upcomingBills = useMemo(() => {
     const today = startOfDay(new Date()).getTime();
@@ -576,11 +587,7 @@ export function DashboardOverview({
           <KpiCard
             label="Tax Due"
             value={taxDue.outstanding}
-            sublabel={
-              taxDue.overdueCount > 0
-                ? `${taxDue.overdueCount} overdue · ${taxDue.dueSoonCount} due soon`
-                : `${taxDue.dueSoonCount} due within 30 days`
-            }
+            sublabel={taxDueSublabel}
             valueClassName={taxDue.overdueCount > 0 ? "text-red-600" : "text-amber-700"}
             onClick={() => navigate("/finance/taxes")}
           />

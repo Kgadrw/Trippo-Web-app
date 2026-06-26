@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { displayCurrencyCode } from "@/lib/currency";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -789,5 +788,5 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
     return billingBody;
   }
 
-  return <AppLayout title={t("billing")}>{billingBody}</AppLayout>;
+  return billingBody;
 }

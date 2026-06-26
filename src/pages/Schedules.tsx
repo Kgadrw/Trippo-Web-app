@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
 import { useSearchParams } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -1080,7 +1079,7 @@ const Schedules = () => {
 
   // Skeleton
   const SchedulesSkeleton = () => (
-    <AppLayout title={t("emailAutomationsTitle")}>
+    <>
       <div className="flex flex-col gap-4 pb-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div><Skeleton className="h-7 w-48 mb-1" /><Skeleton className="h-4 w-64" /></div>
@@ -1102,7 +1101,7 @@ const Schedules = () => {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 
   if (isLoading) {
@@ -1110,7 +1109,7 @@ const Schedules = () => {
   }
 
   return (
-    <AppLayout title={t("emailAutomationsTitle")}>
+    <>
       <div className="flex flex-col gap-4 pb-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -2186,7 +2185,7 @@ const Schedules = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </>
   );
 };
 

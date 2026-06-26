@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { Button } from "@/components/ui/button";
@@ -404,7 +403,7 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <AppLayout title={t("dashboard")}>
+    <>
       <div className="mb-6">
         <DashboardOverview
           incomes={incomes}
@@ -565,7 +564,7 @@ const Dashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </>
   );
 };
 

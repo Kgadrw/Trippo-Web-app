@@ -17,15 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StockUpdateDialog } from "@/components/StockUpdateDialog";
-import { useApi } from "@/hooks/useApi";
-
-interface Product {
-  id?: number;
-  _id?: string;
-  name: string;
-  stock: number;
-  minStock?: number;
-}
 
 type HeaderNotificationBellProps = {
   onNotificationClick?: () => void;
@@ -46,11 +37,6 @@ export function HeaderNotificationBell({
   const [selectedNotification, setSelectedNotification] = useState<StoredNotification | null>(null);
   const [stockUpdateDialogOpen, setStockUpdateDialogOpen] = useState(false);
 
-  const { refresh: refreshProducts } = useApi<Product>({
-    endpoint: "products",
-    defaultValue: [],
-  });
-
   useEffect(() => {
     const loadNotifications = () => {
       const allNotifications = notificationStore.getAllNotifications();
@@ -59,9 +45,6 @@ export function HeaderNotificationBell({
     };
 
     loadNotifications();
-    if (user) {
-      notificationStore.syncFromBackend();
-    }
 
     const handleNotificationUpdate = () => loadNotifications();
     window.addEventListener("notifications-updated", handleNotificationUpdate);
@@ -70,7 +53,6 @@ export function HeaderNotificationBell({
       const currentUserId = localStorage.getItem("profit-pilot-user-id");
       if (currentUserId) {
         loadNotifications();
-        notificationStore.syncFromBackend();
       } else {
         setNotifications([]);
         setUnreadCount(0);
@@ -130,7 +112,7 @@ export function HeaderNotificationBell({
   const handleStockUpdated = () => {
     setStockUpdateDialogOpen(false);
     setSelectedNotification(null);
-    void refreshProducts();
+    window.dispatchEvent(new Event("products-should-refresh"));
     setNotifications(notificationStore.getAllNotifications());
     setUnreadCount(notificationStore.getUnreadCount());
   };

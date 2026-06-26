@@ -144,7 +144,7 @@ const EMPTY_FORM: EventFormState = {
 const GRID_TABLE_CLASS =
   "grid grid-cols-7 divide-x divide-y divide-gray-300";
 const HEADER_CELL_CLASS =
-  "py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500";
+  "py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500";
 
 const EMPTY_PLATFORM: PlatformRawData = {
   sales: [],
@@ -493,7 +493,7 @@ export function BusinessCalendarTab() {
     day: Date,
     options: { inCurrentMonth?: boolean; compact?: boolean; minHeight?: string },
   ) => {
-    const { inCurrentMonth = true, compact = false, minHeight = "min-h-[88px]" } = options;
+    const { inCurrentMonth = true, compact = false, minHeight = "min-h-[64px]" } = options;
     const isSelected = isSameDay(day, selectedDay);
     const isToday = isSameDay(day, today);
     const dayItems = displayItemsForDay(day);
@@ -508,7 +508,8 @@ export function BusinessCalendarTab() {
         onDoubleClick={() => openCreateModal(day)}
         className={cn(
           minHeight,
-          "w-full p-1.5 text-left transition-colors",
+          "w-full text-left transition-colors",
+          compact ? "p-1" : "p-1.5",
           inCurrentMonth ? "bg-white" : "text-gray-400",
           isSelected && "bg-sky-50",
           !isSelected && "hover:bg-gray-50/80",
@@ -516,7 +517,8 @@ export function BusinessCalendarTab() {
       >
         <span
           className={cn(
-            "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
+            "inline-flex items-center justify-center rounded-full font-medium",
+            compact ? "h-5 w-5 text-[11px]" : "h-6 w-6 text-xs",
             isToday && "bg-sky-500 text-white",
             !isToday && inCurrentMonth && "text-gray-900",
           )}
@@ -677,7 +679,11 @@ export function BusinessCalendarTab() {
         </div>
       ))}
       {monthCells.map((day) =>
-        renderDayCellContent(day, { inCurrentMonth: day.getMonth() === viewMonth }),
+        renderDayCellContent(day, {
+          inCurrentMonth: day.getMonth() === viewMonth,
+          compact: true,
+          minHeight: "min-h-[58px]",
+        }),
       )}
     </div>
   );
@@ -802,7 +808,10 @@ export function BusinessCalendarTab() {
       return (
         <div className={GRID_TABLE_CLASS}>
           {Array.from({ length: viewMode === "week" ? 14 : 49 }).map((_, i) => (
-            <Skeleton key={i} className="min-h-[88px] rounded-none" />
+            <Skeleton
+              key={i}
+              className={cn("rounded-none", viewMode === "month" ? "min-h-[58px]" : "min-h-[88px]")}
+            />
           ))}
         </div>
       );
@@ -890,7 +899,9 @@ export function BusinessCalendarTab() {
           "min-h-0 flex-1 overflow-hidden",
           isDayView
             ? "flex flex-col"
-            : "grid min-h-0 grid-rows-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-1 lg:gap-8",
+            : viewMode === "month"
+              ? "grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-1 lg:gap-8"
+              : "grid min-h-0 grid-rows-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-1 lg:gap-8",
         )}
       >
         <div

@@ -13,27 +13,60 @@ export type WorkspaceMemberAvatar = {
 
 const MAX_VISIBLE = 4;
 
+let cachedMembers: WorkspaceMemberAvatar[] = [];
+let cachedWorkspaceId: string | null = null;
+let membersFetchPromise: Promise<void> | null = null;
+
 export function useWorkspaceMemberAvatars() {
   const { mode, activeWorkspace } = useWorkspace();
-  const [members, setMembers] = useState<WorkspaceMemberAvatar[]>([]);
+  const [members, setMembers] = useState<WorkspaceMemberAvatar[]>(() => {
+    if (mode === "workspace" && activeWorkspace?.id === cachedWorkspaceId) {
+      return cachedMembers;
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
 
-  const loadMembers = useCallback(async () => {
-    if (mode !== "workspace" || !activeWorkspace?.id) {
-      setMembers([]);
-      return;
-    }
+  const loadMembers = useCallback(
+    async (force = false) => {
+      if (mode !== "workspace" || !activeWorkspace?.id) {
+        cachedMembers = [];
+        cachedWorkspaceId = null;
+        setMembers([]);
+        return;
+      }
 
-    setLoading(true);
-    try {
-      const response = await workspaceApi.getMembers(activeWorkspace.id);
-      setMembers((response.members as WorkspaceMemberAvatar[]) || []);
-    } catch {
-      setMembers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [mode, activeWorkspace?.id]);
+      if (!force && activeWorkspace.id === cachedWorkspaceId) {
+        setMembers(cachedMembers);
+        return;
+      }
+
+      if (!force && membersFetchPromise && activeWorkspace.id === cachedWorkspaceId) {
+        await membersFetchPromise;
+        setMembers(cachedMembers);
+        return;
+      }
+
+      setLoading(true);
+      const workspaceId = activeWorkspace.id;
+      membersFetchPromise = (async () => {
+        try {
+          const response = await workspaceApi.getMembers(workspaceId);
+          cachedMembers = (response.members as WorkspaceMemberAvatar[]) || [];
+          cachedWorkspaceId = workspaceId;
+          setMembers(cachedMembers);
+        } catch {
+          cachedMembers = [];
+          setMembers([]);
+        } finally {
+          setLoading(false);
+          membersFetchPromise = null;
+        }
+      })();
+      await membersFetchPromise;
+    },
+    [mode, activeWorkspace?.id],
+  );
 
   useEffect(() => {
     void loadMembers();
@@ -41,13 +74,22 @@ export function useWorkspaceMemberAvatars() {
 
   useEffect(() => {
     const onChanged = () => {
-      void loadMembers();
+      const userId = localStorage.getItem("profit-pilot-user-id");
+      if (!userId) {
+        cachedMembers = [];
+        cachedWorkspaceId = null;
+        setMembers([]);
+        return;
+      }
+      void loadMembers(true);
     };
     window.addEventListener(WORKSPACE_CHANGED_EVENT, onChanged);
     window.addEventListener("user-data-changed", onChanged);
+    window.addEventListener("pin-auth-changed", onChanged);
     return () => {
       window.removeEventListener(WORKSPACE_CHANGED_EVENT, onChanged);
       window.removeEventListener("user-data-changed", onChanged);
+      window.removeEventListener("pin-auth-changed", onChanged);
     };
   }, [loadMembers]);
 

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { SplashScreen } from "@/components/SplashScreen";
@@ -142,22 +143,22 @@ const SubdomainRouter = () => {
   if (subdomain === "bookfy") {
     return (
       <Routes>
-        <Route 
-          path="/" 
+        <Route path="/workspace/invite/:token" element={<WorkspaceInviteAccept />} />
+        <Route
           element={
             <ProtectedRoute>
-              <Index />
+              <AppLayout />
             </ProtectedRoute>
-          } 
+          }
+        >
+        <Route 
+          path="/" 
+          element={<Index />} 
         />
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
         <Route
           path="/finance"
-          element={
-            <ProtectedRoute>
-              <FinanceLayout />
-            </ProtectedRoute>
-          }
+          element={<FinanceLayout />}
         >
           <Route index element={<Navigate to="/finance/income" replace />} />
           <Route path="income" element={<FinanceIncome />} />
@@ -180,59 +181,31 @@ const SubdomainRouter = () => {
         <Route path="/expenses" element={<Navigate to="/finance/expenditure" replace />} />
         <Route 
           path="/reports" 
-          element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          } 
+          element={<Reports />} 
         />
         <Route
           path="/sales"
-          element={
-            <ProtectedRoute>
-              <Sales />
-            </ProtectedRoute>
-          }
+          element={<Sales />}
         />
         <Route
           path="/products"
-          element={
-            <ProtectedRoute>
-              <Products />
-            </ProtectedRoute>
-          }
+          element={<Products />}
         />
         <Route
           path="/documents"
-          element={
-            <ProtectedRoute>
-              <Documents />
-            </ProtectedRoute>
-          }
+          element={<Documents />}
         />
         <Route
           path="/schedules"
-          element={
-            <ProtectedRoute>
-              <Schedules />
-            </ProtectedRoute>
-          }
+          element={<Schedules />}
         />
         <Route
           path="/calendar"
-          element={
-            <ProtectedRoute>
-              <BusinessCalendar />
-            </ProtectedRoute>
-          }
+          element={<BusinessCalendar />}
         />
         <Route
           path="/team"
-          element={
-            <ProtectedRoute>
-              <TeamLayout />
-            </ProtectedRoute>
-          }
+          element={<TeamLayout />}
         >
           <Route index element={<TeamOverview />} />
           <Route path="tasks" element={<TeamTasks />} />
@@ -241,19 +214,11 @@ const SubdomainRouter = () => {
         </Route>
         <Route
           path="/billing"
-          element={
-            <ProtectedRoute>
-              <Billing />
-            </ProtectedRoute>
-          }
+          element={<Billing />}
         />
         <Route
           path="/settings/*"
-          element={
-            <ProtectedRoute>
-              <SettingsModalRoute />
-            </ProtectedRoute>
-          }
+          element={<SettingsModalRoute />}
         />
         <Route path="/clients" element={<Navigate to="/schedules" replace />} />
         <Route path="/inventories" element={<Navigate to="/products" replace />} />
@@ -261,8 +226,8 @@ const SubdomainRouter = () => {
         <Route path="/bookings" element={<Navigate to="/" replace />} />
         <Route path="/barbers" element={<Navigate to="/" replace />} />
         <Route path="/workers" element={<Navigate to="/" replace />} />
-        <Route path="/workspace/invite/:token" element={<WorkspaceInviteAccept />} />
         <Route path="*" element={<NotFound />} />
+        </Route>
       </Routes>
     );
   }

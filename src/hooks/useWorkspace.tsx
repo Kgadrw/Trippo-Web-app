@@ -75,6 +75,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [refreshWorkspaces]);
 
   useEffect(() => {
+    const onAuth = () => void refreshWorkspaces();
+    window.addEventListener("pin-auth-changed", onAuth);
+    return () => window.removeEventListener("pin-auth-changed", onAuth);
+  }, [refreshWorkspaces]);
+
+  useEffect(() => {
     const onChanged = () => {
       setMode(getStoredWorkspaceMode());
       setActiveWorkspaceId(getStoredWorkspaceId());

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, Navigate } from "react-router-dom";
+import { Outlet, useLocation, Navigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileTopBar } from "./MobileTopBar";
 import { DesktopHeader } from "./DesktopHeader";
@@ -10,11 +10,10 @@ import { LowStockAlertDock } from "@/components/dashboard/LowStockAlert";
 import { WorkspacePageGuard } from "@/components/workspace/WorkspacePageGuard";
 
 interface AppLayoutProps {
-  children: React.ReactNode;
-  title: string;
+  title?: string;
 }
 
-export function AppLayout({ children, title }: AppLayoutProps) {
+export function AppLayout(_props?: AppLayoutProps) {
   const location = useLocation();
   const { loading: subLoading, isLocked } = useSubscriptionAccess();
   const isBillingRoute = location.pathname.startsWith("/billing");
@@ -172,7 +171,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           {!subLoading && isLocked && !isBillingRoute ? (
             <Navigate to="/billing" replace />
           ) : null}
-          <WorkspacePageGuard>{children}</WorkspacePageGuard>
+          <WorkspacePageGuard>
+            <Outlet />
+          </WorkspacePageGuard>
         </main>
       </div>
 

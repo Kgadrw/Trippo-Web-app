@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -60,11 +61,19 @@ type SubscriptionAccessValue = {
 
 const SubscriptionContext = createContext<SubscriptionAccessValue | null>(null);
 
+let subscriptionSessionUserId: string | null = null;
+
 function useSubscriptionAccessState(): SubscriptionAccessValue {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+    return Boolean(userId && authenticated && subscriptionSessionUserId !== userId);
+  });
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [paymentConfig, setPaymentConfig] = useState<SubscriptionPaymentConfig | null>(null);
   const [pendingPayment, setPendingPayment] = useState<PendingSubscriptionPayment | null>(null);
+
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async (sync = false): Promise<SubscriptionPlan | null> => {
     try {
@@ -78,6 +87,8 @@ function useSubscriptionAccessState(): SubscriptionAccessValue {
       setPlan(data.plan);
       setPaymentConfig(data.payment || data.mtn || null);
       setPendingPayment(data.pendingPayment || null);
+      const userId = localStorage.getItem("profit-pilot-user-id");
+      if (userId) subscriptionSessionUserId = userId;
       return data.plan;
     } catch {
       setPlan(null);
@@ -90,10 +101,42 @@ function useSubscriptionAccessState(): SubscriptionAccessValue {
   }, []);
 
   useEffect(() => {
-    void load();
+    const clearState = () => {
+      subscriptionSessionUserId = null;
+      setPlan(null);
+      setPaymentConfig(null);
+      setPendingPayment(null);
+      setLoading(false);
+    };
+
+    const fetchIfNeeded = (force = false) => {
+      const userId = localStorage.getItem("profit-pilot-user-id");
+      const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+      if (!userId || !authenticated) {
+        clearState();
+        return;
+      }
+      if (!force && subscriptionSessionUserId === userId && hasLoadedRef.current) {
+        setLoading(false);
+        return;
+      }
+      hasLoadedRef.current = true;
+      subscriptionSessionUserId = userId;
+      setLoading(true);
+      void load();
+    };
+
+    fetchIfNeeded();
+
+    const onAuth = () => fetchIfNeeded(true);
     const onUpdate = () => void load();
+
+    window.addEventListener("pin-auth-changed", onAuth);
     window.addEventListener("subscription-updated", onUpdate);
-    return () => window.removeEventListener("subscription-updated", onUpdate);
+    return () => {
+      window.removeEventListener("pin-auth-changed", onAuth);
+      window.removeEventListener("subscription-updated", onUpdate);
+    };
   }, [load]);
 
   const hasAccess = plan?.hasPlus === true;

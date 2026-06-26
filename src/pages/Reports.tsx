@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Download } from "lucide-react";
@@ -901,7 +900,7 @@ const Reports = () => {
 
 
   const ReportsSkeleton = () => (
-    <AppLayout title={t("reports")}>
+    <>
       <div className="space-y-4 pb-4">
         <div className="p-5">
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
@@ -928,7 +927,7 @@ const Reports = () => {
           <Skeleton className="h-80 w-full rounded" />
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 
   if (
@@ -956,7 +955,7 @@ const Reports = () => {
   const reportPeriodLabel = getReportDateRangeLabel(reportType);
 
   return (
-    <AppLayout title={t("reports")}>
+    <>
       <div className="flex flex-col min-h-0 w-full space-y-4 pb-4">
         {/* Filters */}
         <div className="p-4 sm:p-5">
@@ -1070,7 +1069,7 @@ const Reports = () => {
           />
         ) : null}
       </div>
-    </AppLayout>
+    </>
   );
 };
 
