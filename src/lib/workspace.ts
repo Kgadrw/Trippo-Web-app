@@ -1,6 +1,7 @@
 export const WORKSPACE_MODE_KEY = 'profit-pilot-workspace-mode';
 export const WORKSPACE_ID_KEY = 'profit-pilot-active-workspace-id';
 export const WORKSPACE_CHANGED_EVENT = 'profit-pilot-workspace-changed';
+export const WORKSPACE_META_CHANGED_EVENT = 'profit-pilot-workspace-meta-changed';
 export const STORED_DATA_SCOPE_KEY = 'profit-pilot-stored-data-scope';
 
 export type WorkspaceMode = 'personal' | 'workspace';
@@ -88,6 +89,11 @@ export function persistWorkspaceContext(mode: WorkspaceMode, workspaceId: string
     localStorage.removeItem(WORKSPACE_ID_KEY);
   }
   window.dispatchEvent(new Event(WORKSPACE_CHANGED_EVENT));
+}
+
+/** Workspace name, members, or invites changed — refresh header without switching scope. */
+export function notifyWorkspaceMetaChanged() {
+  window.dispatchEvent(new Event(WORKSPACE_META_CHANGED_EVENT));
 }
 
 export function canAccessPage(

@@ -49,6 +49,15 @@ export function HeaderNotificationBell({
     const handleNotificationUpdate = () => loadNotifications();
     window.addEventListener("notifications-updated", handleNotificationUpdate);
 
+    let dataChangeTimer: ReturnType<typeof setTimeout> | undefined;
+    const handleDataChanged = () => {
+      clearTimeout(dataChangeTimer);
+      dataChangeTimer = setTimeout(() => {
+        void notificationStore.syncFromBackend();
+      }, 600);
+    };
+    window.addEventListener("profit-pilot-data-changed", handleDataChanged);
+
     const handleStorageChange = () => {
       const currentUserId = localStorage.getItem("profit-pilot-user-id");
       if (currentUserId) {
@@ -65,6 +74,8 @@ export function HeaderNotificationBell({
     });
     return () => {
       window.removeEventListener("notifications-updated", handleNotificationUpdate);
+      clearTimeout(dataChangeTimer);
+      window.removeEventListener("profit-pilot-data-changed", handleDataChanged);
       window.removeEventListener("storage", handleStorageChange);
       unsubscribeWs();
     };

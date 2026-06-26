@@ -18,6 +18,7 @@ import {
   getStoredWorkspaceMode,
   persistWorkspaceContext,
   WORKSPACE_CHANGED_EVENT,
+  WORKSPACE_META_CHANGED_EVENT,
   WORKSPACE_PAGES,
   type WorkspaceMode,
   type WorkspacePageKey,
@@ -78,6 +79,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const onAuth = () => void refreshWorkspaces();
     window.addEventListener("pin-auth-changed", onAuth);
     return () => window.removeEventListener("pin-auth-changed", onAuth);
+  }, [refreshWorkspaces]);
+
+  useEffect(() => {
+    const onMetaChanged = () => void refreshWorkspaces();
+    window.addEventListener(WORKSPACE_META_CHANGED_EVENT, onMetaChanged);
+    return () => window.removeEventListener(WORKSPACE_META_CHANGED_EVENT, onMetaChanged);
   }, [refreshWorkspaces]);
 
   useEffect(() => {

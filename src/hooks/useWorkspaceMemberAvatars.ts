@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { workspaceApi } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { WORKSPACE_CHANGED_EVENT } from "@/lib/workspace";
+import { WORKSPACE_CHANGED_EVENT, WORKSPACE_META_CHANGED_EVENT } from "@/lib/workspace";
 
 export type WorkspaceMemberAvatar = {
   id: string;
@@ -84,10 +84,12 @@ export function useWorkspaceMemberAvatars() {
       void loadMembers(true);
     };
     window.addEventListener(WORKSPACE_CHANGED_EVENT, onChanged);
+    window.addEventListener(WORKSPACE_META_CHANGED_EVENT, onChanged);
     window.addEventListener("user-data-changed", onChanged);
     window.addEventListener("pin-auth-changed", onChanged);
     return () => {
       window.removeEventListener(WORKSPACE_CHANGED_EVENT, onChanged);
+      window.removeEventListener(WORKSPACE_META_CHANGED_EVENT, onChanged);
       window.removeEventListener("user-data-changed", onChanged);
       window.removeEventListener("pin-auth-changed", onChanged);
     };

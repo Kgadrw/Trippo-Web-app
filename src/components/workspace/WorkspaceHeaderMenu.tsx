@@ -13,7 +13,11 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { workspaceApi } from '@/lib/api';
-import { WORKSPACE_PAGES, type WorkspacePageKey } from '@/lib/workspace';
+import {
+  WORKSPACE_PAGES,
+  notifyWorkspaceMetaChanged,
+  type WorkspacePageKey,
+} from '@/lib/workspace';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,7 +81,6 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
     switchToWorkspace,
     createWorkspace,
     isWorkspaceAdmin,
-    refreshWorkspaces,
   } = useWorkspace();
   const { toast } = useToast();
 
@@ -203,7 +206,7 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
           onOpenChange={setManageOpen}
           workspaceId={activeWorkspace.id}
           workspaceName={activeWorkspace.name}
-          onChanged={() => void refreshWorkspaces()}
+          onChanged={() => notifyWorkspaceMetaChanged()}
         />
       ) : null}
     </>
