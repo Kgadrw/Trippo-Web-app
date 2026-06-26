@@ -20,6 +20,7 @@ import {
   WORKSPACE_CHANGED_EVENT,
   WORKSPACE_META_CHANGED_EVENT,
   WORKSPACE_PAGES,
+  type WorkspaceMetaChangedDetail,
   type WorkspaceMode,
   type WorkspacePageKey,
   type WorkspaceSummary,
@@ -56,7 +57,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setWorkspaces(list);
 
       if (mode === 'workspace' && activeWorkspaceId) {
-        const stillMember = list.some((w) => w.id === activeWorkspaceId);
+        const stillMember = list.some((w) => String(w.id) === String(activeWorkspaceId));
         if (!stillMember) {
           persistWorkspaceContext('personal', null);
           setMode('personal');
@@ -82,7 +83,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [refreshWorkspaces]);
 
   useEffect(() => {
-    const onMetaChanged = () => void refreshWorkspaces();
+    const onMetaChanged = (event: Event) => {
+      const detail = (event as CustomEvent<WorkspaceMetaChangedDetail | undefined>).detail;
+      if (detail?.workspaceId) {
+        setWorkspaces((prev) =>
+          prev.map((w) =>
+            String(w.id) === String(detail.workspaceId)
+              ? { ...w, ...(detail.name != null ? { name: detail.name } : {}) }
+              : w,
+          ),
+        );
+      }
+      void refreshWorkspaces();
+    };
     window.addEventListener(WORKSPACE_META_CHANGED_EVENT, onMetaChanged);
     return () => window.removeEventListener(WORKSPACE_META_CHANGED_EVENT, onMetaChanged);
   }, [refreshWorkspaces]);
@@ -97,7 +110,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const activeWorkspace = useMemo(
-    () => workspaces.find((w) => w.id === activeWorkspaceId) || null,
+    () => workspaces.find((w) => String(w.id) === String(activeWorkspaceId)) || null,
     [workspaces, activeWorkspaceId],
   );
 

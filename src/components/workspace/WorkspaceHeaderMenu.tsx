@@ -16,6 +16,7 @@ import { workspaceApi } from '@/lib/api';
 import {
   WORKSPACE_PAGES,
   notifyWorkspaceMetaChanged,
+  type WorkspaceMetaChangedDetail,
   type WorkspacePageKey,
 } from '@/lib/workspace';
 import { Button } from '@/components/ui/button';
@@ -206,7 +207,7 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
           onOpenChange={setManageOpen}
           workspaceId={activeWorkspace.id}
           workspaceName={activeWorkspace.name}
-          onChanged={() => notifyWorkspaceMetaChanged()}
+          onChanged={(patch) => notifyWorkspaceMetaChanged(patch)}
         />
       ) : null}
     </>
@@ -224,7 +225,7 @@ function ManageWorkspaceDialog({
   onOpenChange: (open: boolean) => void;
   workspaceId: string;
   workspaceName: string;
-  onChanged: () => void;
+  onChanged: (patch?: WorkspaceMetaChangedDetail) => void;
 }) {
   const { toast } = useToast();
   const [members, setMembers] = useState<WorkspaceMemberRow[]>([]);
@@ -258,7 +259,7 @@ function ManageWorkspaceDialog({
     try {
       await workspaceApi.update(workspaceId, { name });
       toast({ title: 'Workspace name updated' });
-      onChanged();
+      onChanged({ workspaceId, name });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to update workspace name';
       toast({ title: message, variant: 'destructive' });
@@ -338,6 +339,7 @@ function ManageWorkspaceDialog({
       await workspaceApi.revokeInvite(workspaceId, inviteId);
       toast({ title: 'Invite revoked' });
       await loadMembers();
+      onChanged();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to revoke invite';
       toast({ title: message, variant: 'destructive' });

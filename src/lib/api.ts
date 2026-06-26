@@ -178,7 +178,8 @@ async function request<T>(
       endpoint.startsWith('/notifications') ||
       endpoint.startsWith('/auth/me') ||
       endpoint.startsWith('/subscription') ||
-      endpoint.startsWith('/content/');
+      endpoint.startsWith('/content/') ||
+      endpoint.startsWith('/workspaces');
     // Get userId for cache key (use the value from defaultHeaders if set, otherwise 'anonymous')
     const userIdForCache = defaultHeaders['X-User-Id'] || userId || 'anonymous';
     const workspaceScope =

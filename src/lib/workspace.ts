@@ -91,9 +91,15 @@ export function persistWorkspaceContext(mode: WorkspaceMode, workspaceId: string
   window.dispatchEvent(new Event(WORKSPACE_CHANGED_EVENT));
 }
 
+/** Optional patch applied immediately before refreshing workspace list from API. */
+export type WorkspaceMetaChangedDetail = {
+  workspaceId: string;
+  name?: string;
+};
+
 /** Workspace name, members, or invites changed — refresh header without switching scope. */
-export function notifyWorkspaceMetaChanged() {
-  window.dispatchEvent(new Event(WORKSPACE_META_CHANGED_EVENT));
+export function notifyWorkspaceMetaChanged(detail?: WorkspaceMetaChangedDetail) {
+  window.dispatchEvent(new CustomEvent(WORKSPACE_META_CHANGED_EVENT, { detail }));
 }
 
 export function canAccessPage(
