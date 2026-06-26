@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function HeaderPlanBanner() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { loading, tone, message, showPlanBanner, dismissPaidBanner } = useHeaderSubscriptionBadge();
+  const { loading, tone, message, showPlanBanner, dismissPlanBanner } = useHeaderSubscriptionBadge();
 
   if (loading) {
     return (
@@ -49,20 +49,18 @@ export function HeaderPlanBanner() {
             {t("payNow")}
           </button>
         ) : (
-          <>
-            <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold">
-              {t("paid")}
-            </span>
-            <button
-              type="button"
-              onClick={dismissPaidBanner}
-              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
-              aria-label="Dismiss"
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </>
+          <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold">
+            {t("paid")}
+          </span>
         )}
+        <button
+          type="button"
+          onClick={dismissPlanBanner}
+          className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+          aria-label="Dismiss"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </div>
     </div>
   );

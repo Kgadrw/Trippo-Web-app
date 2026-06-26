@@ -5,15 +5,31 @@ import { hasPaidSubscription } from "@/lib/subscriptionPayment";
 import { formatTrialDaysLeft, getTrialRemainingFromPlan } from "@/lib/trialDisplay";
 import { useTranslation } from "@/hooks/useTranslation";
 
-const DISMISS_STORAGE_PREFIX = "profit-pilot-plus-banner-dismissed";
+const DISMISS_STORAGE_PREFIX = "profit-pilot-plan-banner-dismissed";
 
 function getDismissStorageKey() {
   const userId = localStorage.getItem("profit-pilot-user-id");
   return userId ? `${DISMISS_STORAGE_PREFIX}:${userId}` : DISMISS_STORAGE_PREFIX;
 }
 
-function readDismissed() {
-  return localStorage.getItem(getDismissStorageKey()) === "true";
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function readDismissedMonth() {
+  return localStorage.getItem(getDismissStorageKey());
+}
+
+function isDismissedForCurrentMonth() {
+  const stored = readDismissedMonth();
+  if (!stored) return false;
+  if (stored === "true") {
+    const month = getCurrentMonthKey();
+    localStorage.setItem(getDismissStorageKey(), month);
+    return true;
+  }
+  return stored === getCurrentMonthKey();
 }
 
 export type HeaderPlanTone = "paid" | "trial" | "due";
@@ -22,10 +38,10 @@ export function useHeaderSubscriptionBadge() {
   const { loading, plan } = useSubscriptionAccess();
   const { t } = useTranslation();
   const location = useLocation();
-  const [dismissed, setDismissed] = useState(readDismissed);
+  const [dismissed, setDismissed] = useState(isDismissedForCurrentMonth);
 
   const syncDismissed = useCallback(() => {
-    setDismissed(readDismissed());
+    setDismissed(isDismissedForCurrentMonth());
   }, []);
 
   useEffect(() => {
@@ -70,15 +86,8 @@ export function useHeaderSubscriptionBadge() {
       : t("plusTrial");
   }, [plan, tone, needsPayment, trialRemaining, t]);
 
-  useEffect(() => {
-    if (!isPaid && dismissed) {
-      localStorage.removeItem(getDismissStorageKey());
-      setDismissed(false);
-    }
-  }, [isPaid, dismissed]);
-
-  const dismissPaidBanner = useCallback(() => {
-    localStorage.setItem(getDismissStorageKey(), "true");
+  const dismissPlanBanner = useCallback(() => {
+    localStorage.setItem(getDismissStorageKey(), getCurrentMonthKey());
     setDismissed(true);
     window.dispatchEvent(new Event("plus-banner-dismiss-changed"));
   }, []);
@@ -86,7 +95,7 @@ export function useHeaderSubscriptionBadge() {
   const onBillingPage = location.pathname.startsWith("/billing");
   const showPlusIcon = isPaid && dismissed && !onBillingPage;
   const showPlanBanner =
-    !loading && Boolean(plan && tone) && !onBillingPage && !(tone === "paid" && dismissed);
+    !loading && Boolean(plan && tone) && !onBillingPage && !dismissed;
 
   return {
     loading,
@@ -96,6 +105,6 @@ export function useHeaderSubscriptionBadge() {
     isPaid,
     showPlanBanner,
     showPlusIcon,
-    dismissPaidBanner,
+    dismissPlanBanner,
   };
 }
