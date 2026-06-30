@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -17,6 +18,7 @@ import {
   getStoredWorkspaceId,
   getStoredWorkspaceMode,
   persistWorkspaceContext,
+  shouldPreserveWorkspacePicture,
   WORKSPACE_CHANGED_EVENT,
   WORKSPACE_META_CHANGED_EVENT,
   WORKSPACE_PAGES,
@@ -37,13 +39,16 @@ function clearDataCaches() {
   window.dispatchEvent(new Event('force-refresh-data'));
 }
 
+const WORKSPACE_LIST_MIN_REFRESH_MS = 30_000;
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<WorkspaceMode>(() => getStoredWorkspaceMode());
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => getStoredWorkspaceId());
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastWorkspaceFetchRef = useRef(0);
 
-  const refreshWorkspaces = useCallback(async () => {
+  const refreshWorkspaces = useCallback(async (options?: { force?: boolean }) => {
     const userId = localStorage.getItem('profit-pilot-user-id');
     if (!userId) {
       setWorkspaces([]);
@@ -51,10 +56,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const now = Date.now();
+    if (!options?.force && now - lastWorkspaceFetchRef.current < WORKSPACE_LIST_MIN_REFRESH_MS) {
+      setLoading(false);
+      return;
+    }
+    lastWorkspaceFetchRef.current = now;
+
     try {
-      const response = await workspaceApi.list();
+      const response = await workspaceApi.list(options);
       const list = (response.workspaces || []) as WorkspaceSummary[];
-      setWorkspaces(list);
+      setWorkspaces((prev) => {
+        const prevById = new Map(prev.map((workspace) => [String(workspace.id), workspace]));
+        return list.map((workspace) => {
+          const previous = prevById.get(String(workspace.id));
+          if (shouldPreserveWorkspacePicture(previous)) {
+            return {
+              ...workspace,
+              profilePictureUrl: previous!.profilePictureUrl,
+              profilePictureRevision: previous!.profilePictureRevision,
+            };
+          }
+          return {
+            ...workspace,
+            profilePictureRevision: previous?.profilePictureRevision,
+          };
+        });
+      });
 
       if (mode === 'workspace' && activeWorkspaceId) {
         const stillMember = list.some((w) => String(w.id) === String(activeWorkspaceId));
@@ -89,12 +117,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setWorkspaces((prev) =>
           prev.map((w) =>
             String(w.id) === String(detail.workspaceId)
-              ? { ...w, ...(detail.name != null ? { name: detail.name } : {}) }
+              ? {
+                  ...w,
+                  ...(detail.name != null ? { name: detail.name } : {}),
+                  ...(detail.profilePictureUrl !== undefined
+                    ? { profilePictureUrl: detail.profilePictureUrl }
+                    : {}),
+                  ...(detail.profilePictureRevision != null
+                    ? { profilePictureRevision: detail.profilePictureRevision }
+                    : {}),
+                }
               : w,
           ),
         );
       }
-      void refreshWorkspaces();
+
+      const pictureOnlyUpdate =
+        detail?.workspaceId &&
+        detail.profilePictureUrl !== undefined &&
+        detail.name == null;
+
+      if (!pictureOnlyUpdate) {
+        void refreshWorkspaces({ force: true });
+      }
     };
     window.addEventListener(WORKSPACE_META_CHANGED_EVENT, onMetaChanged);
     return () => window.removeEventListener(WORKSPACE_META_CHANGED_EVENT, onMetaChanged);
@@ -131,7 +176,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const createWorkspace = useCallback(async (name: string) => {
     const response = await workspaceApi.create({ name });
     const workspace = response.workspace as WorkspaceSummary;
-    await refreshWorkspaces();
+    await refreshWorkspaces({ force: true });
     switchToWorkspace(workspace);
     return workspace;
   }, [refreshWorkspaces, switchToWorkspace]);

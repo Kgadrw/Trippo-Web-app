@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,9 @@ export interface DeleteConfirmDialogProps {
   deletingLabel?: string;
   onConfirm: () => void | Promise<void>;
   isDeleting?: boolean;
+  contentClassName?: string;
+  cancelClassName?: string;
+  confirmClassName?: string;
 }
 
 export function DeleteConfirmDialog({
@@ -33,10 +37,13 @@ export function DeleteConfirmDialog({
   deletingLabel = "Deleting...",
   onConfirm,
   isDeleting = false,
+  contentClassName,
+  cancelClassName,
+  confirmClassName,
 }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className={contentClassName}>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Trash2 size={20} className="shrink-0 text-red-600" />
@@ -45,11 +52,13 @@ export function DeleteConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting} className={cancelClassName}>
+            {cancelLabel}
+          </AlertDialogCancel>
           <AlertDialogAction
             onClick={() => void onConfirm()}
             disabled={isDeleting}
-            className="bg-red-600 text-white hover:bg-red-700"
+            className={cn("bg-red-600 text-white hover:bg-red-700", confirmClassName)}
           >
             {isDeleting ? deletingLabel : confirmLabel}
           </AlertDialogAction>

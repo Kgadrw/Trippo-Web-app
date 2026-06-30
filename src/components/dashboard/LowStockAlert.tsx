@@ -283,7 +283,7 @@ function LowStockAlertList({
                             return id?.toString() === item.id?.toString();
                           });
                           if (fullProduct) {
-                            return formatStockDisplay(fullProduct, t("language") as "en" | "rw");
+                            return formatStockDisplay(fullProduct);
                           }
                           return `${item.stock} left`;
                         })()}

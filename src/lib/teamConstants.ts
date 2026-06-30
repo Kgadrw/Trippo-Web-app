@@ -7,7 +7,8 @@ export const TEAM_DEPARTMENTS = [
   "hr",
 ] as const;
 
-export type TeamDepartment = (typeof TEAM_DEPARTMENTS)[number];
+/** Built-in department keys; custom departments use arbitrary string keys from the API. */
+export type TeamDepartment = string;
 
 export const TEAM_TASK_STATUSES = ["todo", "in_progress", "done"] as const;
 

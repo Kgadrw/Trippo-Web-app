@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "@/hooks/useApi";
+import { buildPeriodLoanDueSummary, currentMonthBounds } from "@/lib/dashboardCashFlow";
 import { loanApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -247,21 +248,15 @@ export function LoansTab() {
   );
 
   const metrics = useMemo(() => {
-    const today = startOfDay(new Date());
-    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
     const active = loans.filter((l) => l.status !== "paid_off");
     const totalOutstanding = active.reduce((s, l) => s + (Number(l.remainingBalance) || 0), 0);
-    const overdue = active.filter((l) => isOverdue(l.nextDueDate, l.status));
-    const dueThisMonth = active.filter((l) => {
-      const due = new Date(l.nextDueDate);
-      return due >= today && due <= monthEnd;
-    });
+    const monthDue = buildPeriodLoanDueSummary(active, currentMonthBounds());
     return {
       totalOutstanding,
-      overdueAmount: overdue.reduce((s, l) => s + (Number(l.installmentAmount) || 0), 0),
-      overdueCount: overdue.length,
-      dueThisMonthAmount: dueThisMonth.reduce((s, l) => s + (Number(l.installmentAmount) || 0), 0),
-      dueThisMonthCount: dueThisMonth.length,
+      overdueAmount: monthDue.overdueAmount,
+      overdueCount: monthDue.overdueCount,
+      dueThisMonthAmount: monthDue.outstanding,
+      dueThisMonthCount: monthDue.count,
       activeCount: active.length,
       totalPaid: loans.reduce((s, l) => s + (Number(l.totalPaid) || 0), 0),
     };
@@ -287,7 +282,8 @@ export function LoansTab() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      } finally {
+      await refresh(true);
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -615,17 +611,7 @@ export function LoansTab() {
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("totalOutstanding")}</p>
-          <p className="text-xl font-bold text-amber-700 tabular-nums mt-1">
-            {metrics.totalOutstanding.toLocaleString()}{" "}
-            <span className="currency-code text-sm text-gray-500">Rwf</span>
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {metrics.activeCount} {t("activeLoans")}
-          </p>
-        </div>
+      <div className="mb-4 grid grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="border border-gray-200 bg-white px-4 py-3">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("dueThisMonth")}</p>
           <p className="text-xl font-bold text-sky-700 tabular-nums mt-1">
@@ -637,7 +623,7 @@ export function LoansTab() {
           </p>
         </div>
         <div className="border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("overdue")}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("overdueThisMonth")}</p>
           <p className="text-xl font-bold text-red-600 tabular-nums mt-1">
             {metrics.overdueAmount.toLocaleString()}{" "}
             <span className="currency-code text-sm text-gray-500">Rwf</span>
@@ -647,10 +633,13 @@ export function LoansTab() {
           </p>
         </div>
         <div className="border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("totalPaidOnLoans")}</p>
-          <p className="text-xl font-bold text-emerald-700 tabular-nums mt-1">
-            {metrics.totalPaid.toLocaleString()}{" "}
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("totalOutstanding")}</p>
+          <p className="text-xl font-bold text-amber-700 tabular-nums mt-1">
+            {metrics.totalOutstanding.toLocaleString()}{" "}
             <span className="currency-code text-sm text-gray-500">Rwf</span>
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {metrics.activeCount} {t("activeLoans")}
           </p>
         </div>
       </div>

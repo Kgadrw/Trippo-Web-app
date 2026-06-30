@@ -29,7 +29,6 @@ import {
   newHomepageId,
   type HomepageContentDocument,
   type HomepageFeatureItem,
-  type HomepageLang,
   type HomepagePartnerItem,
   type HomepagePricingPlanItem,
   type HomepageTestimonialItem,
@@ -37,12 +36,6 @@ import {
 } from "@/lib/homepageContent";
 
 type SectionKey = "features" | "testimonials" | "partners" | "pricing";
-
-const LANG_OPTIONS: { value: HomepageLang; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "rw", label: "Kinyarwanda" },
-  { value: "fr", label: "French" },
-];
 
 const SECTION_META: Record<SectionKey, { label: string; hint: string }> = {
   features: {
@@ -66,19 +59,17 @@ const SECTION_META: Record<SectionKey, { label: string; hint: string }> = {
 function LocalizedField({
   label,
   value,
-  lang,
   onChange,
   multiline = false,
   placeholder,
 }: {
   label: string;
   value: LocalizedString;
-  lang: HomepageLang;
   onChange: (next: LocalizedString) => void;
   multiline?: boolean;
   placeholder?: string;
 }) {
-  const fieldValue = value[lang] ?? "";
+  const fieldValue = value.en ?? "";
   const InputComponent = multiline ? Textarea : Input;
 
   return (
@@ -86,7 +77,7 @@ function LocalizedField({
       <Label className="text-xs text-gray-600">{label}</Label>
       <InputComponent
         value={fieldValue}
-        onChange={(e) => onChange({ ...value, [lang]: e.target.value })}
+        onChange={(e) => onChange({ en: e.target.value })}
         placeholder={placeholder}
         className={cn("bg-white", multiline ? "min-h-[88px]" : "h-10")}
       />
@@ -146,7 +137,6 @@ export function AdminHomepagePanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState<SectionKey>("features");
-  const [lang, setLang] = useState<HomepageLang>("en");
   const [content, setContent] = useState<HomepageContentDocument | null>(null);
 
   const loadContent = useCallback(async () => {
@@ -272,18 +262,6 @@ export function AdminHomepagePanel() {
             </Button>
           ))}
         </div>
-        <Select value={lang} onValueChange={(v) => setLang(v as HomepageLang)}>
-          <SelectTrigger className="w-[180px] bg-white">
-            <SelectValue placeholder="Language" />
-          </SelectTrigger>
-          <SelectContent>
-            {LANG_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="rounded-xl bg-blue-50/80 px-4 py-3 text-sm text-blue-900">
@@ -335,19 +313,17 @@ export function AdminHomepagePanel() {
                       : prev,
                   )
                 }
-                preview={<FeaturePreviewCard feature={feature} lang={lang} />}
+                preview={<FeaturePreviewCard feature={feature} />}
               >
                 <LocalizedField
                   label="Badge label"
                   value={feature.badge}
-                  lang={lang}
                   onChange={(badge) => updateFeature(feature.id, { badge })}
                   placeholder="Services & Stock"
                 />
                 <LocalizedField
                   label="Description"
                   value={feature.description}
-                  lang={lang}
                   multiline
                   onChange={(description) => updateFeature(feature.id, { description })}
                 />
@@ -460,19 +436,17 @@ export function AdminHomepagePanel() {
                       : prev,
                   )
                 }
-                preview={<TestimonialPreviewCard item={item} lang={lang} />}
+                preview={<TestimonialPreviewCard item={item} />}
               >
                 <LocalizedField
                   label="Quote"
                   value={item.quote}
-                  lang={lang}
                   multiline
                   onChange={(quote) => updateTestimonial(item.id, { quote })}
                 />
                 <LocalizedField
                   label="Attribution"
                   value={item.attribution}
-                  lang={lang}
                   onChange={(attribution) => updateTestimonial(item.id, { attribution })}
                   placeholder="Name · Location"
                 />
@@ -534,12 +508,11 @@ export function AdminHomepagePanel() {
                       : prev,
                   )
                 }
-                preview={<PartnerPreviewCard partner={partner} lang={lang} />}
+                preview={<PartnerPreviewCard partner={partner} />}
               >
                 <LocalizedField
                   label="Partner name"
                   value={partner.name}
-                  lang={lang}
                   onChange={(name) => updatePartner(partner.id, { name })}
                 />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -626,13 +599,12 @@ export function AdminHomepagePanel() {
                       : prev,
                   )
                 }
-                preview={<PricingPreviewCard plan={plan} lang={lang} />}
+                preview={<PricingPreviewCard plan={plan} />}
               >
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <LocalizedField
                     label="Plan name"
                     value={plan.name}
-                    lang={lang}
                     onChange={(name) => updatePricingPlan(plan.id, { name })}
                   />
                   <div className="space-y-1.5">
@@ -648,14 +620,12 @@ export function AdminHomepagePanel() {
                 <LocalizedField
                   label="Price suffix"
                   value={plan.priceSuffix}
-                  lang={lang}
                   onChange={(priceSuffix) => updatePricingPlan(plan.id, { priceSuffix })}
                   placeholder="/month"
                 />
                 <LocalizedField
                   label="Button label"
                   value={plan.ctaLabel}
-                  lang={lang}
                   onChange={(ctaLabel) => updatePricingPlan(plan.id, { ctaLabel })}
                 />
                 <div className="space-y-2">
@@ -681,7 +651,6 @@ export function AdminHomepagePanel() {
                         <LocalizedField
                           label={`Feature ${featureIndex + 1}`}
                           value={feature}
-                          lang={lang}
                           onChange={(next) => {
                             const features = [...plan.features];
                             features[featureIndex] = next;

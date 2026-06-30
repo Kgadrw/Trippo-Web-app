@@ -1,9 +1,7 @@
-export type HomepageLang = 'en' | 'rw' | 'fr';
+export type HomepageLang = "en";
 
 export type LocalizedString = {
   en: string;
-  rw?: string;
-  fr?: string;
 };
 
 export type HomepageFeatureItem = {
@@ -99,12 +97,11 @@ export const FEATURE_COLOR_CLASSES: Record<HomepageFeatureItem['color'], string>
 };
 
 export function emptyLocalized(): LocalizedString {
-  return { en: '', rw: '', fr: '' };
+  return { en: "" };
 }
 
-export function pickLocalized(field: LocalizedString | undefined, lang: HomepageLang): string {
-  if (!field) return '';
-  return field[lang] || field.en || field.rw || field.fr || '';
+export function pickLocalized(field: LocalizedString | undefined): string {
+  return field?.en ?? "";
 }
 
 export function newHomepageId(prefix: string) {

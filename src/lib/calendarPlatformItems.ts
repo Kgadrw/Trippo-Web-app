@@ -1,9 +1,13 @@
 import { CalendarEventRecord, getEventColor, normalizeEventType } from "@/lib/calendarEventTypes";
-import { eventOccursOnDay } from "@/lib/calendarUtils";
-
+import { eventOccursOnDay, toDateInputValue } from "@/lib/calendarUtils";
+import type { CorporateFeedItem } from "@/lib/calendarWorkflow";
 export type PlatformCalendarSource =
   | "event"
   | "automation"
+  | "leave"
+  | "milestone"
+  | "crm_meeting"
+  | "announcement"
   | "sale"
   | "income"
   | "expense"
@@ -18,6 +22,7 @@ export interface CalendarDisplayItem {
   source: PlatformCalendarSource;
   title: string;
   date: string;
+  endDate?: string;
   amount?: number;
   color: string;
   subtitle?: string;
@@ -29,8 +34,11 @@ export interface CalendarDisplayItem {
 export const PLATFORM_SOURCE_COLORS: Record<PlatformCalendarSource, string> = {
   event: "#ea580c",
   automation: "#6366f1",
-  sale: "#059669",
-  income: "#16a34a",
+  leave: "#0d9488",
+  milestone: "#dc2626",
+  crm_meeting: "#2563eb",
+  announcement: "#7c3aed",
+  sale: "#059669",  income: "#16a34a",
   expense: "#dc2626",
   bill: "#d97706",
   tax: "#9333ea",
@@ -42,8 +50,11 @@ export const PLATFORM_SOURCE_COLORS: Record<PlatformCalendarSource, string> = {
 export const PLATFORM_SOURCE_LABEL_KEYS: Record<PlatformCalendarSource, string> = {
   event: "calSourceEvent",
   automation: "calAutomationItem",
-  sale: "calSourceSale",
-  income: "calSourceIncome",
+  leave: "calSourceLeave",
+  milestone: "calSourceMilestone",
+  crm_meeting: "calSourceClientMeeting",
+  announcement: "calSourceAnnouncement",
+  sale: "calSourceSale",  income: "calSourceIncome",
   expense: "calSourceExpense",
   bill: "calSourceBill",
   tax: "calSourceTax",
@@ -238,15 +249,38 @@ export function buildAutomationItems(
       date: schedule.dueDate,
       color: PLATFORM_SOURCE_COLORS.automation,
       subtitle: schedule.automationType || "custom",
-      link: "/schedules",
+      link: "/calendar/schedules",
       editable: false,
     }));
 }
 
-export function itemsForDay(items: CalendarDisplayItem[], day: Date) {
-  return items.filter((item) => eventOccursOnDay(item.date, day));
+export function buildCorporateFeedItems(feed: CorporateFeedItem[]): CalendarDisplayItem[] {
+  return feed.map((item) => ({
+    id: item.id,
+    source: item.feedType === "crm_meeting" ? "crm_meeting" : item.feedType,
+    title: item.title,
+    date: item.startDate,
+    endDate: item.endDate,
+    color: item.color || PLATFORM_SOURCE_COLORS[item.feedType === "crm_meeting" ? "crm_meeting" : item.feedType],
+    subtitle: item.subtitle,
+    link: item.link,
+    editable: false,
+  }));
 }
 
+export function itemOccursOnDay(item: CalendarDisplayItem, day: Date) {
+  if (item.endDate) {
+    const dayKey = toDateInputValue(day);
+    const startKey = toDateInputValue(new Date(item.date));
+    const endKey = toDateInputValue(new Date(item.endDate));
+    return dayKey >= startKey && dayKey <= endKey;
+  }
+  return eventOccursOnDay(item.date, day);
+}
+
+export function itemsForDay(items: CalendarDisplayItem[], day: Date) {
+  return items.filter((item) => itemOccursOnDay(item, day));
+}
 export function formatCalendarAmount(amount?: number) {
   if (amount == null) return "";
   return `Rwf ${Math.round(amount).toLocaleString()}`;
@@ -259,10 +293,12 @@ export function buildFilteredDisplayItems(
   events: CalendarEventRecord[],
   platformItems: CalendarDisplayItem[],
   automationItems: CalendarDisplayItem[],
+  corporateItems: CalendarDisplayItem[] = [],
 ): CalendarDisplayItem[] {
   if (typeFilter === "all") {
     return [
       ...buildCalendarEventItems(events),
+      ...corporateItems,
       ...automationItems,
       ...platformItems,
     ];

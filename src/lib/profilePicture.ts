@@ -1,21 +1,32 @@
 import { PUBLIC_API_BASE_URL } from "./api";
+import { getAuthenticatedFileUrl } from "./fileAccessToken";
+import { fetchAuthenticatedFileBlob, invalidateAuthenticatedFileCache } from "./authenticatedFileFetch";
 
 export function profilePictureFetchUrl(profilePictureUrl: string): string {
-  if (profilePictureUrl.startsWith("http")) return profilePictureUrl;
-  if (profilePictureUrl.startsWith("/api")) return profilePictureUrl;
-  return `${PUBLIC_API_BASE_URL}${profilePictureUrl}`;
+  return profilePictureUrl;
+}
+
+export async function getProfilePictureDisplayUrl(profilePictureUrl: string): Promise<string | null> {
+  if (!profilePictureUrl) return null;
+  if (profilePictureUrl.startsWith("blob:") || profilePictureUrl.startsWith("data:")) {
+    return profilePictureUrl;
+  }
+
+  try {
+    return await getAuthenticatedFileUrl(profilePictureUrl);
+  } catch {
+    const blob = await fetchAuthenticatedFileBlob(profilePictureUrl);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Could not load profile picture"));
+      reader.readAsDataURL(blob);
+    });
+  }
 }
 
 export async function fetchProfilePictureBlob(profilePictureUrl: string): Promise<Blob> {
-  const userId = localStorage.getItem("profit-pilot-user-id");
-  const url = profilePictureFetchUrl(profilePictureUrl);
-  const res = await fetch(url, {
-    headers: userId ? { "X-User-Id": userId } : {},
-  });
-  if (!res.ok) {
-    throw new Error("Could not load profile picture");
-  }
-  return res.blob();
+  return fetchAuthenticatedFileBlob(profilePictureUrl);
 }
 
 export async function uploadProfilePicture(file: File): Promise<{ profilePictureUrl: string }> {
@@ -44,6 +55,7 @@ export async function uploadProfilePicture(file: File): Promise<{ profilePicture
     throw new Error("Upload succeeded but no picture URL was returned");
   }
 
+  invalidateAuthenticatedFileCache();
   return { profilePictureUrl };
 }
 
@@ -62,4 +74,6 @@ export async function removeProfilePicture(): Promise<void> {
   if (!res.ok) {
     throw new Error(json.error || "Failed to remove profile picture");
   }
+
+  invalidateAuthenticatedFileCache();
 }

@@ -8,15 +8,33 @@ import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { cn } from "@/lib/utils";
 import { LowStockAlertDock } from "@/components/dashboard/LowStockAlert";
 import { WorkspacePageGuard } from "@/components/workspace/WorkspacePageGuard";
+import { WorkspaceChatWidget } from "@/components/workspace/WorkspaceChatWidget";
+import { WorkspaceChatNotificationBridge } from "@/components/workspace/WorkspaceChatNotificationBridge";
+import { WorkspaceChatPanelProvider, useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
+import { WorkspacePresenceProvider } from "@/hooks/useWorkspacePresence";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 interface AppLayoutProps {
   title?: string;
 }
 
 export function AppLayout(_props?: AppLayoutProps) {
+  return (
+    <WorkspaceChatPanelProvider>
+      <WorkspacePresenceProvider>
+        <AppLayoutInner />
+      </WorkspacePresenceProvider>
+    </WorkspaceChatPanelProvider>
+  );
+}
+
+function AppLayoutInner(_props?: AppLayoutProps) {
   const location = useLocation();
   const { loading: subLoading, isLocked } = useSubscriptionAccess();
+  const { mode } = useWorkspace();
+  const { open: chatOpen } = useWorkspaceChatPanel();
   const isBillingRoute = location.pathname.startsWith("/billing");
+  const isMessagesRoute = location.pathname.startsWith("/messages");
 
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem("profit-pilot-sidebar-collapsed");
@@ -146,12 +164,13 @@ export function AppLayout(_props?: AppLayoutProps) {
       {/* Main content */}
       <div
         className={cn(
-          "relative z-10 min-w-0 flex-1",
+          "relative z-10 min-w-0 flex-1 transition-[margin] duration-300",
           isMobile
-            ? "ml-0 pb-6"
+            ? cn("ml-0", !isMessagesRoute && "pb-6")
             : cn(
-                "transition-all duration-300",
                 sidebarOpen ? "lg:ml-52" : "lg:ml-0",
+                mode === "workspace" && chatOpen && !isMessagesRoute && "lg:mr-80",
+                isMessagesRoute && "overflow-hidden pb-0",
               ),
         )}
         onTouchStart={onTouchStart}
@@ -159,25 +178,48 @@ export function AppLayout(_props?: AppLayoutProps) {
         onTouchEnd={onTouchEnd}
         style={{
           touchAction: "pan-y",
-          ...(isMobile ? { paddingTop: mobileTopHeight } : { paddingTop: desktopTopHeight }),
-          ...(!isMobile && {
-            ["--content-left" as string]: sidebarOpen
-              ? "calc(0.5rem + 13rem + 0.75rem)"
-              : "0.5rem",
-          }),
+          ["--app-header-height" as string]: `${isMobile ? mobileTopHeight : desktopTopHeight}px`,
+          ...(isMobile
+            ? isMessagesRoute
+              ? {
+                  paddingTop: mobileTopHeight,
+                  height: `calc(100dvh - ${mobileTopHeight}px)`,
+                  paddingBottom: 0,
+                }
+              : { paddingTop: mobileTopHeight }
+            : isMessagesRoute
+              ? {
+                  paddingTop: desktopTopHeight,
+                  height: `calc(100dvh - ${desktopTopHeight}px)`,
+                }
+              : { paddingTop: desktopTopHeight }),
+          ...(!isMobile &&
+            !isMessagesRoute && {
+              ["--content-left" as string]: sidebarOpen
+                ? "calc(0.5rem + 13rem + 0.75rem)"
+                : "0.5rem",
+            }),
         }}
       >
-        <main className="p-4 pt-4 lg:p-6 lg:pt-4">
+        <main
+          className={cn(
+            isMessagesRoute ? "h-full overflow-hidden p-0" : "p-4 pt-4 lg:p-6 lg:pt-4",
+          )}
+        >
           {!subLoading && isLocked && !isBillingRoute ? (
             <Navigate to="/billing" replace />
           ) : null}
           <WorkspacePageGuard>
-            <Outlet />
+            <div className={cn(isMessagesRoute && "h-full")}>
+              <Outlet />
+            </div>
           </WorkspacePageGuard>
         </main>
       </div>
 
       <LowStockAlertDock />
+      <WorkspaceChatNotificationBridge />
+      <WorkspaceChatWidget topOffset={isMobile ? mobileTopHeight : desktopTopHeight} />
     </div>
   );
 }

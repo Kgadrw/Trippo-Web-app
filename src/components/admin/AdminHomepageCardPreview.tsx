@@ -5,21 +5,14 @@ import {
   FEATURE_COLOR_CLASSES,
   pickLocalized,
   type HomepageFeatureItem,
-  type HomepageLang,
   type HomepagePartnerItem,
   type HomepagePricingPlanItem,
   type HomepageTestimonialItem,
 } from "@/lib/homepageContent";
 
-export function FeaturePreviewCard({
-  feature,
-  lang,
-}: {
-  feature: HomepageFeatureItem;
-  lang: HomepageLang;
-}) {
-  const badge = pickLocalized(feature.badge, lang) || "Badge label";
-  const description = pickLocalized(feature.description, lang) || "Description text";
+export function FeaturePreviewCard({ feature }: { feature: HomepageFeatureItem }) {
+  const badge = pickLocalized(feature.badge) || "Badge label";
+  const description = pickLocalized(feature.description) || "Description text";
 
   return (
     <div
@@ -43,15 +36,9 @@ export function FeaturePreviewCard({
   );
 }
 
-export function TestimonialPreviewCard({
-  item,
-  lang,
-}: {
-  item: HomepageTestimonialItem;
-  lang: HomepageLang;
-}) {
-  const quote = pickLocalized(item.quote, lang) || "Testimonial quote";
-  const attribution = pickLocalized(item.attribution, lang) || "Name · Location";
+export function TestimonialPreviewCard({ item }: { item: HomepageTestimonialItem }) {
+  const quote = pickLocalized(item.quote) || "Testimonial quote";
+  const attribution = pickLocalized(item.attribution) || "Name · Location";
 
   return (
     <div className={cn("bg-gray-50 p-6 transition-opacity", !item.enabled && "opacity-40")}>
@@ -66,14 +53,8 @@ export function TestimonialPreviewCard({
   );
 }
 
-export function PartnerPreviewCard({
-  partner,
-  lang,
-}: {
-  partner: HomepagePartnerItem;
-  lang: HomepageLang;
-}) {
-  const name = pickLocalized(partner.name, lang) || "Partner";
+export function PartnerPreviewCard({ partner }: { partner: HomepagePartnerItem }) {
+  const name = pickLocalized(partner.name) || "Partner";
 
   return (
     <div
@@ -91,17 +72,11 @@ export function PartnerPreviewCard({
   );
 }
 
-export function PricingPreviewCard({
-  plan,
-  lang,
-}: {
-  plan: HomepagePricingPlanItem;
-  lang: HomepageLang;
-}) {
-  const name = pickLocalized(plan.name, lang) || "Plan name";
-  const priceSuffix = pickLocalized(plan.priceSuffix, lang);
-  const ctaLabel = pickLocalized(plan.ctaLabel, lang) || "Get started";
-  const features = plan.features.map((f) => pickLocalized(f, lang)).filter(Boolean);
+export function PricingPreviewCard({ plan }: { plan: HomepagePricingPlanItem }) {
+  const name = pickLocalized(plan.name) || "Plan name";
+  const priceSuffix = pickLocalized(plan.priceSuffix);
+  const ctaLabel = pickLocalized(plan.ctaLabel) || "Get started";
+  const features = plan.features.map((f) => pickLocalized(f)).filter(Boolean);
 
   if (plan.isPlaceholder) {
     return (

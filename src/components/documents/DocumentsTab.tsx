@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useApi } from "@/hooks/useApi";
+import { documentApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "@/components/categories/CategorySelect";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -18,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { REGISTRY_STATUSES, REGISTRY_TYPES, registryStatusLabel, registryTypeLabel } from "@/lib/documentWorkflow";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Plus, Loader2, MoreVertical, Pencil, Trash2, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,23 +45,17 @@ export interface CompanyDocumentEntry {
   _id?: string;
   title: string;
   category?: string;
+  registryType?: string;
+  registryStatus?: string;
+  effectiveDate?: string;
+  expiryDate?: string;
   date: string;
   note?: string;
   fileUrl: string;
   fileName: string;
   fileSize?: number;
+  currentVersionNumber?: number;
 }
-
-const DOCUMENT_CATEGORIES = [
-  "general",
-  "legal",
-  "tax",
-  "contracts",
-  "licenses",
-  "hr",
-  "financial",
-  "other",
-];
 
 function documentId(entry: CompanyDocumentEntry) {
   return String(entry._id ?? entry.id ?? "");
@@ -107,6 +105,10 @@ export function DocumentsTab() {
   const [category, setCategory] = useState("general");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
+  const [registryType, setRegistryType] = useState("general");
+  const [registryStatus, setRegistryStatus] = useState("draft");
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [existingFileUrl, setExistingFileUrl] = useState<string | undefined>();
   const [existingFileName, setExistingFileName] = useState<string | undefined>();
@@ -137,10 +139,11 @@ export function DocumentsTab() {
   const visibleDocuments = useMemo(
     () =>
       filterByPageSearch(sortedDocuments, pageSearchQuery, (entry) => [
-        entry.name,
+        entry.title,
         entry.category,
-        entry.tags,
+        entry.registryType,
         entry.note,
+        entry.fileName,
       ]),
     [sortedDocuments, pageSearchQuery],
   );
@@ -170,6 +173,10 @@ export function DocumentsTab() {
     setCategory("general");
     setDate(new Date().toISOString().split("T")[0]);
     setNote("");
+    setRegistryType("general");
+    setRegistryStatus("draft");
+    setEffectiveDate("");
+    setExpiryDate("");
     setFile(null);
     setExistingFileUrl(undefined);
     setExistingFileName(undefined);
@@ -188,6 +195,10 @@ export function DocumentsTab() {
     setCategory(entry.category || "general");
     setDate(entry.date ? entry.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setNote(entry.note || "");
+    setRegistryType(entry.registryType || "general");
+    setRegistryStatus(entry.registryStatus || "draft");
+    setEffectiveDate(entry.effectiveDate ? entry.effectiveDate.split("T")[0] : "");
+    setExpiryDate(entry.expiryDate ? entry.expiryDate.split("T")[0] : "");
     setFile(null);
     setExistingFileUrl(entry.fileUrl);
     setExistingFileName(entry.fileName);
@@ -198,7 +209,8 @@ export function DocumentsTab() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      } finally {
+      await refresh(true);
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -232,11 +244,16 @@ export function DocumentsTab() {
       const payload = {
         title: title.trim(),
         category: category.trim() || "general",
+        registryType,
+        registryStatus,
+        effectiveDate: effectiveDate || undefined,
+        expiryDate: expiryDate || undefined,
         date: buildDocumentDate(date),
         note: note.trim() || undefined,
         fileUrl: fileUrl!,
         fileName: fileName!,
         fileSize,
+        changeNote: file ? "File updated" : undefined,
       };
 
       if (editing) {
@@ -280,9 +297,9 @@ export function DocumentsTab() {
   return (
     <>
       <FinanceTableShell
-        title="Documents"
+        title={t("docArchiveTitle")}
         onAdd={openCreate}
-        addLabel="Upload"
+        addLabel={t("docUpload")}
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
       >
@@ -290,7 +307,7 @@ export function DocumentsTab() {
           <FinanceTableLoading />
         ) : visibleDocuments.length === 0 ? (
           <div className="px-4 py-16 text-center text-sm text-gray-500">
-            No company documents yet. Upload licenses, contracts, tax files, and more.
+            {t("docArchiveEmpty")}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -351,7 +368,9 @@ export function DocumentsTab() {
                         />
                       </td>
                       <td className={cn(FINANCE_TD_CLASS, "font-semibold text-gray-900 max-w-[200px] truncate")}>
-                        {entry.title}
+                        <Link to={`/documents/${id}`} className="text-sky-700 hover:underline">
+                          {entry.title}
+                        </Link>
                       </td>
                       <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell text-gray-600 max-w-[180px] truncate")}>
                         {entry.fileName}
@@ -366,11 +385,13 @@ export function DocumentsTab() {
                               type="button"
                               className="p-1 text-gray-400 hover:text-gray-600"
                               onClick={() =>
-                                void openCompanyDocumentInNewTab(entry.fileUrl).catch(() =>
-                                  toast({
-                                    title: "Could not open file",
-                                    variant: "destructive",
-                                  }),
+                                void documentApi.openFile(id).catch(() =>
+                                  void openCompanyDocumentInNewTab(entry.fileUrl).catch(() =>
+                                    toast({
+                                      title: t("docOpenFailed"),
+                                      variant: "destructive",
+                                    }),
+                                  ),
                                 )
                               }
                               aria-label="View file"
@@ -431,21 +452,45 @@ export function DocumentsTab() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Category</Label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="flex h-10 w-full border border-gray-300 bg-white px-3 text-sm"
-                >
-                  {DOCUMENT_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </option>
-                  ))}
-                </select>
+                <CategorySelect type="document" value={category} onValueChange={setCategory} />
               </div>
               <div className="space-y-1">
                 <Label>Date</Label>
                 <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{t("docRegistryType")}</Label>
+                <Select value={registryType} onValueChange={setRegistryType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {REGISTRY_TYPES.map((value) => (
+                      <SelectItem key={value} value={value}>{registryTypeLabel(value, t)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>{t("docRegistryStatus")}</Label>
+                <Select value={registryStatus} onValueChange={setRegistryStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {REGISTRY_STATUSES.map((value) => (
+                      <SelectItem key={value} value={value}>{registryStatusLabel(value, t)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{t("docEffectiveDate")}</Label>
+                <Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>{t("docExpiryDate")}</Label>
+                <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
               </div>
             </div>
             <div className="space-y-1.5">

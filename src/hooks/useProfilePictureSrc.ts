@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchProfilePictureBlob } from "@/lib/profilePicture";
+import { getProfilePictureDisplayUrl } from "@/lib/profilePicture";
 
 export function useProfilePictureSrc(
   profilePictureUrl?: string,
@@ -19,22 +19,17 @@ export function useProfilePictureSrc(
     }
 
     let cancelled = false;
-    let objectUrl: string | null = null;
 
-    void (async () => {
-      try {
-        const blob = await fetchProfilePictureBlob(profilePictureUrl);
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      } catch {
+    void getProfilePictureDisplayUrl(profilePictureUrl)
+      .then((displayUrl) => {
+        if (!cancelled) setSrc(displayUrl);
+      })
+      .catch(() => {
         if (!cancelled) setSrc(null);
-      }
-    })();
+      });
 
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [profilePictureUrl, previewUrl]);
 

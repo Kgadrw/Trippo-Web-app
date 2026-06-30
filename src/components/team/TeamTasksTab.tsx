@@ -6,13 +6,15 @@ import {
   type TeamTaskRecord,
 } from "@/lib/api";
 import {
-  TEAM_DEPARTMENTS,
   TEAM_PRIORITIES,
   TEAM_TASK_STATUSES,
   formatMonthLabel,
   getMonthKey,
   type TeamDepartment,
 } from "@/lib/teamConstants";
+import { CategorySelect } from "@/components/categories/CategorySelect";
+import { useWorkspaceCategories } from "@/hooks/useWorkspaceCategories";
+import { formatCategoryLabel } from "@/lib/workspaceCategories";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -45,15 +47,39 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Loader2, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
+import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
 import { cn } from "@/lib/utils";
+import { websocketManager } from "@/lib/websocketManager";
+import { matchesRealtimeRecord } from "@/lib/workspaceRealtime";
+import {
+  mergeTaskIntoList,
+  taskId,
+  taskMatchesListFilters,
+  TEAM_TASK_EVENTS,
+} from "@/lib/teamTaskRealtime";
 
 interface TeamTasksTabProps {
   department?: TeamDepartment;
 }
 
-function taskId(task: TeamTaskRecord) {
-  return String(task._id);
+type CreateTaskRow = {
+  key: string;
+  title: string;
+  description: string;
+};
+
+function newCreateTaskRow(): CreateTaskRow {
+  return {
+    key: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    title: "",
+    description: "",
+  };
+}
+
+function initialCreateRows(count = 3): CreateTaskRow[] {
+  return Array.from({ length: count }, () => newCreateTaskRow());
 }
 
 function assigneeName(task: TeamTaskRecord) {
@@ -63,14 +89,261 @@ function assigneeName(task: TeamTaskRecord) {
   return "";
 }
 
+function resolveAssigneeProfilePicture(
+  task: TeamTaskRecord,
+  avatarByEmail: Map<string, string | undefined>,
+  avatarByName: Map<string, string | undefined>,
+) {
+  if (typeof task.assigneeId !== "object" || !task.assigneeId) return undefined;
+
+  const email = task.assigneeId.email?.trim().toLowerCase();
+  if (email && avatarByEmail.has(email)) {
+    return avatarByEmail.get(email) || undefined;
+  }
+
+  const name = task.assigneeId.name?.trim().toLowerCase();
+  if (name && avatarByName.has(name)) {
+    return avatarByName.get(name) || undefined;
+  }
+
+  return undefined;
+}
+
+function statusLabel(
+  status: string,
+  t: (key: string) => string,
+) {
+  return t(
+    `teamStatus${status === "in_progress" ? "InProgress" : status.charAt(0).toUpperCase() + status.slice(1)}`,
+  );
+}
+
+const TASK_SECTION_ORDER = ["todo", "in_progress", "done"] as const;
+
+const ASSIGNEE_BORDER_COLORS = [
+  "#bae6fd",
+  "#a7f3d0",
+  "#fde68a",
+  "#ddd6fe",
+  "#fbcfe8",
+  "#99f6e4",
+  "#fed7aa",
+  "#c7d2fe",
+  "#d9f99d",
+  "#a5f3fc",
+  "#fecdd3",
+  "#e9d5ff",
+] as const;
+
+function hashString(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function assigneeKey(task: TeamTaskRecord) {
+  if (typeof task.assigneeId === "object" && task.assigneeId?._id) {
+    return String(task.assigneeId._id);
+  }
+  if (typeof task.assigneeId === "string") {
+    return task.assigneeId;
+  }
+  return assigneeName(task) || "unknown";
+}
+
+function getAssigneeCardColor(key: string) {
+  return ASSIGNEE_BORDER_COLORS[hashString(key) % ASSIGNEE_BORDER_COLORS.length];
+}
+
 function formatDate(value?: string) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString();
 }
 
+function TaskBoardCard({
+  task,
+  t,
+  assigneeProfilePictureUrl,
+  onComplete,
+  onStatusChange,
+  onEdit,
+  onDelete,
+  deletingId,
+}: {
+  task: TeamTaskRecord;
+  t: (key: string) => string;
+  assigneeProfilePictureUrl?: string;
+  onComplete: (task: TeamTaskRecord) => void;
+  onStatusChange: (task: TeamTaskRecord, status: string) => void;
+  onEdit: (task: TeamTaskRecord) => void;
+  onDelete: (task: TeamTaskRecord) => void;
+  deletingId: string | null;
+}) {
+  const isDone = task.status === "done";
+  const id = taskId(task);
+  const currentStatus = task.status || "todo";
+  const name = assigneeName(task);
+  const cardColor = getAssigneeCardColor(assigneeKey(task));
+
+  return (
+    <li
+      className="rounded border p-3"
+      style={{ borderColor: cardColor, backgroundColor: cardColor }}
+    >
+      <div className="flex gap-2">
+        <Checkbox
+          checked={isDone}
+          disabled={isDone}
+          className="mt-0.5 shrink-0"
+          onCheckedChange={() => {
+            if (!isDone) onComplete(task);
+          }}
+          aria-label={t("teamMarkComplete")}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-1">
+            <p className={cn("text-sm font-medium text-gray-900", isDone && "line-through text-gray-500")}>
+              {task.title}
+            </p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                  <MoreVertical size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
+                  <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
+                    {statusLabel(s, t)}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuItem onClick={() => onEdit(task)}>
+                  <Pencil size={14} className="mr-2" />
+                  {t("edit")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-red-600"
+                  disabled={deletingId === id}
+                  onClick={() => onDelete(task)}
+                >
+                  <Trash2 size={14} className="mr-2" />
+                  {t("delete")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          {task.description ? (
+            <p className={cn("mt-1 text-xs text-gray-500", isDone && "line-through")}>{task.description}</p>
+          ) : null}
+          {task.completionNote ? (
+            <p className="mt-1 text-xs text-emerald-700">{task.completionNote}</p>
+          ) : null}
+          <div className="mt-2 space-y-1 text-xs text-gray-500">
+            {name ? (
+              <div className="flex items-center gap-2">
+                <UserProfileAvatar
+                  name={name}
+                  profilePictureUrl={assigneeProfilePictureUrl}
+                  className="h-6 w-6 border border-gray-200"
+                  fallbackClassName="bg-sky-100 text-[9px] font-semibold text-sky-700"
+                />
+                <p className="truncate font-medium text-gray-700">{name}</p>
+              </div>
+            ) : null}
+            {task.dueDate ? <p>{t("teamDueDate")}: {formatDate(task.dueDate)}</p> : null}
+            <p className="capitalize">{task.priority || "medium"}</p>
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function TaskBoardColumn({
+  statusKey,
+  tasks,
+  t,
+  resolveAssigneeAvatar,
+  onComplete,
+  onStatusChange,
+  onEdit,
+  onDelete,
+  deletingId,
+}: {
+  statusKey: (typeof TASK_SECTION_ORDER)[number];
+  tasks: TeamTaskRecord[];
+  t: (key: string) => string;
+  resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
+  onComplete: (task: TeamTaskRecord) => void;
+  onStatusChange: (task: TeamTaskRecord, status: string) => void;
+  onEdit: (task: TeamTaskRecord) => void;
+  onDelete: (task: TeamTaskRecord) => void;
+  deletingId: string | null;
+}) {
+  return (
+    <div className="flex min-h-[280px] min-w-0 flex-col border-r border-gray-200 last:border-r-0">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+          {statusLabel(statusKey, t)}
+        </h3>
+        <span className="text-xs tabular-nums text-gray-500">{tasks.length}</span>
+      </div>
+      <ul className="flex flex-1 flex-col gap-2 p-2">
+        {tasks.length === 0 ? (
+          <li className="flex flex-1 items-center justify-center px-2 py-8 text-center text-xs text-gray-400">
+            —
+          </li>
+        ) : (
+          tasks.map((task) => (
+            <TaskBoardCard
+              key={task._id}
+              task={task}
+              t={t}
+              assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
+              onComplete={onComplete}
+              onStatusChange={onStatusChange}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              deletingId={deletingId}
+            />
+          ))
+        )}
+      </ul>
+    </div>
+  );
+}
+
 export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { categories: departmentCategories } = useWorkspaceCategories("department");
+  const { visibleMembers, overflowMembers } = useWorkspaceMemberAvatars();
+
+  const assigneeAvatarMaps = useMemo(() => {
+    const byEmail = new Map<string, string | undefined>();
+    const byName = new Map<string, string | undefined>();
+
+    for (const member of [...visibleMembers, ...overflowMembers]) {
+      const picture = member.profilePictureUrl || undefined;
+      if (member.email) {
+        byEmail.set(member.email.trim().toLowerCase(), picture);
+      }
+      if (member.name) {
+        byName.set(member.name.trim().toLowerCase(), picture);
+      }
+    }
+
+    return { byEmail, byName };
+  }, [visibleMembers, overflowMembers]);
+
+  const resolveAssigneeAvatar = useCallback(
+    (task: TeamTaskRecord) =>
+      resolveAssigneeProfilePicture(task, assigneeAvatarMaps.byEmail, assigneeAvatarMaps.byName),
+    [assigneeAvatarMaps],
+  );
 
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -95,6 +368,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [dueDate, setDueDate] = useState("");
   const [taskMonthKey, setTaskMonthKey] = useState(getMonthKey());
   const [completionNote, setCompletionNote] = useState("");
+  const [createRows, setCreateRows] = useState<CreateTaskRow[]>(() => initialCreateRows());
 
   const monthOptions = useMemo(() => {
     const options: string[] = [];
@@ -136,6 +410,47 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     void loadData();
   }, [loadData]);
 
+  const listFilters = useMemo(
+    () => ({
+      monthKey,
+      department,
+      statusFilter,
+      assigneeFilter,
+    }),
+    [monthKey, department, statusFilter, assigneeFilter],
+  );
+
+  const applyTaskUpdate = useCallback(
+    (task: TeamTaskRecord) => {
+      const matches = taskMatchesListFilters(task, listFilters);
+      setTasks((prev) => mergeTaskIntoList(prev, task, matches));
+    },
+    [listFilters],
+  );
+
+  useEffect(() => {
+    const onTaskChange = (task: TeamTaskRecord) => {
+      if (!matchesRealtimeRecord(task)) return;
+      applyTaskUpdate(task);
+    };
+
+    const onTaskDeleted = (data: { _id: string; workspaceId?: string | null }) => {
+      if (!matchesRealtimeRecord(data)) return;
+      const id = String(data._id);
+      setTasks((prev) => prev.filter((row) => taskId(row) !== id));
+    };
+
+    const unsubCreated = websocketManager.subscribe(TEAM_TASK_EVENTS.created, onTaskChange);
+    const unsubUpdated = websocketManager.subscribe(TEAM_TASK_EVENTS.updated, onTaskChange);
+    const unsubDeleted = websocketManager.subscribe(TEAM_TASK_EVENTS.deleted, onTaskDeleted);
+
+    return () => {
+      unsubCreated();
+      unsubUpdated();
+      unsubDeleted();
+    };
+  }, [applyTaskUpdate]);
+
   const { query: pageSearchQuery } = usePageSearch();
   const visibleTasks = useMemo(
     () =>
@@ -149,6 +464,23 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     [tasks, pageSearchQuery],
   );
 
+  const tasksBySection = useMemo(() => {
+    const groups: Record<(typeof TASK_SECTION_ORDER)[number], TeamTaskRecord[]> = {
+      todo: [],
+      in_progress: [],
+      done: [],
+    };
+    for (const task of visibleTasks) {
+      const key = (task.status || "todo") as (typeof TASK_SECTION_ORDER)[number];
+      if (groups[key]) {
+        groups[key].push(task);
+      }
+    }
+    return groups;
+  }, [visibleTasks]);
+
+  const hasVisibleTasks = TASK_SECTION_ORDER.some((key) => tasksBySection[key].length > 0);
+
   const resetForm = () => {
     setTitle("");
     setDescription("");
@@ -159,6 +491,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setDueDate("");
     setTaskMonthKey(monthKey);
     setEditing(null);
+    setCreateRows(initialCreateRows());
   };
 
   const openCreate = () => {
@@ -188,20 +521,58 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      toast({ title: t("teamTitleRequired"), variant: "destructive" });
-      return;
-    }
     if (!assigneeId) {
       toast({ title: t("teamAssigneeRequired"), variant: "destructive" });
       return;
     }
 
+    if (editing) {
+      if (!title.trim()) {
+        toast({ title: t("teamTitleRequired"), variant: "destructive" });
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const payload = {
+          title: title.trim(),
+          description: description.trim(),
+          assigneeId,
+          department: taskDepartment,
+          status,
+          priority,
+          dueDate: dueDate || undefined,
+          monthKey: taskMonthKey,
+        };
+        const res = await teamTaskApi.update(taskId(editing), payload);
+        applyTaskUpdate((res.data as TeamTaskRecord) || { ...editing, ...payload });
+        toast({ title: t("teamTaskUpdated") });
+        setOpen(false);
+        resetForm();
+        window.dispatchEvent(new Event("notifications-should-refresh"));
+      } catch {
+        toast({ title: t("teamSaveFailed"), variant: "destructive" });
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    const rowsToCreate = createRows
+      .map((row) => ({
+        title: row.title.trim(),
+        description: row.description.trim(),
+      }))
+      .filter((row) => row.title);
+
+    if (rowsToCreate.length === 0) {
+      toast({ title: t("teamTitleRequired"), variant: "destructive" });
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const payload = {
-        title: title.trim(),
-        description: description.trim(),
+      const shared = {
         assigneeId,
         department: taskDepartment,
         status,
@@ -210,17 +581,28 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         monthKey: taskMonthKey,
       };
 
-      if (editing) {
-        await teamTaskApi.update(taskId(editing), payload);
-        toast({ title: t("teamTaskUpdated") });
-      } else {
-        await teamTaskApi.create(payload);
-        toast({ title: t("teamTaskCreated") });
+      const created = await Promise.all(
+        rowsToCreate.map((row) =>
+          teamTaskApi.create({
+            ...shared,
+            title: row.title,
+            description: row.description || undefined,
+          }),
+        ),
+      );
+
+      for (const res of created) {
+        if (res.data) applyTaskUpdate(res.data as TeamTaskRecord);
       }
 
+      toast({
+        title:
+          rowsToCreate.length === 1
+            ? t("teamTaskCreated")
+            : `${rowsToCreate.length} tasks created`,
+      });
       setOpen(false);
       resetForm();
-      void loadData();
       window.dispatchEvent(new Event("notifications-should-refresh"));
     } catch {
       toast({ title: t("teamSaveFailed"), variant: "destructive" });
@@ -229,16 +611,30 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     }
   };
 
+  const patchCreateRow = (key: string, patch: Partial<Pick<CreateTaskRow, "title" | "description">>) => {
+    setCreateRows((prev) =>
+      prev.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    );
+  };
+
+  const addCreateRow = () => {
+    setCreateRows((prev) => [...prev, newCreateTaskRow()]);
+  };
+
+  const removeCreateRow = (key: string) => {
+    setCreateRows((prev) => (prev.length <= 1 ? prev : prev.filter((row) => row.key !== key)));
+  };
+
   const handleComplete = async () => {
     if (!completing) return;
     setIsSaving(true);
     try {
-      await teamTaskApi.complete(taskId(completing), completionNote.trim());
+      const res = await teamTaskApi.complete(taskId(completing), completionNote.trim());
+      applyTaskUpdate((res.data as TeamTaskRecord) || { ...completing, status: "done", completionNote: completionNote.trim() });
       toast({ title: t("teamTaskCompleted") });
       setCompleteOpen(false);
       setCompleting(null);
       setCompletionNote("");
-      void loadData();
       window.dispatchEvent(new Event("notifications-should-refresh"));
     } catch {
       toast({ title: t("teamSaveFailed"), variant: "destructive" });
@@ -252,10 +648,21 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       openComplete(task);
       return;
     }
+
+    const previous = task;
+    const optimistic: TeamTaskRecord = {
+      ...task,
+      status: nextStatus as TeamTaskRecord["status"],
+    };
+    applyTaskUpdate(optimistic);
+
     try {
-      await teamTaskApi.update(taskId(task), { status: nextStatus });
-      void loadData();
+      const res = await teamTaskApi.update(taskId(task), { status: nextStatus });
+      if (res.data) {
+        applyTaskUpdate(res.data as TeamTaskRecord);
+      }
     } catch {
+      applyTaskUpdate(previous);
       toast({ title: t("teamSaveFailed"), variant: "destructive" });
     }
   };
@@ -272,10 +679,8 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     }
   };
 
-  const deptLabel = (dept: string) => {
-    const key = `teamDept${dept.charAt(0).toUpperCase()}${dept.slice(1)}` as keyof typeof t;
-    return t(key);
-  };
+  const deptLabel = (dept: string) =>
+    formatCategoryLabel(dept, departmentCategories, t, "department");
 
   return (
     <div className="space-y-4 p-4 lg:p-6">
@@ -314,7 +719,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             <SelectItem value="all">{t("all")}</SelectItem>
             {TEAM_TASK_STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
-                {t(`teamStatus${s === "in_progress" ? "InProgress" : s.charAt(0).toUpperCase() + s.slice(1)}`)}
+                {statusLabel(s, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -340,105 +745,177 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           <Loader2 className="h-5 w-5 animate-spin mr-2" />
           {t("loading")}
         </div>
-      ) : tasks.length === 0 ? (
-        <p className="text-sm text-gray-500 py-8">{t("teamNoTasks")}</p>
+      ) : !hasVisibleTasks ? (
+        <p className="text-sm text-gray-500 py-8">
+          {tasks.length === 0 ? t("teamNoTasks") : "No matching tasks."}
+        </p>
       ) : (
         <div className="overflow-x-auto border border-gray-200">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                <th className="px-3 py-2 w-10">{t("teamDone")}</th>
-                <th className="px-3 py-2">{t("teamTaskTitle")}</th>
-                <th className="px-3 py-2">{t("teamAssignee")}</th>
-                <th className="px-3 py-2">{t("teamStatus")}</th>
-                <th className="px-3 py-2">{t("teamPriority")}</th>
-                <th className="px-3 py-2">{t("teamDueDate")}</th>
-                <th className="px-3 py-2 w-10" />
-              </tr>
-            </thead>
-            <tbody>
-              {visibleTasks.map((task) => {
-                const isDone = task.status === "done";
-                return (
-                  <tr key={task._id} className="border-b border-gray-100 hover:bg-gray-50/60">
-                    <td className="px-3 py-3 align-top">
-                      <Checkbox
-                        checked={isDone}
-                        disabled={isDone}
-                        onCheckedChange={() => {
-                          if (!isDone) openComplete(task);
-                        }}
-                        aria-label={t("teamMarkComplete")}
-                      />
-                    </td>
-                    <td className="px-3 py-3 align-top">
-                      <p className={cn("font-medium text-gray-900", isDone && "line-through text-gray-500")}>
-                        {task.title}
-                      </p>
-                      {task.description ? (
-                        <p className="text-xs text-gray-500 mt-1">{task.description}</p>
-                      ) : null}
-                      {task.completionNote ? (
-                        <p className="text-xs text-emerald-700 mt-1">{task.completionNote}</p>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-3 align-top text-gray-700">{assigneeName(task)}</td>
-                    <td className="px-3 py-3 align-top">
-                      <Select
-                        value={task.status || "todo"}
-                        onValueChange={(v) => void handleStatusChange(task, v)}
-                      >
-                        <SelectTrigger className="h-8 w-[130px] bg-white text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TEAM_TASK_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {t(`teamStatus${s === "in_progress" ? "InProgress" : s.charAt(0).toUpperCase() + s.slice(1)}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-3 py-3 align-top capitalize text-gray-700">{task.priority || "medium"}</td>
-                    <td className="px-3 py-3 align-top text-gray-700">{formatDate(task.dueDate)}</td>
-                    <td className="px-3 py-3 align-top">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical size={16} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(task)}>
-                            <Pencil size={14} className="mr-2" />
-                            {t("edit")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            disabled={deletingId === taskId(task)}
-                            onClick={() => void handleDelete(task)}
-                          >
-                            <Trash2 size={14} className="mr-2" />
-                            {t("delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="grid min-w-[720px] grid-cols-3">
+            {TASK_SECTION_ORDER.map((statusKey) => (
+              <TaskBoardColumn
+                key={statusKey}
+                statusKey={statusKey}
+                tasks={tasksBySection[statusKey]}
+                t={t}
+                resolveAssigneeAvatar={resolveAssigneeAvatar}
+                onComplete={openComplete}
+                onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
+                onEdit={openEdit}
+                onDelete={(task) => void handleDelete(task)}
+                deletingId={deletingId}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className={cn(editing ? "max-w-lg" : "max-w-3xl max-h-[90vh] overflow-y-auto")}>
           <DialogHeader>
             <DialogTitle>{editing ? t("teamEditTask") : t("teamAssignTask")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {!editing ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <Label>{t("teamAssignee")}</Label>
+                    <Select value={assigneeId} onValueChange={setAssigneeId}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder={t("teamSelectMember")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeMembers.map((m) => (
+                          <SelectItem key={m._id} value={m._id}>
+                            {m.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>{t("teamDepartment")}</Label>
+                    <CategorySelect
+                      type="department"
+                      value={taskDepartment}
+                      onValueChange={setTaskDepartment}
+                      disabled={Boolean(department)}
+                    />
+                  </div>
+                  <div>
+                    <Label>{t("teamStatus")}</Label>
+                    <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEAM_TASK_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {statusLabel(s, t)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>{t("teamPriority")}</Label>
+                    <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEAM_PRIORITIES.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>{t("teamMonth")}</Label>
+                    <Select value={taskMonthKey} onValueChange={setTaskMonthKey}>
+                      <SelectTrigger className={filterSelectClass}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthOptions.map((key) => (
+                          <SelectItem key={key} value={key}>
+                            {formatMonthLabel(key)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>{t("teamDueDate")}</Label>
+                    <Input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>Tasks</Label>
+                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1" onClick={addCreateRow}>
+                      <Plus size={14} />
+                      Add row
+                    </Button>
+                  </div>
+                  <div className="overflow-x-auto border border-gray-200">
+                    <table className="w-full min-w-[520px] text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                          <th className="px-3 py-2 w-[38%]">{t("teamTaskTitle")}</th>
+                          <th className="px-3 py-2">{t("description")}</th>
+                          <th className="px-3 py-2 w-10" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {createRows.map((row) => (
+                          <tr key={row.key} className="border-b border-gray-100 last:border-b-0">
+                            <td className="px-3 py-2 align-top">
+                              <Input
+                                value={row.title}
+                                onChange={(e) => patchCreateRow(row.key, { title: e.target.value })}
+                                placeholder="Create new website"
+                                className="h-9 bg-white"
+                              />
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              <Input
+                                value={row.description}
+                                onChange={(e) => patchCreateRow(row.key, { description: e.target.value })}
+                                placeholder="Optional details"
+                                className="h-9 bg-white"
+                              />
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-500 hover:text-red-600"
+                                disabled={createRows.length <= 1}
+                                onClick={() => removeCreateRow(row.key)}
+                                aria-label={t("delete")}
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
             <div>
               <Label>{t("teamTaskTitle")}</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -465,22 +942,12 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               </div>
               <div>
                 <Label>{t("teamDepartment")}</Label>
-                <Select
+                <CategorySelect
+                  type="department"
                   value={taskDepartment}
-                  onValueChange={(v) => setTaskDepartment(v as TeamDepartment)}
+                  onValueChange={setTaskDepartment}
                   disabled={Boolean(department)}
-                >
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TEAM_DEPARTMENTS.map((d) => (
-                      <SelectItem key={d} value={d}>
-                        {deptLabel(d)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -493,7 +960,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                   <SelectContent>
                     {TEAM_TASK_STATUSES.map((s) => (
                       <SelectItem key={s} value={s}>
-                        {t(`teamStatus${s === "in_progress" ? "InProgress" : s.charAt(0).toUpperCase() + s.slice(1)}`)}
+                        {statusLabel(s, t)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -538,13 +1005,21 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t("cancel")}
             </Button>
             <Button onClick={() => void handleSave()} disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("save")}
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : editing ? (
+                t("save")
+              ) : (
+                "Create tasks"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

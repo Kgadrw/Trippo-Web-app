@@ -11,6 +11,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     },
     onOpen: () => {
       console.log('[WebSocketProvider] WebSocket connected');
+      websocketManager.flushPendingEmits();
+      window.dispatchEvent(new CustomEvent("app-websocket-open"));
     },
     onClose: () => {
       console.log('[WebSocketProvider] WebSocket disconnected');

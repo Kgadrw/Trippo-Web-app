@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useSubdomain, getSubdomainUrl, isBookfySubdomainHost } from "@/hooks/useSubdomain";
+import { useSubdomain, getSubdomainUrl, getDashboardLoginUrl, isBookfySubdomainHost, isLocalBookfySubdomainHost } from "@/hooks/useSubdomain";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -83,11 +83,21 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
         const currentPath = window.location.pathname;
         const protectedRoutes = [
           '/dashboard', '/finance', '/income', '/expenses', '/reports', '/billing', '/settings',
-          '/admin-dashboard', '/sales', '/products', '/documents', '/schedules',
+          '/admin-dashboard', '/sales', '/products', '/documents', '/assets', '/approvals', '/schedules',
+          '/team', '/hr', '/projects', '/crm', '/calendar',
         ];
         const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));
 
         if (isProtectedRoute && (!userId || !authenticated)) {
+          if (isBookfySubdomainHost(window.location.hostname)) {
+            if (isLocalBookfySubdomainHost()) {
+              window.location.replace(getDashboardLoginUrl("/login"));
+              return;
+            }
+            window.history.replaceState(null, "", "/login");
+            window.location.replace("/login");
+            return;
+          }
           // User is not authenticated but trying to access protected route via back button
           // Replace current history entry and redirect to home
           window.history.replaceState(null, "", "/");
@@ -117,6 +127,14 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   if (!isAuthenticated) {
     if (requireAdmin && subdomain === "admin") {
       return <Navigate to="/login" replace />;
+    }
+
+    if (subdomain === "bookfy") {
+      if (isLocalBookfySubdomainHost()) {
+        window.location.replace(getDashboardLoginUrl("/login"));
+        return null;
+      }
+      return <Navigate to="/login" replace state={{ from: location.pathname }} />;
     }
 
     const homeUrl = getSubdomainUrl(null);

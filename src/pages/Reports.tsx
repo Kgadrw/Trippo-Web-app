@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { isApprovedForReporting } from "@/lib/approvalWorkflow";
 import { periodToggleClass } from "@/lib/fieldStyles";
 import {
   getReportDateRangeLabel,
@@ -262,6 +263,7 @@ const Reports = () => {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter((expense) => {
+      if (!isApprovedForReporting(expense)) return false;
       const ms = getExpenseTimeMs(expense);
       return ms !== null && isInReportPeriod(ms, reportType);
     });
@@ -275,13 +277,16 @@ const Reports = () => {
   const filteredPayrolls = useMemo(
     () =>
       filterByReportPeriod(payrolls, reportType, (item) => parseDateMs(item.paymentDate)).filter(
-        (item) => item.status !== "cancelled",
+        (item) => item.status !== "cancelled" && isApprovedForReporting(item),
       ),
     [payrolls, reportType],
   );
 
   const filteredBills = useMemo(
-    () => filterByReportPeriod(bills, reportType, (item) => parseDateMs(item.dueDate)),
+    () =>
+      filterByReportPeriod(bills, reportType, (item) => parseDateMs(item.dueDate)).filter((item) =>
+        isApprovedForReporting(item),
+      ),
     [bills, reportType],
   );
 

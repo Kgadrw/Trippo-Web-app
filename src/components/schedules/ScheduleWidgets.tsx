@@ -65,7 +65,7 @@ export const UpcomingSchedulesWidget = ({ schedules, clients, getClientName }: S
         </div>
         <p className="text-sm text-gray-500 text-center py-4">No upcoming schedules</p>
         <Button
-          onClick={() => navigate("/schedules")}
+          onClick={() => navigate("/calendar/schedules")}
           variant="outline"
           className="w-full border-gray-300 text-gray-700"
         >
@@ -83,7 +83,7 @@ export const UpcomingSchedulesWidget = ({ schedules, clients, getClientName }: S
           Upcoming Schedules (Next 7 Days)
         </h3>
         <Button
-          onClick={() => navigate("/schedules")}
+          onClick={() => navigate("/calendar/schedules")}
           variant="ghost"
           className="text-xs text-gray-600 h-auto p-1"
         >
@@ -103,7 +103,7 @@ export const UpcomingSchedulesWidget = ({ schedules, clients, getClientName }: S
                 "p-3 rounded border transition-colors hover:bg-gray-50 cursor-pointer",
                 isToday ? "border-blue-300 bg-blue-50" : "border-gray-200"
               )}
-              onClick={() => navigate("/schedules")}
+              onClick={() => navigate("/calendar/schedules")}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -204,7 +204,7 @@ export const OverdueSchedulesWidget = ({ schedules, clients, getClientName }: Sc
           Overdue Schedules ({overdueSchedules.length})
         </h3>
         <Button
-          onClick={() => navigate("/schedules")}
+          onClick={() => navigate("/calendar/schedules")}
           variant="ghost"
           className="text-xs text-red-600 h-auto p-1"
         >
@@ -220,7 +220,7 @@ export const OverdueSchedulesWidget = ({ schedules, clients, getClientName }: Sc
             <div
               key={scheduleId}
               className="p-3 rounded border-2 border-red-200 bg-red-50 transition-colors hover:bg-red-100 cursor-pointer"
-              onClick={() => navigate("/schedules")}
+              onClick={() => navigate("/calendar/schedules")}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -283,7 +283,7 @@ export const RecentClientsWidget = ({ clients }: { clients: any[] }) => {
         </div>
         <p className="text-sm text-gray-500 text-center py-4">No clients yet</p>
         <Button
-          onClick={() => navigate("/schedules")}
+          onClick={() => navigate("/calendar/schedules")}
           variant="outline"
           className="w-full border-gray-300 text-gray-700"
         >
@@ -301,7 +301,7 @@ export const RecentClientsWidget = ({ clients }: { clients: any[] }) => {
           Recent Clients
         </h3>
         <Button
-          onClick={() => navigate("/schedules")}
+          onClick={() => navigate("/calendar/schedules")}
           variant="ghost"
           className="text-xs text-gray-600 h-auto p-1"
         >
@@ -315,7 +315,7 @@ export const RecentClientsWidget = ({ clients }: { clients: any[] }) => {
             <div
               key={clientId}
               className="p-3 rounded border border-gray-200 transition-colors hover:bg-gray-50 cursor-pointer"
-              onClick={() => navigate("/schedules")}
+              onClick={() => navigate("/calendar/schedules")}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">

@@ -25,12 +25,14 @@ import { cn } from "@/lib/utils";
 import {
   buildMoneyOutBreakdown,
   buildPayablesSummary,
+  buildPeriodTaxDueSummary,
   buildReceivablesSummary,
   buildPeriodCashFlowChart,
   buildPeriodIncomeExpense,
   getDashboardPeriodRange,
   sumMoneyIn,
   sumMoneyOut,
+  sumSalesProfit,
   type CashFlowBreakdownLine,
   type CashFlowInputs,
   type DashboardPeriod,
@@ -47,7 +49,14 @@ type BillRow = {
   paidAt?: string;
 };
 type PayrollRow = { paymentDate: string; amount: number; status?: string };
-type TaxRow = { dueDate: string; amount: number; status?: string; title?: string; paidAt?: string };
+type TaxRow = {
+  dueDate: string;
+  amount: number;
+  status?: string;
+  title?: string;
+  paidAt?: string;
+  period?: string;
+};
 type InvoiceRow = {
   dueDate: string;
   amount: number;
@@ -55,12 +64,13 @@ type InvoiceRow = {
   title?: string;
   paidAt?: string;
 };
-type SaleRow = { date: string; timestamp?: string; revenue: number };
+type SaleRow = { date: string; timestamp?: string; revenue: number; cost?: number; profit?: number };
 type BankDepositRow = { depositDate: string; amount: number };
 type LoanRow = {
   principalAmount: number;
   startDate: string;
   remainingBalance?: number;
+  installmentAmount?: number;
   status?: string;
   nextDueDate?: string;
   payments?: Array<{ paymentDate: string; amount: number }>;
@@ -168,6 +178,7 @@ function SummaryCard({
   currentLabel = "Current",
   overdueLabel = "Overdue",
   breakdown = [],
+  breakdownPreviewCount,
 }: {
   title: string;
   totalLabel: string;
@@ -179,10 +190,22 @@ function SummaryCard({
   currentLabel?: string;
   overdueLabel?: string;
   breakdown?: CashFlowBreakdownLine[];
+  breakdownPreviewCount?: number;
 }) {
+  const [breakdownExpanded, setBreakdownExpanded] = useState(false);
   const totalSafe = Math.max(total, 0);
   const currentPct = totalSafe > 0 ? (current / totalSafe) * 100 : 0;
   const overduePct = totalSafe > 0 ? (overdue / totalSafe) * 100 : 0;
+
+  const previewLimit = breakdownPreviewCount ?? breakdown.length;
+  const canCollapseBreakdown = breakdown.length > previewLimit;
+  const visibleBreakdown =
+    breakdownExpanded || !canCollapseBreakdown
+      ? breakdown
+      : breakdown.slice(0, previewLimit);
+  const hiddenBreakdownCount = canCollapseBreakdown && !breakdownExpanded
+    ? breakdown.length - previewLimit
+    : 0;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -208,17 +231,37 @@ function SummaryCard({
         </span>
       </p>
 
-      {breakdown.length > 0 ? (
-        <ul className="mt-3 space-y-1.5 border-b border-gray-100 pb-3">
-          {breakdown.map((line) => (
-            <li key={line.key} className="flex items-center justify-between gap-2 text-xs text-gray-600">
-              <span>{line.label}</span>
-              <span className="shrink-0 font-medium tabular-nums text-gray-900">
-                <CurrencyAmount amount={line.amount} codeFirst />
-              </span>
-            </li>
-          ))}
-        </ul>
+      {visibleBreakdown.length > 0 ? (
+        <div className="mt-3 border-b border-gray-100 pb-3">
+          <ul className="space-y-1.5">
+            {visibleBreakdown.map((line) => (
+              <li key={line.key} className="flex items-center justify-between gap-2 text-xs text-gray-600">
+                <span>{line.label}</span>
+                <span className="shrink-0 font-medium tabular-nums text-gray-900">
+                  <CurrencyAmount amount={line.amount} codeFirst />
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hiddenBreakdownCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setBreakdownExpanded(true)}
+              className="mt-2 text-xs font-medium text-sky-600 hover:text-sky-700"
+            >
+              See more ({hiddenBreakdownCount})
+            </button>
+          ) : null}
+          {breakdownExpanded && canCollapseBreakdown ? (
+            <button
+              type="button"
+              onClick={() => setBreakdownExpanded(false)}
+              className="mt-2 text-xs font-medium text-sky-600 hover:text-sky-700"
+            >
+              See less
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="mt-3 flex h-2 w-full overflow-hidden rounded-full bg-gray-100">
@@ -383,7 +426,8 @@ export function DashboardOverview({
     const { startMs, endMs } = periodRange;
     const revenue = sumMoneyIn(cashFlowInputs, startMs, endMs);
     const expensesOut = sumMoneyOut(cashFlowInputs, startMs, endMs, "cash");
-    return { revenue, expensesOut, profit: revenue - expensesOut };
+    const profit = sumSalesProfit(cashFlowInputs, startMs, endMs);
+    return { revenue, expensesOut, profit };
   }, [cashFlowInputs, periodRange]);
 
   const kpiLabels = useMemo(() => {
@@ -408,31 +452,10 @@ export function DashboardOverview({
     };
   }, [period]);
 
-  const taxDue = useMemo(() => {
-    const { startMs, endMs } = periodRange;
-    const today = startOfDay(new Date()).getTime();
-    const pending = taxes.filter((tx) => (tx.status || "pending") === "pending");
-    const inPeriod = pending.filter((tx) => {
-      const due = parseMs(tx.dueDate);
-      return due !== null && due >= startMs && due <= endMs;
-    });
-    const outstanding = inPeriod.reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
-    const overdue = inPeriod.filter((tx) => {
-      const due = parseMs(tx.dueDate);
-      return due !== null && due < today;
-    });
-    const overdueAmount = overdue.reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
-    const dueSoon = inPeriod.filter((tx) => {
-      const due = parseMs(tx.dueDate);
-      return due !== null && due >= today;
-    });
-    return {
-      outstanding,
-      overdueAmount,
-      overdueCount: overdue.length,
-      dueSoonCount: dueSoon.length,
-    };
-  }, [taxes, periodRange]);
+  const taxDue = useMemo(
+    () => buildPeriodTaxDueSummary(taxes, periodRange),
+    [taxes, periodRange],
+  );
 
   const taxDueSublabel = useMemo(() => {
     const dueSoonLabel =
@@ -465,14 +488,20 @@ export function DashboardOverview({
   );
 
   const receivables = useMemo(
-    () => buildReceivablesSummary(balanceInputs),
-    [balanceInputs],
+    () => buildReceivablesSummary(balanceInputs, periodRange),
+    [balanceInputs, periodRange],
   );
 
   const payables = useMemo(
-    () => buildPayablesSummary(balanceInputs),
-    [balanceInputs],
+    () => buildPayablesSummary(balanceInputs, periodRange),
+    [balanceInputs, periodRange],
   );
+
+  const periodDueLabel = useMemo(() => {
+    if (period === "day") return "Due today";
+    if (period === "year") return "Due this year";
+    return "Due this month";
+  }, [period]);
 
   const cashFlow = useMemo(() => {
     return buildPeriodCashFlowChart(cashFlowInputs, period);
@@ -581,11 +610,11 @@ export function DashboardOverview({
           <KpiCard
             label={kpiLabels.profit}
             value={periodMetrics.profit}
-            sublabel="Revenue minus expenses"
+            sublabel="Margin from sales"
             valueClassName={periodMetrics.profit >= 0 ? "text-sky-700" : "text-red-600"}
           />
           <KpiCard
-            label="Tax Due"
+            label={period === "day" ? "Tax Due Today" : period === "year" ? "Tax Due This Year" : "Tax Due This Month"}
             value={taxDue.outstanding}
             sublabel={taxDueSublabel}
             valueClassName={taxDue.overdueCount > 0 ? "text-red-600" : "text-amber-700"}
@@ -599,7 +628,12 @@ export function DashboardOverview({
           <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
           <div className="min-w-0">
             <p className="font-medium text-red-800">
-              {taxDue.overdueCount} overdue tax {taxDue.overdueCount === 1 ? "obligation" : "obligations"}
+              {taxDue.overdueCount}{" "}
+              {period === "day"
+                ? "overdue tax due today"
+                : period === "year"
+                  ? "overdue tax obligations this year"
+                  : "overdue tax obligations this month"}
             </p>
             <p className="text-red-700 mt-0.5">
               <CurrencyAmount amount={taxDue.overdueAmount} codeFirst /> past due —{" "}
@@ -619,7 +653,7 @@ export function DashboardOverview({
         <SummaryCard
           title="Receivables"
           helpText={t("dashHelpReceivables")}
-          totalLabel="Total outstanding"
+          totalLabel={periodDueLabel}
           total={receivables.total}
           current={receivables.current}
           overdue={receivables.overdue}
@@ -631,13 +665,14 @@ export function DashboardOverview({
         <SummaryCard
           title="Total Payables"
           helpText={t("dashHelpPayables")}
-          totalLabel="Total outstanding"
+          totalLabel={periodDueLabel}
           total={payables.total}
           current={payables.current}
           overdue={payables.overdue}
           currentLabel="Not yet due"
           overdueLabel="Overdue"
           breakdown={payables.breakdown}
+          breakdownPreviewCount={1}
           onNew={() => navigate("/finance/bills")}
         />
       </div>

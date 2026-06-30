@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -17,10 +17,11 @@ import { useSyncUserProfile } from "@/hooks/useSyncUserProfile";
 import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
-import { useSubdomain, getSubdomainUrl, redirectLegacyDashboardHost } from "@/hooks/useSubdomain";
+import { useSubdomain, getSubdomainUrl, getDashboardLoginUrl, redirectLegacyDashboardHost, redirectToBookfyWithSession } from "@/hooks/useSubdomain";
 import { applyLogoutQueryParamIfPresent } from "@/lib/session";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import Home from "./pages/Home";
+import DashboardLogin from "./pages/DashboardLogin";
 
 // Component to handle cross-domain redirects
 // Only redirects if user is authenticated
@@ -36,7 +37,7 @@ const SubdomainRedirect = ({ subdomain }: { subdomain: "admin" | "bookfy" }) => 
         return;
       }
       if (subdomain === "bookfy") {
-        window.location.href = getSubdomainUrl("bookfy");
+        redirectToBookfyWithSession("/");
         return;
       }
     }
@@ -67,11 +68,11 @@ const BookfySubdomainRedirect = () => {
     const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
 
     if (userId && authenticated) {
-      window.location.replace(getSubdomainUrl("bookfy", target));
+      redirectToBookfyWithSession(target);
       return;
     }
 
-    window.location.replace(getSubdomainUrl(null));
+    window.location.replace(getDashboardLoginUrl("/login"));
   }, []);
   return null;
 };
@@ -95,14 +96,40 @@ import FinanceLoans from "./pages/finance/FinanceLoans";
 import FinanceTransactions from "./pages/finance/FinanceTransactions";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
-import Documents from "./pages/Documents";
-import Schedules from "./pages/Schedules";
-import BusinessCalendar from "./pages/BusinessCalendar";
+import { DocumentsLayout } from "./components/documents/DocumentsLayout";
+import DocumentsOverview from "./pages/documents/DocumentsOverview";
+import DocumentsArchive from "./pages/documents/DocumentsArchive";
+import DocumentRegistry from "./pages/documents/DocumentRegistry";
+import DocumentDetail from "./pages/documents/DocumentDetail";
+import Assets from "./pages/Assets";
+import AssetDetail from "./pages/AssetDetail";
+import Approvals from "./pages/Approvals";
+import { MessagesPage } from "./pages/Messages";
+import { CalendarLayout } from "./components/calendar/CalendarLayout";
+import CorporateCalendarOverview from "./pages/calendar/CorporateCalendarOverview";
+import BusinessCalendarView from "./pages/calendar/BusinessCalendarView";
+import CalendarSchedules from "./pages/calendar/CalendarSchedules";
+import CalendarAnnouncements from "./pages/calendar/CalendarAnnouncements";
 import { TeamLayout } from "./components/team/TeamLayout";
 import TeamOverview from "./pages/team/TeamOverview";
 import TeamTasks from "./pages/team/TeamTasks";
-import TeamTasksFinance from "./pages/team/TeamTasksFinance";
-import TeamMembers from "./pages/team/TeamMembers";
+import { HrLayout } from "./components/hr/HrLayout";
+import HrOverview from "./pages/hr/HrOverview";
+import HrPeople from "./pages/hr/HrPeople";
+import HrEmployeeProfile from "./pages/hr/HrEmployeeProfile";
+import HrOrgChart from "./pages/hr/HrOrgChart";
+import HrLeave from "./pages/hr/HrLeave";
+import { ProjectsLayout } from "./components/projects/ProjectsLayout";
+import ProjectsOverview from "./pages/projects/ProjectsOverview";
+import ProjectsList from "./pages/projects/ProjectsList";
+import ProjectDetail from "./pages/projects/ProjectDetail";
+import { CrmLayout } from "./components/crm/CrmLayout";
+import CrmOverview from "./pages/crm/CrmOverview";
+import CrmPipeline from "./pages/crm/CrmPipeline";
+import CrmContacts from "./pages/crm/CrmContacts";
+import CrmContactDetail from "./pages/crm/CrmContactDetail";
+import CrmQuotes from "./pages/crm/CrmQuotes";
+import CrmContracts from "./pages/crm/CrmContracts";
 import SettingsModalRoute from "./pages/settings/SettingsModalRoute";
 import { SettingsModalProvider } from "@/components/settings/SettingsModalProvider";
 import { PageSearchProvider } from "@/hooks/usePageSearch";
@@ -116,6 +143,11 @@ import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { WorkspaceActivityListener } from "@/components/workspace/WorkspaceActivityListener";
 
 const queryClient = new QueryClient();
+
+function RedirectTeamMemberToHr() {
+  const { memberId = "" } = useParams<{ memberId: string }>();
+  return <Navigate to={`/hr/people/${memberId}`} replace />;
+}
 
 // Subdomain-based router component
 const SubdomainRouter = () => {
@@ -143,6 +175,7 @@ const SubdomainRouter = () => {
   if (subdomain === "bookfy") {
     return (
       <Routes>
+        <Route path="/login" element={<DashboardLogin />} />
         <Route path="/workspace/invite/:token" element={<WorkspaceInviteAccept />} />
         <Route
           element={
@@ -193,24 +226,77 @@ const SubdomainRouter = () => {
         />
         <Route
           path="/documents"
-          element={<Documents />}
+          element={<DocumentsLayout />}
+        >
+          <Route index element={<DocumentsOverview />} />
+          <Route path="archive" element={<DocumentsArchive />} />
+          <Route path="registry" element={<DocumentRegistry />} />
+          <Route path=":documentId" element={<DocumentDetail />} />
+        </Route>
+        <Route
+          path="/assets"
+          element={<Assets />}
         />
         <Route
-          path="/schedules"
-          element={<Schedules />}
+          path="/assets/:assetId"
+          element={<AssetDetail />}
         />
+        <Route
+          path="/approvals"
+          element={<Approvals />}
+        />
+        <Route path="/messages" element={<MessagesPage />} />
+        <Route path="/messages/:userId" element={<MessagesPage />} />
         <Route
           path="/calendar"
-          element={<BusinessCalendar />}
-        />
+          element={<CalendarLayout />}
+        >
+          <Route index element={<CorporateCalendarOverview />} />
+          <Route path="view" element={<BusinessCalendarView />} />
+          <Route path="schedules" element={<CalendarSchedules />} />
+          <Route path="announcements" element={<CalendarAnnouncements />} />
+        </Route>
+        <Route path="/schedules" element={<Navigate to="/calendar/schedules" replace />} />
         <Route
           path="/team"
           element={<TeamLayout />}
         >
           <Route index element={<TeamOverview />} />
           <Route path="tasks" element={<TeamTasks />} />
-          <Route path="tasks/finance" element={<TeamTasksFinance />} />
-          <Route path="members" element={<TeamMembers />} />
+          <Route path="tasks/finance" element={<Navigate to="/team/tasks" replace />} />
+          <Route path="members" element={<Navigate to="/hr/people" replace />} />
+          <Route path="members/:memberId" element={<RedirectTeamMemberToHr />} />
+          <Route path="org-chart" element={<Navigate to="/hr/org-chart" replace />} />
+          <Route path="leave" element={<Navigate to="/hr/leave" replace />} />
+        </Route>
+        <Route
+          path="/hr"
+          element={<HrLayout />}
+        >
+          <Route index element={<HrOverview />} />
+          <Route path="people" element={<HrPeople />} />
+          <Route path="people/:memberId" element={<HrEmployeeProfile />} />
+          <Route path="org-chart" element={<HrOrgChart />} />
+          <Route path="leave" element={<HrLeave />} />
+        </Route>
+        <Route
+          path="/projects"
+          element={<ProjectsLayout />}
+        >
+          <Route index element={<ProjectsOverview />} />
+          <Route path="all" element={<ProjectsList />} />
+          <Route path=":projectId" element={<ProjectDetail />} />
+        </Route>
+        <Route
+          path="/crm"
+          element={<CrmLayout />}
+        >
+          <Route index element={<CrmOverview />} />
+          <Route path="pipeline" element={<CrmPipeline />} />
+          <Route path="contacts" element={<CrmContacts />} />
+          <Route path="contacts/:clientId" element={<CrmContactDetail />} />
+          <Route path="quotes" element={<CrmQuotes />} />
+          <Route path="contracts" element={<CrmContracts />} />
         </Route>
         <Route
           path="/billing"
@@ -220,7 +306,7 @@ const SubdomainRouter = () => {
           path="/settings/*"
           element={<SettingsModalRoute />}
         />
-        <Route path="/clients" element={<Navigate to="/schedules" replace />} />
+        <Route path="/clients" element={<Navigate to="/calendar/schedules" replace />} />
         <Route path="/inventories" element={<Navigate to="/products" replace />} />
         <Route path="/add-product" element={<Navigate to="/products" replace />} />
         <Route path="/bookings" element={<Navigate to="/" replace />} />
@@ -237,6 +323,7 @@ const SubdomainRouter = () => {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/login" element={<DashboardLogin />} />
       <Route path="/verify" element={<VerifyTicket />} />
       <Route path="/workspace/invite/:token" element={<WorkspaceInviteAccept />} />
       <Route path="/admin-dashboard" element={<SubdomainRedirect subdomain="admin" />} />
@@ -244,10 +331,15 @@ const SubdomainRouter = () => {
       <Route path="/reports" element={mainDomainAppRedirect} />
       <Route path="/sales" element={mainDomainAppRedirect} />
       <Route path="/products" element={mainDomainAppRedirect} />
-      <Route path="/documents" element={mainDomainAppRedirect} />
+      <Route path="/documents/*" element={mainDomainAppRedirect} />
+      <Route path="/assets" element={mainDomainAppRedirect} />
+      <Route path="/approvals" element={mainDomainAppRedirect} />
+      <Route path="/calendar/*" element={mainDomainAppRedirect} />
       <Route path="/schedules" element={mainDomainAppRedirect} />
-      <Route path="/calendar" element={mainDomainAppRedirect} />
       <Route path="/team/*" element={mainDomainAppRedirect} />
+      <Route path="/hr/*" element={mainDomainAppRedirect} />
+      <Route path="/projects/*" element={mainDomainAppRedirect} />
+      <Route path="/crm/*" element={mainDomainAppRedirect} />
       <Route path="/finance/*" element={mainDomainAppRedirect} />
       <Route path="/income" element={mainDomainAppRedirect} />
       <Route path="/expenses" element={mainDomainAppRedirect} />

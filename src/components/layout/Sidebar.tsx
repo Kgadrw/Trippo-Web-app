@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import {
 import { useSubdomain } from "@/hooks/useSubdomain";
 import { getDashboardPath } from "@/lib/appRoutes";
 import { clearAllStores } from "@/lib/indexedDB";
+import { clearAppSession, logoutAndGoHome } from "@/lib/session";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import type { WorkspacePageKey } from "@/lib/workspace";
 
@@ -49,16 +50,53 @@ const financeChildren = [
 const teamChildren = [
   { label: "Overview", to: "/team" },
   { label: "All tasks", to: "/team/tasks" },
-  { label: "Finance tasks", to: "/team/tasks/finance" },
-  { label: "Team members", to: "/team/members" },
+];
+
+const hrChildren = [
+  { label: "Overview", to: "/hr" },
+  { label: "People", to: "/hr/people" },
+  { label: "Org chart", to: "/hr/org-chart" },
+  { label: "Leave", to: "/hr/leave" },
+];
+
+const projectChildren = [
+  { label: "Overview", to: "/projects" },
+  { label: "All projects", to: "/projects/all" },
+];
+
+const crmChildren = [
+  { label: "Overview", to: "/crm" },
+  { label: "Pipeline", to: "/crm/pipeline" },
+  { label: "Contacts", to: "/crm/contacts" },
+  { label: "Quotes", to: "/crm/quotes" },
+  { label: "Contracts", to: "/crm/contracts" },
+];
+
+const documentChildren = [
+  { label: "Overview", to: "/documents" },
+  { label: "Archive", to: "/documents/archive" },
+  { label: "Registry", to: "/documents/registry" },
+];
+
+const calendarChildren = [
+  { label: "Overview", to: "/calendar" },
+  { label: "Calendar", to: "/calendar/view" },
+  { label: "Automations", to: "/calendar/schedules" },
+  { label: "Announcements", to: "/calendar/announcements" },
 ];
 
 const menuItems: SidebarMenuItem[] = [
   { label: "Overview", path: "/", pageKey: "dashboard" },
   { label: "Products", path: "/products", pageKey: "products" },
   { label: "Sales", path: "/sales", pageKey: "sales" },
-  { label: "Automations", path: "/schedules", pageKey: "schedules" },
-  { label: "Calendar", path: "/calendar", pageKey: "calendar" },
+  {
+    label: "Calendar",
+    path: "/calendar",
+    matchPrefix: "/calendar",
+    sectionKey: "calendar",
+    pageKey: "calendar",
+    children: calendarChildren,
+  },
   {
     label: "Team",
     path: "/team",
@@ -66,6 +104,30 @@ const menuItems: SidebarMenuItem[] = [
     sectionKey: "team",
     pageKey: "team",
     children: teamChildren,
+  },
+  {
+    label: "HR",
+    path: "/hr",
+    matchPrefix: "/hr",
+    sectionKey: "hr",
+    pageKey: "hr",
+    children: hrChildren,
+  },
+  {
+    label: "Projects",
+    path: "/projects",
+    matchPrefix: "/projects",
+    sectionKey: "projects",
+    pageKey: "projects",
+    children: projectChildren,
+  },
+  {
+    label: "CRM",
+    path: "/crm",
+    matchPrefix: "/crm",
+    sectionKey: "crm",
+    pageKey: "crm",
+    children: crmChildren,
   },
   {
     label: "Finance",
@@ -76,7 +138,17 @@ const menuItems: SidebarMenuItem[] = [
     children: financeChildren,
   },
   { label: "Reports", path: "/reports", pageKey: "reports" },
-  { label: "Documents", path: "/documents", pageKey: "documents" },
+  {
+    label: "Documents",
+    path: "/documents",
+    matchPrefix: "/documents",
+    sectionKey: "documents",
+    pageKey: "documents",
+    children: documentChildren,
+  },
+  { label: "Assets", path: "/assets", pageKey: "assets" },
+  { label: "Approvals", path: "/approvals", pageKey: "approvals" },
+  { label: "Messages", path: "/messages", pageKey: "chat" },
 ];
 
 interface SidebarProps {
@@ -104,7 +176,6 @@ function FilledTriangleUp({ className }: { className?: string }) {
 
 export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeaderHeight = 56 }: SidebarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const subdomain = useSubdomain();
@@ -123,6 +194,15 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
     }
     if (location.pathname.startsWith("/team")) {
       setOpenSections((prev) => ({ ...prev, team: true }));
+    }
+    if (location.pathname.startsWith("/hr")) {
+      setOpenSections((prev) => ({ ...prev, hr: true }));
+    }
+    if (location.pathname.startsWith("/projects")) {
+      setOpenSections((prev) => ({ ...prev, projects: true }));
+    }
+    if (location.pathname.startsWith("/crm")) {
+      setOpenSections((prev) => ({ ...prev, crm: true }));
     }
   }, [location.pathname]);
 
@@ -220,16 +300,7 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
 
   const handleLogoutConfirm = async () => {
     clearAuth();
-
-    localStorage.removeItem("profit-pilot-user-id");
-    localStorage.removeItem("profit-pilot-user-name");
-    localStorage.removeItem("profit-pilot-user-email");
-    localStorage.removeItem("profit-pilot-business-name");
-    localStorage.removeItem("profit-pilot-profile-picture-url");
-    localStorage.removeItem("profit-pilot-is-admin");
-    localStorage.removeItem("profit-pilot-authenticated");
-
-    sessionStorage.clear();
+    clearAppSession();
 
     try {
       await clearAllStores();
@@ -237,16 +308,14 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
       console.error("Error clearing IndexedDB on logout:", error);
     }
 
-    window.dispatchEvent(new Event("pin-auth-changed"));
+    setLogoutDialogOpen(false);
 
     toast({
       title: "Logged out",
       description: "You have been signed out successfully.",
     });
 
-    window.history.replaceState(null, "", "/");
-    setLogoutDialogOpen(false);
-    navigate("/", { replace: true });
+    logoutAndGoHome();
   };
 
   if (!open && !mobileOpen) {

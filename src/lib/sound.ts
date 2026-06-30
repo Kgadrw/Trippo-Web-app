@@ -176,6 +176,16 @@ export function playInfoBeep(): void {
 }
 
 /**
+ * WhatsApp-style incoming chat message pop (two quick tones).
+ */
+export function playChatMessageBeep(): void {
+  playBeepDirectly(784, 110, 0.82, "sine");
+  setTimeout(() => {
+    playBeepDirectly(988, 130, 0.78, "sine");
+  }, 120);
+}
+
+/**
  * Plays a sync beep (network-like sound - two quick beeps)
  */
 export function playSyncBeep(): void {

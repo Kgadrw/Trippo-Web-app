@@ -78,8 +78,9 @@ async function request<T>(
                          endpoint.startsWith('/auth/reset-pin') ||
                          endpoint.startsWith('/auth/me');
   
-  // Public content endpoints (homepage CMS)
-  const isPublicEndpoint = endpoint.startsWith('/content/');
+  // Public content endpoints (homepage CMS) and push VAPID public key
+  const isPublicEndpoint =
+    endpoint.startsWith('/content/') || endpoint.startsWith('/push/vapid-public-key');
   
   // Admin endpoints don't require regular userId (admin has special userId)
   const isAdminEndpoint = endpoint.startsWith('/admin/');
@@ -179,7 +180,7 @@ async function request<T>(
       endpoint.startsWith('/auth/me') ||
       endpoint.startsWith('/subscription') ||
       endpoint.startsWith('/content/') ||
-      endpoint.startsWith('/workspaces');
+      (endpoint.startsWith('/workspaces') && endpoint !== '/workspaces');
     // Get userId for cache key (use the value from defaultHeaders if set, otherwise 'anonymous')
     const userIdForCache = defaultHeaders['X-User-Id'] || userId || 'anonymous';
     const workspaceScope =
@@ -351,10 +352,11 @@ export const authApi = {
     });
   },
 
-  async login(data: { password: string; email: string }): Promise<ApiResponse> {
+  async login(data: { password: string; email: string; pin?: string }): Promise<ApiResponse> {
+    const password = data.password ?? data.pin ?? '';
     return request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ password, email: data.email }),
     });
   },
 
@@ -908,10 +910,7 @@ export const adminApi = {
   },
 
   async updatePlatformSettings(payload: {
-    currentPin: string;
     adminEmail?: string;
-    newPin?: string;
-    confirmNewPin?: string;
     subscriptionAmount?: number;
     trialDays?: number;
     supportEmail?: string;
@@ -1174,6 +1173,44 @@ export const calendarEventApi = {
   },
 };
 
+export const corporateCalendarApi = {
+  async getSummary(): Promise<ApiResponse> {
+    return request("/corporate-calendar/summary", { method: "GET" });
+  },
+
+  async getFeed(params: { start: string; end: string }): Promise<ApiResponse> {
+    const query = new URLSearchParams({ start: params.start, end: params.end });
+    return request(`/corporate-calendar/feed?${query}`, { method: "GET" });
+  },
+
+  async getAnnouncements(params?: { status?: string }): Promise<ApiResponse> {
+    const query = new URLSearchParams();
+    if (params?.status) query.append("status", params.status);
+    const qs = query.toString();
+    return request(qs ? `/corporate-calendar/announcements?${qs}` : "/corporate-calendar/announcements", {
+      method: "GET",
+    });
+  },
+
+  async createAnnouncement(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/corporate-calendar/announcements", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateAnnouncement(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/corporate-calendar/announcements/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteAnnouncement(id: string): Promise<ApiResponse> {
+    return request(`/corporate-calendar/announcements/${id}`, { method: "DELETE" });
+  },
+};
+
 export interface TeamMemberRecord {
   _id: string;
   name: string;
@@ -1183,6 +1220,52 @@ export interface TeamMemberRecord {
   department?: string;
   status?: "active" | "inactive";
   notes?: string;
+  employeeNumber?: string;
+  hireDate?: string | null;
+  terminationDate?: string | null;
+  employmentType?: "full_time" | "part_time" | "contract" | "intern";
+  reportsToId?: string | TeamMemberRecord | null;
+  location?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  annualLeaveAllowance?: number;
+  sickLeaveAllowance?: number;
+  linkedUserId?: string | null;
+}
+
+export type EmploymentType = NonNullable<TeamMemberRecord["employmentType"]>;
+
+export interface TeamMemberLeaveBalance {
+  allowance: number;
+  used: number;
+  remaining: number;
+}
+
+export interface TeamMemberProfileData {
+  member: TeamMemberRecord;
+  manager: TeamMemberRecord | null;
+  directReports: TeamMemberRecord[];
+  leaveBalances: {
+    annual: TeamMemberLeaveBalance;
+    sick: TeamMemberLeaveBalance;
+  };
+  recentLeave: Array<{
+    _id: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    dayCount?: number;
+    reason?: string;
+  }>;
+  recentPayroll: Array<{
+    _id: string;
+    amount: number;
+    period: string;
+    paymentDate: string;
+    status?: string;
+  }>;
+  payrollTotal: number;
 }
 
 export interface TeamTaskRecord {
@@ -1198,6 +1281,7 @@ export interface TeamTaskRecord {
   completionNote?: string;
   completedAt?: string;
   createdAt?: string;
+  workspaceId?: string | null;
 }
 
 export const teamMemberApi = {
@@ -1212,6 +1296,10 @@ export const teamMemberApi = {
 
   async getById(id: string): Promise<ApiResponse> {
     return request(`/team-members/${id}`, { method: "GET" });
+  },
+
+  async getProfile(id: string): Promise<ApiResponse> {
+    return request(`/team-members/${id}/profile`, { method: "GET" });
   },
 
   async create(data: Record<string, unknown>): Promise<ApiResponse> {
@@ -1286,6 +1374,264 @@ export const teamTaskApi = {
 
   async delete(id: string): Promise<ApiResponse> {
     return request(`/team-tasks/${id}`, { method: "DELETE" });
+  },
+};
+
+export const leaveRequestApi = {
+  async getAll(params?: { status?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/leave-requests?${queryString}` : "/leave-requests";
+    return request(url, { method: "GET" });
+  },
+
+  async getSummary(): Promise<ApiResponse> {
+    return request("/leave-requests/summary", { method: "GET" });
+  },
+
+  async create(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/leave-requests", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async approve(id: string): Promise<ApiResponse> {
+    return request(`/leave-requests/${id}/approve`, { method: "POST" });
+  },
+
+  async reject(id: string, data?: { rejectionNote?: string }): Promise<ApiResponse> {
+    return request(`/leave-requests/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  async cancel(id: string): Promise<ApiResponse> {
+    return request(`/leave-requests/${id}/cancel`, { method: "POST" });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/leave-requests/${id}`, { method: "DELETE" });
+  },
+};
+
+export interface ProjectRecord {
+  _id: string;
+  name: string;
+  description?: string;
+  status?: "planning" | "active" | "on_hold" | "completed" | "cancelled";
+  priority?: "low" | "medium" | "high";
+  startDate?: string;
+  targetEndDate?: string;
+  completedAt?: string;
+  leadMemberId?: TeamMemberRecord | string | null;
+  clientName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const projectApi = {
+  async getAll(params?: { status?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/projects?${queryString}` : "/projects";
+    return request(url, { method: "GET" });
+  },
+
+  async getSummary(): Promise<ApiResponse> {
+    return request("/projects/summary", { method: "GET" });
+  },
+
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/projects/${id}`, { method: "GET" });
+  },
+
+  async getProfile(id: string): Promise<ApiResponse> {
+    return request(`/projects/${id}/profile`, { method: "GET" });
+  },
+
+  async create(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/projects/${id}`, { method: "DELETE" });
+  },
+
+  async createMilestone(projectId: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/milestones`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateMilestone(
+    projectId: string,
+    milestoneId: string,
+    data: Record<string, unknown>,
+  ): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/milestones/${milestoneId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteMilestone(projectId: string, milestoneId: string): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/milestones/${milestoneId}`, { method: "DELETE" });
+  },
+
+  async createTask(projectId: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/tasks`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateTask(projectId: string, taskId: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/tasks/${taskId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteTask(projectId: string, taskId: string): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/tasks/${taskId}`, { method: "DELETE" });
+  },
+
+  async addMember(projectId: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/members`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async removeMember(projectId: string, memberId: string): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/members/${memberId}`, { method: "DELETE" });
+  },
+
+  async createTimeEntry(projectId: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/time-entries`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteTimeEntry(projectId: string, entryId: string): Promise<ApiResponse> {
+    return request(`/projects/${projectId}/time-entries/${entryId}`, { method: "DELETE" });
+  },
+};
+
+export const crmApi = {
+  async getSummary(): Promise<ApiResponse> {
+    return request("/crm/summary", { method: "GET" });
+  },
+
+  async getContacts(params?: { lifecycleStage?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.lifecycleStage) queryParams.append("lifecycleStage", params.lifecycleStage);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/crm/contacts?${queryString}` : "/crm/contacts";
+    return request(url, { method: "GET" });
+  },
+
+  async createContact(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/crm/contacts", { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async updateContact(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/crm/contacts/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+
+  async getContactProfile(id: string): Promise<ApiResponse> {
+    return request(`/crm/contacts/${id}/profile`, { method: "GET" });
+  },
+
+  async getDeals(params?: { stage?: string; clientId?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.stage) queryParams.append("stage", params.stage);
+    if (params?.clientId) queryParams.append("clientId", params.clientId);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/crm/deals?${queryString}` : "/crm/deals";
+    return request(url, { method: "GET" });
+  },
+
+  async createDeal(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/crm/deals", { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async updateDeal(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/crm/deals/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+
+  async deleteDeal(id: string): Promise<ApiResponse> {
+    return request(`/crm/deals/${id}`, { method: "DELETE" });
+  },
+
+  async getQuotes(params?: { status?: string; clientId?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.clientId) queryParams.append("clientId", params.clientId);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/crm/quotes?${queryString}` : "/crm/quotes";
+    return request(url, { method: "GET" });
+  },
+
+  async createQuote(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/crm/quotes", { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async updateQuote(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/crm/quotes/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+
+  async deleteQuote(id: string): Promise<ApiResponse> {
+    return request(`/crm/quotes/${id}`, { method: "DELETE" });
+  },
+
+  async convertQuoteToInvoice(id: string): Promise<ApiResponse> {
+    return request(`/crm/quotes/${id}/convert-invoice`, { method: "POST" });
+  },
+
+  async getContracts(params?: { status?: string; clientId?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.clientId) queryParams.append("clientId", params.clientId);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/crm/contracts?${queryString}` : "/crm/contracts";
+    return request(url, { method: "GET" });
+  },
+
+  async createContract(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/crm/contracts", { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async updateContract(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/crm/contracts/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+
+  async deleteContract(id: string): Promise<ApiResponse> {
+    return request(`/crm/contracts/${id}`, { method: "DELETE" });
+  },
+
+  async createActivity(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/crm/activities", { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async deleteActivity(id: string): Promise<ApiResponse> {
+    return request(`/crm/activities/${id}`, { method: "DELETE" });
   },
 };
 
@@ -1597,10 +1943,12 @@ export const loanApi = {
 };
 
 export const invoiceApi = {
-  async getAll(params?: { status?: string; clientId?: string }): Promise<ApiResponse> {
+  async getAll(params?: { status?: string; clientId?: string; startDate?: string; endDate?: string }): Promise<ApiResponse> {
     const queryParams = new URLSearchParams();
     if (params?.status) queryParams.append("status", params.status);
     if (params?.clientId) queryParams.append("clientId", params.clientId);
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
     const queryString = queryParams.toString();
     const url = queryString ? `/invoices?${queryString}` : "/invoices";
     return request(url, { method: "GET" });
@@ -1639,13 +1987,45 @@ export const invoiceApi = {
 };
 
 export const documentApi = {
-  async getAll(params?: { startDate?: string; endDate?: string }): Promise<ApiResponse> {
+  async getSummary(): Promise<ApiResponse> {
+    return request("/documents/summary", { method: "GET" });
+  },
+
+  async getAll(params?: {
+    startDate?: string;
+    endDate?: string;
+    registryType?: string;
+    registryStatus?: string;
+  }): Promise<ApiResponse> {
     const queryParams = new URLSearchParams();
     if (params?.startDate) queryParams.append("startDate", params.startDate);
     if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.registryType) queryParams.append("registryType", params.registryType);
+    if (params?.registryStatus) queryParams.append("registryStatus", params.registryStatus);
     const queryString = queryParams.toString();
     const url = queryString ? `/documents?${queryString}` : "/documents";
     return request(url, { method: "GET" });
+  },
+
+  async getProfile(id: string): Promise<ApiResponse> {
+    return request(`/documents/${id}/profile`, { method: "GET" });
+  },
+
+  async openFile(id: string): Promise<void> {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const workspaceMode = localStorage.getItem("profit-pilot-workspace-mode");
+    const workspaceId = localStorage.getItem("profit-pilot-active-workspace-id");
+    const headers: Record<string, string> = {};
+    if (userId) headers["X-User-Id"] = userId;
+    if (workspaceMode) headers["X-Workspace-Mode"] = workspaceMode;
+    if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
+
+    const res = await fetch(`${PUBLIC_API_BASE_URL}/documents/${id}/file`, { headers });
+    if (!res.ok) throw new Error("Could not load document");
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    window.open(objectUrl, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
   },
 
   async getById(id: string): Promise<ApiResponse> {
@@ -1666,8 +2046,137 @@ export const documentApi = {
     });
   },
 
+  async restoreVersion(documentId: string, versionId: string): Promise<ApiResponse> {
+    return request(`/documents/${documentId}/versions/${versionId}/restore`, { method: "POST" });
+  },
+
+  async addShare(documentId: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/documents/${documentId}/shares`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async removeShare(documentId: string, shareId: string): Promise<ApiResponse> {
+    return request(`/documents/${documentId}/shares/${shareId}`, { method: "DELETE" });
+  },
+
+  async sign(documentId: string): Promise<ApiResponse> {
+    return request(`/documents/${documentId}/sign`, { method: "POST", body: JSON.stringify({}) });
+  },
+
+  async verifySignatures(documentId: string): Promise<ApiResponse> {
+    return request(`/documents/${documentId}/verify-signatures`, { method: "GET" });
+  },
+
   async delete(id: string): Promise<ApiResponse> {
     return request(`/documents/${id}`, { method: "DELETE" });
+  },
+};
+
+export const approvalApi = {
+  async getQueue(params?: { status?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/approvals?${queryString}` : "/approvals";
+    return request(url, { method: "GET" });
+  },
+
+  async getSummary(): Promise<ApiResponse> {
+    return request("/approvals/summary", { method: "GET" });
+  },
+
+  async approve(entityType: string, id: string): Promise<ApiResponse> {
+    return request(`/approvals/${entityType}/${id}/approve`, { method: "POST" });
+  },
+
+  async reject(entityType: string, id: string, data?: { rejectionNote?: string }): Promise<ApiResponse> {
+    return request(`/approvals/${entityType}/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  async resubmit(entityType: string, id: string): Promise<ApiResponse> {
+    return request(`/approvals/${entityType}/${id}/resubmit`, { method: "POST" });
+  },
+};
+
+export const assetApi = {
+  async getAll(params?: { status?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/assets?${queryString}` : "/assets";
+    return request(url, { method: "GET" });
+  },
+
+  async getSummary(): Promise<ApiResponse> {
+    return request("/assets/summary", { method: "GET" });
+  },
+
+  async getById(id: string): Promise<ApiResponse> {
+    return request(`/assets/${id}`, { method: "GET" });
+  },
+
+  async getProfile(id: string): Promise<ApiResponse> {
+    return request(`/assets/${id}/profile`, { method: "GET" });
+  },
+
+  async assignCustody(
+    id: string,
+    data: { teamMemberId?: string; assignedTo?: string; note?: string },
+  ): Promise<ApiResponse> {
+    return request(`/assets/${id}/custody`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async addMaintenance(
+    id: string,
+    data: { title: string; scheduledDate: string; note?: string; performedBy?: string },
+  ): Promise<ApiResponse> {
+    return request(`/assets/${id}/maintenance`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async completeMaintenance(
+    id: string,
+    data: { maintenanceId: string; completedDate?: string; note?: string; performedBy?: string },
+  ): Promise<ApiResponse> {
+    return request(`/assets/${id}/maintenance/complete`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async recordAudit(id: string, data: { summary: string; details?: string }): Promise<ApiResponse> {
+    return request(`/assets/${id}/audit`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async create(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/assets", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/assets/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/assets/${id}`, { method: "DELETE" });
   },
 };
 
@@ -1774,6 +2283,29 @@ export const notificationApi = {
   },
 };
 
+export const pushApi = {
+  async getVapidPublicKey(): Promise<{ publicKey?: string; error?: string }> {
+    return request('/push/vapid-public-key', { method: 'GET' });
+  },
+
+  async subscribe(data: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }): Promise<ApiResponse> {
+    return request('/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async unsubscribe(endpoint?: string): Promise<ApiResponse> {
+    return request('/push/subscribe', {
+      method: 'DELETE',
+      body: JSON.stringify(endpoint ? { endpoint } : {}),
+    });
+  },
+};
+
 export const bookingApi = {
   async getAll(params?: { status?: string; date?: string; from?: string; to?: string }): Promise<ApiResponse> {
     const queryParams = new URLSearchParams();
@@ -1838,7 +2370,12 @@ export const subscriptionApi = {
 };
 
 export const workspaceApi = {
-  async list(): Promise<ApiResponse & { workspaces?: unknown[]; pages?: unknown[] }> {
+  async list(options?: { force?: boolean }): Promise<ApiResponse & { workspaces?: unknown[]; pages?: unknown[] }> {
+    if (options?.force) {
+      const { requestManager } = await import('./requestManager');
+      const userId = localStorage.getItem('profit-pilot-user-id') || 'anonymous';
+      requestManager.cancel(`GET:/workspaces:${userId}:personal`);
+    }
     return request('/workspaces', { method: 'GET' });
   },
 
@@ -1861,6 +2398,130 @@ export const workspaceApi = {
 
   async getMembers(workspaceId: string): Promise<ApiResponse> {
     return request(`/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: 'GET' });
+  },
+
+  async getMessages(
+    workspaceId: string,
+    params?: { limit?: number; before?: string },
+  ): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.before) queryParams.append('before', params.before);
+    const queryString = queryParams.toString();
+    const url = queryString
+      ? `/workspaces/${encodeURIComponent(workspaceId)}/messages?${queryString}`
+      : `/workspaces/${encodeURIComponent(workspaceId)}/messages`;
+    return request(url, { method: 'GET' });
+  },
+
+  async sendMessage(
+    workspaceId: string,
+    body: string,
+    options?: { mentionAll?: boolean; mentions?: Array<{ userId: string; userName: string }> },
+  ): Promise<ApiResponse> {
+    return request(`/workspaces/${encodeURIComponent(workspaceId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        body,
+        mentionAll: options?.mentionAll,
+        mentions: options?.mentions,
+      }),
+    });
+  },
+
+  async markMessagesRead(workspaceId: string, messageIds: string[]): Promise<ApiResponse> {
+    return request(`/workspaces/${encodeURIComponent(workspaceId)}/messages/read`, {
+      method: 'POST',
+      body: JSON.stringify({ messageIds }),
+    });
+  },
+
+  async getDirectChatThreads(workspaceId: string): Promise<ApiResponse> {
+    return request(`/workspaces/${encodeURIComponent(workspaceId)}/direct-chats`, {
+      method: 'GET',
+    });
+  },
+
+  async openDirectChat(
+    workspaceId: string,
+    otherUserId: string,
+  ): Promise<ApiResponse> {
+    return request(`/workspaces/${encodeURIComponent(workspaceId)}/direct-chats`, {
+      method: 'POST',
+      body: JSON.stringify({ otherUserId }),
+    });
+  },
+
+  async getDirectChatMessages(
+    workspaceId: string,
+    conversationId: string,
+    params?: { limit?: number; before?: string },
+  ): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    if (params?.before) queryParams.append('before', params.before);
+    const queryString = queryParams.toString();
+    const base = `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages`;
+    const url = queryString ? `${base}?${queryString}` : base;
+    return request(url, { method: 'GET' });
+  },
+
+  async sendDirectChatMessage(
+    workspaceId: string,
+    conversationId: string,
+    body: string,
+    attachments?: Array<{ url: string; fileName: string; mimeType: string; size?: number }>,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          body,
+          attachments,
+        }),
+      },
+    );
+  },
+
+  async markDirectChatMessagesRead(
+    workspaceId: string,
+    conversationId: string,
+    messageIds: string[],
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/read`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ messageIds }),
+      },
+    );
+  },
+
+  async editDirectChatMessage(
+    workspaceId: string,
+    conversationId: string,
+    messageId: string,
+    body: string,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ body }),
+      },
+    );
+  },
+
+  async deleteDirectChatMessage(
+    workspaceId: string,
+    conversationId: string,
+    messageId: string,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+      { method: 'DELETE' },
+    );
   },
 
   async searchInviteUsers(
@@ -1930,5 +2591,39 @@ export const workspaceApi = {
       `/workspaces/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(inviteId)}`,
       { method: 'DELETE' },
     );
+  },
+};
+
+export interface WorkspaceCategoryRecord {
+  id: string | null;
+  key: string;
+  label: string;
+  isDefault: boolean;
+  isCustom: boolean;
+  sortOrder?: number;
+}
+
+export const categoryApi = {
+  async getAll(type: string): Promise<ApiResponse & { data?: WorkspaceCategoryRecord[] }> {
+    const params = new URLSearchParams({ type });
+    return request(`/workspace-categories?${params.toString()}`, { method: 'GET' });
+  },
+
+  async create(data: { type: string; label: string; key?: string }): Promise<ApiResponse> {
+    return request('/workspace-categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: { label?: string; sortOrder?: number }): Promise<ApiResponse> {
+    return request(`/workspace-categories/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/workspace-categories/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 };

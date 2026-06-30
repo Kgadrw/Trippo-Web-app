@@ -44,7 +44,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { HelpTip } from "@/components/ui/help-tip";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { calendarEventApi, scheduleApi, saleApi, incomeApi, expenseApi, billApi, taxApi, invoiceApi, payrollApi, bankDepositApi } from "@/lib/api";
+import { calendarEventApi, scheduleApi, corporateCalendarApi, saleApi, incomeApi, expenseApi, billApi, taxApi, invoiceApi, payrollApi, bankDepositApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { periodToggleClass } from "@/lib/fieldStyles";
 import {
@@ -78,6 +78,7 @@ import {
 import { AUTOMATION_TYPE_LABEL_KEYS, normalizeAutomationType } from "@/lib/automationTypes";
 import {
   buildAutomationItems,
+  buildCorporateFeedItems,
   buildFilteredDisplayItems,
   buildPlatformCalendarItems,
   CalendarDisplayItem,
@@ -87,7 +88,7 @@ import {
   PLATFORM_SOURCE_LABEL_KEYS,
   PlatformRawData,
 } from "@/lib/calendarPlatformItems";
-import { Skeleton } from "@/components/ui/skeleton";
+import type { CorporateFeedItem } from "@/lib/calendarWorkflow";
 
 function asRows(data: unknown): Record<string, unknown>[] {
   return Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
@@ -115,6 +116,19 @@ interface ScheduleItem {
   automationType?: string;
 }
 
+function schedulesInRange(schedules: ScheduleItem[], start: Date, end: Date) {
+  return schedules.filter((schedule) => {
+    const due = new Date(schedule.dueDate);
+    return due >= start && due <= end;
+  });
+}
+
+function platformCacheKey(start: Date, end: Date) {
+  return `${start.toISOString()}|${end.toISOString()}`;
+}
+
+const PLATFORM_CACHE_LIMIT = 8;
+
 type EventFormState = {
   title: string;
   description: string;
@@ -141,10 +155,9 @@ const EMPTY_FORM: EventFormState = {
   reminderMinutes: "0",
 };
 
-const GRID_TABLE_CLASS =
-  "grid grid-cols-7 divide-x divide-y divide-gray-300";
-const HEADER_CELL_CLASS =
-  "py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500";
+const GRID_TABLE_CLASS = "grid grid-cols-7 border-l border-t border-gray-300 bg-white";
+const CELL_BORDER_CLASS = "box-border border-r border-b border-gray-300";
+const HEADER_CELL_CLASS = `${CELL_BORDER_CLASS} bg-gray-50 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500`;
 
 const EMPTY_PLATFORM: PlatformRawData = {
   sales: [],
@@ -173,11 +186,13 @@ export function BusinessCalendarTab() {
   const [selectedDay, setSelectedDay] = useState<Date>(today);
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [corporateFeed, setCorporateFeed] = useState<CorporateFeedItem[]>([]);
   const [platformRaw, setPlatformRaw] = useState<PlatformRawData>(EMPTY_PLATFORM);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingPlatform, setLoadingPlatform] = useState(false);
   const hasLoadedOnceRef = useRef(false);
+  const loadGenerationRef = useRef(0);
+  const platformCacheRef = useRef<Map<string, PlatformRawData>>(new Map());
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -215,90 +230,138 @@ export function BusinessCalendarTab() {
     ],
   );
 
-  const loadCalendarData = useCallback(async () => {
-    const showBlockingLoader = !hasLoadedOnceRef.current;
-    if (showBlockingLoader) {
-      setLoading(true);
-    } else {
-      setRefreshing(true);
-    }
-    try {
-      const { start, end } = viewRange;
+  const loadPlatformData = useCallback(
+    async (generation: number, range: { start: Date; end: Date }) => {
+      const cacheKey = platformCacheKey(range.start, range.end);
+      const cached = platformCacheRef.current.get(cacheKey);
+      if (cached) {
+        if (generation === loadGenerationRef.current) {
+          setPlatformRaw(cached);
+          setLoadingPlatform(false);
+        }
+        return;
+      }
+
+      setLoadingPlatform(true);
       const dateParams = {
-        startDate: toDateInputValue(start),
-        endDate: toDateInputValue(end),
+        startDate: toDateInputValue(range.start),
+        endDate: toDateInputValue(range.end),
       };
 
-      const [eventsRes, schedulesRes] = await Promise.all([
-        calendarEventApi.getAll({ start: start.toISOString(), end: end.toISOString() }),
-        scheduleApi.getAll(),
-      ]);
+      try {
+        const [
+          salesRes,
+          incomesRes,
+          expensesRes,
+          billsRes,
+          taxesRes,
+          invoicesRes,
+          payrollsRes,
+          depositsRes,
+        ] = await Promise.all([
+          saleApi.getAll(dateParams),
+          incomeApi.getAll(dateParams),
+          expenseApi.getAll(dateParams),
+          billApi.getAll(dateParams),
+          taxApi.getAll(dateParams),
+          invoiceApi.getAll(dateParams),
+          payrollApi.getAll(dateParams),
+          bankDepositApi.getAll(dateParams),
+        ]);
 
-      setEvents(Array.isArray(eventsRes.data) ? eventsRes.data : []);
-      setSchedules(Array.isArray(schedulesRes.data) ? schedulesRes.data : []);
-    } catch (error) {
-      console.error("Failed to load calendar:", error);
-      toast({
-        title: t("error"),
-        description: t("calLoadFailed"),
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      hasLoadedOnceRef.current = true;
-    }
+        if (generation !== loadGenerationRef.current) return;
 
-    if (typeFilter !== "all") {
+        const data: PlatformRawData = {
+          sales: asRows(salesRes.data),
+          incomes: asRows(incomesRes.data),
+          expenses: asRows(expensesRes.data),
+          bills: asRows(billsRes.data),
+          taxes: asRows(taxesRes.data),
+          invoices: filterRowsInRange(
+            asRows(invoicesRes.data),
+            range.start,
+            range.end,
+            "dueDate",
+            "issueDate",
+            "paidAt",
+          ),
+          payrolls: asRows(payrollsRes.data),
+          deposits: asRows(depositsRes.data),
+        };
+
+        const cache = platformCacheRef.current;
+        if (cache.size >= PLATFORM_CACHE_LIMIT) {
+          const oldest = cache.keys().next().value;
+          if (oldest) cache.delete(oldest);
+        }
+        cache.set(cacheKey, data);
+        setPlatformRaw(data);
+      } catch (error) {
+        if (generation === loadGenerationRef.current) {
+          console.error("Failed to load platform calendar items:", error);
+        }
+      } finally {
+        if (generation === loadGenerationRef.current) {
+          setLoadingPlatform(false);
+        }
+      }
+    },
+    [],
+  );
+
+  const loadCalendarData = useCallback(async () => {
+    const generation = ++loadGenerationRef.current;
+    setRefreshing(hasLoadedOnceRef.current);
+
+    const { start, end } = viewRange;
+    const includePlatform = typeFilter === "all" && viewMode !== "year";
+
+    if (!includePlatform) {
       setPlatformRaw(EMPTY_PLATFORM);
       setLoadingPlatform(false);
-      return;
     }
 
-    setLoadingPlatform(true);
+    const corePromise = Promise.all([
+      calendarEventApi.getAll({ start: start.toISOString(), end: end.toISOString() }),
+      scheduleApi.getAll(),
+      corporateCalendarApi.getFeed({ start: start.toISOString(), end: end.toISOString() }),
+    ]);
+
+    const platformPromise = includePlatform
+      ? loadPlatformData(generation, platformRange)
+      : Promise.resolve();
+
     try {
-      const { start, end } = platformRange;
-      const dateParams = {
-        startDate: toDateInputValue(start),
-        endDate: toDateInputValue(end),
-      };
+      const [eventsRes, schedulesRes, feedRes] = await corePromise;
+      if (generation !== loadGenerationRef.current) return;
 
-      const [
-        salesRes,
-        incomesRes,
-        expensesRes,
-        billsRes,
-        taxesRes,
-        invoicesRes,
-        payrollsRes,
-        depositsRes,
-      ] = await Promise.all([
-        saleApi.getAll({ startDate: dateParams.startDate, endDate: dateParams.endDate }),
-        incomeApi.getAll(dateParams),
-        expenseApi.getAll(dateParams),
-        billApi.getAll(dateParams),
-        taxApi.getAll(dateParams),
-        invoiceApi.getAll(),
-        payrollApi.getAll(dateParams),
-        bankDepositApi.getAll(dateParams),
-      ]);
-
-      setPlatformRaw({
-        sales: asRows(salesRes.data),
-        incomes: asRows(incomesRes.data),
-        expenses: asRows(expensesRes.data),
-        bills: asRows(billsRes.data),
-        taxes: asRows(taxesRes.data),
-        invoices: filterRowsInRange(asRows(invoicesRes.data), start, end, "dueDate", "issueDate", "paidAt"),
-        payrolls: asRows(payrollsRes.data),
-        deposits: asRows(depositsRes.data),
-      });
+      setEvents(Array.isArray(eventsRes.data) ? eventsRes.data : []);
+      setCorporateFeed(Array.isArray(feedRes.data) ? (feedRes.data as CorporateFeedItem[]) : []);
+      setSchedules(
+        schedulesInRange(
+          Array.isArray(schedulesRes.data) ? schedulesRes.data : [],
+          start,
+          end,
+        ),
+      );
     } catch (error) {
-      console.error("Failed to load platform calendar items:", error);
+      if (generation === loadGenerationRef.current) {
+        console.error("Failed to load calendar:", error);
+        toast({
+          title: t("error"),
+          description: t("calLoadFailed"),
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoadingPlatform(false);
+      if (generation === loadGenerationRef.current) {
+        setRefreshing(false);
+        hasLoadedOnceRef.current = true;
+      }
     }
-  }, [viewRange, platformRange, typeFilter, t, toast]);
+
+    await platformPromise;
+  }, [viewRange, platformRange, typeFilter, viewMode, loadPlatformData, t, toast]);
 
   useEffect(() => {
     void loadCalendarData();
@@ -314,14 +377,38 @@ export function BusinessCalendarTab() {
     [schedules],
   );
 
-  const displayItems = useMemo(
-    () => buildFilteredDisplayItems(typeFilter, events, platformItems, automationItems),
-    [typeFilter, events, platformItems, automationItems],
+  const corporateItems = useMemo(
+    () => buildCorporateFeedItems(corporateFeed),
+    [corporateFeed],
   );
 
+  const displayItems = useMemo(
+    () => buildFilteredDisplayItems(typeFilter, events, platformItems, automationItems, corporateItems),
+    [typeFilter, events, platformItems, automationItems, corporateItems],
+  );
+
+  const visibleDayItems = useMemo(() => {
+    const map = new Map<string, CalendarDisplayItem[]>();
+    const addDay = (day: Date | null) => {
+      if (!day) return;
+      map.set(day.toDateString(), itemsForDay(displayItems, day));
+    };
+
+    if (viewMode === "month") {
+      monthCells.forEach(addDay);
+    } else if (viewMode === "week") {
+      weekDays.forEach(addDay);
+    } else if (viewMode === "year") {
+      for (let month = 0; month < 12; month++) {
+        getYearMonthGrid(viewYear, month).forEach(addDay);
+      }
+    }
+    return map;
+  }, [displayItems, viewMode, monthCells, weekDays, viewYear]);
+
   const displayItemsForDay = useCallback(
-    (day: Date) => itemsForDay(displayItems, day),
-    [displayItems],
+    (day: Date) => visibleDayItems.get(day.toDateString()) ?? itemsForDay(displayItems, day),
+    [visibleDayItems, displayItems],
   );
 
   const selectedDayItems = useMemo(
@@ -507,10 +594,11 @@ export function BusinessCalendarTab() {
         onClick={() => selectDay(day)}
         onDoubleClick={() => openCreateModal(day)}
         className={cn(
+          CELL_BORDER_CLASS,
           minHeight,
-          "w-full text-left transition-colors",
+          "w-full rounded-none text-left transition-colors",
           compact ? "p-1" : "p-1.5",
-          inCurrentMonth ? "bg-white" : "text-gray-400",
+          inCurrentMonth ? "bg-white" : "bg-gray-50/40 text-gray-400",
           isSelected && "bg-sky-50",
           !isSelected && "hover:bg-gray-50/80",
         )}
@@ -563,7 +651,7 @@ export function BusinessCalendarTab() {
     const event = item.calendarEvent;
 
     return (
-      <div key={item.id} className="border-b border-gray-100 py-4 last:border-b-0">
+      <div key={item.id} className="border-b border-gray-300 py-4 last:border-b-0">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium" style={{ color: item.color }}>
@@ -729,11 +817,40 @@ export function BusinessCalendarTab() {
           </Button>
         </div>
       </div>
+      <div className={GRID_TABLE_CLASS}>
+        {weekDays.map((day) => (
+          <button
+            key={day.toISOString()}
+            type="button"
+            onClick={() => selectDay(day)}
+            className={cn(
+              CELL_BORDER_CLASS,
+              "rounded-none bg-gray-50 py-2.5 text-center transition-colors hover:bg-gray-100/80",
+              isSameDay(day, selectedDay) && "bg-sky-50",
+            )}
+          >
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+              {weekdayLabels[day.getDay()]}
+            </div>
+            <div
+              className={cn(
+                "mx-auto mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold",
+                isSameDay(day, today) && "bg-sky-500 text-white",
+                !isSameDay(day, today) && "text-gray-900",
+              )}
+            >
+              {day.getDate()}
+            </div>
+          </button>
+        ))}
+      </div>
       <div
-        className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4"
+        className="mt-4 h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain border border-gray-300 pb-4"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        {renderEventsList({ fullHeight: true })}
+        <div className="px-3">
+          {renderEventsList({ fullHeight: true })}
+        </div>
       </div>
     </div>
   );
@@ -754,11 +871,11 @@ export function BusinessCalendarTab() {
             >
               {monthLabel}
             </button>
-            <div className="grid grid-cols-7 divide-x divide-y divide-gray-300">
+            <div className={GRID_TABLE_CLASS}>
               {weekdayLabels.map((label) => (
                 <div
                   key={`${month}-${label}`}
-                  className="py-0.5 text-center text-[8px] font-medium uppercase text-gray-400"
+                  className={cn(CELL_BORDER_CLASS, "bg-gray-50 py-0.5 text-center text-[8px] font-medium uppercase text-gray-400")}
                 >
                   {label.charAt(0)}
                 </div>
@@ -773,7 +890,8 @@ export function BusinessCalendarTab() {
                       setViewMode("day");
                     }}
                     className={cn(
-                      "relative min-h-[22px] p-0.5 text-[9px] hover:bg-sky-50",
+                      CELL_BORDER_CLASS,
+                      "relative min-h-[22px] rounded-none p-0.5 text-[9px] hover:bg-sky-50",
                       isSameDay(day, today) && "bg-sky-100 font-bold text-sky-700",
                       isSameDay(day, selectedDay) && "bg-sky-50",
                     )}
@@ -784,7 +902,7 @@ export function BusinessCalendarTab() {
                     )}
                   </button>
                 ) : (
-                  <div key={`empty-${month}-${idx}`} className="min-h-[22px]" />
+                  <div key={`empty-${month}-${idx}`} className={cn(CELL_BORDER_CLASS, "min-h-[22px] bg-gray-50/40")} />
                 ),
               )}
             </div>
@@ -795,28 +913,6 @@ export function BusinessCalendarTab() {
   );
 
   const renderCalendarBody = () => {
-    if (loading && !hasLoadedOnceRef.current) {
-      if (viewMode === "year") {
-        return (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="h-40" />
-            ))}
-          </div>
-        );
-      }
-      return (
-        <div className={GRID_TABLE_CLASS}>
-          {Array.from({ length: viewMode === "week" ? 14 : 49 }).map((_, i) => (
-            <Skeleton
-              key={i}
-              className={cn("rounded-none", viewMode === "month" ? "min-h-[58px]" : "min-h-[88px]")}
-            />
-          ))}
-        </div>
-      );
-    }
-
     switch (viewMode) {
       case "day":
         return renderDayView();
@@ -909,6 +1005,7 @@ export function BusinessCalendarTab() {
             "min-h-0 overflow-y-auto overscroll-y-contain",
             isDayView && "flex flex-1 flex-col overflow-hidden",
             showSidePanel && "lg:pr-1",
+            refreshing && "opacity-80 transition-opacity",
           )}
           style={{ WebkitOverflowScrolling: "touch" }}
         >

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useApi } from "@/hooks/useApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import { PaymentDetailsFields, buildFinancePaymentPayload } from "@/components/f
 import { uploadReceipt, openReceiptInNewTab } from "@/lib/financeUpload";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
+import { teamMemberApi, type TeamMemberRecord } from "@/lib/api";
 import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
@@ -44,11 +45,13 @@ import {
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { ApprovalStatusBadge } from "@/components/approvals/ApprovalStatusBadge";
 
 export interface PayrollEntry {
   id?: number;
   _id?: string;
   employeeName: string;
+  teamMemberId?: string;
   amount: number;
   period: string;
   paymentDate: string;
@@ -60,6 +63,8 @@ export interface PayrollEntry {
   accountId?: string;
   receiptUrl?: string;
   receiptFileName?: string;
+  approvalStatus?: string;
+  rejectionNote?: string;
 }
 
 function sortPayrolls(list: PayrollEntry[]) {
@@ -95,6 +100,8 @@ export function PayrollTab() {
   });
 
   const [employeeName, setEmployeeName] = useState("");
+  const [teamMemberId, setTeamMemberId] = useState("");
+  const [teamMembers, setTeamMembers] = useState<TeamMemberRecord[]>([]);
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState(currentPeriod);
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -159,13 +166,22 @@ export function PayrollTab() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      } finally {
+      await refresh();
+    } finally {
       setIsRefreshing(false);
     }
   };
 
+  useEffect(() => {
+    if (!open) return;
+    void teamMemberApi.getAll({ status: "active" }).then((res) => {
+      setTeamMembers((res.data as TeamMemberRecord[]) || []);
+    });
+  }, [open]);
+
   const resetForm = () => {
     setEmployeeName("");
+    setTeamMemberId("");
     setAmount("");
     setPeriod(currentPeriod());
     setPaymentDate(new Date().toISOString().split("T")[0]);
@@ -189,6 +205,7 @@ export function PayrollTab() {
   const openEdit = (entry: PayrollEntry) => {
     setEditing(entry);
     setEmployeeName(entry.employeeName || "");
+    setTeamMemberId(entry.teamMemberId || "");
     setAmount(String(entry.amount ?? ""));
     setPeriod(entry.period || currentPeriod());
     setPaymentDate(String(entry.paymentDate || "").slice(0, 10) || new Date().toISOString().split("T")[0]);
@@ -231,6 +248,7 @@ export function PayrollTab() {
       const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId);
       const payload: Partial<PayrollEntry> = {
         employeeName: employeeName.trim(),
+        teamMemberId: teamMemberId || undefined,
         amount: parsedAmount,
         period: period.trim(),
         paymentDate: buildPaymentDate(paymentDate),
@@ -339,7 +357,8 @@ export function PayrollTab() {
                     />
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "font-semibold text-gray-900 max-w-[180px] truncate")}>
-                    {entry.employeeName}
+                    <div className="truncate">{entry.employeeName}</div>
+                    <ApprovalStatusBadge status={entry.approvalStatus} className="mt-1" />
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell")}>
                     <span
@@ -429,6 +448,36 @@ export function PayrollTab() {
             <DialogTitle>{editing ? t("editPayroll") : t("recordPayroll")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {teamMembers.length ? (
+              <div className="space-y-1">
+                <Label>{t("teamMembers")}</Label>
+                <Select
+                  value={teamMemberId || "__manual__"}
+                  onValueChange={(value) => {
+                    if (value === "__manual__") {
+                      setTeamMemberId("");
+                      return;
+                    }
+                    const member = teamMembers.find((row) => row._id === value);
+                    setTeamMemberId(value);
+                    if (member) setEmployeeName(member.name);
+                  }}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder={t("employeeName")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__manual__">{t("employeeName")}</SelectItem>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member._id} value={member._id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="space-y-1">
               <Label>{t("employeeName")}</Label>
               <Input value={employeeName} onChange={(e) => setEmployeeName(e.target.value)} disabled={isSaving} />

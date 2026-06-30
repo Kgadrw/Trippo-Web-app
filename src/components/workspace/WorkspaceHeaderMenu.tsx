@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   Building2,
+  Camera,
   Check,
   ChevronDown,
   Loader2,
   Mail,
   Plus,
   Settings2,
+  Trash2,
   User,
   Users,
   X,
@@ -19,9 +21,16 @@ import {
   type WorkspaceMetaChangedDetail,
   type WorkspacePageKey,
 } from '@/lib/workspace';
+import {
+  removeWorkspaceProfilePicture,
+  uploadWorkspaceProfilePicture,
+} from '@/lib/workspacePicture';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { WorkspaceProfileAvatar } from '@/components/workspace/WorkspaceProfileAvatar';
+import { useTranslation } from '@/hooks/useTranslation';
+import { initAudio, playErrorBeep, playUpdateBeep } from '@/lib/sound';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
@@ -71,6 +80,9 @@ type PendingInvite = {
 
 const headerButtonClass =
   'flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900';
+
+const MAX_PROFILE_PICTURE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 export function WorkspaceHeaderMenu({ className }: { className?: string }) {
   const {
@@ -126,7 +138,17 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className={cn(headerButtonClass, className)} aria-label="Workspace">
-            <Building2 size={16} className="shrink-0 text-blue-600" />
+            {mode === 'workspace' && activeWorkspace ? (
+              <WorkspaceProfileAvatar
+                name={activeWorkspace.name}
+                profilePictureUrl={activeWorkspace.profilePictureUrl}
+                pictureRevision={activeWorkspace.profilePictureRevision}
+                className="h-6 w-6 border border-gray-200"
+                fallbackClassName="bg-blue-600 text-[10px] text-white"
+              />
+            ) : (
+              <Building2 size={16} className="shrink-0 text-blue-600" />
+            )}
             <span className="hidden max-w-[100px] truncate sm:inline">{label}</span>
             <ChevronDown size={14} className="shrink-0 opacity-60" />
           </button>
@@ -207,6 +229,7 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
           onOpenChange={setManageOpen}
           workspaceId={activeWorkspace.id}
           workspaceName={activeWorkspace.name}
+          workspaceProfilePictureUrl={activeWorkspace.profilePictureUrl}
           onChanged={(patch) => notifyWorkspaceMetaChanged(patch)}
         />
       ) : null}
@@ -219,15 +242,19 @@ function ManageWorkspaceDialog({
   onOpenChange,
   workspaceId,
   workspaceName,
+  workspaceProfilePictureUrl,
   onChanged,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workspaceId: string;
   workspaceName: string;
+  workspaceProfilePictureUrl?: string | null;
   onChanged: (patch?: WorkspaceMetaChangedDetail) => void;
 }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [members, setMembers] = useState<WorkspaceMemberRow[]>([]);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(false);
@@ -242,10 +269,24 @@ function ManageWorkspaceDialog({
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState(workspaceName);
   const [savingName, setSavingName] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState(workspaceProfilePictureUrl || null);
+  const [pictureRevision, setPictureRevision] = useState<number | undefined>(undefined);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [removingPicture, setRemovingPicture] = useState(false);
 
   useEffect(() => {
-    if (open) setEditedName(workspaceName);
-  }, [open, workspaceName]);
+    if (open) {
+      setEditedName(workspaceName);
+      setProfilePictureUrl(workspaceProfilePictureUrl || null);
+    }
+  }, [open, workspaceName, workspaceProfilePictureUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const saveWorkspaceName = async () => {
     const name = editedName.trim();
@@ -265,6 +306,105 @@ function ManageWorkspaceDialog({
       toast({ title: message, variant: 'destructive' });
     } finally {
       setSavingName(false);
+    }
+  };
+
+  const handlePictureSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    initAudio();
+
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      playErrorBeep();
+      toast({
+        title: t('validationErrorTitle'),
+        description: t('profilePictureInvalidType'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > MAX_PROFILE_PICTURE_BYTES) {
+      playErrorBeep();
+      toast({
+        title: t('validationErrorTitle'),
+        description: t('profilePictureTooLarge'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nextPreview = URL.createObjectURL(file);
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return nextPreview;
+    });
+
+    setUploadingPicture(true);
+    try {
+      const { profilePictureUrl: nextUrl } = await uploadWorkspaceProfilePicture(workspaceId, file);
+      const nextRevision = Date.now();
+      setProfilePictureUrl(nextUrl);
+      setPictureRevision(nextRevision);
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      playUpdateBeep();
+      toast({
+        title: t('profilePictureUploadedTitle'),
+        description: 'Workspace profile picture has been saved.',
+      });
+      onChanged({
+        workspaceId,
+        profilePictureUrl: nextUrl,
+        profilePictureRevision: nextRevision,
+      });
+    } catch (error: unknown) {
+      playErrorBeep();
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      const message = error instanceof Error ? error.message : t('saveFailed');
+      toast({ title: t('saveFailed'), description: message, variant: 'destructive' });
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
+  const handleRemovePicture = async () => {
+    if (!profilePictureUrl) return;
+
+    initAudio();
+    setRemovingPicture(true);
+    try {
+      await removeWorkspaceProfilePicture(workspaceId);
+      const nextRevision = Date.now();
+      setProfilePictureUrl(null);
+      setPictureRevision(nextRevision);
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      playUpdateBeep();
+      toast({
+        title: t('profilePictureRemovedTitle'),
+        description: 'Workspace profile picture has been removed.',
+      });
+      onChanged({
+        workspaceId,
+        profilePictureUrl: null,
+        profilePictureRevision: nextRevision,
+      });
+    } catch (error: unknown) {
+      playErrorBeep();
+      const message = error instanceof Error ? error.message : t('saveFailed');
+      toast({ title: t('saveFailed'), description: message, variant: 'destructive' });
+    } finally {
+      setRemovingPicture(false);
     }
   };
 
@@ -377,6 +517,62 @@ function ManageWorkspaceDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+            <p className="text-sm font-medium text-gray-900">Workspace profile</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <WorkspaceProfileAvatar
+                name={editedName || workspaceName}
+                profilePictureUrl={profilePictureUrl}
+                previewUrl={previewUrl}
+                pictureRevision={pictureRevision}
+                className="h-16 w-16 border-2 border-blue-500"
+                fallbackClassName="bg-blue-600 text-base text-white"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={(e) => void handlePictureSelect(e)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={uploadingPicture || removingPicture}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadingPicture ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Camera size={16} />
+                  )}
+                  <span>{t('profilePictureChange')}</span>
+                </Button>
+                {profilePictureUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-red-600 hover:text-red-700"
+                    disabled={uploadingPicture || removingPicture}
+                    onClick={() => void handleRemovePicture()}
+                  >
+                    {removingPicture ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                    <span>{t('profilePictureRemove')}</span>
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">{t('profilePictureHint')}</p>
+          </div>
+
           <div className="rounded-lg border border-gray-200 p-3 space-y-3">
             <p className="text-sm font-medium text-gray-900">Workspace name</p>
             <div className="flex gap-2">

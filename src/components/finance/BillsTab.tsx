@@ -5,6 +5,7 @@ import { CurrencyAmount } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "@/components/categories/CategorySelect";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ import {
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { HelpTip } from "@/components/ui/help-tip";
+import { ApprovalStatusBadge } from "@/components/approvals/ApprovalStatusBadge";
+import { isApprovedForReporting } from "@/lib/approvalWorkflow";
 
 export interface BillEntry {
   id?: number;
@@ -65,6 +68,8 @@ export interface BillEntry {
   bankAccountNumber?: string;
   receiptUrl?: string;
   receiptFileName?: string;
+  approvalStatus?: string;
+  rejectionNote?: string;
 }
 
 function billId(e: BillEntry): string {
@@ -166,29 +171,32 @@ export function BillsTab() {
 
   const metrics = useMemo(() => {
     const today = startOfDay(new Date());
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
     const in30 = new Date(today);
     in30.setDate(in30.getDate() + 30);
 
-    let totalOutstanding = 0;
+    let dueThisMonth = 0;
+    let dueThisMonthCount = 0;
     let dueToday = 0;
-    let dueWithin30 = 0;
     let overdueTotal = 0;
 
     for (const bill of bills) {
       if ((bill.status || "pending") !== "pending") continue;
       const amt = Number(bill.amount) || 0;
-      totalOutstanding += amt;
       const due = startOfDay(new Date(bill.dueDate));
       const dueMs = due.getTime();
       const todayMs = today.getTime();
-      const in30Ms = in30.getTime();
 
+      if (due >= monthStart && due <= monthEnd) {
+        dueThisMonth += amt;
+        dueThisMonthCount += 1;
+      }
       if (dueMs === todayMs) dueToday += amt;
-      else if (dueMs < todayMs) overdueTotal += amt;
-      else if (dueMs <= in30Ms) dueWithin30 += amt;
+      else if (dueMs < todayMs && due >= monthStart && due <= monthEnd) overdueTotal += amt;
     }
 
-    return { totalOutstanding, dueToday, dueWithin30, overdueTotal };
+    return { dueThisMonth, dueThisMonthCount, dueToday, overdueTotal };
   }, [bills]);
 
   const sortedBills = useMemo(() => {
@@ -286,6 +294,14 @@ export function BillsTab() {
   };
 
   const openPay = (entry: BillEntry) => {
+    if (!isApprovedForReporting(entry)) {
+      toast({
+        title: t("error"),
+        description: "This bill must be approved before it can be marked as paid.",
+        variant: "destructive",
+      });
+      return;
+    }
     setPaying(entry);
     setPaymentMethod(entry.paymentMethod || "cash");
     setBankAccountName(entry.bankAccountName || "");
@@ -485,9 +501,12 @@ export function BillsTab() {
                     {entry.vendor || "—"}
                   </td>
                   <td className={FINANCE_TD_CLASS}>
-                    <span className={cn("text-xs uppercase tracking-wide", status.className)}>
-                      {status.label}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={cn("text-xs uppercase tracking-wide", status.className)}>
+                        {status.label}
+                      </span>
+                      <ApprovalStatusBadge status={entry.approvalStatus} />
+                    </div>
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "text-gray-700 tabular-nums whitespace-nowrap")}>
                     {formatFinanceTableDate(entry.dueDate)}
@@ -515,7 +534,7 @@ export function BillsTab() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {pending && (
+                        {pending && isApprovedForReporting(entry) && (
                           <DropdownMenuItem onClick={() => openPay(entry)}>
                             <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" />
                             {t("markAsPaid")}
@@ -675,32 +694,27 @@ export function BillsTab() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 border-b border-gray-200 lg:grid-cols-4">
+        <div className="grid grid-cols-2 border-b border-gray-200 lg:grid-cols-3">
           <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-5 lg:border-b-0 lg:border-r">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600">
               <ArrowUp size={18} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Outstanding Payables</p>
+              <p className="text-sm text-gray-500">{t("dueThisMonth")}</p>
               <p className="mt-0.5 text-base font-semibold text-gray-900">
-                <CurrencyAmount amount={metrics.totalOutstanding} codeFirst />
+                <CurrencyAmount amount={metrics.dueThisMonth} codeFirst />
               </p>
+              <p className="text-xs text-gray-500">{metrics.dueThisMonthCount} bills</p>
             </div>
           </div>
           <div className="border-b border-gray-100 px-4 py-5 lg:border-b-0 lg:border-r">
-            <p className="text-sm text-gray-500">Due Today</p>
+            <p className="text-sm text-gray-500">{t("dueToday")}</p>
             <p className="mt-1 text-base font-semibold text-gray-900">
               <CurrencyAmount amount={metrics.dueToday} codeFirst />
             </p>
           </div>
-          <div className="border-r border-gray-100 px-4 py-5">
-            <p className="text-sm text-gray-500">Due Within 30 Days</p>
-            <p className="mt-1 text-base font-semibold text-gray-900">
-              <CurrencyAmount amount={metrics.dueWithin30} codeFirst />
-            </p>
-          </div>
           <div className="px-4 py-5">
-            <p className="text-sm text-gray-500">OverDue Bills</p>
+            <p className="text-sm text-gray-500">{t("overdueThisMonth")}</p>
             <p className="mt-1 text-base font-semibold text-red-600">
               <CurrencyAmount amount={metrics.overdueTotal} codeFirst codeClassName="text-red-600/70" />
             </p>
@@ -745,7 +759,12 @@ export function BillsTab() {
               </div>
               <div className="space-y-1">
                 <Label>{t("category")}</Label>
-                <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t("expenseCategoryPlaceholder")} disabled={isSaving} />
+                <CategorySelect
+                  type="expense"
+                  value={category}
+                  onValueChange={setCategory}
+                  disabled={isSaving}
+                />
               </div>
             </div>
             <div className="space-y-1">

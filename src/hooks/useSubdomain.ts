@@ -93,3 +93,74 @@ export function getSubdomainUrl(subdomain: 'admin' | 'bookfy' | null, path: stri
 export function isBookfySubdomainHost(hostname: string = window.location.hostname): boolean {
   return resolveAppSubdomainLabel(hostname) === 'bookfy';
 }
+
+/** Whether the host is a dev-only bookfy.*.localhost subdomain (not allowed by Google OAuth). */
+export function isLocalBookfySubdomainHost(hostname: string = window.location.hostname): boolean {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
+  return resolveAppSubdomainLabel(hostname) === 'bookfy' && hostname.endsWith('.localhost');
+}
+
+/**
+ * Dashboard login URL. Local dev must use localhost (Google OAuth rejects bookfy.localhost).
+ */
+export function getDashboardLoginUrl(path: string = '/login'): string {
+  if (typeof window === 'undefined') {
+    return path;
+  }
+
+  const protocol = window.location.protocol;
+  const port = window.location.port ? `:${window.location.port}` : '';
+
+  if (window.location.hostname.includes('trippo.rw')) {
+    return `${protocol}//bookfy.trippo.rw${port}${path}`;
+  }
+
+  return `${protocol}//localhost${port}${path}`;
+}
+
+/**
+ * Build a URL hash carrying session data across origins (localhost → bookfy.localhost,
+ * trippo.rw → bookfy.trippo.rw). localStorage is not shared between these hosts.
+ */
+export function buildAuthHashFromSession(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  const userId = localStorage.getItem('profit-pilot-user-id');
+  const authenticated = localStorage.getItem('profit-pilot-authenticated') === 'true';
+  if (!userId || !authenticated) return null;
+
+  const authToken = btoa(
+    JSON.stringify({
+      userId,
+      isAdmin: localStorage.getItem('profit-pilot-is-admin') === 'true',
+      authenticated: true,
+      name: localStorage.getItem('profit-pilot-user-name') || '',
+      email: localStorage.getItem('profit-pilot-user-email') || '',
+      businessName: localStorage.getItem('profit-pilot-business-name') || '',
+      profilePictureUrl: localStorage.getItem('profit-pilot-profile-picture-url') || '',
+    }),
+  );
+
+  return `#auth=${authToken}`;
+}
+
+/** Navigate to the bookfy app, transferring session when crossing origins. */
+export function redirectToBookfyWithSession(path: string = '/') {
+  if (typeof window === 'undefined') return;
+
+  const target = path.startsWith('/') ? path : `/${path}`;
+
+  if (isBookfySubdomainHost()) {
+    window.location.replace(target);
+    return;
+  }
+
+  const authHash = buildAuthHashFromSession();
+  const bookfyUrl = getSubdomainUrl('bookfy', target);
+  window.location.href = authHash ? `${bookfyUrl}${authHash}` : bookfyUrl;
+}
+
+/** After login on localhost, send the user to the bookfy dev subdomain. */
+export function redirectAfterDashboardLogin(redirectTo: string = '/') {
+  redirectToBookfyWithSession(redirectTo);
+}

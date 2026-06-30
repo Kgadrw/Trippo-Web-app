@@ -480,15 +480,21 @@ async function showNotification(options) {
       return;
     }
 
+    const resolveAssetUrl = (value) => {
+      if (!value) return new URL('/logo.png', self.location.origin).href;
+      if (value.startsWith('http://') || value.startsWith('https://')) return value;
+      return new URL(value, self.location.origin).href;
+    };
+
     // Show notification (will work even when app is closed)
     await registration.showNotification(options.title, {
       body: options.body,
-      icon: options.icon || '/logo.png',
-      badge: options.badge || '/logo.png',
+      icon: resolveAssetUrl(options.icon),
+      badge: resolveAssetUrl(options.badge),
       tag: options.tag,
       data: options.data || {},
       requireInteraction: options.requireInteraction !== undefined ? options.requireInteraction : false,
-      silent: false,
+      silent: options.silent === true,
       vibrate: [200, 100, 200], // Vibration pattern for mobile devices
       timestamp: Date.now(),
     });
@@ -516,7 +522,60 @@ self.addEventListener("notificationclick", async (event) => {
   await updateBadge(count);
 
   const data = event.notification.data;
-  
+
+  // Open workspace chat from a message notification
+  if (data && data.action === "open_workspace_chat") {
+    event.waitUntil(
+      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          client.postMessage({ type: "OPEN_WORKSPACE_CHAT" });
+        }
+        if (clientList.length > 0 && "focus" in clientList[0]) {
+          return clientList[0].focus();
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(self.location.origin);
+        }
+      }),
+    );
+    return;
+  }
+
+  // Open direct messages page from a DM notification
+  if (data && data.action === "open_direct_chat") {
+    const otherUserId = data.otherUserId ? String(data.otherUserId) : "";
+    const messagesPath = otherUserId ? `/messages/${otherUserId}` : "/messages";
+    event.waitUntil(
+      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          client.postMessage({
+            type: "OPEN_DIRECT_CHAT",
+            otherUserId,
+            conversationId: data.conversationId || null,
+          });
+        }
+        const targetUrl = new URL(messagesPath, self.location.origin).href;
+        for (const client of clientList) {
+          if (client.url && client.url.includes("/messages") && "focus" in client) {
+            return client.focus();
+          }
+        }
+        if (clientList.length > 0 && "focus" in clientList[0]) {
+          clientList[0].postMessage({
+            type: "OPEN_DIRECT_CHAT",
+            otherUserId,
+            conversationId: data.conversationId || null,
+          });
+          return clientList[0].focus();
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      }),
+    );
+    return;
+  }
+
   // Handle low stock notification with quick update action
   if (data && data.type === 'low_stock' && data.action === 'update_stock' && data.productId) {
     event.waitUntil(
@@ -613,14 +672,21 @@ self.addEventListener("push", (event) => {
     return;
   }
 
+  const resolveAssetUrl = (value) => {
+    if (!value) return new URL('/logo.png', self.location.origin).href;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    return new URL(value, self.location.origin).href;
+  };
+
   event.waitUntil(
     self.registration.showNotification(data.title || "Trippo", {
       body: data.body || "You have a new update",
-      icon: data.icon || "/logo.png",
-      badge: data.badge || "/logo.png",
+      icon: resolveAssetUrl(data.icon),
+      badge: resolveAssetUrl(data.badge),
       data: data.data || {},
       tag: data.tag || "trippo-push",
-      requireInteraction: false, // Don't stick forever - auto-close
+      requireInteraction: false,
+      silent: data.silent === true,
       vibrate: [200, 100, 200],
       timestamp: Date.now(),
     })

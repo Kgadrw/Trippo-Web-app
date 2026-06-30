@@ -15,6 +15,7 @@ export interface NotificationData {
   requireInteraction?: boolean;
   silent?: boolean;
   data?: any; // Additional data for notification click handling
+  onClick?: () => void;
 }
 
 class NotificationService {
@@ -196,6 +197,79 @@ class NotificationService {
   }
 
   /**
+   * Show a browser notification without saving to the backend store.
+   * Used for high-frequency events such as workspace chat messages.
+   */
+  public async showEphemeralNotification(data: NotificationData): Promise<void> {
+    if (!this.isUserLoggedIn() || !this.isAllowed()) {
+      return;
+    }
+
+    const notificationKey = `ephemeral-${data.tag || data.title}`;
+    const lastTime = this.lastNotificationTimes.get(notificationKey);
+    const now = Date.now();
+
+    if (lastTime && now - lastTime < 1500) {
+      return;
+    }
+
+    this.lastNotificationTimes.set(notificationKey, now);
+
+    try {
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+
+        registration.active?.postMessage({
+          type: "SHOW_NOTIFICATION",
+          notification: {
+            title: data.title,
+            body: data.body,
+            icon: data.icon || "/logo.png",
+            badge: data.badge || "/logo.png",
+            tag: data.tag || notificationKey,
+            requireInteraction: data.requireInteraction || false,
+            silent: data.silent ?? false,
+            data: data.data || {},
+          },
+        });
+
+        await registration.showNotification(data.title, {
+          body: data.body,
+          icon: data.icon || "/logo.png",
+          badge: data.badge || "/logo.png",
+          tag: data.tag || notificationKey,
+          requireInteraction: data.requireInteraction || false,
+          silent: data.silent ?? false,
+          data: data.data || {},
+        });
+      } else {
+        const notification = new Notification(data.title, {
+          body: data.body,
+          icon: data.icon || "/logo.png",
+          badge: data.badge || "/logo.png",
+          tag: data.tag || notificationKey,
+          requireInteraction: data.requireInteraction || false,
+          silent: data.silent ?? false,
+          data: data.data || {},
+        });
+
+        notification.onclick = (event) => {
+          event.preventDefault();
+          window.focus();
+          data.onClick?.();
+          notification.close();
+        };
+
+        if (!data.requireInteraction) {
+          setTimeout(() => notification.close(), 8000);
+        }
+      }
+    } catch {
+      // Sound is played by the caller even when popup fails.
+    }
+  }
+
+  /**
    * Show notification for new user registration (admin)
    */
   public async notifyNewUser(userName: string, userEmail: string): Promise<void> {
@@ -258,7 +332,7 @@ class NotificationService {
       tag: `schedule-${scheduleTitle}`,
       requireInteraction: true,
       data: {
-        route: '/schedules',
+        route: '/calendar/schedules',
         type: 'schedule',
         scheduleTitle,
       },

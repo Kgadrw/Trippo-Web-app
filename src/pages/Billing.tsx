@@ -21,7 +21,6 @@ import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { subscriptionApi, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SUBSCRIPTION_AMOUNT } from "@/lib/subscription";
-import type { Language } from "@/lib/translations";
 import {
   clearPendingPaymentRef,
   getBillingNoPromptHint,
@@ -37,12 +36,11 @@ import { TextWithUssdCodes, ussdToastDescription } from "@/components/billing/Te
 
 type MobileNetwork = "mtn" | "airtel";
 
-function formatBillingDate(value: string | Date | null | undefined, language: Language) {
+function formatBillingDate(value: string | Date | null | undefined) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "—";
-  const locale = language === "fr" ? "fr-FR" : language === "rw" ? "rw-RW" : "en-GB";
-  return date.toLocaleDateString(locale, {
+  return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -135,7 +133,7 @@ function NetworkOption({
 
 export default function Billing({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { contact } = usePlatformContact();
 
   const {
@@ -248,7 +246,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
           const payload = await checkStatus();
           const status = payload.payment.status;
           const syncIssue = payload.payment.sync?.latestIssue;
-          const issueMessage = getPaymentUserMessage(syncIssue, language, contact, paymentMessageOptions);
+          const issueMessage = getPaymentUserMessage(syncIssue, contact, paymentMessageOptions);
 
           if (isPaymentSettled(payload)) {
             await refresh(true);
@@ -315,7 +313,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
         description: t("billingStillConfirmingDesc"),
       });
     },
-    [language, refresh, showPaymentSuccess, stopProcessing, t, toast, updatePlan],
+    [refresh, showPaymentSuccess, stopProcessing, t, toast, updatePlan],
   );
 
   // Resume polling only for a live server-side PENDING payment after sync
@@ -350,7 +348,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
         title: t("billingCancelledTitle"),
         description:
           updatedPlan?.hasPlus && updatedPlan.nextDueDate
-            ? `${t("billingCancelledUntil")} ${formatBillingDate(updatedPlan.nextDueDate, language)}.`
+            ? `${t("billingCancelledUntil")} ${formatBillingDate(updatedPlan.nextDueDate)}.`
             : t("billingCancelNoPlusAccess"),
       });
       window.dispatchEvent(new Event("subscription-updated"));
@@ -457,7 +455,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
       let message = error instanceof Error ? error.message : "Could not start payment.";
       if (error instanceof ApiError) {
         const code = typeof error.response?.code === "string" ? error.response.code : undefined;
-        const mapped = getPaymentUserMessage({ code: code || "", message }, language, contact, paymentMessageOptions);
+        const mapped = getPaymentUserMessage({ code: code || "", message }, contact, paymentMessageOptions);
         if (mapped) message = mapped;
       }
       await refresh(true);
@@ -526,7 +524,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                     <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
                     {plan?.hasPlus && plan.nextDueDate ? (
                       <p className="text-xs text-muted-foreground">
-                        {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate, language)}.
+                        {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate)}.
                       </p>
                     ) : (
                       <p className="text-xs text-muted-foreground">
@@ -570,11 +568,11 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
 
                         <div className="mt-2 space-y-1">
                           <p className="text-xs text-green-800">
-                            {t("billingPlusActiveUntil")} {formatBillingDate(plan.nextDueDate, language)}.
+                            {t("billingPlusActiveUntil")} {formatBillingDate(plan.nextDueDate)}.
                           </p>
                           {plan.lastPaidAt ? (
                             <p className="text-xs text-green-800">
-                              {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt, language)}
+                              {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt)}
                             </p>
                           ) : null}
                           {phone.trim() ? (
@@ -607,7 +605,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                           />
                         </div>
                         <div className="mt-1 text-[10px] text-green-900/70 tabular-nums text-right">
-                          {formatBillingDate(periodStart, language)} → {formatBillingDate(periodEnd, language)}
+                          {formatBillingDate(periodStart)} → {formatBillingDate(periodEnd)}
                         </div>
                       </div>
                     ) : null}
@@ -693,7 +691,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                           .replace("{base}", amount.toLocaleString())}
                       </p>
                       <p>
-                        <TextWithUssdCodes text={getBillingNoPromptHint(language, network, contact)} />
+                        <TextWithUssdCodes text={getBillingNoPromptHint(network, contact)} />
                       </p>
                     </div>
                   ) : null}

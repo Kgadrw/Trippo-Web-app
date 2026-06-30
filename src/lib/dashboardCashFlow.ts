@@ -1,20 +1,21 @@
 export type CashFlowInputs = {
   incomes: Array<{ date: string; amount: number }>;
-  expenses: Array<{ date: string; amount: number }>;
-  payrolls: Array<{ paymentDate: string; amount: number; status?: string }>;
-  bills: Array<{ amount: number; status?: string; paidAt?: string; dueDate: string }>;
-  taxes: Array<{ amount: number; status?: string; paidAt?: string; dueDate: string }>;
+  expenses: Array<{ date: string; amount: number; approvalStatus?: string }>;
+  payrolls: Array<{ paymentDate: string; amount: number; status?: string; approvalStatus?: string }>;
+  bills: Array<{ amount: number; status?: string; paidAt?: string; dueDate: string; approvalStatus?: string }>;
+  taxes: Array<{ amount: number; status?: string; paidAt?: string; dueDate: string; period?: string }>;
   invoices: Array<{ amount: number; status?: string; paidAt?: string; dueDate: string }>;
   bankDeposits: Array<{ depositDate: string; amount: number }>;
   loans: Array<{
     startDate: string;
     principalAmount: number;
     remainingBalance?: number;
+    installmentAmount?: number;
     status?: string;
     nextDueDate?: string;
     payments?: Array<{ paymentDate: string; amount: number }>;
   }>;
-  sales: Array<{ date: string; timestamp?: string; revenue: number }>;
+  sales: Array<{ date: string; timestamp?: string; revenue: number; cost?: number; profit?: number }>;
 };
 
 export type BalanceInputs = Pick<
@@ -51,6 +52,11 @@ function inRange(dateStr: string | undefined, startMs: number, endMs: number) {
   return t !== null && t >= startMs && t <= endMs;
 }
 
+function isApprovedForReporting(record?: { approvalStatus?: string | null }) {
+  const status = record?.approvalStatus;
+  return !status || status === "approved";
+}
+
 function paidCashDate(status: string | undefined, paidAt: string | undefined, fallback: string) {
   if ((status || "pending") !== "paid") return null;
   return paidAt || fallback;
@@ -81,15 +87,130 @@ function sumDueBalances(items: DueBalanceItem[], todayMs: number) {
   return { total, current, overdue };
 }
 
-export function buildReceivablesSummary(inputs: BalanceInputs): BalanceSummary {
+function isDueInPeriod(dueDate: string | undefined, startMs: number, endMs: number) {
+  if (!dueDate) return false;
+  const due = parseMs(dueDate);
+  return due !== null && due >= startMs && due <= endMs;
+}
+
+export type TaxDueRecord = {
+  amount: number;
+  status?: string;
+  dueDate: string;
+  period?: string;
+};
+
+export type PeriodTaxDueSummary = {
+  outstanding: number;
+  overdueAmount: number;
+  overdueCount: number;
+  dueSoonCount: number;
+  count: number;
+};
+
+/** Pending tax payable in a period — based on payment due date only. */
+export function isTaxDueInPeriod(tax: TaxDueRecord, startMs: number, endMs: number): boolean {
+  if ((tax.status || "pending") !== "pending") return false;
+  return isDueInPeriod(tax.dueDate, startMs, endMs);
+}
+
+export type LoanDueRecord = {
+  installmentAmount?: number;
+  remainingBalance?: number;
+  status?: string;
+  nextDueDate?: string;
+  startDate: string;
+};
+
+export type PeriodLoanDueSummary = {
+  outstanding: number;
+  overdueAmount: number;
+  overdueCount: number;
+  dueSoonCount: number;
+  count: number;
+};
+
+function loanPaymentAmount(loan: LoanDueRecord): number {
+  const installment = Number(loan.installmentAmount);
+  if (Number.isFinite(installment) && installment > 0) return installment;
+  return Number(loan.remainingBalance) || 0;
+}
+
+/** Active loan installment due in a period (next due date within range). */
+export function isLoanDueInPeriod(loan: LoanDueRecord, startMs: number, endMs: number): boolean {
+  if (loan.status === "paid_off") return false;
+  return isDueInPeriod(loan.nextDueDate || loan.startDate, startMs, endMs);
+}
+
+export function buildPeriodLoanDueSummary(
+  loans: LoanDueRecord[],
+  period: PeriodBounds,
+): PeriodLoanDueSummary {
+  const todayMs = startOfDayMs(new Date());
+  const { startMs, endMs } = period;
+  const inPeriod = loans.filter((loan) => isLoanDueInPeriod(loan, startMs, endMs));
+  const outstanding = inPeriod.reduce((s, loan) => s + loanPaymentAmount(loan), 0);
+  const overdue = inPeriod.filter((loan) => {
+    const due = parseMs(loan.nextDueDate || loan.startDate);
+    return due !== null && due < todayMs;
+  });
+  const overdueAmount = overdue.reduce((s, loan) => s + loanPaymentAmount(loan), 0);
+  const dueSoon = inPeriod.filter((loan) => {
+    const due = parseMs(loan.nextDueDate || loan.startDate);
+    return due !== null && due >= todayMs;
+  });
+  return {
+    outstanding,
+    overdueAmount,
+    overdueCount: overdue.length,
+    dueSoonCount: dueSoon.length,
+    count: inPeriod.length,
+  };
+}
+
+export function buildPeriodTaxDueSummary(
+  taxes: TaxDueRecord[],
+  period: PeriodBounds,
+): PeriodTaxDueSummary {
+  const todayMs = startOfDayMs(new Date());
+  const { startMs, endMs } = period;
+  const inPeriod = taxes.filter((tax) => isTaxDueInPeriod(tax, startMs, endMs));
+  const outstanding = inPeriod.reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
+  const overdue = inPeriod.filter((tx) => {
+    const due = parseMs(tx.dueDate);
+    return due !== null && due < todayMs;
+  });
+  const overdueAmount = overdue.reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
+  const dueSoon = inPeriod.filter((tx) => {
+    const due = parseMs(tx.dueDate);
+    return due !== null && due >= todayMs;
+  });
+  return {
+    outstanding,
+    overdueAmount,
+    overdueCount: overdue.length,
+    dueSoonCount: dueSoon.length,
+    count: inPeriod.length,
+  };
+}
+
+export type PeriodBounds = { startMs: number; endMs: number };
+
+export function buildReceivablesSummary(
+  inputs: BalanceInputs,
+  period: PeriodBounds,
+): BalanceSummary {
   const todayMs = startOfDayMs(new Date());
   const dueItems: DueBalanceItem[] = [];
   const breakdown: CashFlowBreakdownLine[] = [];
+  const { startMs, endMs } = period;
 
-  const unpaidInvoices = inputs.invoices.filter((inv) => inv.status !== "paid");
+  const unpaidInvoices = inputs.invoices.filter(
+    (inv) => inv.status !== "paid" && isDueInPeriod(inv.dueDate, startMs, endMs),
+  );
   const invoiceAmount = unpaidInvoices.reduce((s, inv) => s + (Number(inv.amount) || 0), 0);
   if (invoiceAmount > 0) {
-    breakdown.push({ key: "invoices", label: "Unpaid invoices", amount: invoiceAmount });
+    breakdown.push({ key: "invoices", label: "Invoices due", amount: invoiceAmount });
     for (const inv of unpaidInvoices) {
       dueItems.push({ amount: Number(inv.amount) || 0, dueDate: inv.dueDate });
     }
@@ -99,12 +220,18 @@ export function buildReceivablesSummary(inputs: BalanceInputs): BalanceSummary {
   return { ...totals, breakdown };
 }
 
-export function buildPayablesSummary(inputs: BalanceInputs): BalanceSummary {
+export function buildPayablesSummary(inputs: BalanceInputs, period: PeriodBounds): BalanceSummary {
   const todayMs = startOfDayMs(new Date());
   const dueItems: DueBalanceItem[] = [];
   const breakdown: CashFlowBreakdownLine[] = [];
+  const { startMs, endMs } = period;
 
-  const pendingBills = inputs.bills.filter((bill) => (bill.status || "pending") === "pending");
+  const pendingBills = inputs.bills.filter(
+    (bill) =>
+      isApprovedForReporting(bill) &&
+      (bill.status || "pending") === "pending" &&
+      isDueInPeriod(bill.dueDate, startMs, endMs),
+  );
   const billsAmount = pendingBills.reduce((s, bill) => s + (Number(bill.amount) || 0), 0);
   if (billsAmount > 0) {
     breakdown.push({ key: "bills", label: "Bills", amount: billsAmount });
@@ -113,7 +240,12 @@ export function buildPayablesSummary(inputs: BalanceInputs): BalanceSummary {
     }
   }
 
-  const pendingPayroll = inputs.payrolls.filter((row) => row.status === "pending");
+  const pendingPayroll = inputs.payrolls.filter(
+    (row) =>
+      isApprovedForReporting(row) &&
+      row.status === "pending" &&
+      isDueInPeriod(row.paymentDate, startMs, endMs),
+  );
   const payrollAmount = pendingPayroll.reduce((s, row) => s + (Number(row.amount) || 0), 0);
   if (payrollAmount > 0) {
     breakdown.push({ key: "payroll", label: "Payroll", amount: payrollAmount });
@@ -122,7 +254,7 @@ export function buildPayablesSummary(inputs: BalanceInputs): BalanceSummary {
     }
   }
 
-  const pendingTaxes = inputs.taxes.filter((tax) => (tax.status || "pending") === "pending");
+  const pendingTaxes = inputs.taxes.filter((tax) => isTaxDueInPeriod(tax, startMs, endMs));
   const taxesAmount = pendingTaxes.reduce((s, tax) => s + (Number(tax.amount) || 0), 0);
   if (taxesAmount > 0) {
     breakdown.push({ key: "taxes", label: "Taxes", amount: taxesAmount });
@@ -131,18 +263,15 @@ export function buildPayablesSummary(inputs: BalanceInputs): BalanceSummary {
     }
   }
 
-  const activeLoans = inputs.loans.filter((loan) => loan.status !== "paid_off");
-  const loansAmount = activeLoans.reduce(
-    (s, loan) => s + (Number(loan.remainingBalance) || 0),
-    0,
-  );
+  const activeLoans = inputs.loans.filter((loan) => isLoanDueInPeriod(loan, startMs, endMs));
+  const loansAmount = activeLoans.reduce((s, loan) => s + loanPaymentAmount(loan), 0);
   if (loansAmount > 0) {
-    breakdown.push({ key: "loans", label: "Loan balances", amount: loansAmount });
+    breakdown.push({ key: "loans", label: "Loan payments", amount: loansAmount });
     for (const loan of activeLoans) {
-      const balance = Number(loan.remainingBalance) || 0;
-      if (balance <= 0) continue;
+      const amount = loanPaymentAmount(loan);
+      if (amount <= 0) continue;
       dueItems.push({
-        amount: balance,
+        amount,
         dueDate: loan.nextDueDate || loan.startDate,
       });
     }
@@ -168,6 +297,21 @@ export function sumMoneyOut(
   basis: "cash" | "accrual" = "cash",
 ) {
   return buildMoneyOutBreakdown(inputs, startMs, endMs, basis).reduce((s, line) => s + line.amount, 0);
+}
+
+/** Gross profit from sales in a period (margin raised on products sold). */
+export function sumSalesProfit(inputs: CashFlowInputs, startMs: number, endMs: number) {
+  return inputs.sales
+    .filter((row) => inRange(row.timestamp || row.date, startMs, endMs))
+    .reduce((total, row) => {
+      const storedProfit = Number(row.profit);
+      if (Number.isFinite(storedProfit)) {
+        return total + storedProfit;
+      }
+      const revenue = Number(row.revenue) || 0;
+      const cost = Number(row.cost) || 0;
+      return total + (revenue - cost);
+    }, 0);
 }
 
 export function buildMoneyInBreakdown(
@@ -219,15 +363,21 @@ export function buildMoneyOutBreakdown(
   basis: "cash" | "accrual" = "cash",
 ): CashFlowBreakdownLine[] {
   const expenditure = inputs.expenses
-    .filter((row) => inRange(row.date, startMs, endMs))
+    .filter((row) => isApprovedForReporting(row) && inRange(row.date, startMs, endMs))
     .reduce((s, row) => s + (Number(row.amount) || 0), 0);
 
   const payroll = inputs.payrolls
-    .filter((row) => row.status !== "pending" && inRange(row.paymentDate, startMs, endMs))
+    .filter(
+      (row) =>
+        isApprovedForReporting(row) &&
+        row.status !== "pending" &&
+        inRange(row.paymentDate, startMs, endMs),
+    )
     .reduce((s, row) => s + (Number(row.amount) || 0), 0);
 
   const billsPaid = inputs.bills
     .filter((row) => {
+      if (!isApprovedForReporting(row)) return false;
       if (basis === "cash") {
         const paidDate = paidCashDate(row.status, row.paidAt, row.dueDate);
         return paidDate ? inRange(paidDate, startMs, endMs) : false;
@@ -242,7 +392,7 @@ export function buildMoneyOutBreakdown(
         const paidDate = paidCashDate(row.status, row.paidAt, row.dueDate);
         return paidDate ? inRange(paidDate, startMs, endMs) : false;
       }
-      return (row.status || "pending") === "pending" && inRange(row.dueDate, startMs, endMs);
+      return isTaxDueInPeriod(row, startMs, endMs);
     })
     .reduce((s, row) => s + (Number(row.amount) || 0), 0);
 

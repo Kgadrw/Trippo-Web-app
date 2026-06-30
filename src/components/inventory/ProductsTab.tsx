@@ -3,6 +3,7 @@ import { useApi } from "@/hooks/useApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "@/components/categories/CategorySelect";
 import {
   Dialog,
   DialogContent,
@@ -79,7 +80,7 @@ export function ProductsTab() {
   });
 
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("General");
+  const [category, setCategory] = useState("general");
   const [costPrice, setCostPrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [stock, setStock] = useState("0");
@@ -119,7 +120,7 @@ export function ProductsTab() {
 
   const resetForm = () => {
     setName("");
-    setCategory("General");
+    setCategory("general");
     setCostPrice("");
     setSellingPrice("");
     setStock("0");
@@ -135,7 +136,7 @@ export function ProductsTab() {
   const openEdit = (entry: ProductEntry) => {
     setEditing(entry);
     setName(entry.name);
-    setCategory(entry.category || "General");
+    setCategory((entry.category || "general").toLowerCase());
     setCostPrice(String(entry.costPrice ?? ""));
     setSellingPrice(String(entry.sellingPrice ?? ""));
     setStock(String(entry.stock ?? 0));
@@ -170,7 +171,7 @@ export function ProductsTab() {
     try {
       const payload = {
         name: name.trim(),
-        category: category.trim() || "General",
+        category: category.trim().toLowerCase() || "general",
         costPrice: parsedCost,
         sellingPrice: parsedSell,
         stock: parsedStock,
@@ -248,7 +249,7 @@ export function ProductsTab() {
                   <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums")}>
                     {isService(entry)
                       ? "—"
-                      : formatStockDisplay(entry, t("language") as "en" | "rw")}
+                      : formatStockDisplay(entry)}
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell text-right tabular-nums text-gray-600")}>
                     {isService(entry) ? "—" : entry.minStock ?? 5}
@@ -342,7 +343,7 @@ export function ProductsTab() {
             </div>
             <div className="space-y-2">
               <Label>{t("category")}</Label>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="General" />
+              <CategorySelect type="product" value={category} onValueChange={setCategory} />
               <p className="text-xs text-gray-500">Use &quot;service&quot; for non-stock items</p>
             </div>
             <div className="grid grid-cols-2 gap-3">

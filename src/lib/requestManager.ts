@@ -12,7 +12,7 @@ class RequestManager {
   private pendingRequests = new Map<string, PendingRequest>();
   private requestQueue: Array<{ key: string; fn: () => Promise<any>; resolve: (value: any) => void; reject: (error: any) => void }> = [];
   private isProcessingQueue = false;
-  private readonly DEDUPE_WINDOW = 5000; // 5 seconds - same request within this window is deduplicated
+  private readonly DEDUPE_WINDOW = 15000; // 15 seconds - same request within this window is deduplicated
   private readonly MAX_QUEUE_SIZE = 50;
   private readonly BATCH_DELAY = 100; // 100ms delay to batch requests
 

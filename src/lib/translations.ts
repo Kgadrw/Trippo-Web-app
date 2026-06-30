@@ -1,7 +1,6 @@
-import { frMissing } from "./translationsFrMissing";
 import { extendedTranslations } from "./translationsExtended";
 
-export type Language = "en" | "rw" | "fr";
+export type Language = "en";
 
 export interface Translations {
   // Navigation
@@ -178,6 +177,7 @@ export interface Translations {
   loansEmptyHint: string;
   totalOutstanding: string;
   dueThisMonth: string;
+  overdueThisMonth: string;
   loanPaymentsDue: string;
   overdueLoans: string;
   activeLoans: string;
@@ -271,13 +271,95 @@ export interface Translations {
   helpProducts: string;
   helpSales: string;
   helpDocuments: string;
+  helpAssets: string;
+  assetAdd: string;
+  assetEdit: string;
+  assetUpdated: string;
+  assetAdded: string;
+  assetSaveFailed: string;
+  assetMissingTitle: string;
+  assetInvalidCost: string;
+  assetActiveCount: string;
+  assetPurchaseValue: string;
+  assetCurrentValue: string;
+  assetWarrantyExpiring: string;
+  assetMaintenanceDue: string;
+  assetTag: string;
+  assetType: string;
+  assetManufacturer: string;
+  assetModel: string;
+  assetPurchaseDate: string;
+  assetPurchaseCost: string;
+  assetAssignedTo: string;
+  assetLocation: string;
+  assetWarranty: string;
+  assetSelectAssignee: string;
+  assetManualAssignee: string;
+  assetViewDetails: string;
+  assetDeleteTitle: string;
+  assetDeleteDesc: string;
+  assetTypeVehicle: string;
+  assetTypeMachinery: string;
+  assetTypeTechnology: string;
+  assetTypeEquipment: string;
+  assetTypeFurniture: string;
+  assetTypeBuilding: string;
+  assetTypeOther: string;
+  assetStatusActive: string;
+  assetStatusInUse: string;
+  assetStatusMaintenance: string;
+  assetStatusRetired: string;
+  assetStatusDisposed: string;
+  assetBackToRegister: string;
+  assetProfileLoadFailed: string;
+  assetProfileNotFound: string;
+  assetTabOverview: string;
+  assetTabDepreciation: string;
+  assetTabMaintenance: string;
+  assetTabHistory: string;
+  assetUsefulLife: string;
+  assetMonths: string;
+  assetAssignCustody: string;
+  assetScheduleMaintenance: string;
+  assetRecordAudit: string;
+  assetUpcomingMaintenance: string;
+  assetNoMaintenance: string;
+  assetCustodyHistory: string;
+  assetNoCustodyHistory: string;
+  assetCurrentCustodian: string;
+  assetNoDepreciation: string;
+  assetPeriod: string;
+  assetOpeningValue: string;
+  assetDepreciation: string;
+  assetAccumulated: string;
+  assetClosingValue: string;
+  assetMarkComplete: string;
+  assetMaintenanceScheduled: string;
+  assetMaintenanceCompleted: string;
+  assetAuditRecorded: string;
+  assetCustodyUpdated: string;
+  assetAuditSummary: string;
+  assetNoHistory: string;
+  assetEventRegistered: string;
+  assetEventUpdated: string;
+  assetEventAssigned: string;
+  assetEventReturned: string;
+  assetEventMaintenance: string;
+  assetEventAudit: string;
+  assetEventStatusChange: string;
+  assetEventDisposed: string;
+  helpApprovals: string;
   helpReports: string;
   helpAutomations: string;
   helpCalendar: string;
+  helpCorpCalOverview: string;
+  helpCorpCalAnnouncements: string;
   helpTeamOverview: string;
   helpTeamTasks: string;
   helpTeamFinanceTasks: string;
   helpTeamMembers: string;
+  helpTeamLeave: string;
+  helpHrOverview: string;
   loadStatementsFailed: string;
   asOfDate: string;
   generateReport: string;
@@ -1272,6 +1354,53 @@ export interface Translations {
   profilePictureRemovedDesc: string;
   workspaceMembersAvatars: string;
   workspaceMembersOthers: string;
+  workspaceChatTitle: string;
+  workspaceChatSubtitle: string;
+  workspaceChatPlaceholder: string;
+  workspaceChatEmpty: string;
+  workspaceChatSend: string;
+  workspaceChatOpen: string;
+  workspaceChatClose: string;
+  workspaceChatLoadFailed: string;
+  workspaceChatSendFailed: string;
+  workspaceChatMessageInfo: string;
+  workspaceChatDeliveredTo: string;
+  workspaceChatSeenBy: string;
+  workspaceChatNoSeenYet: string;
+  workspaceChatNoRecipients: string;
+  workspaceChatActiveUsers: string;
+  workspaceChatNoActiveUsers: string;
+  workspaceChatMentionEveryone: string;
+  workspaceChatMentionHint: string;
+  directChatTitle: string;
+  directChatSearchPeople: string;
+  directChatNoPeople: string;
+  directChatSelectPerson: string;
+  directChatSelectPersonHint: string;
+  directChatStartConversation: string;
+  directChatTapToChat: string;
+  directChatYou: string;
+  directChatEmptyTitle: string;
+  directChatEmptyBody: string;
+  directChatLoadFailed: string;
+  directChatLoadThreadsFailed: string;
+  directChatOpenFailed: string;
+  directChatSendFailed: string;
+  directChatScrollDown: string;
+  directChatWorkspaceOnlyTitle: string;
+  directChatWorkspaceOnlyBody: string;
+  directChatAttach: string;
+  directChatAttachFailed: string;
+  directChatRemoveAttachment: string;
+  directChatEdit: string;
+  directChatDelete: string;
+  directChatEditing: string;
+  directChatCancelEdit: string;
+  directChatEditFailed: string;
+  directChatDeleteFailed: string;
+  directChatMessageDeleted: string;
+  directChatDeleteConfirm: string;
+  directChatEdited: string;
   validationErrorTitle: string;
   invalidEmailTitle: string;
   invalidEmailDescMsg: string;
@@ -1385,6 +1514,58 @@ export interface Translations {
   calSourceInvoice: string;
   calSourcePayroll: string;
   calSourceDeposit: string;
+  calSourceLeave: string;
+  calSourceMilestone: string;
+  calSourceClientMeeting: string;
+  calSourceAnnouncement: string;
+  corpCalOverviewTitle: string;
+  corpCalOverviewSubtitle: string;
+  corpCalOpenCalendar: string;
+  corpCalOpenAnnouncements: string;
+  corpCalUpcomingMeetings: string;
+  corpCalClientMeetings: string;
+  corpCalLeaveWindows: string;
+  corpCalLeaveHint: string;
+  corpCalMilestones: string;
+  corpCalMilestoneHint: string;
+  corpCalAnnouncements: string;
+  corpCalAutomations: string;
+  corpCalAutomationHint: string;
+  corpCalAlignmentTitle: string;
+  corpCalAlignmentBody: string;
+  corpCalOpenAutomations: string;
+  corpCalOpenLeave: string;
+  corpCalOpenProjects: string;
+  corpAnnTitle: string;
+  corpAnnSubtitle: string;
+  corpAnnAdd: string;
+  corpAnnEdit: string;
+  corpAnnEmpty: string;
+  corpAnnLoadFailed: string;
+  corpAnnSaveFailed: string;
+  corpAnnSaved: string;
+  corpAnnDeleted: string;
+  corpAnnDeleteConfirm: string;
+  corpAnnAllStatuses: string;
+  corpAnnColTitle: string;
+  corpAnnColScope: string;
+  corpAnnColPriority: string;
+  corpAnnColDates: string;
+  corpAnnColStatus: string;
+  corpAnnBody: string;
+  corpAnnStartDate: string;
+  corpAnnEndDate: string;
+  corpAnnRegion: string;
+  corpAnnSelectRegion: string;
+  corpAnnScopeWorkspace: string;
+  corpAnnScopeRegional: string;
+  corpAnnScopeGlobal: string;
+  corpAnnPriorityNormal: string;
+  corpAnnPriorityHigh: string;
+  corpAnnPriorityCritical: string;
+  corpAnnStatusDraft: string;
+  corpAnnStatusPublished: string;
+  corpAnnStatusArchived: string;
   calToday: string;
   calViewDay: string;
   calViewWeek: string;
@@ -1435,6 +1616,9 @@ export interface Translations {
   teamMembers: string;
   teamOverviewTitle: string;
   teamOverviewSubtitle: string;
+  teamOverviewTasksDone: string;
+  teamOverviewMembersActive: string;
+  teamOverviewMemberChartHint: string;
   teamTotalTasks: string;
   teamCompletionRate: string;
   teamActiveMembers: string;
@@ -1477,6 +1661,16 @@ export interface Translations {
   teamDeptSales: string;
   teamDeptMarketing: string;
   teamDeptHr: string;
+  categoryCreateNew: string;
+  categoryManage: string;
+  categoryName: string;
+  categoryNamePlaceholder: string;
+  categoryCreated: string;
+  categoryCreateFailed: string;
+  categoryDeleted: string;
+  categoryDeleteFailed: string;
+  categoryNoCustom: string;
+  selectCategory: string;
   teamLoadFailed: string;
   teamTitleRequired: string;
   teamAssigneeRequired: string;
@@ -1508,6 +1702,327 @@ export interface Translations {
   teamImportFromPayrollRecords: string;
   teamImportFromPayrollNote: string;
   teamImportFromPayrollFailed: string;
+
+  hrPeople: string;
+  hrOverview: string;
+  hrOverviewTitle: string;
+  hrOverviewSubtitle: string;
+  hrLeave: string;
+  hrOrgChart: string;
+  hrOrgChartTitle: string;
+  hrOrgChartSubtitle: string;
+  hrOrgChartEmpty: string;
+  hrProfileLoadFailed: string;
+  hrProfileNotFound: string;
+  hrBackToPeople: string;
+  hrTabOverview: string;
+  hrTabLeave: string;
+  hrTabPayroll: string;
+  hrEmployeeNumber: string;
+  hrHireDate: string;
+  hrReportsTo: string;
+  hrAnnualLeave: string;
+  hrSickLeave: string;
+  hrDaysLeft: string;
+  hrContactDetails: string;
+  hrLocation: string;
+  hrEmergencyContact: string;
+  hrDirectReports: string;
+  hrNoDirectReports: string;
+  hrNoLeaveHistory: string;
+  hrOpenLeave: string;
+  hrRecentPayrollTotal: string;
+  hrNoPayrollHistory: string;
+  hrOpenPayroll: string;
+  hrEmploymentFullTime: string;
+  hrEmploymentPartTime: string;
+  hrEmploymentContract: string;
+  hrEmploymentIntern: string;
+  hrDetailsSection: string;
+  hrEmploymentType: string;
+  hrManager: string;
+  hrNoManager: string;
+  hrLeaveAllowances: string;
+  hrActiveEmployees: string;
+  hrPendingLeaveRequests: string;
+  hrViewPeople: string;
+  hrViewOrgChart: string;
+  helpHrOrgChart: string;
+  hrLinkedWorkspaceUser: string;
+  hrNoLinkedUser: string;
+  hrComingSoonTitle: string;
+  hrComingSoonBody: string;
+  hrComingSoonRecruitment: string;
+  hrComingSoonAttendance: string;
+  hrComingSoonContracts: string;
+
+  projectOverviewTitle: string;
+  projectOverviewSubtitle: string;
+  projectViewAll: string;
+  projectTotalProjects: string;
+  projectOpenTasks: string;
+  projectOverdueMilestones: string;
+  projectCompletedCount: string;
+  projectVelocityTasks: string;
+  projectVelocityTasksHint: string;
+  projectVelocityHours: string;
+  projectVelocityHoursHint: string;
+  projectNoVelocityData: string;
+  projectAllProjects: string;
+  projectAllProjectsSubtitle: string;
+  projectAdd: string;
+  projectEdit: string;
+  projectName: string;
+  projectStatus: string;
+  projectLead: string;
+  projectTargetEnd: string;
+  projectStartDate: string;
+  projectClient: string;
+  projectSelectLead: string;
+  projectNoLead: string;
+  projectEmpty: string;
+  projectLoadFailed: string;
+  projectNameRequired: string;
+  projectUpdated: string;
+  projectCreated: string;
+  projectSaveFailed: string;
+  projectDeleted: string;
+  projectDeleteTitle: string;
+  projectDeleteBody: string;
+  projectAllStatuses: string;
+  projectStatusPlanning: string;
+  projectStatusActive: string;
+  projectStatusOnHold: string;
+  projectStatusCompleted: string;
+  projectStatusCancelled: string;
+  projectPriorityLow: string;
+  projectPriorityMedium: string;
+  projectPriorityHigh: string;
+  projectProfileLoadFailed: string;
+  projectProfileNotFound: string;
+  projectBackToList: string;
+  projectTabOverview: string;
+  projectTabMilestones: string;
+  projectTabTasks: string;
+  projectTabTeam: string;
+  projectTabTime: string;
+  projectTaskProgress: string;
+  projectTasksDone: string;
+  projectMilestoneProgress: string;
+  projectHoursLogged: string;
+  projectTeamSize: string;
+  projectAddMilestone: string;
+  projectNoMilestones: string;
+  projectMilestoneTitle: string;
+  projectMilestonePending: string;
+  projectMilestoneInProgress: string;
+  projectMilestoneCompleted: string;
+  projectNoDueDate: string;
+  projectAddTask: string;
+  projectNoTasks: string;
+  projectUnassignedTasks: string;
+  projectUnassigned: string;
+  projectTaskTitle: string;
+  projectMilestone: string;
+  projectAssignee: string;
+  projectEstimatedHours: string;
+  projectAddMember: string;
+  projectNoMembers: string;
+  projectMemberRole: string;
+  projectMemberAddFailed: string;
+  projectSelectMember: string;
+  projectLogTime: string;
+  projectNoTimeEntries: string;
+  projectTask: string;
+  projectNoTaskLinked: string;
+  projectHours: string;
+  projectTimeNote: string;
+  helpProjectOverview: string;
+  helpProjectList: string;
+
+  notes: string;
+  crmOverviewTitle: string;
+  crmOverviewSubtitle: string;
+  crmOpenPipeline: string;
+  crmOpenContacts: string;
+  crmTotalContacts: string;
+  crmPendingQuotes: string;
+  crmActiveContracts: string;
+  crmLeadFunnel: string;
+  crmLeadFunnelHint: string;
+  crmPipelineByStage: string;
+  crmPipelineByStageHint: string;
+  crmDealValue: string;
+  crmDealCount: string;
+  crmOmnichannelTitle: string;
+  crmOmnichannelBody: string;
+  crmPipelineTitle: string;
+  crmPipelineSubtitle: string;
+  crmAddDeal: string;
+  crmDealTitle: string;
+  crmProbability: string;
+  crmDealCreated: string;
+  crmLoadFailed: string;
+  crmSaveFailed: string;
+  crmStageLead: string;
+  crmStageQualified: string;
+  crmStageProposal: string;
+  crmStageNegotiation: string;
+  crmStageWon: string;
+  crmStageLost: string;
+  crmContactsTitle: string;
+  crmContactsSubtitle: string;
+  crmAddContact: string;
+  crmAllLifecycle: string;
+  crmLifecycle: string;
+  crmLifecycleLead: string;
+  crmLifecycleProspect: string;
+  crmLifecycleCustomer: string;
+  crmLifecycleInactive: string;
+  crmCompany: string;
+  crmSource: string;
+  crmNoContacts: string;
+  crmProfileLoadFailed: string;
+  crmContactNotFound: string;
+  crmBackToContacts: string;
+  crmNoContactInfo: string;
+  crmOpenDeals: string;
+  crmNoDeals: string;
+  crmRecentQuotes: string;
+  crmCommunicationTimeline: string;
+  crmCommunicationTimelineHint: string;
+  crmActivityType: string;
+  crmChannel: string;
+  crmActivitySubject: string;
+  crmActivityBody: string;
+  crmLogActivity: string;
+  crmNoActivities: string;
+  crmActivityLogged: string;
+  crmActivityNote: string;
+  crmActivityCall: string;
+  crmActivityEmail: string;
+  crmActivityMeeting: string;
+  crmActivityMessage: string;
+  crmChannelInternal: string;
+  crmChannelPhone: string;
+  crmChannelEmail: string;
+  crmChannelSms: string;
+  crmChannelWhatsapp: string;
+  crmChannelInPerson: string;
+  crmChannelOther: string;
+  crmContracts: string;
+  crmQuotesTitle: string;
+  crmQuotesSubtitle: string;
+  crmAddQuote: string;
+  crmQuoteNumber: string;
+  crmQuoteStatus: string;
+  crmQuoteAmount: string;
+  crmQuoteTitle: string;
+  crmValidUntil: string;
+  crmLineItems: string;
+  crmAddLine: string;
+  crmQuoteLinesRequired: string;
+  crmQuoteCreated: string;
+  crmMarkSent: string;
+  crmConvertToInvoice: string;
+  crmQuoteConverted: string;
+  crmNoQuotes: string;
+  crmQuoteDraft: string;
+  crmQuoteSent: string;
+  crmQuoteAccepted: string;
+  crmQuoteRejected: string;
+  crmQuoteExpired: string;
+  crmAllStatuses: string;
+  crmContractsTitle: string;
+  crmContractsSubtitle: string;
+  crmAddContract: string;
+  crmContractTitle: string;
+  crmContractStatus: string;
+  crmContractValue: string;
+  crmRenewalDate: string;
+  crmContractStart: string;
+  crmContractEnd: string;
+  crmActivateContract: string;
+  crmContractCreated: string;
+  crmNoContracts: string;
+  crmContractDraft: string;
+  crmContractActive: string;
+  crmContractExpired: string;
+  crmContractTerminated: string;
+
+  docOverviewTitle: string;
+  docOverviewSubtitle: string;
+  docOpenRegistry: string;
+  docOpenArchive: string;
+  docTotalDocuments: string;
+  docExpiringSoon: string;
+  docSignedCount: string;
+  docSharedCount: string;
+  docArchiveTitle: string;
+  docUpload: string;
+  docArchiveEmpty: string;
+  docOpenFailed: string;
+  docRegistryType: string;
+  docRegistryStatus: string;
+  docEffectiveDate: string;
+  docExpiryDate: string;
+  docLoadFailed: string;
+  docRegistryTitle: string;
+  docRegistrySubtitle: string;
+  docAllTypes: string;
+  docAllStatuses: string;
+  docRegistryEmpty: string;
+  docTitle: string;
+  docTypeGeneral: string;
+  docTypeContract: string;
+  docTypePolicy: string;
+  docTypeTemplate: string;
+  docStatusDraft: string;
+  docStatusActive: string;
+  docStatusArchived: string;
+  docStatusExpired: string;
+  docProfileLoadFailed: string;
+  docShareAdded: string;
+  docSaveFailed: string;
+  docVersionRestored: string;
+  docSigned: string;
+  docVerifyComplete: string;
+  docNotFound: string;
+  docBackToArchive: string;
+  docTabOverview: string;
+  docTabVersions: string;
+  docTabSharing: string;
+  docTabSignatures: string;
+  docViewFile: string;
+  docContentHash: string;
+  docArchiveStats: string;
+  docVersionsTotal: string;
+  docSharesTotal: string;
+  docSignaturesTotal: string;
+  docCurrentVersion: string;
+  docNoVersions: string;
+  docRestoreVersion: string;
+  docShareWith: string;
+  docSelectMember: string;
+  docSharePermission: string;
+  docAddShare: string;
+  docSharingWorkspaceOnly: string;
+  docNoShares: string;
+  docSign: string;
+  docVerifySignatures: string;
+  docNoSignatures: string;
+  docShareView: string;
+  docShareDownload: string;
+  docShareEdit: string;
+
+  helpCrmOverview: string;
+  helpCrmPipeline: string;
+  helpCrmContacts: string;
+  helpCrmQuotes: string;
+  helpCrmContracts: string;
+  helpDocOverview: string;
+  helpDocArchive: string;
+  helpDocRegistry: string;
 
   // Schedules / email automations
   emailAutomationsTitle: string;
@@ -1662,7 +2177,7 @@ export interface Translations {
   deleteClientFromSchedulesConfirm: string;
 }
 
-export const translations: Partial<Record<Language, Partial<Translations>>> = {
+export const translations: Record<Language, Partial<Translations>> = {
   en: {
     // Navigation
     dashboard: "Overview",
@@ -1838,6 +2353,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     loansEmptyHint: "Add business loans to track installments, remaining balance, and payment history.",
     totalOutstanding: "Total Outstanding",
     dueThisMonth: "Due This Month",
+    overdueThisMonth: "Overdue This Month",
     loanPaymentsDue: "payments due",
     overdueLoans: "overdue loans",
     activeLoans: "active loans",
@@ -1916,7 +2432,7 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     dashHelpTopExpenses:
       "Your largest expense categories for the selected year. Use this to see where most of your spending goes.",
     dashHelpMonthlyKpis:
-      "Quick snapshot for the current month — all money in (sales, income, invoices, deposits, loans) vs all money out (expenditure, payroll, bills, taxes).",
+      "Quick snapshot for the selected period — all money in vs all money out. Profit is the margin earned on sales (selling price minus cost), not total income.",
     dashHelpUpcomingBills:
       "Bills due in the next 30 days. Tap View all to manage bills, mark paid, or record new ones.",
     dashHelpRecentTransactions:
@@ -1957,12 +2473,26 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
       "Record product or service sales. Revenue and profit are tracked using your product costs and prices.",
     helpDocuments:
       "Store company files — contracts, licenses, receipts, and other documents in one place.",
+    helpDocOverview:
+      "Document management snapshot — contracts, policies, expiring items, and signed files across your workspace.",
+    helpDocArchive:
+      "Upload and browse all company documents. Each upload creates a versioned record with searchable metadata.",
+    helpDocRegistry:
+      "Contract and policy registry — filter by type and status, track effective and expiry dates.",
+    helpAssets:
+      "Register vehicles, machinery, and IT hardware. Track custody, maintenance, depreciation, warranty expiry, and audit history.",
+    helpApprovals:
+      "Review expenses, bills, and payroll submitted by workspace members. Approve or reject before they affect reports and payments.",
     helpReports:
       "Exportable reports for sales, finance, and inventory. Filter by day, week, month, or year and download PDF or Excel.",
     helpAutomations:
       "Schedule emails and reminders to customers — follow-ups, promotions, and recurring messages.",
     helpCalendar:
-      "See income, expenses, bills, taxes, payroll, and custom events on a calendar. Plan around due dates and cash needs.",
+      "Unified calendar view — meetings, leave, milestones, announcements, automations, and finance dates in one timeline.",
+    helpCorpCalOverview:
+      "Corporate calendar snapshot — upcoming meetings, leave windows, delivery milestones, and company announcements across your workspace.",
+    helpCorpCalAnnouncements:
+      "Publish workspace, regional, or company-wide announcements with start and end dates visible on the corporate calendar.",
     helpTeamOverview:
       "Monthly snapshot of team tasks — completion rate, active members, and who is working on what.",
     helpTeamTasks:
@@ -1971,6 +2501,24 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
       "Finance department tasks — monthly close, reconciliations, tax filings, and other finance work items.",
     helpTeamMembers:
       "People on your team — names, roles, departments, and contact details for task assignment.",
+    helpTeamLeave:
+      "Request time off and track approval status. Team members submit leave; workspace owners and admins approve or reject.",
+    helpHrOverview:
+      "Headcount, pending leave, and org structure. People, leave, and payroll live here — separate from task tracking in Team.",
+    helpProjectOverview:
+      "Portfolio snapshot with velocity charts — tasks completed and hours logged over the last four weeks.",
+    helpProjectList:
+      "Create projects, map milestones, assign cross-functional teams, and track deliverables from planning through completion.",
+    helpCrmOverview:
+      "Lead funnel, pipeline value, and recent customer activity across your CRM workspace.",
+    helpCrmPipeline:
+      "Move deals through stages from lead to won — track value and probability at each step.",
+    helpCrmContacts:
+      "Unified customer database with lifecycle stages from lead through customer.",
+    helpCrmQuotes:
+      "Create quotations with line items, mark as sent, and convert accepted quotes to invoices.",
+    helpCrmContracts:
+      "Track contract terms, renewal dates, and active agreements with customers.",
     loadStatementsFailed: "Failed to load financial statements",
     asOfDate: "As of date",
     generateReport: "Generate report",
@@ -2594,1626 +3142,8 @@ export const translations: Partial<Record<Language, Partial<Translations>>> = {
     boxOf: "Box of {qty}",
     noProductsSearchHint: "No items found. Try a different search.",
   },
-  rw: {
-    // Navigation
-    dashboard: "Incamake",
-    products: "Ibicuruzwa",
-    services: "Serivisi",
-    inventories: "Ibicuruzwa",
-    workers: "Abakozi",
-    worker: "Umukozi",
-    expenses: "Ibyasohotse",
-    income: "Amafaranga yinjiye",
-    finance: "Imari",
-    incomeStatements: "Amafaranga yinjiye",
-    incomeSources: "Amafaranga yinjiye",
-    incomeSource: "Inkomoko",
-    incomeSourcePlaceholder: "nka: Ubucuruzi, Serivisi...",
-    incomeBySource: "Amafaranga ukurikije inkomoko",
-    expenditure: "Ibyasohotse",
-    totalIncome: "Amafaranga yinjiye yose",
-    totalExpenditure: "Ibyasohotse byose",
-    totalPayroll: "Imishahara yose",
-    currentBalance: "Asigaye",
-    payroll: "Imishahara",
-    recordPayroll: "Andika umushahara",
-    editPayroll: "Hindura umushahara",
-    employeeName: "Umukozi",
-    payPeriod: "Ukwezi kw'ishyura",
-    payrollStatus: "Imiterere",
-    paid: "Yishyuwe",
-    pending: "Irategereje",
-    noPayrollYet: "Nta mishahara yanditswe",
-    payrollEmptyHint: "Andika imishahara kugira ngo ubone amafaranga yasohotse.",
-    payrollRecorded: "Umushahara wanditswe",
-    payrollRecordedDesc: "Umushahara wabitswe neza.",
-    payrollRemovedDesc: "Umushahara wakuweho.",
-    savePayrollFailed: "Kubika umushahara byanze.",
-    deletePayrollFailed: "Gusiba umushahara byanze.",
-    payrollNameAmountRequired: "Andika izina ry'umukozi, amafaranga, n'ukwezi.",
-    bills: "Inyemezabuguzi",
-    recordBill: "Ongeraho inyemezabuguzi",
-    editBill: "Hindura inyemezabuguzi",
-    billTitle: "Izina ry'inyemezabuguzi",
-    billExamplePlaceholder: "nka: Ubukode, Amashanyarazi...",
-    billNameAmountRequired: "Andika izina n'amafaranga nyayo.",
-    billRecorded: "Inyemezabuguzi yongeweho",
-    billRecordedDesc: "Yabitswe. Izagaragara nk'itegereje kugeza wishyura.",
-    billRemovedDesc: "Inyemezabuguzi yakuweho.",
-    saveBillFailed: "Kubika inyemezabuguzi byanze.",
-    deleteBillFailed: "Gusiba inyemezabuguzi byanze.",
-    markBillPaidFailed: "Kwemeza ko wishyuye byanze.",
-    noBillsYet: "Nta nyemezabuguzi birabaho",
-    billsEmptyHint: "Andika ibyo ugomba kwishyura. Niwishyura, biba ibyasohotse.",
-    billPaid: "Yishyuwe",
-    billPaidDesc: "Yemejwe ko yishyuwe kandi yanditswe mu byasohotse.",
-    billPaidHint: "Ibi bizakora ikiguzi kandi byemeze ko wishyuye.",
-    billStatus: "Imiterere",
-    pendingBills: "Zitegereje",
-    paidBills: "Zishyuwe",
-    allBills: "Zose",
-    markAsPaid: "Emeza ko yishyuwe",
-    vendor: "Uwutanga serivisi",
-    vendorPlaceholder: "Uwishyura",
-    taxes: "Imisoro",
-    recordTax: "Ongeraho Umusoro",
-    editTax: "Hindura Umusoro",
-    taxTitle: "Izina ry'Umusoro",
-    taxType: "Ubwoko bw'Umusoro",
-    taxAuthority: "Ikigo cy'Imisoro",
-    taxAuthorityPlaceholder: "urugero RRA",
-    taxPeriod: "Igihe cy'Umusoro",
-    taxExamplePlaceholder: "urugero VAT Q1, PAYE Mutarama...",
-    taxNameAmountRequired: "Shyiramo izina, ubwoko n'amafaranga y'umusoro.",
-    taxRecorded: "Umusoro Wanditswe",
-    taxRecordedDesc: "Umusoro wabitswe. Wishyure mbere y'itariki ntarengwa.",
-    taxRemovedDesc: "Umusoro wavanywe.",
-    saveTaxFailed: "Kubika umusoro byanze.",
-    deleteTaxFailed: "Gusiba umusoro byanze.",
-    markTaxPaidFailed: "Gushyira umusoro nk'uwishyuwe byanze.",
-    noTaxesYet: "Nta misoro yanditswe",
-    taxesEmptyHint: "Andika imisoro ubucuruzi bwawe bukwiye kugira ngo wishyure ku gihe.",
-    taxPaid: "Umusoro Wishyuwe",
-    taxPaidDesc: "Umusoro wishyuwe kandi wanditswe mu mafaranga yasohotse.",
-    taxPaidHint: "Ibi bizongeramo amafaranga yasohotse kandi umusoro uzashyirwa nk'uwishyuwe.",
-    outstandingTaxes: "Imisoro Isigaye",
-    dueWithin30Days: "Igihe ntarengwa mu minsi 30",
-    taxObligations: "ibisabwa",
-    bankDeposits: "Amafaranga yashyizwe mu banki",
-    recordDeposit: "Andika amafaranga yashyizwe",
-    editDeposit: "Hindura amafaranga yashyizwe",
-    depositTitle: "Izina ry'amafaranga",
-    depositDate: "Itariki yashyizwaho",
-    depositExamplePlaceholder: "urugero: Ingengo y'imari y'ukwezi...",
-    depositNameAmountRequired: "Andika izina n'amafaranga yashyizwe.",
-    depositCustomPeriodRequired: "Shyiraho itariki yo gutangira n'iyo kurangira.",
-    depositRecorded: "Amafaranga yanditswe",
-    depositRecordedDesc: "Amafaranga yashyizwe mu banki yabitswe. Ari ingengo y'imari iboneka.",
-    depositUpdated: "Byavuguruwe",
-    depositUpdatedDesc: "Amafaranga yashyizwe mu banki byavuguruwe neza.",
-    depositRemovedDesc: "Amafaranga yashyizwe mu banki yakuweho.",
-    saveDepositFailed: "Kubika byanze.",
-    deleteDepositFailed: "Gusiba byanze.",
-    noDepositsYet: "Nta mafaranga yashyizwe mu banki",
-    depositsEmptyHint: "Andika amafaranga yashyizwe mu banki kugira ngo ukurikire ingengo y'imari.",
-    budgetPeriod: "Igihe cy'ingengo y'imari",
-    budgetPeriodMonthly: "Ukwezi",
-    budgetPeriodQuarterly: "Igihembwe",
-    budgetPeriodYearly: "Umwaka",
-    budgetPeriodCustom: "Icyitegererezo",
-    budgetPeriodHint: "Igihe iyi depositi igomba gufasha mu gucunga amafaranga.",
-    budgetCovers: "Irakora kugeza",
-    viewBudgetFor: "Reba ingengo y'imari ya",
-    totalDeposited: "Byose Byashyizwe",
-    usedBalance: "Byakoreshejwe",
-    availableBalance: "Asigaye",
-    availableBalanceHint: "Byashyizwe bakuweho ibyasohotse n'imishahara muri iki gihe",
-    activeDeposits: "depositi zikora",
-    periodStart: "Itangira",
-    periodEnd: "Irangira",
-    depositReferencePlaceholder: "Nomero y'inyemezabwishyu cyangwa kohereza",
-    bankAccount: "Konti ya banki",
-    transactionTypeDeposit: "Amafaranga mu banki",
-    loans: "Inguzanyo",
-    addLoan: "Ongeraho inguzanyo",
-    editLoan: "Hindura inguzanyo",
-    loanTitle: "Izina ry'inguzanyo",
-    loanTitlePlaceholder: "urugero: Inguzanyo yo kwagura ubucuruzi",
-    lender: "Utanga inguzanyo",
-    lenderPlaceholder: "urugero: Bank of Kigali",
-    loanType: "Ubwoko bw'inguzanyo",
-    loanTypeBusiness: "Inguzanyo y'ubucuruzi",
-    loanTypeWorkingCapital: "Amafaranga y'imikorere",
-    loanTypeEquipment: "Ibikoresho",
-    loanTypeVehicle: "Imodoka",
-    loanTypeLineOfCredit: "Umurongo w'inguzanyo",
-    loanTypeOther: "Ibindi",
-    principalAmount: "Inguzanyo y'ibanze",
-    installmentAmount: "Ubwishyu buri gihe",
-    interestRate: "Igipimo cy'inyungu",
-    termMonths: "Igihe (amezi)",
-    paymentFrequency: "Inshuro zo kwishyura",
-    maturityDate: "Itariki irangira",
-    nextDueDate: "Itariki ikurikira",
-    remainingBalance: "Asigaye",
-    loanStatus: "Imiterere",
-    loanStatusActive: "Irakora",
-    loanStatusOverdue: "Yarenze igihe",
-    loanStatusPaidOff: "Yarishyuwe",
-    loanAccountNumber: "Nomero ya konti y'inguzanyo",
-    collateral: "Ingwate",
-    collateralPlaceholder: "Umutungo washyizweho ingwate",
-    contactPerson: "Umuntu wo guhamagara",
-    contactPhone: "Telefone",
-    recordLoanPayment: "Andika ubwishyu",
-    paymentHistory: "Amateka y'ubwishyu",
-    paymentAmount: "Amafaranga yishyuwe",
-    paymentDate: "Itariki yo kwishyura",
-    principalPortion: "Inguzanyo y'ibanze",
-    interestPortion: "Inyungu",
-    loanRequiredFields: "Andika izina, utanga inguzanyo, inguzanyo y'ibanze n'ubwishyu.",
-    loanRecorded: "Inguzanyo yanditswe",
-    loanRecordedDesc: "Inguzanyo yabitswe. Kurikirana ubwishyu n'asigaye hano.",
-    loanUpdated: "Byavuguruwe",
-    loanUpdatedDesc: "Inguzanyo yavuguruwe neza.",
-    loanRemovedDesc: "Inguzanyo yakuweho.",
-    saveLoanFailed: "Kubika byanze.",
-    deleteLoanFailed: "Gusiba byanze.",
-    recordLoanPaymentFailed: "Kwandika ubwishyu byanze.",
-    loanPaymentRecorded: "Ubwishyu bwanditswe",
-    loanPaymentRecordedDesc: "Ubwishyu bwabitswe kandi bwongewe mu byasohotse.",
-    loanPaymentAmountRequired: "Andika amafaranga y'ubwishyu.",
-    loanPaymentExpenseHint: "Ubu bwishyu buzandikwa nk'ikiguzi mu byiciro by'inguzanyo.",
-    loanDeleteHasPayments: "Ntushobora gusiba inguzanyo ifite ubwishyu. Byarangiye byishyuwe.",
-    noLoansYet: "Nta nguzanyo",
-    loansEmptyHint: "Ongeraho inguzanyo z'ubucuruzi kugira ngo ukurikire ubwishyu n'asigaye.",
-    totalOutstanding: "Byose Bisigaye",
-    dueThisMonth: "Bikenewe Uku Kwezi",
-    loanPaymentsDue: "ubwishyu bukenewe",
-    overdueLoans: "inguzanyo zarenze igihe",
-    activeLoans: "inguzanyo zikora",
-    totalPaidOnLoans: "Byose Byishyuwe",
-    noPaymentsYet: "Nta bwishyu bwanditswe",
-    customers: "Abakiriya",
-    addCustomer: "Ongeraho umukiriya",
-    editCustomer: "Hindura umukiriya",
-    customerName: "Izina ry'umukiriya",
-    customer: "Umukiriya",
-    selectCustomer: "Hitamo umukiriya",
-    customerCreated: "Umukiriya yongewe",
-    customerCreatedDesc: "Umukiriya wabitswe.",
-    customerUpdated: "Byavuguruwe",
-    customerUpdatedDesc: "Umukiriya yavuguruwe.",
-    customerRemovedDesc: "Umukiriya yakuweho.",
-    saveCustomerFailed: "Kubika byanze.",
-    deleteCustomerFailed: "Gusiba byanze.",
-    customerNameRequired: "Andika izina ry'umukiriya.",
-    noCustomersYet: "Nta bakiriya",
-    customersEmptyHint: "Ongeraho abakiriya kugira ngo ukurikire amafaranga n'invoices.",
-    viewStatement: "Reba statement",
-    downloadStatement: "Kuramo statement PDF",
-    loadCustomerActivityFailed: "Kubona amakuru byanze.",
-    vendors: "Abatanga",
-    addVendor: "Ongeraho uwutanga",
-    editVendor: "Hindura uwutanga",
-    vendorName: "Izina ry'uwutanga",
-    selectVendor: "Hitamo uwutanga",
-    vendorCreated: "Uwutanga yongewe",
-    vendorCreatedDesc: "Uwutanga wabitswe.",
-    vendorUpdated: "Byavuguruwe",
-    vendorUpdatedDesc: "Uwutanga yavuguruwe.",
-    vendorRemovedDesc: "Uwutanga yakuweho.",
-    saveVendorFailed: "Kubika byanze.",
-    deleteVendorFailed: "Gusiba byanze.",
-    vendorNameRequired: "Andika izina ry'uwutanga.",
-    noVendorsYet: "Nta batanga",
-    vendorsEmptyHint: "Ongeraho abatanga kugira ngo ukurikire amafaranga n'amateka yo kwishyura.",
-    loadVendorActivityFailed: "Kubona amakuru byanze.",
-    accounts: "Konti",
-    addAccount: "Ongeraho konti",
-    editAccount: "Hindura konti",
-    accountName: "Izina rya konti",
-    accountType: "Ubwoko bwa konti",
-    accountCreated: "Konti yongewe",
-    accountCreatedDesc: "Konti yabitswe.",
-    accountUpdated: "Byavuguruwe",
-    accountUpdatedDesc: "Konti yavuguruwe.",
-    accountRemovedDesc: "Konti yakuweho.",
-    saveAccountFailed: "Kubika byanze.",
-    deleteAccountFailed: "Gusiba byanze.",
-    accountNameRequired: "Andika izina rya konti.",
-    noAccountsYet: "Nta konti",
-    accountsEmptyHint: "Ongeraho konti za cash, banki, MoMo cyangwa Airtel.",
-    openingBalance: "Amafaranga yambere",
-    transferFunds: "Kohereza amafaranga",
-    fromAccount: "Kuva kuri konti",
-    toAccount: "Kujya kuri konti",
-    selectAccount: "Hitamo konti",
-    paymentAccount: "Konti yishyurwa",
-    noAccountSelected: "Nta konti yatoranyijwe",
-    financialStatements: "Imyanzuro y'imari",
-    financialStatementsHint: "Inyungu n'igihombo, impapuro z'imari, n'imigendekere y'amafaranga.",
-    profitLoss: "Inyungu n'igihombo",
-    balanceSheet: "Impapuro z'imari",
-    cashFlow: "Imigendekere y'amafaranga",
-    dashHelpReceivables:
-      "Amafaranga abakiriya bagufitiye. Bikurikirana inyemezabuguzi zitishyuwe (cyangwa amafaranga winjije). By'ubu = ntibirageze; Byarenze igihe = byarenze itariki yo kwishyura. Kanda + New wongere amafaranga winjije cyangwa inyemezabuguzi.",
-    dashHelpPayables:
-      "Amafaranga utishyura abacuruzi. Igiteranyo cyerekana fagitire zose zitishyuwe. By'ubu = ntizirenze igihe; Byarenze igihe = zirenze itariki yo kwishyura. Kanda + New wandike fagitire.",
-    dashHelpCashFlow:
-      "Imigendekere y'amafaranga mu mwaka w'imari wahisemo. Icyatsi = amafaranga winjije; Ibara ry'umutuku = amafaranga yasohotse. Amafaranga yo gutangira no kurangiza byerekana uko wifashe mu ntangiriro n'impera z'umwaka.",
-    dashHelpIncomeExpense:
-      "Amafaranga winjije n'ayasohotse buri kwezi. Cash = igihe amafaranga yinjiye cyangwa yasohotse; Accrual = igihe byanditswe. Igiteranyo ntikirimo imisoro.",
-    dashHelpTopExpenses:
-      "Ibyiciro by'ingenzi byo kwishyura mu mwaka wahisemo. Bikugufasha kumenya aho amafaranga menshi yagiye.",
-    dashHelpMonthlyKpis:
-      "Incamake y'ukwezi kuriki — inyungu zinjiye, ibyo wishyuye, inyungu, n'imisoro isigaye.",
-    dashHelpUpcomingBills:
-      "Amafaranga agomba kwishyurwa mu minsi 30 iri imbere. Kanda View all kugira ngo uyobore amafaranga.",
-    dashHelpRecentTransactions:
-      "Ibikorwa bya vuba by'inyungu n'ibyo wishyura. Kanda View all urebe urutonde rwose.",
-    helpIncome:
-      "Andika amafaranga ubucuruzi bwakira — ibicuruzwa, serivisi, cyangwa indi nyungu. Buri byanditswe birashobora kugira uburyo bwo kwishyura, konti, n'inyemezabwishyu.",
-    helpCustomers:
-      "Bika urutonde rw'abakiriya ugurira cyangwa utanga invoice. Koresha abakiriya mu gukora invoices no gukurikirana abagufitiye.",
-    helpInvoices:
-      "Kora no kohereza invoices ku bakiriya. Kurikirana amafaranga atarishyurwa, ari mu gihe, n'ayarenze igihe.",
-    helpVendors:
-      "Abatanga ibicuruzwa n'amakoperative ugura kuri bo. Huza abatanga n'amafaranga kugira ngo umenye uwo ufitiye.",
-    helpBankDeposits:
-      "Andika amafaranga cyangwa mobile money yinjiye mu konti ya banki. Bifasha guhuza cash n'uburinganire bwa banki.",
-    helpAccounts:
-      "Konti za cash, banki, na mobile money aho amafaranga abikwa. Inyungu n'ibyo wishyura birashobora guhabwa konti.",
-    helpFinancialStatements:
-      "Raporo z'inyungu n'igihombo, balance sheet, na cash flow ku gihe cyagenwe. Kuramo PDF ku bw'inyandiko cyangwa umucungamari.",
-    helpBankReconciliation:
-      "Huza ibikorwa bya konti n'inyandiko za banki. Shyira akamenyetso ko byahujwe iyo byagaragaye ku statement.",
-    helpCategoryBudgets:
-      "Shyiraho imipaka yo kwishyura ku byiciro ku kwezi cyangwa umwaka. Gereranya ibyo wishyuye n'ingengo y'imari.",
-    helpLoans:
-      "Kurikirana amafaranga yinjijwe cyangwa yatanzwe — ingingo, kwishyura, n'asigaye.",
-    helpBills:
-      "Amafaranga ufitiye abatanga. Andika itariki yo kwishyura, shyira akamenyetso ko byishyuwe, urebe ibiri mu gihe n'ibirenze.",
-    helpTaxes:
-      "Inshingano n'ubwishyu bw'imisoro — amafaranga akenewe, itariki zo gutanga, n'ibyo wamaze kwishyura.",
-    helpExpenditure:
-      "Ibikorwa bya buri munsi byo kwishyura. Shyira mu byiciro kandi ongeraho inyemezabwishyu.",
-    helpPayroll:
-      "Kwishyura abakozi n'abakora ku gahato. Andika amafaranga n'itariki zo kwishyura.",
-    helpTransactions:
-      "Imihindagurikire y'amafaranga muri konti zose — inyungu, ibyo wishyura, transfers, na payroll.",
-    helpProducts:
-      "Urutonde rw'ibicuruzwa — amazina, ibiciro, stock, n'ibyiciro. Stock ihinduka iyo wanditse ibicuruzwa.",
-    helpSales:
-      "Andika ibicuruzwa cyangwa serivisi byagurishijwe. Inyungu n'inyungu zikurikiranwa ukoresheje ibiciro by'ibicuruzwa.",
-    helpDocuments:
-      "Bika inyandiko z'ikigo — amasezerano, uruhushya, inyemezabwishyu, n'indi nyandiko.",
-    helpReports:
-      "Raporo zishobora gukurwamo za sales, imari, na stock. Hitamo umunsi, icyumweru, ukwezi cyangwa umwaka.",
-    helpAutomations:
-      "Tegura email n'ibutsa ku bakiriya — gukurikirana, promosiyo, n'ubutumwa buhoraho.",
-    helpCalendar:
-      "Reba inyungu, ibyo wishyura, amafaranga, imisoro, payroll, n'ibikorwa ku kalendari. Tegura ukurikije amatariki.",
-    helpTeamOverview:
-      "Incamake y'ibikorwa by'itsinda ku kwezi — igipimo cyo kurangiza, abanyamuryango, n'uko bigenda.",
-    helpTeamTasks:
-      "Shyira ibikorwa ku banyamuryango, shyiraho itariki, ukurikirane uko bigenda kuva todo kugeza done.",
-    helpTeamFinanceTasks:
-      "Ibikorwa by'ishami ry'imari — gufunga ukwezi, reconciliation, gutanga imisoro, n'ibindi.",
-    helpTeamMembers:
-      "Abantu bo mu itsinda — amazina, imirimo, amashami, n'amakuru yo guhamagara.",
-    loadStatementsFailed: "Byanze gupakira imyanzuro y'imari",
-    asOfDate: "Ku itariki",
-    generateReport: "Kora raporo",
-    totalExpenses: "Amafaranga yose yasohotse",
-    netProfit: "Inyungu rusange",
-    assets: "Umutungo",
-    cashAndBank: "Amafaranga na banki",
-    accountsReceivable: "Abakiriye",
-    inventoryValue: "Agaciro k'ibicuruzwa",
-    totalAssets: "Umutungo wose",
-    liabilitiesAndEquity: "Inyongera n'ubwishingizi",
-    accountsPayable: "Abishyurwa",
-    loanLiabilities: "Inguzanyo zisigaye",
-    totalLiabilities: "Inyongera yose",
-    equity: "Ubwishingizi",
-    operatingCashIn: "Amafaranga yinjiye mu bikorwa",
-    operatingCashOut: "Amafaranga yasohotse mu bikorwa",
-    netOperatingCash: "Amafaranga asigaye mu bikorwa",
-    financingDeposits: "Amafaranga yashyizwe mu banki",
-    netChangeInCash: "Impinduka y'amafaranga",
-    bankReconciliation: "Guhuza na banki",
-    bankReconciliationHint: "Huza ibikorwa bya konti n'inyandiko za banki.",
-    closingBalance: "Amafaranga asigaye",
-    reconciledCount: "Byahujwe",
-    unreconciledCount: "Bitarahuza",
-    reconciled: "Byahujwe",
-    noReconciliationEntries: "Nta bikorwa muri iyi minsi kuri iyi konti.",
-    transactionType: "Ubwoko",
-    refresh: "Ongera ugerageze",
-    transfer: "Kohereza",
-    transferComplete: "Byoherejwe",
-    transferCompleteDesc: "Amafaranga yoherejwe hagati ya konti.",
-    transferFailed: "Kohereza byanze.",
-    transferInvalid: "Hitamo konti n'amafaranga.",
-    categoryBudgets: "Ingengo y'imari",
-    addCategoryBudget: "Ongeraho ingengo",
-    categoryBudgetRequired: "Andika category n'amafaranga.",
-    budgetCreated: "Ingengo yongewe",
-    budgetCreatedDesc: "Ingengo y'imari yabitswe.",
-    saveBudgetFailed: "Kubika byanze.",
-    deleteBudgetFailed: "Gusiba byanze.",
-    budgetRemovedDesc: "Ingengo yakuweho.",
-    loadBudgetSummaryFailed: "Kubona incamake byanze.",
-    totalBudget: "Ingengo yose",
-    totalActual: "Byakoreshejwe",
-    viewPeriod: "Igihe",
-    budget: "Ingengo",
-    actual: "Byakoreshejwe",
-    budgetRules: "Amategeko y'ingengo",
-    noBudgetsYet: "Nta ngengo",
-    budgetsEmptyHint: "Shyiraho imipaka y'amafaranga ku category.",
-    noSalesYet: "Nta bucuruzi",
-    salesEmptyHint: "Andika ubucuruzi kugira ngo ukurikire amafaranga n'stoki.",
-    saleRequiredFields: "Hitamo icuruzwa n'umubare.",
-    saveSaleFailed: "Kwandika ubucuruzi byanze.",
-    balanceDue: "Asigaye",
-    totalPaid: "Byishyuwe",
-    email: "Imeli",
-    phone: "Telefone",
-    invoices: "Invoices",
-    createInvoice: "Kora invoice",
-    editInvoice: "Hindura invoice",
-    invoiceTitle: "Izina rya invoice",
-    invoiceNumber: "Invoice #",
-    invoiceStatus: "Imiterere",
-    invoiceStatus_draft: "Draft",
-    invoiceStatus_sent: "Yoherejwe",
-    invoiceStatus_paid: "Yishyuwe",
-    invoiceStatus_overdue: "Yarenze igihe",
-    unpaidInvoices: "Invoices zitishyuwe",
-    noInvoicesYet: "Nta invoices",
-    invoicesEmptyHint: "Kora invoices kugira ngo wishyure abakiriya.",
-    invoiceRequiredFields: "Andika izina n'ibintu by'invoice.",
-    invoiceCreated: "Invoice yakoze",
-    invoiceCreatedDesc: "Invoice yabitswe.",
-    invoiceUpdated: "Byavuguruwe",
-    invoiceUpdatedDesc: "Invoice yavuguruwe.",
-    invoiceRemovedDesc: "Invoice yakuweho.",
-    saveInvoiceFailed: "Kubika byanze.",
-    deleteInvoiceFailed: "Gusiba byanze.",
-    markInvoiceSentFailed: "Kohereza byanze.",
-    markInvoicePaidFailed: "Kwemeza kwishyura byanze.",
-    invoiceSent: "Yoherejwe",
-    invoiceSentDesc: "Invoice yemejwe ko yoherejwe.",
-    invoicePaid: "Yishyuwe",
-    invoicePaidDesc: "Kwishyura kwanditswe mu mafranga yinjiye.",
-    recurringInvoiceCreated: "Invoice isubiramo",
-    recurringInvoiceCreatedDesc: "Invoice ikurikira yakoze.",
-    lineItems: "Ibintu",
-    addLine: "Ongeraho umurongo",
-    unitPrice: "Igiciro kimwe",
-    description: "Ibisobanuro",
-    issueDate: "Itariki yatanzwe",
-    paymentTerms: "Amabwiriza yo kwishyura",
-    paymentTermsPlaceholder: "urugero: mu minsi 14",
-    recurringInvoice: "Invoice isubiramo",
-    markAsSent: "Emeza ko yoherejwe",
-    downloadPdf: "Kuramo PDF",
-    referenceNumber: "Nomero y'Icyitonderwa",
-    referenceNumberPlaceholder: "Nomero yo gutanga cyangwa kwishyura",
-    dueDate: "Itariki yo kwishyura",
-    overdue: "Yarenze igihe",
-    transactions: "Ibikorwa",
-    noTransactionsYet: "Nta bikorwa by'imari birabaho",
-    transactionTypeIncome: "Amafaranga yinjiye",
-    transactionTypeExpense: "Ikiguzi",
-    transactionTypePayroll: "Umushahara",
-    recordIncome: "Andika amafaranga yinjiye",
-    editIncome: "Hindura amafaranga yinjiye",
-    incomeTitle: "Izina ry'amafaranga",
-    incomeExamplePlaceholder: "nka: Kwishyurwa n'umukiriya...",
-    incomeNameAmountRequired: "Andika izina n'amafaranga nyayo.",
-    incomeRecorded: "Amafaranga yanditswe",
-    incomeRecordedDesc: "Amafaranga yinjiye yabitswe neza.",
-    saveIncomeFailed: "Kubika amafaranga byanze.",
-    incomeRemovedDesc: "Amafaranga yakuweho.",
-    deleteIncomeFailed: "Gusiba byanze.",
-    noIncomeYet: "Nta mafaranga yinjiye",
-    incomeEmptyHint: "Andika amafaranga ubucuruzi bwakira kugira ngo ubone asigaye.",
-    uploadReceipt: "Shyiraho inyemezabwishyu",
-    changeReceipt: "Hindura dosiye",
-    viewReceipt: "Reba inyemezabwishyu",
-    receipt: "Inyemezabwishyu",
-    receiptUploadHint: "Ifoto cyangwa PDF, max 5 MB",
-    other: "Ibindi",
-    billing: "Kwishyura",
-    sales: "Ibyakozwe",
-    reports: "Raporo",
-    settings: "Igenamiterere",
-    bookings: "Gahunda",
-    logout: "Sohoka",
-    sidebarSectionOverview: "Incamake",
-    sidebarSectionOperations: "Ibikorwa",
-    sidebarSectionFinance: "Imari",
-    sidebarSectionInsights: "Isesengura",
-    sidebarSectionAccount: "Konti",
-    
-    // Common
-    save: "Bika",
-    update: "Hindura",
-    updating: "Birimo guhindura...",
-    saving: "Birimo kubika...",
-    cancel: "Kureka",
-    close: "Funga",
-    delete: "Siba",
-    edit: "Hindura",
-    add: "Ongeraho",
-    name: "Izina",
-    price: "Igiciro",
-    search: "Shakisha",
-    filter: "Akayunguruzo",
-    loading: "Buri mu nzira...",
-    signIn: "Injira",
-    getStarted: "Tangira",
-    
-    // Settings
-    businessInfo: "Amakuru y'ubucuruzi",
-    security: "Umutekano",
-    language: "Ururimi",
-    businessName: "Izina ry'ubucuruzi",
-    ownerName: "Izina ry'umuyobozi",
-    emailAddress: "Aderesi ya imeri",
-    saveChanges: "Bika amahinduka",
-    changePin: "Hindura PIN",
-    setPin: "Shiraho PIN",
-    currentPin: "PIN y'ubu",
-    newPin: "PIN nshya",
-    confirmPin: "Emeza PIN",
-    
-    // Products
-    productName: "Izina ry'icuruzwa",
-    category: "Icyiciro",
-    cost: "Igiciro",
-    costPrice: "Igiciro",
-    selling: "Kugurisha",
-    sellingPrice: "Kugurisha",
-    stock: "Ibihari",
-    addProduct: "Igicuruzwa gishya",
-    productsAvailable: "Ibicuruzwa biboneka",
-    noProductsYet: "Nta bicuruzwa biraboneka. Kanda Igicuruzwa gishya utangire.",
-    editProduct: "Hindura icuruzwa",
-    deleteProduct: "Siba icuruzwa",
-    stockQuantity: "Umubare w'stoki",
-    initialStock: "Stoki y'ibanze",
-    minimumStock: "Stoki buke",
-    
-    // Sales
-    recordSale: "Andika ubucuruzi",
-    recordSales: "Andika ubucuruzi",
-    quantity: "Umubare",
-    enterQuantity: "Andika umubare",
-    paymentMethod: "Uburyo bwo kwishyura",
-    saleDate: "Itariki y'ubucuruzi",
-    cash: "Amafaranga",
-    momoPay: "Momo Pay",
-    card: "Kariye",
-    airtelPay: "Airtel Pay",
-    bankTransfer: "Kohereza mu banki",
-    bankAccountName: "Izina rya banki / konti",
-    bankAccountNumber: "Nomero ya konti",
-    bankAccountNamePlaceholder: "urugero Bank of Kigali",
-    bankAccountNumberPlaceholder: "urugero 1234567890",
-    
-    // Reports
-    totalRevenue: "Amafaranga yose",
-    totalProfit: "Inyungu yose",
-    totalSales: "Ubucuruzi bwose",
-    export: "Kohereza hanze",
-    
-    // Home
-    runBusinessSmarter: "Koresha ubucuruzi bwawe mu buryo bwihuse na Trippo",
-    features: "Imiterere",
-    pricing: "Amafaranga",
-    testimonials: "Ibyo abakoresha bavuga",
-    whatOurUsersSay: "Ibyo abakoresha bacu bavuga",
-    productManagement: "Serivisi & Stoki",
-    salesTracking: "Ubucuruzi & Amafaranga",
-    reportsAnalytics: "Abakozi & Raporo",
-    offlineSupport: "Kwishyura & Nta interineti",
-    addEditManageInventory: "Yobora serivisi, ibicuruzwa, n'uburyo stoki ikagenda mu dashibodi imwe. Ongeraho ibintu, kureba stoki, kandi umenye ibyo ugurisha.",
-    trackStockLevels: "Kureba uko stoki ikagenda",
-    recordSalesTransactions: "Andika ubucuruzi, andika amafaranga yakoreshejwe, kandi urebe amafaranga yinjiza n'inyungu ku dashibodi. Menya uko ubucuruzi bwawe bukagenda buri munsi.",
-    trackRevenueProfits: "Kureba amafaranga yinjiza n'inyungu",
-    viewDetailedReports: "Yobora abakozi bawe, reba raporo z'ubucuruzi n'amafaranga, kandi ukurebe imiterere kugirango ukure ubucuruzi bwawe.",
-    generateComprehensiveAnalytics: "Kora raporo zuzuze",
-    workOfflineAutoSync: "Iyandikishe ukoresheje MTN MoMo cyangwa Airtel Money. Komeza ukora nta interineti — amakuru yawe ahuzwa mu buryo bwikora igihe interineti isubira.",
-    dataAlwaysSafeAccessible: "Amakuru yawe azahoraho kandi akagera kuri buri gihe",
-    basicPlan: "Gisanzwe",
-    proPlan: "Pro",
-    enterprisePlan: "Ubucuruzi",
-    customPlan: "Bitezimbere",
-    perMonth: "/ukwezi",
-    everythingInBasic: "Ibyose bya Gisanzwe",
-    unlimitedProducts: "Ibicuruzwa byuzuye",
-    advancedAnalyticsInsights: "Raporo zuzuze & ubushishozi",
-    exportReports: "Kohereza raporo (PDF, Excel)",
-    prioritySupport: "Gufasha byibanze",
-    everythingInPro: "Ibyose bya Pro",
-    multiUserAccess: "Kugera abakoresha benshi",
-    advancedSecurityFeatures: "Imiterere y'umutekano yuzuye",
-    apiAccessIntegrations: "Kugera API & guhuza",
-    dedicatedAccountManager: "Uyobora konti witezimbere",
-    everythingInEnterprise: "Ibyose by'Ubucuruzi",
-    customFeatureDevelopment: "Gukora imiterere bitezimbere",
-    whiteLabelSolution: "Igisubizo cy'izina ryawe",
-    onPremiseDeployment: "Gushyira mu nzu yawe",
-    prioritySupport247: "Gufasha byibanze 24/7",
-    subscribe: "Kwiyandikisha",
-    trippoTransformedInventory: "Trippo imfasha gukurikirana serivisi n'ubucuruzi mu iduka ryanjye. Nyobora abakozi, mbona amafaranga yinjira buri munsi ku dashibodi, none ndabona aho amafaranga yanjye ajya.",
-    mostUsefulInventoryTool: "Twavuye mu bitabo tujya kuri Trippo kubucuruzi n'amafaranga. Raporo ziratwereka ibyo bigurishwa cyane buri cyumweru — bitwungurura amasaha menshi buri kwezi.",
-    bestInventoryManagementFlexibility: "Kwishyura Plus na MoMo byoroshye. N'igihe interineti igenda, ndakomeza kwandika ubucuruzi nta interineti kandi byose bihuzwa igihe interineti isubira.",
-    storeManagerRetailCo: "Uyobora iduka, Retail Co.",
-    businessOwnerChenTrading: "Umuyobozi w'ubucuruzi, Chen Trading",
-    operationsDirectorWilliamsSupply: "Umuyobozi w'ibikorwa, Williams Supply",
-    ourPartners: "Abafatanyabikorwa bacu",
-    homeTestimonial1Attribution: "Claudine Mukamana · Kigali",
-    homeTestimonial2Attribution: "Jean Bosco Niyonzima · Nyamirambo",
-    homeTestimonial3Attribution: "Espérance Uwase · Remera",
-    productColumn: "Icuruzwa",
-    resourcesColumn: "Imikoreshereze",
-    companyColumn: "Sosiyete",
-    legalColumn: "Amategeko",
-    connectColumn: "Kwiyunga",
-    featuresLink: "Imiterere",
-    pricingLink: "Amafaranga",
-    enterpriseLink: "Ubucuruzi",
-    reportsLink: "Raporo",
-    analyticsLink: "Raporo",
-    documentationLink: "Inyandiko",
-    supportLink: "Gufasha",
-    blogLink: "Blog",
-    guidesLink: "Amabwiriza",
-    apiLink: "API",
-    aboutLink: "Ibyerekeye",
-    careersLink: "Akazi",
-    contactLink: "Kwiyunga",
-    pressLink: "Itangazamakuru",
-    termsOfServiceLink: "Amabwiriza y'ikoresha",
-    privacyPolicyLink: "Politiki y'ubwigenge",
-    dataUseLink: "Gukoresha amakuru",
-    securityLink: "Umutekano",
-    twitterLink: "X (Twitter)",
-    linkedinLink: "LinkedIn",
-    youtubeLink: "YouTube",
-    copyright: "© 2025 Trippo.",
-    allRightsReserved: "Uburenganzira bwose burabitswe.",
-    productInventoryManagement: "Uyobozibwe bw'stoki y'ibicuruzwa",
-    salesTrackingRecording: "Kureba n'andika ubucuruzi",
-    basicReportsAnalytics: "Raporo zisanzwe n'ubushishozi",
-    offlineSupportSync: "Gufasha nta interineti hamwe no guhuza",
-    upTo100Products: "Kugeza ku bicuruzwa 100",
-    
-    // Dashboard
-    todaysRevenue: "Amafaranga y'u munsi",
-    todaysProfit: "Inyungu y'u munsi",
-    todaysExpenses: "Ibyasohotse uyu munsi",
-    todaysExpenseCount: "Umubare w'ibyasohotse uyu munsi",
-    weekExpenses: "Ibyasohotse icyumweru",
-    weekExpenseCount: "Umubare w'ibyasohotse icyumweru",
-    monthExpenses: "Ibyasohotse uku kwezi",
-    monthExpenseCount: "Umubare w'ibyasohotse uku kwezi",
-    yearExpenses: "Ibyasohotse uku mwaka",
-    yearExpenseCount: "Umubare w'ibyasohotse uku mwaka",
-    expensesRecorded: "ibyasohotse byanditswe",
-    weekRevenue: "Amafaranga y'icyumweru",
-    weekProfit: "Inyungu y'icyumweru",
-    monthRevenue: "Amafaranga y'uku kwezi",
-    monthProfit: "Inyungu y'uku kwezi",
-    yearRevenue: "Amafaranga y'uku mwaka",
-    yearProfit: "Inyungu y'uku mwaka",
-    periodToday: "Uyu munsi",
-    periodWeek: "Icyumweru",
-    periodMonth: "Ukwezi",
-    periodYear: "Umwaka",
-    vsYesterday: "ugereranyije n'ejo",
-    vsLastWeek: "ugereranyije n'icyumweru gishize",
-    vsLastMonth: "ugereranyije n'ukwe gushize",
-    vsLastYear: "ugereranyije n'umwaka ushize",
-    todaysItems: "Ibintu by'u munsi",
-    currentStockValue: "Agaciro k'stoki",
-    items: "ibintu",
-    recordNewSale: "Andika ubucuruzi bushya",
-    bulkAdd: "Ongeraho byinshi",
-    singleSale: "Ubucuruzi bumwe",
-    selectProduct: "Hitamo icuruzwa",
-    suggestedPrice: "Igiciro giteganyijwe",
-    youCanChangeThis: "Urashobora guhindura",
-    availableStock: "Stoki buhari",
-    addRow: "Ongeraho umurongo",
-    spreadsheetMode: "Imbonerahamwe",
-    spreadsheetHint: "Uzuza imirongo nk'uburyo bwa Excel, hanyuma ubike byose icyarimwe. Urashobora guhindura n'ibisanzwe.",
-    saveAll: "Bika byose",
-    hello: "Muraho",
-    greetingFallback: "Inshuti",
-    quickActions: "Ibyibanze",
-    quickActionsHint: "Kanda kugirango ukore ibikorwa byihuse",
-    servicesToday: "Serivisi z'uyu munsi",
-    servicesRecorded: "serivisi zakozwe",
-    activeServices: "Serivisi ziboneka",
-    servicesInSystem: "serivisi muri sisitemu",
-    recentActivity: "Biheruka",
-    salesAndExpenses: "Serivisi n'ibyakoreshejwe",
-    recentSalesAndExpenses: "Serivisi n'ibyakoreshejwe",
-    recentSales: "Serivisi za vuba",
-    salesExpenseBalance: "Serivisi n'ibyakoreshejwe",
-    netFlow: "Inyungu rusange",
-    latestActivity: "Ibikorwa biheruka",
-    noActivity: "Nta bikorwa",
-    noRecentActivity: "Nta bikorwa biheruka",
-    details: "Ibisobanuro",
-    amountRwf: "Amafaranga (Rwf)",
-    searchProductsAndServices: "Shakisha ibicuruzwa cyangwa serivisi...",
-    packageLabel: "Igipaki",
-    productOrService: "Igicuruzwa / Serivisi",
-    saleMode: "Uburyo bwo kugurisha",
-    sellByQuantity: "Kugurisha ku mubare",
-    sellWholePackage: "Kugurisha igipaki cyose",
-    revenueMinusCost: "(Amafaranga − inguzanyo)",
-    expenseExamplePlaceholder: "nka: Umuriro, Ubukode...",
-    expenseCategoryPlaceholder: "nka: Ibikoresho",
-    expenseNotePlaceholder: "Andika ibisobanuro...",
-    presets: "Ibyihuse",
-    mostUsed: "Byinshi ukoresha",
-    savePreset: "Bika nk'icyihuse",
-    addMultipleSalesHint: "Andika ubucuruzi bwinshi icyarimwe",
-    serviceBadge: "Serivisi",
-    typeLabel: "Ubwoko",
-    
-    // Products Page
-    allProducts: "Ibicuruzwa byose",
-    addNewProduct: "Ongeraho icuruzwa gishya",
-    backToProducts: "Subira ku bicuruzwa",
-    productType: "Ubwoko bw'icuruzwa",
-    packageQuantity: "Umubare w'ibintu mu gipaki",
-    minStockAlert: "Icyitonderwa cy'stoki",
-    status: "Imiterere",
-    actions: "Ibyakozwe",
-    noProducts: "Ntacyo cyabonetse",
-    sortBy: "Gutondekanya",
-    newest: "Gishya",
-    oldest: "Gishaje",
-    nameAsc: "Izina (A-Z)",
-    nameDesc: "Izina (Z-A)",
-    priceAsc: "Igiciro (Guke-Gukomeye)",
-    priceDesc: "Igiciro (Gukomeye-Guke)",
-    allCategories: "Ubwoko bwose",
-    allStatus: "Imiterere yose",
-    inStock: "Buriho",
-    lowStock: "Stoki buke",
-    outOfStock: "Ntacyo cyabonetse",
-    bulkAddProducts: "Ongeraho ibicuruzwa byinshi",
-    productTypeVariant: "Ubwoko/Icyihindurwa cy'icuruzwa (Bibasha)",
-    enterProductName: "Injiza izina ry'icuruzwa",
-    enterCategory: "Injiza ubwoko",
-    enterPrice: "Injiza igiciro",
-    enterStock: "Injiza stoki",
-    addMultipleProducts: "Ongeraho ibicuruzwa byinshi hamwe",
-    selectProductFirst: "Hitamo icuruzwa mbere",
-    item: "kintu",
-    allPrices: "Ibiciro byose",
-    filterPriceUnder5k: "Munsi ya 5,000 Rwf",
-    filterPrice5kTo20k: "5,000 – 20,000 Rwf",
-    filterPriceOver20k: "Hejuru ya 20,000 Rwf",
-    allRoles: "Inshingano zose",
-    allDisciplines: "Imyitwarire yose",
-    allAttendance: "Kwitabira kwose",
-    allPaymentMethods: "Uburyo bwose bwo kwishyura",
-    allSaleTypes: "Ubwoko bwose",
-    saleTypeProduct: "Ibicuruzwa",
-    saleTypeService: "Serivisi",
-    allBusinessTypes: "Ubwoko bwose bw'ubucuruzi",
-    allClientTypes: "Ubwoko bwose bw'abakiriya",
-    filterHasSchedules: "Bafite gahunda",
-    filterHasActiveSchedules: "Gahunda zikora",
-    filterHasOverdueSchedules: "Gahunda zarenze igihe",
-    stockAsc: "Stoki (Nke-Nini)",
-    stockDesc: "Stoki (Nini-Nke)",
-    filterLast30Days: "Iminsi 30 ishize",
-    allWorkers: "Abakozi bose",
-    
-    // Sales Page
-    allSales: "Ubucuruzi bwose",
-    filterSales: "Gutondekanya ubucuruzi",
-    startDate: "Itariki yatangira",
-    endDate: "Itariki yarangiye",
-    noSales: "Ntacyo cyabonetse",
-    product: "Ibicuruzwa",
-    revenue: "Amafaranga",
-    profit: "Inyungu",
-    date: "Itariki",
-    payment: "Kwishyura",
-    bulkSaleMode: "Uburyo bwo kwandika ubucuruzi byinshi",
-    addMultipleSales: "Ongeraho ubucuruzi byinshi hamwe",
-    recording: "Buri mu nzira...",
-    
-    // Reports Page
-    salesReport: "Raporo y'ubucuruzi",
-    dateRange: "Igihe",
-    last7Days: "Iminsi 7 ishize",
-    last30Days: "Iminsi 30 ishize",
-    last90Days: "Iminsi 90 ishize",
-    thisMonth: "Uku kwezi",
-    lastMonth: "Ukwezi gushize",
-    thisYear: "Uku mwaka",
-    custom: "Bihagije",
-    exportPdf: "Kohereza PDF",
-    exportExcel: "Kohereza Excel",
-    salesTrend: "Amafarango yinjiye n'ibyasohotse",
-    salesTrendLast7Days: "Amafarango yinjiye n'ibyasohotse (mu minsi 7)",
-    topProducts: "Ibicuruzwa by'ibanze",
-    salesByCategory: "Ubucuruzi by'ubwoko",
-    paymentMethods: "Uburyo bwo kwishyura",
-    
-    // Common Messages
-    confirmDelete: "Emeza gusiba",
-    areYouSure: "Urasabye?",
-    thisActionCannotBeUndone: "Iki gikorwa ntikigishobora guhindurwa.",
-    yesDelete: "Yego, Siba",
-    noCancel: "Oya, Kureka",
-    success: "Byagenze neza",
-    error: "Ikosa",
-    saved: "Byabitswe",
-    updated: "Byahinduwe",
-    deleted: "Byasibwe",
-    failed: "Byanze",
-    pleaseTryAgain: "Nyamuneka gerageza nanone",
-
-    // Expenses
-    oneTimeExpense: "Ibyasohotse",
-    recurringExpenses: "Ibikunda gusohoka",
-    expenseTitle: "Izina ry'icyasohotse",
-    amount: "Amafaranga",
-    note: "Detaye",
-    noteOptional: "Detaye (si ngombwa)",
-    saveExpense: "Bika ibyakozwe",
-    addMultipleExpenses: "Ongeraho ibyasohotse byinshi hamwe",
-    addExpensesBtn: "Ongeraho ibyasohotse",
-    recentExpenses: "Ibiheruka gusohoka",
-
-    addService: "Ongeraho serivisi",
-    addMultipleServices: "Ongeraho serivisi nyinshi hamwe",
-    addServicesBtn: "Ongeraho serivisi",
-    editService: "Hindura serivisi",
-    serviceName: "Izina rya serivisi",
-    noServicesFound: "Nta serivisi ziboneka.",
-    noServicesAddFirst: "Nta serivisi ziboneka. Banza wongereho serivisi.",
-    recordService: "Andika serivisi",
-    selectService: "Hitamo serivisi",
-    selectWorker: "Hitamo umukozi",
-    invalidInput: "Amakuru atari yo",
-    validServiceRequired: "Andika izina rya serivisi n'igiciro cyemewe.",
-    serviceUpdated: "Serivisi yahinduwe",
-    serviceAdded: "Serivisi yongeweho",
-    serviceDeleted: "Serivisi yasibwe",
-    deleteServiceConfirm: "Siba serivisi",
-    nameRequired: "Izina rirakenewe",
-    enterProductNameMsg: "Andika izina ry'icuruzwa.",
-    duplicateProduct: "Igicuruzwa cyamaze kubaho",
-    duplicateProductDesc: "Hari igicuruzwa gifite iri zina n'icyiciro.",
-    productUpdated: "Igicuruzwa cyahinduwe",
-    productAdded: "Igicuruzwa cyongeweho",
-    changesSaved: "Impinduka zabitswe neza.",
-    productSaved: "Igicuruzwa cyabitswe neza.",
-    addWorker: "Ongeraho umukozi",
-    addMultipleWorkers: "Ongeraho abakozi benshi hamwe",
-    addWorkersBtn: "Ongeraho abakozi",
-    editWorker: "Hindura umukozi",
-    noWorkersFound: "Nta bakozi babonetse.",
-    noWorkersAddFirst: "Nta bakozi babonetse. Kanda Ongeraho umukozi utangire.",
-    editSale: "Hindura ibyakozwe",
-    updateStock: "Hindura ibihari",
-    updateStockFor: "Hindura ingano y'ibihari bya",
-    enterStockQuantity: "Andika ingano y'ibihari",
-    minimumStockLabel: "Ibihari by'ubusa",
-    stockUpdated: "Ibihari byahinduwe",
-    invalidStock: "Ibihari bitari byo",
-    invalidStockDesc: "Andika ingano y'ibihari yemewe.",
-    updateFailed: "Guhindura byanze",
-    recordExpense: "Andika ibyasohotse",
-    record: "Andika",
-    welcomeToTrippo: "Murakaza neza muri Trippo",
-    createAccount: "Fungura konti",
-    enterYourPin: "Andika PIN yawe",
-    forgotPin: "Wibagiwe PIN?",
-    sendVerificationCode: "Ohereza kode yo kwemeza",
-    verificationCode: "Kode yo kwemeza imeri",
-    resendCode: "Ohereza kode nanone",
-    sendingCode: "Birimo kohereza kode...",
-    creatingAccount: "Birimo gufungura konti...",
-    resetYourPin: "Hindura PIN yawe",
-    phoneNumber: "Telefone",
-    fullName: "Amazina yose",
-
-    expensePresetSavedDesc: "Ikiguzi cyabitswe nk'icyihuse.",
-    productOutOfStock: "Icuruzwa rirangiye muri stoki",
-    productOutOfStockRemovedSuffix: "ntikiboneka muri stoki kandi cyakuweho mu mahitamo.",
-    productOutOfStockCannotSellSuffix: "ntikiboneka muri stoki kandi ntigishobora kugurishwa.",
-    workerRequired: "Hitamo umukozi",
-    invalidPriceShort: "Igiciro kitari cyo",
-    insufficientStock: "Stoki ntihagije",
-    insufficientStockBulkDesc: "Ntibishoboka kwandika ubu bucuruzi: {list}. Ntushobora kugurisha birenze ibiri muri stoki.",
-    salesRecorded: "Ubucuruzi bwanditswe",
-    salesRecordedBulkDesc: "Handitswe neza ubucuruzi {count}.",
-    noSalesRecorded: "Nta bucuruzi bwanditswe",
-    noSalesRecordedDesc: "Andika nibura ubucuruzi bumwe bwuzuye.",
-    missingInformation: "Amakuru abura",
-    fillAllRequired: "Uzuza ibisabwa byose.",
-    selectServiceWorker: "Hitamo umukozi utanga serivisi.",
-    invalidAmount: "Amafaranga atari yo",
-    serviceAmountMustBePositive: "Amafaranga ya serivisi agomba kurenza 0.",
-    workerNotFound: "Umukozi ntaboneka",
-    selectValidWorker: "Hitamo umukozi wemewe.",
-    serviceRecorded: "Serivisi yanditswe",
-    serviceRecordedDesc: "{product} yakozwe na {worker} ku Rwf {amount}",
-    enterQuantityDesc: "Andika umubare.",
-    invalidQuantity: "Umubare utari wo",
-    invalidQuantityDesc: "Andika umubare nyawo urenze 0.",
-    invalidPriceDesc: "Injiza igiciro cyemewe (umubare wuzuye).",
-    needWholePackageStock: "Hakeneye nibura {need} muri stoki (hari {stock}).",
-    onlyItemsInStock: "Hari gusa {stock} {items} muri stoki.",
-    itemSingular: "ikintu",
-    itemsPlural: "ibintu",
-    saleRecorded: "Ubucuruzi bwanditswe",
-    saleRecordedDesc: "Handitswe neza: {qty}x {product}",
-    saleRecordedOffline: "Ubucuruzi bwanditswe (nta interineti)",
-    saleRecordedOfflineWithProduct: "Handitswe neza: {qty}x {product}. Bizahuzwa interineti igarutse.",
-    saleRecordedOfflineGeneric: "Ubucuruzi bwanditswe nta interineti. Bizahuzwa interineti igarutse.",
-    recordFailed: "Kwandika byanze",
-    recordFailedDesc: "Kwandika ubucuruzi byanze. Reba interneti wongere ugerageze.",
-    expenseNameAmountRequired: "Andika izina ry'ikiguzi n'amafaranga nyayo.",
-    expenseRecorded: "Ikiguzi cyanditswe",
-    expenseRecordedDesc: "Ikiguzi cyabitswe neza.",
-    saveFailed: "Kwandika byanze",
-    saveExpenseFailed: "Kwandika ikiguzi byanze.",
-    activitySaleLabel: "Serivisi",
-    activityExpenseLabel: "Ikiguzi",
-    activityEmptyHint: "Ibyasohotse biheruka bizagaragara hano",
-    viewMoreInSales: "Reba byinshi muri Sales",
-    viewMoreInExpenses: "Reba byinshi muri Ibyasohotse",
-    invalidQuantityShort: "Umubare utari wo",
-    onlyItemsAvailable: "Hari gusa {stock} {items}",
-    chartSalesLabel: "Ubucuruzi",
-    daySun: "Ku wa 7",
-    dayMon: "Ku wa 1",
-    dayTue: "Ku wa 2",
-    dayWed: "Ku wa 3",
-    dayThu: "Ku wa 4",
-    dayFri: "Ku wa 5",
-    daySat: "Ku wa 6",
-    pricePerItem: "Igiciro ku kintu",
-    priceForWholePackageLabel: "Igiciro cy'ipaki yose",
-    priceWholePackageCalc: "Igiciro ku kintu: {base} Rwf × {qty} = {total} Rwf (ipaki yose)",
-    priceFromPackageCalc: "Igiciro ku kintu: {perItem} Rwf (kuva {base} Rwf ÷ {qty})",
-    maximumQuantity: "Umubare ntarengwa",
-    stockLabel: "Ibihari",
-    boxOf: "Agafuka ka {qty}",
-    noProductsSearchHint: "Nta bicuruzwa bibonetse. Gerageza indi shakiro.",
-  },
-  fr: {
-    // Navigation
-    dashboard: "Aperçu",
-    products: "Services",
-    services: "Services",
-    inventories: "Stocks",
-    workers: "Travailleurs",
-    worker: "Travailleur",
-    expenses: "Dépenses",
-    income: "Revenus",
-    finance: "Finances",
-    incomeStatements: "Revenus",
-    incomeSources: "Revenus",
-    incomeSource: "Source de revenu",
-    incomeSourcePlaceholder: "ex. : Ventes, Services...",
-    incomeBySource: "Revenus par source",
-    expenditure: "Dépenses",
-    totalIncome: "Revenus totaux",
-    totalExpenditure: "Dépenses totales",
-    totalPayroll: "Paie totale",
-    currentBalance: "Solde actuel",
-    payroll: "Paie",
-    recordPayroll: "Enregistrer la paie",
-    editPayroll: "Modifier la paie",
-    employeeName: "Employé",
-    payPeriod: "Période de paie",
-    payrollStatus: "Statut",
-    paid: "Payé",
-    pending: "En attente",
-    noPayrollYet: "Aucune paie enregistrée",
-    payrollEmptyHint: "Suivez les salaires pour voir les sorties de paie.",
-    payrollRecorded: "Paie enregistrée",
-    payrollRecordedDesc: "Paie enregistrée avec succès.",
-    payrollRemovedDesc: "Paie supprimée.",
-    savePayrollFailed: "Échec de l'enregistrement de la paie.",
-    deletePayrollFailed: "Échec de la suppression de la paie.",
-    payrollNameAmountRequired: "Indiquez l'employé, le montant et la période.",
-    bills: "Factures",
-    recordBill: "Ajouter une facture",
-    editBill: "Modifier la facture",
-    billTitle: "Titre de la facture",
-    billExamplePlaceholder: "ex. : Loyer, Électricité, Fournisseur...",
-    billNameAmountRequired: "Indiquez le titre et un montant valide.",
-    billRecorded: "Facture ajoutée",
-    billRecordedDesc: "Enregistrée. Elle reste en attente jusqu'au paiement.",
-    billRemovedDesc: "Facture supprimée.",
-    saveBillFailed: "Échec de l'enregistrement de la facture.",
-    deleteBillFailed: "Échec de la suppression de la facture.",
-    markBillPaidFailed: "Échec du marquage comme payée.",
-    noBillsYet: "Aucune facture pour l'instant",
-    billsEmptyHint: "Suivez les factures à payer. Une fois payées, elles deviennent des dépenses.",
-    billPaid: "Facture payée",
-    billPaidDesc: "Marquée comme payée et enregistrée en dépense.",
-    billPaidHint: "Cela créera une dépense et marquera la facture comme payée.",
-    billStatus: "Statut",
-    pendingBills: "En attente",
-    paidBills: "Payées",
-    allBills: "Toutes",
-    markAsPaid: "Marquer comme payée",
-    vendor: "Fournisseur",
-    vendorPlaceholder: "À qui payer",
-    taxes: "Impôts",
-    recordTax: "Ajouter un impôt",
-    editTax: "Modifier l'impôt",
-    taxTitle: "Titre de l'impôt",
-    taxType: "Type d'impôt",
-    taxAuthority: "Autorité fiscale",
-    taxAuthorityPlaceholder: "ex. RRA",
-    taxPeriod: "Période fiscale",
-    taxExamplePlaceholder: "ex. TVA T1, PAYE janvier...",
-    taxNameAmountRequired: "Veuillez indiquer le titre, le type et un montant valide.",
-    taxRecorded: "Impôt ajouté",
-    taxRecordedDesc: "Obligation fiscale enregistrée. Payez avant la date d'échéance.",
-    taxRemovedDesc: "Obligation fiscale supprimée.",
-    saveTaxFailed: "Échec de l'enregistrement de l'impôt.",
-    deleteTaxFailed: "Échec de la suppression de l'impôt.",
-    markTaxPaidFailed: "Échec du marquage comme payé.",
-    noTaxesYet: "Aucune obligation fiscale",
-    taxesEmptyHint: "Listez les impôts dus pour payer à temps et éviter les pénalités.",
-    taxPaid: "Impôt payé",
-    taxPaidDesc: "Impôt marqué comme payé et enregistré en dépense.",
-    taxPaidHint: "Cela créera une dépense et marquera l'impôt comme payé.",
-    outstandingTaxes: "Impôts en cours",
-    dueWithin30Days: "Échéance sous 30 jours",
-    taxObligations: "obligations",
-    bankDeposits: "Dépôts bancaires",
-    recordDeposit: "Enregistrer un dépôt",
-    editDeposit: "Modifier le dépôt",
-    depositTitle: "Titre du dépôt",
-    depositDate: "Date du dépôt",
-    depositExamplePlaceholder: "ex. : Budget mensuel, capital T1...",
-    depositNameAmountRequired: "Veuillez indiquer un titre et un montant.",
-    depositCustomPeriodRequired: "Veuillez définir les dates de début et de fin.",
-    depositRecorded: "Dépôt enregistré",
-    depositRecordedDesc: "Le dépôt bancaire est enregistré et fait partie de votre budget disponible.",
-    depositUpdated: "Dépôt mis à jour",
-    depositUpdatedDesc: "Le dépôt bancaire a été mis à jour.",
-    depositRemovedDesc: "Dépôt bancaire supprimé.",
-    saveDepositFailed: "Échec de l'enregistrement du dépôt.",
-    deleteDepositFailed: "Échec de la suppression du dépôt.",
-    noDepositsYet: "Aucun dépôt bancaire",
-    depositsEmptyHint: "Enregistrez l'argent déposé en banque pour suivre le budget disponible face aux dépenses.",
-    budgetPeriod: "Période budgétaire",
-    budgetPeriodMonthly: "Mensuel",
-    budgetPeriodQuarterly: "Trimestriel",
-    budgetPeriodYearly: "Annuel",
-    budgetPeriodCustom: "Personnalisé",
-    budgetPeriodHint: "Durée pendant laquelle ce dépôt couvre vos dépenses prévues.",
-    budgetCovers: "Couvre",
-    viewBudgetFor: "Voir le budget pour",
-    totalDeposited: "Total déposé",
-    usedBalance: "Solde utilisé",
-    availableBalance: "Solde disponible",
-    availableBalanceHint: "Dépôts moins dépenses et paie sur cette période",
-    activeDeposits: "dépôts actifs",
-    periodStart: "Début de période",
-    periodEnd: "Fin de période",
-    depositReferencePlaceholder: "Référence du virement ou reçu bancaire",
-    bankAccount: "Compte bancaire",
-    transactionTypeDeposit: "Dépôt bancaire",
-    loans: "Prêts",
-    addLoan: "Ajouter un prêt",
-    editLoan: "Modifier le prêt",
-    loanTitle: "Nom du prêt",
-    loanTitlePlaceholder: "ex. : Prêt d'expansion",
-    lender: "Prêteur",
-    lenderPlaceholder: "ex. : Bank of Kigali",
-    loanType: "Type de prêt",
-    loanTypeBusiness: "Prêt commercial",
-    loanTypeWorkingCapital: "Fonds de roulement",
-    loanTypeEquipment: "Équipement",
-    loanTypeVehicle: "Véhicule",
-    loanTypeLineOfCredit: "Ligne de crédit",
-    loanTypeOther: "Autre",
-    principalAmount: "Capital",
-    installmentAmount: "Mensualité",
-    interestRate: "Taux d'intérêt",
-    termMonths: "Durée (mois)",
-    paymentFrequency: "Fréquence de paiement",
-    maturityDate: "Date d'échéance finale",
-    nextDueDate: "Prochaine échéance",
-    remainingBalance: "Restant dû",
-    loanStatus: "Statut",
-    loanStatusActive: "Actif",
-    loanStatusOverdue: "En retard",
-    loanStatusPaidOff: "Remboursé",
-    loanAccountNumber: "N° de compte prêt",
-    collateral: "Garantie",
-    collateralPlaceholder: "Actif mis en garantie",
-    contactPerson: "Personne de contact",
-    contactPhone: "Téléphone",
-    recordLoanPayment: "Enregistrer un paiement",
-    paymentHistory: "Historique des paiements",
-    paymentAmount: "Montant du paiement",
-    paymentDate: "Date de paiement",
-    principalPortion: "Capital",
-    interestPortion: "Intérêts",
-    loanRequiredFields: "Veuillez indiquer le nom, le prêteur, le capital et la mensualité.",
-    loanRecorded: "Prêt ajouté",
-    loanRecordedDesc: "Prêt enregistré. Suivez les paiements et le solde restant ici.",
-    loanUpdated: "Prêt mis à jour",
-    loanUpdatedDesc: "Détails du prêt mis à jour.",
-    loanRemovedDesc: "Prêt supprimé.",
-    saveLoanFailed: "Échec de l'enregistrement du prêt.",
-    deleteLoanFailed: "Échec de la suppression du prêt.",
-    recordLoanPaymentFailed: "Échec de l'enregistrement du paiement.",
-    loanPaymentRecorded: "Paiement enregistré",
-    loanPaymentRecordedDesc: "Paiement enregistré et ajouté aux dépenses.",
-    loanPaymentAmountRequired: "Veuillez saisir un montant de paiement valide.",
-    loanPaymentExpenseHint: "Ce paiement sera enregistré comme dépense dans la catégorie prêt.",
-    loanDeleteHasPayments: "Impossible de supprimer un prêt avec des paiements enregistrés.",
-    noLoansYet: "Aucun prêt",
-    loansEmptyHint: "Ajoutez vos prêts pour suivre les mensualités, le solde restant et l'historique.",
-    totalOutstanding: "Total restant dû",
-    dueThisMonth: "Échéance ce mois",
-    loanPaymentsDue: "paiements dus",
-    overdueLoans: "prêts en retard",
-    activeLoans: "prêts actifs",
-    totalPaidOnLoans: "Total remboursé",
-    noPaymentsYet: "Aucun paiement enregistré",
-    customers: "Clients",
-    addCustomer: "Ajouter un client",
-    editCustomer: "Modifier le client",
-    customerName: "Nom du client",
-    customer: "Client",
-    selectCustomer: "Sélectionner un client",
-    customerCreated: "Client ajouté",
-    customerCreatedDesc: "Profil client enregistré.",
-    customerUpdated: "Client mis à jour",
-    customerUpdatedDesc: "Profil client mis à jour.",
-    customerRemovedDesc: "Client supprimé.",
-    saveCustomerFailed: "Échec de l'enregistrement du client.",
-    deleteCustomerFailed: "Échec de la suppression du client.",
-    customerNameRequired: "Le nom du client est requis.",
-    noCustomersYet: "Aucun client",
-    customersEmptyHint: "Ajoutez vos clients pour suivre soldes et factures.",
-    viewStatement: "Voir le relevé",
-    downloadStatement: "Télécharger le relevé PDF",
-    loadCustomerActivityFailed: "Échec du chargement de l'activité client.",
-    vendors: "Fournisseurs",
-    addVendor: "Ajouter un fournisseur",
-    editVendor: "Modifier le fournisseur",
-    vendorName: "Nom du fournisseur",
-    selectVendor: "Sélectionner un fournisseur",
-    vendorCreated: "Fournisseur ajouté",
-    vendorCreatedDesc: "Profil fournisseur enregistré.",
-    vendorUpdated: "Fournisseur mis à jour",
-    vendorUpdatedDesc: "Profil fournisseur mis à jour.",
-    vendorRemovedDesc: "Fournisseur supprimé.",
-    saveVendorFailed: "Échec de l'enregistrement du fournisseur.",
-    deleteVendorFailed: "Échec de la suppression du fournisseur.",
-    vendorNameRequired: "Le nom du fournisseur est requis.",
-    noVendorsYet: "Aucun fournisseur",
-    vendorsEmptyHint: "Ajoutez vos fournisseurs pour suivre factures et paiements.",
-    loadVendorActivityFailed: "Échec du chargement de l'activité fournisseur.",
-    accounts: "Comptes",
-    addAccount: "Ajouter un compte",
-    editAccount: "Modifier le compte",
-    accountName: "Nom du compte",
-    accountType: "Type de compte",
-    accountCreated: "Compte ajouté",
-    accountCreatedDesc: "Compte enregistré.",
-    accountUpdated: "Compte mis à jour",
-    accountUpdatedDesc: "Compte mis à jour.",
-    accountRemovedDesc: "Compte archivé.",
-    saveAccountFailed: "Échec de l'enregistrement du compte.",
-    deleteAccountFailed: "Échec de la suppression du compte.",
-    accountNameRequired: "Le nom du compte est requis.",
-    noAccountsYet: "Aucun compte",
-    accountsEmptyHint: "Ajoutez des comptes espèces, banque, MoMo ou Airtel.",
-    openingBalance: "Solde d'ouverture",
-    transferFunds: "Transférer des fonds",
-    fromAccount: "Du compte",
-    toAccount: "Vers le compte",
-    selectAccount: "Sélectionner un compte",
-    paymentAccount: "Compte de paiement",
-    noAccountSelected: "Aucun compte sélectionné",
-    financialStatements: "États financiers",
-    financialStatementsHint: "Compte de résultat, bilan et flux de trésorerie.",
-    profitLoss: "Compte de résultat",
-    balanceSheet: "Bilan",
-    cashFlow: "Flux de trésorerie",
-    dashHelpReceivables:
-      "Argent que vos clients vous doivent. Suit les factures impayées (ou revenus enregistrés). En cours = pas encore échu ; En retard = après la date d'échéance. Appuyez sur + Nouveau pour ajouter un revenu ou une facture.",
-    dashHelpPayables:
-      "Argent que vous devez aux fournisseurs. Le total affiche toutes les factures impayées. En cours = pas encore en retard ; En retard = après la date d'échéance. Appuyez sur + Nouveau pour enregistrer une facture.",
-    dashHelpCashFlow:
-      "Entrées et sorties d'argent pour l'exercice sélectionné. Vert = revenus encaissés ; rouge = dépenses payées. Les soldes d'ouverture et de clôture montrent votre position en début et fin d'année.",
-    dashHelpIncomeExpense:
-      "Revenus vs dépenses par mois. Trésorerie = quand l'argent est reçu ou payé ; Exercice = quand c'est enregistré. Les totaux excluent les taxes.",
-    dashHelpTopExpenses:
-      "Vos plus grandes catégories de dépenses pour l'année sélectionnée. Voyez où va la majorité de vos dépenses.",
-    dashHelpMonthlyKpis:
-      "Aperçu du mois en cours — revenus encaissés, dépenses payées, profit et taxes restantes.",
-    dashHelpUpcomingBills:
-      "Factures à payer dans les 30 prochains jours. Voir tout pour gérer et enregistrer des factures.",
-    dashHelpRecentTransactions:
-      "Dernières entrées et sorties sur vos comptes. Voir tout pour la liste complète.",
-    helpIncome:
-      "Enregistrez l'argent reçu par l'entreprise — ventes, services ou autres revenus. Chaque entrée peut inclure mode de paiement, compte et reçu.",
-    helpCustomers:
-      "Liste des clients à qui vous vendez ou facturez. Utilisez-les pour les factures et le suivi des créances.",
-    helpInvoices:
-      "Créez et envoyez des factures. Suivez les montants impayés, en cours et en retard jusqu'au paiement.",
-    helpVendors:
-      "Fournisseurs et entreprises auprès desquels vous achetez. Liez-les aux factures fournisseurs.",
-    helpBankDeposits:
-      "Enregistrez les espèces ou mobile money déposés en banque. Aide à rapprocher la caisse du solde bancaire.",
-    helpAccounts:
-      "Comptes caisse, banque et mobile money. Les revenus et dépenses peuvent être affectés à un compte.",
-    helpFinancialStatements:
-      "Compte de résultat, bilan et flux de trésorerie sur une période. Export PDF pour vos archives ou comptable.",
-    helpBankReconciliation:
-      "Rapprochez les opérations du compte avec votre relevé bancaire. Marquez les lignes réconciliées.",
-    helpCategoryBudgets:
-      "Fixez des plafonds de dépenses par catégorie pour un mois ou une année. Comparez au réel.",
-    helpLoans:
-      "Suivez les emprunts ou prêts — capital, remboursements et solde restant.",
-    helpBills:
-      "Factures fournisseurs à payer. Dates d'échéance, marquage payé, montants en cours et en retard.",
-    helpTaxes:
-      "Obligations et paiements fiscaux — montants dus, dates de déclaration et déjà payés.",
-    helpExpenditure:
-      "Dépenses courantes de l'entreprise. Catégorisez et joignez des reçus.",
-    helpPayroll:
-      "Paiements salariés et prestataires. Enregistrez les montants et dates de paie.",
-    helpTransactions:
-      "Tous les mouvements entre comptes — revenus, dépenses, virements et paie.",
-    helpProducts:
-      "Catalogue produits — noms, prix, stocks et catégories. Le stock se met à jour lors des ventes.",
-    helpSales:
-      "Enregistrez ventes de produits ou services. Revenus et marges selon vos coûts et prix.",
-    helpDocuments:
-      "Stockez les fichiers de l'entreprise — contrats, licences, reçus et autres documents.",
-    helpReports:
-      "Rapports exportables ventes, finance et stock. Filtrez par jour, semaine, mois ou année en PDF ou Excel.",
-    helpAutomations:
-      "Planifiez e-mails et rappels clients — relances, promotions et messages récurrents.",
-    helpCalendar:
-      "Visualisez revenus, dépenses, factures, taxes, paie et événements sur un calendrier.",
-    helpTeamOverview:
-      "Vue mensuelle des tâches — taux d'achèvement, membres actifs et répartition du travail.",
-    helpTeamTasks:
-      "Assignez des tâches, fixez des échéances et suivez le statut de à faire à terminé.",
-    helpTeamFinanceTasks:
-      "Tâches du service finance — clôture mensuelle, rapprochements, déclarations fiscales, etc.",
-    helpTeamMembers:
-      "Membres de l'équipe — noms, rôles, départements et coordonnées pour l'assignation.",
-    loadStatementsFailed: "Échec du chargement des états financiers",
-    asOfDate: "À la date du",
-    generateReport: "Générer le rapport",
-    totalExpenses: "Total des dépenses",
-    netProfit: "Résultat net",
-    assets: "Actifs",
-    cashAndBank: "Trésorerie et banque",
-    accountsReceivable: "Créances clients",
-    inventoryValue: "Valeur des stocks",
-    totalAssets: "Total actif",
-    liabilitiesAndEquity: "Passif et capitaux propres",
-    accountsPayable: "Dettes fournisseurs",
-    loanLiabilities: "Dettes d'emprunt",
-    totalLiabilities: "Total passif",
-    equity: "Capitaux propres",
-    operatingCashIn: "Encaissements d'exploitation",
-    operatingCashOut: "Décaissements d'exploitation",
-    netOperatingCash: "Trésorerie nette d'exploitation",
-    financingDeposits: "Dépôts de financement",
-    netChangeInCash: "Variation nette de trésorerie",
-    bankReconciliation: "Rapprochement bancaire",
-    bankReconciliationHint: "Rapprochez les transactions du compte avec vos relevés bancaires.",
-    closingBalance: "Solde de clôture",
-    reconciledCount: "Rapprochées",
-    unreconciledCount: "Non rapprochées",
-    reconciled: "Rapproché",
-    noReconciliationEntries: "Aucune transaction sur cette période pour ce compte.",
-    transactionType: "Type",
-    refresh: "Actualiser",
-    transfer: "Transférer",
-    transferComplete: "Transfert effectué",
-    transferCompleteDesc: "Fonds déplacés entre comptes.",
-    transferFailed: "Échec du transfert.",
-    transferInvalid: "Sélectionnez les comptes et un montant valide.",
-    categoryBudgets: "Budgets par catégorie",
-    addCategoryBudget: "Ajouter un budget",
-    categoryBudgetRequired: "Catégorie et montant requis.",
-    budgetCreated: "Budget ajouté",
-    budgetCreatedDesc: "Budget enregistré.",
-    saveBudgetFailed: "Échec de l'enregistrement du budget.",
-    deleteBudgetFailed: "Échec de la suppression du budget.",
-    budgetRemovedDesc: "Règle de budget supprimée.",
-    loadBudgetSummaryFailed: "Échec du chargement du résumé budget.",
-    totalBudget: "Budget total",
-    totalActual: "Total dépensé",
-    viewPeriod: "Période",
-    budget: "Budget",
-    actual: "Réel",
-    budgetRules: "Règles de budget",
-    noBudgetsYet: "Aucun budget par catégorie",
-    budgetsEmptyHint: "Définissez des limites par catégorie de dépenses.",
-    noSalesYet: "Aucune vente enregistrée",
-    salesEmptyHint: "Enregistrez les ventes pour suivre revenus et stock.",
-    saleRequiredFields: "Sélectionnez un produit et une quantité.",
-    saveSaleFailed: "Échec de l'enregistrement de la vente.",
-    balanceDue: "Solde dû",
-    totalPaid: "Total payé",
-    email: "E-mail",
-    phone: "Téléphone",
-    invoices: "Factures",
-    createInvoice: "Créer une facture",
-    editInvoice: "Modifier la facture",
-    invoiceTitle: "Titre de la facture",
-    invoiceNumber: "Facture n°",
-    invoiceStatus: "Statut",
-    invoiceStatus_draft: "Brouillon",
-    invoiceStatus_sent: "Envoyée",
-    invoiceStatus_paid: "Payée",
-    invoiceStatus_overdue: "En retard",
-    unpaidInvoices: "Factures impayées",
-    noInvoicesYet: "Aucune facture",
-    invoicesEmptyHint: "Créez des factures pour vos clients et suivez les paiements.",
-    invoiceRequiredFields: "Veuillez indiquer un titre et au moins une ligne.",
-    invoiceCreated: "Facture créée",
-    invoiceCreatedDesc: "Facture enregistrée en brouillon.",
-    invoiceUpdated: "Facture mise à jour",
-    invoiceUpdatedDesc: "Facture mise à jour.",
-    invoiceRemovedDesc: "Facture supprimée.",
-    saveInvoiceFailed: "Échec de l'enregistrement de la facture.",
-    deleteInvoiceFailed: "Échec de la suppression de la facture.",
-    markInvoiceSentFailed: "Échec de l'envoi de la facture.",
-    markInvoicePaidFailed: "Échec du paiement de la facture.",
-    invoiceSent: "Facture envoyée",
-    invoiceSentDesc: "Facture marquée comme envoyée.",
-    invoicePaid: "Facture payée",
-    invoicePaidDesc: "Paiement enregistré dans les revenus.",
-    recurringInvoiceCreated: "Facture récurrente",
-    recurringInvoiceCreatedDesc: "Prochaine facture récurrente créée.",
-    lineItems: "Lignes",
-    addLine: "Ajouter une ligne",
-    unitPrice: "Prix unitaire",
-    issueDate: "Date d'émission",
-    paymentTerms: "Conditions de paiement",
-    paymentTermsPlaceholder: "ex. : Paiement sous 14 jours",
-    recurringInvoice: "Facture récurrente",
-    markAsSent: "Marquer comme envoyée",
-    downloadPdf: "Télécharger PDF",
-    referenceNumber: "Numéro de référence",
-    referenceNumberPlaceholder: "Référence de déclaration ou paiement",
-    dueDate: "Date d'échéance",
-    overdue: "En retard",
-    transactions: "Transactions",
-    noTransactionsYet: "Aucune transaction pour l'instant",
-    transactionTypeIncome: "Revenu",
-    transactionTypeExpense: "Dépense",
-    transactionTypePayroll: "Paie",
-    recordIncome: "Enregistrer un revenu",
-    editIncome: "Modifier le revenu",
-    incomeTitle: "Titre du revenu",
-    incomeExamplePlaceholder: "ex. : Paiement client, dépôt...",
-    incomeNameAmountRequired: "Indiquez le titre et un montant valide.",
-    incomeRecorded: "Revenu enregistré",
-    incomeRecordedDesc: "Revenu enregistré avec succès.",
-    saveIncomeFailed: "Impossible d'enregistrer le revenu.",
-    incomeRemovedDesc: "Revenu supprimé.",
-    deleteIncomeFailed: "Impossible de supprimer le revenu.",
-    noIncomeYet: "Aucun revenu enregistré",
-    incomeEmptyHint: "Enregistrez l'argent entrant pour suivre votre solde.",
-    uploadReceipt: "Joindre un reçu",
-    changeReceipt: "Changer le fichier",
-    viewReceipt: "Voir le reçu",
-    receipt: "Reçu",
-    receiptUploadHint: "Image ou PDF, max 5 Mo",
-    other: "Autre",
-    billing: "Facturation",
-    sales: "Ventes",
-    reports: "Rapports",
-    settings: "Paramètres",
-    logout: "Déconnexion",
-    sidebarSectionOverview: "Aperçu",
-    sidebarSectionOperations: "Opérations",
-    sidebarSectionFinance: "Finances",
-    sidebarSectionInsights: "Analyses",
-    sidebarSectionAccount: "Compte",
-    
-    // Common
-    save: "Enregistrer",
-    update: "Mettre à jour",
-    updating: "Mise à jour...",
-    saving: "Enregistrement...",
-    cancel: "Annuler",
-    delete: "Supprimer",
-    edit: "Modifier",
-    add: "Ajouter",
-    search: "Rechercher",
-    filter: "Filtrer",
-    loading: "Chargement...",
-    signIn: "Connexion",
-    getStarted: "Commencer",
-    close: "Fermer",
-    confirm: "Confirmer",
-    back: "Retour",
-    next: "Suivant",
-    yes: "Oui",
-    no: "Non",
-    all: "Tout",
-    none: "Aucun",
-    total: "Total",
-    subtotal: "Sous-total",
-    name: "Nom",
-    category: "Catégorie",
-    price: "Prix",
-    stock: "Stock",
-    quantity: "Quantité",
-    description: "Description",
-    optional: "Optionnel",
-    required: "Obligatoire",
-    
-    // Settings
-    businessInfo: "Informations sur l'entreprise",
-    security: "Sécurité",
-    language: "Langue",
-    businessName: "Nom de l'entreprise",
-    ownerName: "Nom du responsable",
-    emailAddress: "Adresse e-mail",
-    saveChanges: "Enregistrer les modifications",
-    changePin: "Changer le PIN",
-    setPin: "Définir le PIN",
-    currentPin: "PIN actuel",
-    newPin: "Nouveau PIN",
-    confirmPin: "Confirmer le PIN",
-    
-    // Sales (labels)
-    recordSale: "Enregistrer une vente",
-    recordSales: "Enregistrer des ventes",
-    enterQuantity: "Saisir la quantité",
-    paymentMethod: "Mode de paiement",
-    saleDate: "Date de vente",
-    cash: "Espèces",
-    momoPay: "Momo",
-    card: "Carte",
-    airtelPay: "Airtel Money",
-    bankTransfer: "Virement bancaire",
-    bankAccountName: "Nom de la banque / compte",
-    bankAccountNumber: "Numéro de compte",
-    bankAccountNamePlaceholder: "ex. Bank of Kigali",
-    bankAccountNumberPlaceholder: "ex. 1234567890",
-    
-    // Dashboard KPIs (time periods)
-    todaysRevenue: "Revenu d'aujourd'hui",
-    todaysProfit: "Bénéfice (net) d'aujourd'hui",
-    todaysExpenses: "Dépenses d'aujourd'hui",
-    todaysExpenseCount: "Nombre de dépenses aujourd'hui",
-    weekExpenses: "Dépenses de la semaine",
-    weekExpenseCount: "Nombre de dépenses cette semaine",
-    monthExpenses: "Dépenses du mois",
-    monthExpenseCount: "Nombre de dépenses ce mois",
-    yearExpenses: "Dépenses de l'année",
-    yearExpenseCount: "Nombre de dépenses cette année",
-    expensesRecorded: "dépenses enregistrées",
-    weekRevenue: "Revenu de la semaine",
-    weekProfit: "Bénéfice (net) de la semaine",
-    monthRevenue: "Revenu du mois",
-    monthProfit: "Bénéfice (net) du mois",
-    yearRevenue: "Revenu de l'année",
-    yearProfit: "Bénéfice (net) de l'année",
-    periodToday: "Aujourd'hui",
-    periodWeek: "Semaine",
-    periodMonth: "Mois",
-    periodYear: "Année",
-    vsYesterday: "vs hier",
-    vsLastWeek: "vs semaine dernière",
-    vsLastMonth: "vs mois dernier",
-    vsLastYear: "vs année dernière",
-    todaysItems: "Services d'aujourd'hui",
-    currentStockValue: "Valeur du stock actuel",
-    items: "articles",
-    recordNewSale: "Enregistrer une nouvelle vente",
-    bulkAdd: "Ajout groupé",
-    singleSale: "Vente unique",
-    selectProduct: "Sélectionner un produit",
-    suggestedPrice: "Prix suggéré",
-    youCanChangeThis: "Vous pouvez modifier",
-    availableStock: "Stock disponible",
-    addRow: "Ajouter une ligne",
-    spreadsheetMode: "Tableur",
-    spreadsheetHint: "Remplissez les lignes comme dans Excel, puis enregistrez tout d'un coup. Les lignes existantes sont modifiables.",
-    saveAll: "Tout enregistrer",
-    hello: "Bonjour",
-    greetingFallback: "Utilisateur",
-    quickActions: "Actions rapides",
-    quickActionsHint: "Cliquez pour effectuer des actions rapides",
-    servicesToday: "Services d'aujourd'hui",
-    servicesRecorded: "services enregistrés",
-    activeServices: "Services actifs",
-    servicesInSystem: "services dans le système",
-    recentActivity: "Récent",
-    salesAndExpenses: "Ventes et dépenses",
-    recentSalesAndExpenses: "Ventes récentes et dépenses",
-    recentSales: "Ventes récentes",
-    salesExpenseBalance: "Ventes vs dépenses",
-    netFlow: "Flux net",
-    latestActivity: "Activité récente",
-    noActivity: "Aucune activité",
-    noRecentActivity: "Aucune activité récente",
-    details: "Détails",
-    amountRwf: "Montant (Rwf)",
-    searchProductsAndServices: "Rechercher produits et services...",
-    packageLabel: "Paquet",
-    productOrService: "Produit / Service",
-    saleMode: "Mode de vente",
-    sellByQuantity: "Vendre à l'unité",
-    sellWholePackage: "Vendre le paquet entier",
-    revenueMinusCost: "(Revenu − coût)",
-    expenseExamplePlaceholder: "ex. : Services, Loyer...",
-    expenseCategoryPlaceholder: "ex. : Fournitures",
-    expenseNotePlaceholder: "Ajouter des détails...",
-    presets: "Favoris",
-    mostUsed: "Les plus utilisés",
-    savePreset: "Enregistrer favori",
-    addMultipleSalesHint: "Ajouter plusieurs ventes à la fois",
-    serviceBadge: "Service",
-    typeLabel: "Type",
-    revenue: "Revenu",
-    profit: "Bénéfice",
-    product: "Produit",
-    date: "Date",
-    payment: "Paiement",
-    recording: "Enregistrement...",
-    addMultipleSales: "Ajouter plusieurs ventes à la fois",
-    enterPrice: "Saisir le prix",
-    sellingPrice: "Prix de vente",
-    
-    // Expenses
-    oneTimeExpense: "Dépense ponctuelle",
-    recurringExpenses: "Dépenses récurrentes",
-    expenseTitle: "Titre de la dépense",
-    amount: "Montant",
-    note: "Note",
-    noteOptional: "Note (optionnel)",
-    saveExpense: "Enregistrer la dépense",
-    addMultipleExpenses: "Ajouter plusieurs dépenses à la fois",
-    addExpensesBtn: "Ajouter les dépenses",
-    recentExpenses: "Dépenses récentes",
-    recordExpense: "Enregistrer une dépense",
-    record: "Enregistrer",
-
-    // Modals
-    addService: "Ajouter un service",
-    addMultipleServices: "Ajouter plusieurs services à la fois",
-    addServicesBtn: "Ajouter les services",
-    editService: "Modifier le service",
-    serviceName: "Nom du service",
-    noServicesFound: "Aucun service trouvé.",
-    noServicesAddFirst: "Aucun service trouvé. Ajoutez un service d'abord.",
-    recordService: "Enregistrer un service",
-    selectService: "Sélectionner un service",
-    selectWorker: "Choisir un travailleur",
-    noWorkersFound: "Aucun travailleur trouvé.",
-    noWorkersAddFirst: "Aucun travailleur trouvé. Cliquez sur Ajouter un travailleur.",
-    addWorker: "Ajouter un travailleur",
-    addMultipleWorkers: "Ajouter plusieurs travailleurs à la fois",
-    addWorkersBtn: "Ajouter les travailleurs",
-    editWorker: "Modifier le travailleur",
-    editSale: "Modifier la vente",
-    
-    // Common messages
-    confirmDelete: "Confirmer la suppression",
-    areYouSure: "Êtes-vous sûr ?",
-    thisActionCannotBeUndone: "Cette action ne peut pas être annulée.",
-    yesDelete: "Oui, supprimer",
-    noCancel: "Non, annuler",
-    success: "Succès",
-    error: "Erreur",
-    saved: "Enregistré",
-    updated: "Mis à jour",
-    deleted: "Supprimé",
-    failed: "Échec",
-    pleaseTryAgain: "Veuillez réessayer",
-
-    salesTrendLast7Days: "Tendance des ventes (7 derniers jours)",
-    expensePresetSavedDesc: "Dépense enregistrée comme favori rapide.",
-    productOutOfStock: "Produit en rupture de stock",
-    productOutOfStockRemovedSuffix: "est en rupture de stock et a été retiré de la sélection.",
-    productOutOfStockCannotSellSuffix: "est en rupture de stock et ne peut pas être vendu.",
-    workerRequired: "Travailleur requis",
-    invalidPriceShort: "Prix invalide",
-    insufficientStock: "Stock insuffisant",
-    insufficientStockBulkDesc: "Impossible d'enregistrer les ventes pour : {list}. Vous ne pouvez pas vendre plus que la quantité disponible.",
-    salesRecorded: "Ventes enregistrées",
-    salesRecordedBulkDesc: "{count} vente(s) enregistrée(s) avec succès.",
-    noSalesRecorded: "Aucune vente enregistrée",
-    noSalesRecordedDesc: "Veuillez remplir au moins une vente complète.",
-    missingInformation: "Informations manquantes",
-    fillAllRequired: "Veuillez remplir tous les champs obligatoires.",
-    selectServiceWorker: "Veuillez sélectionner qui a effectué le service.",
-    invalidAmount: "Montant invalide",
-    serviceAmountMustBePositive: "Le montant du service doit être supérieur à 0.",
-    workerNotFound: "Travailleur introuvable",
-    selectValidWorker: "Veuillez sélectionner un travailleur valide.",
-    serviceRecorded: "Service enregistré",
-    serviceRecordedDesc: "{product} par {worker} pour {amount} Rwf",
-    enterQuantityDesc: "Veuillez saisir la quantité.",
-    invalidQuantity: "Quantité invalide",
-    invalidQuantityDesc: "Veuillez saisir une quantité valide supérieure à 0.",
-    invalidPriceDesc: "Entrez un prix valide (nombre positif ou zéro).",
-    needWholePackageStock: "Il faut au moins {need} en stock pour vendre un paquet entier ({stock} disponible(s)).",
-    onlyItemsInStock: "Seulement {stock} {items} disponible(s) en stock.",
-    itemSingular: "article",
-    itemsPlural: "articles",
-    saleRecorded: "Vente enregistrée",
-    saleRecordedDesc: "Vente enregistrée : {qty}x {product}",
-    saleRecordedOffline: "Vente enregistrée (hors ligne)",
-    saleRecordedOfflineWithProduct: "Vente enregistrée : {qty}x {product}. Synchronisation à la reconnexion.",
-    saleRecordedOfflineGeneric: "Vente enregistrée hors ligne. Synchronisation à la reconnexion.",
-    recordFailed: "Échec de l'enregistrement",
-    recordFailedDesc: "Impossible d'enregistrer la vente. Vérifiez votre connexion et réessayez.",
-    expenseNameAmountRequired: "Veuillez indiquer le nom et un montant valide.",
-    expenseRecorded: "Dépense enregistrée",
-    expenseRecordedDesc: "Dépense enregistrée avec succès.",
-    saveFailed: "Échec de l'enregistrement",
-    saveExpenseFailed: "Impossible d'enregistrer la dépense.",
-    activitySaleLabel: "Vente",
-    activityExpenseLabel: "Dépense",
-    activityEmptyHint: "Les dépenses récentes apparaîtront ici",
-    viewMoreInSales: "Voir plus dans Ventes",
-    viewMoreInExpenses: "Voir plus dans Dépenses",
-    invalidQuantityShort: "Quantité invalide",
-    onlyItemsAvailable: "Seulement {stock} {items} disponible(s)",
-    chartSalesLabel: "Ventes",
-    daySun: "Dim",
-    dayMon: "Lun",
-    dayTue: "Mar",
-    dayWed: "Mer",
-    dayThu: "Jeu",
-    dayFri: "Ven",
-    daySat: "Sam",
-    pricePerItem: "Prix à l'unité",
-    priceForWholePackageLabel: "Prix du paquet entier",
-    priceWholePackageCalc: "Prix à l'unité : {base} Rwf × {qty} = {total} Rwf (paquet entier)",
-    priceFromPackageCalc: "Prix à l'unité : {perItem} Rwf (de {base} Rwf ÷ {qty})",
-    maximumQuantity: "Quantité maximale",
-    stockLabel: "Stock",
-    boxOf: "Paquet de {qty}",
-    noProductsSearchHint: "Aucun élément trouvé. Essayez une autre recherche.",
-    noProducts: "Aucun produit trouvé",
-  },
 };
 
-export const getTranslation = (key: keyof Translations, language: Language = "en"): string => {
-  return (
-    extendedTranslations[language]?.[key] ??
-    translations[language]?.[key] ??
-    (language === "fr" ? frMissing[key] : undefined) ??
-    extendedTranslations.en?.[key] ??
-    translations.en?.[key] ??
-    key
-  );
+export const getTranslation = (key: keyof Translations): string => {
+  return extendedTranslations.en?.[key] ?? translations.en?.[key] ?? key;
 };

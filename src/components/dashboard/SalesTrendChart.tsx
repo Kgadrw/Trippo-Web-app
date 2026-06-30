@@ -95,14 +95,12 @@ function sumExpensesInRange(expenses: Expense[], startMs: number, endMs: number)
     .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
 }
 
-function getLocaleTag(language: string): string {
-  if (language === "fr") return "fr-FR";
-  if (language === "rw") return "rw-RW";
+function getLocaleTag(): string {
   return "en-US";
 }
 
 export function SalesTrendChart({ incomes = [], expenses = [], className }: SalesTrendChartProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<ChartPeriod>("week");
 
   const dayLabels = useMemo(
@@ -118,7 +116,7 @@ export function SalesTrendChart({ incomes = [], expenses = [], className }: Sale
     [t],
   );
 
-  const localeTag = getLocaleTag(language);
+  const localeTag = getLocaleTag();
 
   const chartData = useMemo(() => {
     const today = startOfLocalDay(new Date());

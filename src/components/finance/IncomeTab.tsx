@@ -3,6 +3,7 @@ import { useApi } from "@/hooks/useApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "@/components/categories/CategorySelect";
 import {
   Dialog,
   DialogContent,
@@ -504,7 +505,12 @@ export function IncomeTab() {
               </div>
               <div className="space-y-1">
                 <Label>{t("category")}</Label>
-                <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t("expenseCategoryPlaceholder")} disabled={isSaving} />
+                <CategorySelect
+                  type="income"
+                  value={category}
+                  onValueChange={setCategory}
+                  disabled={isSaving}
+                />
               </div>
             </div>
             <PaymentDetailsFields

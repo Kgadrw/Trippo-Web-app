@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
+import { Link } from "react-router-dom";
 import { useApi } from "@/hooks/useApi";
 import { teamMemberApi, type TeamMemberRecord } from "@/lib/api";
-import { TEAM_DEPARTMENTS, type TeamDepartment } from "@/lib/teamConstants";
+import { type TeamDepartment } from "@/lib/teamConstants";
+import { EMPLOYMENT_TYPES, employmentTypeLabel, memberId } from "@/lib/hrProfile";
+import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
+import { CategorySelect } from "@/components/categories/CategorySelect";
+import { useWorkspaceCategories } from "@/hooks/useWorkspaceCategories";
+import { formatCategoryLabel } from "@/lib/workspaceCategories";
 import {
   buildPayrollImportRows,
   normalizeMemberName,
@@ -46,6 +52,8 @@ interface PayrollEntryLike {
 export function TeamMembersTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { categories: departmentCategories } = useWorkspaceCategories("department");
+  const { members: workspaceMembers } = useWorkspaceMemberAvatars();
   const { items: payrolls, isLoading: payrollsLoading } = useApi<PayrollEntryLike>({
     endpoint: "payrolls",
     defaultValue: [],
@@ -68,6 +76,17 @@ export function TeamMembersTab() {
   const [department, setDepartment] = useState<TeamDepartment>("general");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [notes, setNotes] = useState("");
+  const [employeeNumber, setEmployeeNumber] = useState("");
+  const [hireDate, setHireDate] = useState("");
+  const [employmentType, setEmploymentType] =
+    useState<TeamMemberRecord["employmentType"]>("full_time");
+  const [reportsToId, setReportsToId] = useState("");
+  const [location, setLocation] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [linkedUserId, setLinkedUserId] = useState("");
+  const [annualLeaveAllowance, setAnnualLeaveAllowance] = useState("21");
+  const [sickLeaveAllowance, setSickLeaveAllowance] = useState("10");
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -93,6 +112,16 @@ export function TeamMembersTab() {
     setDepartment("general");
     setStatus("active");
     setNotes("");
+    setEmployeeNumber("");
+    setHireDate("");
+    setEmploymentType("full_time");
+    setReportsToId("");
+    setLocation("");
+    setEmergencyContactName("");
+    setEmergencyContactPhone("");
+    setLinkedUserId("");
+    setAnnualLeaveAllowance("21");
+    setSickLeaveAllowance("10");
     setEditing(null);
   };
 
@@ -110,13 +139,21 @@ export function TeamMembersTab() {
     setDepartment((member.department as TeamDepartment) || "general");
     setStatus(member.status || "active");
     setNotes(member.notes || "");
+    setEmployeeNumber(member.employeeNumber || "");
+    setHireDate(member.hireDate ? member.hireDate.split("T")[0] : "");
+    setEmploymentType(member.employmentType || "full_time");
+    setReportsToId(memberId(member.reportsToId as TeamMemberRecord | string | null));
+    setLocation(member.location || "");
+    setEmergencyContactName(member.emergencyContactName || "");
+    setEmergencyContactPhone(member.emergencyContactPhone || "");
+    setLinkedUserId(member.linkedUserId || "");
+    setAnnualLeaveAllowance(String(member.annualLeaveAllowance ?? 21));
+    setSickLeaveAllowance(String(member.sickLeaveAllowance ?? 10));
     setOpen(true);
   };
 
-  const deptLabel = (dept: string) => {
-    const key = `teamDept${dept.charAt(0).toUpperCase()}${dept.slice(1)}` as keyof typeof t;
-    return t(key);
-  };
+  const deptLabel = (dept: string) =>
+    formatCategoryLabel(dept, departmentCategories, t, "department");
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -134,6 +171,16 @@ export function TeamMembersTab() {
         department,
         status,
         notes: notes.trim(),
+        employeeNumber: employeeNumber.trim(),
+        hireDate: hireDate || undefined,
+        employmentType,
+        reportsToId: reportsToId || null,
+        location: location.trim(),
+        emergencyContactName: emergencyContactName.trim(),
+        emergencyContactPhone: emergencyContactPhone.trim(),
+        linkedUserId: linkedUserId || null,
+        annualLeaveAllowance: Number(annualLeaveAllowance) || 21,
+        sickLeaveAllowance: Number(sickLeaveAllowance) || 10,
       };
 
       if (editing) {
@@ -312,7 +359,11 @@ export function TeamMembersTab() {
             <tbody>
               {visibleMembers.map((member) => (
                 <tr key={member._id} className="border-b border-gray-100 hover:bg-gray-50/60">
-                  <td className="px-3 py-3 font-medium text-gray-900">{member.name}</td>
+                  <td className="px-3 py-3 font-medium text-gray-900">
+                    <Link to={`/hr/people/${member._id}`} className="text-sky-700 hover:underline">
+                      {member.name}
+                    </Link>
+                  </td>
                   <td className="px-3 py-3 text-gray-700">{member.jobTitle || "—"}</td>
                   <td className="px-3 py-3 text-gray-700">
                     {deptLabel(member.department || "general")}
@@ -350,7 +401,7 @@ export function TeamMembersTab() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? t("teamEditMember") : t("teamAddMember")}</DialogTitle>
           </DialogHeader>
@@ -376,18 +427,11 @@ export function TeamMembersTab() {
               </div>
               <div>
                 <Label>{t("teamDepartment")}</Label>
-                <Select value={department} onValueChange={(v) => setDepartment(v as TeamDepartment)}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TEAM_DEPARTMENTS.map((d) => (
-                      <SelectItem key={d} value={d}>
-                        {deptLabel(d)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CategorySelect
+                  type="department"
+                  value={department}
+                  onValueChange={setDepartment}
+                />
               </div>
             </div>
             <div>
@@ -402,6 +446,129 @@ export function TeamMembersTab() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="border-t border-gray-200 pt-4">
+              <p className="mb-3 text-sm font-semibold text-gray-800">{t("hrDetailsSection")}</p>
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>{t("hrEmployeeNumber")}</Label>
+                    <Input value={employeeNumber} onChange={(e) => setEmployeeNumber(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>{t("hrHireDate")}</Label>
+                    <Input type="date" value={hireDate} onChange={(e) => setHireDate(e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>{t("hrEmploymentType")}</Label>
+                    <Select
+                      value={employmentType}
+                      onValueChange={(value) =>
+                        setEmploymentType(value as TeamMemberRecord["employmentType"])
+                      }
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EMPLOYMENT_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {employmentTypeLabel(type, t)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>{t("hrManager")}</Label>
+                    <Select
+                      value={reportsToId || "__none__"}
+                      onValueChange={(value) => setReportsToId(value === "__none__" ? "" : value)}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder={t("hrNoManager")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">{t("hrNoManager")}</SelectItem>
+                        {members
+                          .filter((member) => member._id !== editing?._id)
+                          .map((member) => (
+                            <SelectItem key={member._id} value={member._id}>
+                              {member.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>{t("hrLocation")}</Label>
+                    <Input value={location} onChange={(e) => setLocation(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>{t("hrLeaveAllowances")}</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={annualLeaveAllowance}
+                        onChange={(e) => setAnnualLeaveAllowance(e.target.value)}
+                        placeholder={t("hrAnnualLeave")}
+                      />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={sickLeaveAllowance}
+                        onChange={(e) => setSickLeaveAllowance(e.target.value)}
+                        placeholder={t("hrSickLeave")}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>{t("hrEmergencyContact")}</Label>
+                    <Input
+                      value={emergencyContactName}
+                      onChange={(e) => setEmergencyContactName(e.target.value)}
+                      placeholder={t("name")}
+                    />
+                  </div>
+                  <div>
+                    <Label>{t("phone")}</Label>
+                    <Input
+                      value={emergencyContactPhone}
+                      onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+                {workspaceMembers.length ? (
+                  <div>
+                    <Label>{t("hrLinkedWorkspaceUser")}</Label>
+                    <Select
+                      value={linkedUserId || "__none__"}
+                      onValueChange={(value) => setLinkedUserId(value === "__none__" ? "" : value)}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder={t("hrNoLinkedUser")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">{t("hrNoLinkedUser")}</SelectItem>
+                        {workspaceMembers.map((member) => (
+                          <SelectItem key={member.userId} value={member.userId}>
+                            {member.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <div>
               <Label>{t("note")}</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />

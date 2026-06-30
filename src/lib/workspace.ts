@@ -13,13 +13,22 @@ export type WorkspacePageKey =
   | 'schedules'
   | 'calendar'
   | 'team'
+  | 'hr'
+  | 'projects'
+  | 'crm'
   | 'finance'
   | 'reports'
-  | 'documents';
+  | 'documents'
+  | 'assets'
+  | 'approvals'
+  | 'chat';
 
 export type WorkspaceSummary = {
   id: string;
   name: string;
+  profilePictureUrl?: string | null;
+  /** Client-only cache buster when the picture changes but the URL path stays the same. */
+  profilePictureRevision?: number;
   role: 'owner' | 'admin' | 'member';
   permissions: WorkspacePageKey[];
   ownerId?: string;
@@ -36,12 +45,18 @@ export const WORKSPACE_PAGES: WorkspacePageMeta[] = [
   { key: 'dashboard', label: 'Overview', path: '/' },
   { key: 'products', label: 'Products', path: '/products' },
   { key: 'sales', label: 'Sales', path: '/sales' },
-  { key: 'schedules', label: 'Automations', path: '/schedules' },
+  { key: 'schedules', label: 'Automations', path: '/calendar/schedules' },
   { key: 'calendar', label: 'Calendar', path: '/calendar' },
   { key: 'team', label: 'Team', path: '/team' },
+  { key: 'hr', label: 'HR', path: '/hr' },
+  { key: 'projects', label: 'Projects', path: '/projects' },
+  { key: 'crm', label: 'CRM', path: '/crm' },
   { key: 'finance', label: 'Finance', path: '/finance/income' },
   { key: 'reports', label: 'Reports', path: '/reports' },
   { key: 'documents', label: 'Documents', path: '/documents' },
+  { key: 'assets', label: 'Assets', path: '/assets' },
+  { key: 'approvals', label: 'Approvals', path: '/approvals' },
+  { key: 'chat', label: 'Messages', path: '/messages' },
 ];
 
 export function getStoredWorkspaceMode(): WorkspaceMode {
@@ -95,11 +110,41 @@ export function persistWorkspaceContext(mode: WorkspaceMode, workspaceId: string
 export type WorkspaceMetaChangedDetail = {
   workspaceId: string;
   name?: string;
+  profilePictureUrl?: string | null;
+  profilePictureRevision?: number;
 };
 
 /** Workspace name, members, or invites changed — refresh header without switching scope. */
+export async function invalidateWorkspaceListCache() {
+  const { requestManager } = await import('@/lib/requestManager');
+  const userId = localStorage.getItem('profit-pilot-user-id') || 'anonymous';
+  requestManager.cancel(`GET:/workspaces:${userId}:personal`);
+}
+
+/** Workspace name, members, or invites changed — refresh header without switching scope. */
 export function notifyWorkspaceMetaChanged(detail?: WorkspaceMetaChangedDetail) {
-  window.dispatchEvent(new CustomEvent(WORKSPACE_META_CHANGED_EVENT, { detail }));
+  const payload =
+    detail && detail.profilePictureUrl !== undefined
+      ? {
+          ...detail,
+          profilePictureRevision: detail.profilePictureRevision ?? Date.now(),
+        }
+      : detail;
+
+  if (payload?.profilePictureUrl !== undefined) {
+    void invalidateWorkspaceListCache();
+  }
+
+  window.dispatchEvent(new CustomEvent(WORKSPACE_META_CHANGED_EVENT, { detail: payload }));
+}
+
+const PICTURE_PRESERVE_MS = 60_000;
+
+export function shouldPreserveWorkspacePicture(workspace?: WorkspaceSummary | null) {
+  if (!workspace?.profilePictureRevision || workspace.profilePictureUrl === undefined) {
+    return false;
+  }
+  return Date.now() - workspace.profilePictureRevision < PICTURE_PRESERVE_MS;
 }
 
 export function canAccessPage(
@@ -111,13 +156,27 @@ export function canAccessPage(
   if (mode === 'personal') return true;
   if (!role) return false;
   if (role === 'owner' || role === 'admin') return true;
+  if (pageKey === 'hr' && permissions.includes('team')) return true;
+  if (pageKey === 'team' && permissions.includes('hr')) return true;
+  if (pageKey === 'projects' && permissions.includes('team')) return true;
+  if (pageKey === 'team' && permissions.includes('projects')) return true;
+  if (pageKey === 'crm' && permissions.includes('finance')) return true;
+  if (pageKey === 'finance' && permissions.includes('crm')) return true;
+  if (pageKey === 'calendar' && permissions.includes('schedules')) return true;
+  if (pageKey === 'schedules' && permissions.includes('calendar')) return true;
   return permissions.includes(pageKey);
 }
 
 export function pathToWorkspacePage(pathname: string): WorkspacePageKey | null {
   if (pathname.startsWith('/finance')) return 'finance';
+  if (pathname.startsWith('/hr')) return 'hr';
+  if (pathname.startsWith('/projects')) return 'projects';
+  if (pathname.startsWith('/crm')) return 'crm';
   if (pathname.startsWith('/team')) return 'team';
+  if (pathname.startsWith('/messages')) return 'chat';
   if (pathname.startsWith('/dashboard') || pathname === '/') return 'dashboard';
+  if (pathname.startsWith('/calendar/schedules')) return 'schedules';
+  if (pathname.startsWith('/calendar')) return 'calendar';
   for (const page of WORKSPACE_PAGES) {
     if (pathname === page.path || pathname.startsWith(`${page.path}/`)) {
       return page.key;
@@ -138,6 +197,10 @@ const ENDPOINT_PAGE_KEYS: Partial<Record<string, WorkspacePageKey>> = {
   bankDeposits: 'finance',
   loans: 'finance',
   documents: 'documents',
+  assets: 'assets',
+  projects: 'projects',
+  crm: 'crm',
+  approvals: 'approvals',
   clients: 'finance',
   vendors: 'finance',
   accounts: 'finance',

@@ -20,10 +20,19 @@ const PATH_SCOPES: Array<{ prefix: string; labelKey: string; fullPlaceholder?: b
   { prefix: "/finance/reconciliation", labelKey: "bankReconciliation" },
   { prefix: "/products", labelKey: "products" },
   { prefix: "/sales", labelKey: "sales" },
-  { prefix: "/documents", labelKey: "documents" },
-  { prefix: "/team/members", labelKey: "teamMembers" },
+  { prefix: "/documents/archive", labelKey: "docArchiveTitle" },
+  { prefix: "/documents/registry", labelKey: "docRegistryTitle" },
+  { prefix: "/assets", labelKey: "assets" },
+  { prefix: "/crm/contacts", labelKey: "crmContactsTitle" },
+  { prefix: "/crm/quotes", labelKey: "crmQuotesTitle" },
+  { prefix: "/crm/contracts", labelKey: "crmContractsTitle" },
+  { prefix: "/crm/pipeline", labelKey: "crmPipelineTitle" },
+  { prefix: "/projects/all", labelKey: "projectAllProjects" },
+  { prefix: "/hr/people", labelKey: "hrPeople" },
+  { prefix: "/hr/org-chart", labelKey: "hrOrgChart" },
+  { prefix: "/hr/leave", labelKey: "hrLeave" },
   { prefix: "/team/tasks", labelKey: "teamAllTasks" },
-  { prefix: "/schedules", labelKey: "searchAutomationsPlaceholder", fullPlaceholder: true },
+  { prefix: "/calendar/schedules", labelKey: "searchAutomationsPlaceholder", fullPlaceholder: true },
 ];
 
 export function resolvePageSearchScope(pathname: string): PageSearchScope | null {

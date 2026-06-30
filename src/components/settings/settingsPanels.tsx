@@ -2,7 +2,6 @@ import { lazy, Suspense, type ComponentType } from "react";
 import { Loader2 } from "lucide-react";
 import SettingsProfile from "@/pages/settings/SettingsProfile";
 import SettingsBusiness from "@/pages/settings/SettingsBusiness";
-import SettingsLanguage from "@/pages/settings/SettingsLanguage";
 import SettingsSecurity from "@/pages/settings/SettingsSecurity";
 import SettingsNotifications from "@/pages/settings/SettingsNotifications";
 import SettingsHelpSupport from "@/pages/settings/SettingsHelpSupport";
@@ -38,7 +37,6 @@ export const settingsPanelComponents: Record<
 > = {
   profile: SettingsProfile,
   business: SettingsBusiness,
-  language: SettingsLanguage,
   security: SettingsSecurity,
   notifications: SettingsNotifications,
   billing: BillingPanel,

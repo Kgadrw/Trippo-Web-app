@@ -22,7 +22,7 @@ export function applyAdminSession(user?: { name?: string }) {
 export async function loginAsAdmin(pin: string, email: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const response = await authApi.login({
-    pin,
+    password: pin,
     email: normalizedEmail,
   });
 

@@ -1,5 +1,6 @@
 import { useApi } from "@/hooks/useApi";
 import { taxApi } from "@/lib/api";
+import { buildPeriodTaxDueSummary, currentMonthBounds } from "@/lib/dashboardCashFlow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -209,18 +210,15 @@ export function TaxesTab() {
 
   const metrics = useMemo(() => {
     const pending = taxes.filter((tx) => (tx.status || "pending") === "pending");
-    const outstanding = pending.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    const monthDue = buildPeriodTaxDueSummary(pending, currentMonthBounds());
     const dueToday = pending.filter((tx) => isDueToday(tx.dueDate, tx.status));
-    const dueSoon = pending.filter((tx) => isDueWithinDays(tx.dueDate, 30, tx.status));
-    const overdue = pending.filter((tx) => isOverdue(tx.dueDate, tx.status));
     return {
-      outstanding,
+      dueThisMonthAmount: monthDue.outstanding,
+      dueThisMonthCount: monthDue.count,
       dueTodayAmount: dueToday.reduce((s, tx) => s + (Number(tx.amount) || 0), 0),
-      dueSoonAmount: dueSoon.reduce((s, tx) => s + (Number(tx.amount) || 0), 0),
-      overdueAmount: overdue.reduce((s, tx) => s + (Number(tx.amount) || 0), 0),
       dueTodayCount: dueToday.length,
-      dueSoonCount: dueSoon.length,
-      overdueCount: overdue.length,
+      overdueAmount: monthDue.overdueAmount,
+      overdueCount: monthDue.overdueCount,
     };
   }, [taxes]);
 
@@ -598,12 +596,13 @@ export function TaxesTab() {
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="mb-4 grid grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("outstandingTaxes")}</p>
-          <p className="text-xl font-bold text-gray-900 tabular-nums mt-1">
-            {metrics.outstanding.toLocaleString()} <span className="currency-code text-sm text-gray-500">Rwf</span>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("dueThisMonth")}</p>
+          <p className="text-xl font-bold text-sky-700 tabular-nums mt-1">
+            {metrics.dueThisMonthAmount.toLocaleString()} <span className="currency-code text-sm text-gray-500">Rwf</span>
           </p>
+          <p className="text-xs text-gray-500 mt-0.5">{metrics.dueThisMonthCount} {t("taxObligations")}</p>
         </div>
         <div className="border border-gray-200 bg-white px-4 py-3">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("dueToday")}</p>
@@ -613,14 +612,7 @@ export function TaxesTab() {
           <p className="text-xs text-gray-500 mt-0.5">{metrics.dueTodayCount} {t("taxObligations")}</p>
         </div>
         <div className="border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("dueWithin30Days")}</p>
-          <p className="text-xl font-bold text-sky-700 tabular-nums mt-1">
-            {metrics.dueSoonAmount.toLocaleString()} <span className="currency-code text-sm text-gray-500">Rwf</span>
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">{metrics.dueSoonCount} {t("taxObligations")}</p>
-        </div>
-        <div className="border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("overdue")}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t("overdueThisMonth")}</p>
           <p className="text-xl font-bold text-red-600 tabular-nums mt-1">
             {metrics.overdueAmount.toLocaleString()} <span className="currency-code text-sm text-gray-500">Rwf</span>
           </p>

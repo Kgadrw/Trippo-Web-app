@@ -1,6 +1,6 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, saleApi, clientApi, vendorApi, accountApi, categoryBudgetApi, scheduleApi, bookingApi, expenseApi, incomeApi, payrollApi, billApi, taxApi, bankDepositApi, loanApi, invoiceApi, documentApi } from "@/lib/api";
+import { productApi, saleApi, clientApi, vendorApi, accountApi, categoryBudgetApi, scheduleApi, bookingApi, expenseApi, incomeApi, payrollApi, billApi, taxApi, bankDepositApi, loanApi, invoiceApi, documentApi, assetApi } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
 import { tryInitDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
@@ -24,7 +24,7 @@ import {
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 interface UseApiOptions<T> {
-  endpoint: 'products' | 'sales' | 'clients' | 'vendors' | 'accounts' | 'categoryBudgets' | 'schedules' | 'bookings' | 'expenses' | 'incomes' | 'payrolls' | 'bills' | 'taxes' | 'bankDeposits' | 'loans' | 'invoices' | 'documents';
+  endpoint: 'products' | 'sales' | 'clients' | 'vendors' | 'accounts' | 'categoryBudgets' | 'schedules' | 'bookings' | 'expenses' | 'incomes' | 'payrolls' | 'bills' | 'taxes' | 'bankDeposits' | 'loans' | 'invoices' | 'documents' | 'assets';
   defaultValue: T[];
   onError?: (error: Error) => void;
 }
@@ -365,6 +365,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       const isLoansEndpoint = endpoint === 'loans';
       const isInvoicesEndpoint = endpoint === 'invoices';
       const isDocumentsEndpoint = endpoint === 'documents';
+      const isAssetsEndpoint = endpoint === 'assets';
       const isProductsEndpoint = endpoint === 'products';
       const isClientsEndpoint = endpoint === 'clients';
       const isVendorsEndpoint = endpoint === 'vendors';
@@ -380,7 +381,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
         isCategoryBudgetsEndpoint ||
         isSchedulesEndpoint ||
         isBookingsEndpoint;
-      const isMoneyEndpoint = isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint || isDocumentsEndpoint;
+      const isMoneyEndpoint = isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint || isDocumentsEndpoint || isAssetsEndpoint;
       const shouldUseOfflineFirst = endpoint === 'products' || endpoint === 'sales' || isMoneyEndpoint;
       const shouldAlwaysFetchFresh = isSalesEndpoint || isProductsEndpoint || isMoneyEndpoint || isCatalogEndpoint;
       
@@ -588,6 +589,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await invoiceApi.getAll();
         } else if (endpoint === 'documents') {
           response = await documentApi.getAll();
+        } else if (endpoint === 'assets') {
+          response = await assetApi.getAll();
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -626,10 +629,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
                 const bTime = (b as any).timestamp || (b as any).date;
                 return new Date(bTime).getTime() - new Date(aTime).getTime();
               });
-            } else if (isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint) {
+            } else if (isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint || isAssetsEndpoint) {
               sortedItems = [...reconciledItems].sort((a, b) => {
-                const aTime = (a as any).dueDate || (a as any).paymentDate || (a as any).date;
-                const bTime = (b as any).dueDate || (b as any).paymentDate || (b as any).date;
+                const aTime = (a as any).dueDate || (a as any).paymentDate || (a as any).purchaseDate || (a as any).date;
+                const bTime = (b as any).dueDate || (b as any).paymentDate || (b as any).purchaseDate || (b as any).date;
                 return new Date(bTime).getTime() - new Date(aTime).getTime();
               });
             }
@@ -946,7 +949,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES = 10000; // 10 seconds for products/sales to prevent loops
   
   // Products, sales, and expenses should always refresh on mount/page open
-  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales' || endpoint === 'clients' || endpoint === 'vendors' || endpoint === 'accounts' || endpoint === 'categoryBudgets' || endpoint === 'schedules' || endpoint === 'bookings' || endpoint === 'expenses' || endpoint === 'incomes' || endpoint === 'payrolls' || endpoint === 'bills' || endpoint === 'taxes' || endpoint === 'bankDeposits' || endpoint === 'loans' || endpoint === 'invoices' || endpoint === 'documents';
+  const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales' || endpoint === 'clients' || endpoint === 'vendors' || endpoint === 'accounts' || endpoint === 'categoryBudgets' || endpoint === 'schedules' || endpoint === 'bookings' || endpoint === 'expenses' || endpoint === 'incomes' || endpoint === 'payrolls' || endpoint === 'bills' || endpoint === 'taxes' || endpoint === 'bankDeposits' || endpoint === 'loans' || endpoint === 'invoices' || endpoint === 'documents' || endpoint === 'assets';
   const minReloadInterval = shouldAlwaysRefresh ? MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES : MIN_RELOAD_INTERVAL;
 
   // Update items length ref when items change
@@ -1365,6 +1368,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await invoiceApi.create(itemData);
         } else if (endpoint === 'documents') {
           response = await documentApi.create(itemData);
+        } else if (endpoint === 'assets') {
+          response = await assetApi.create(itemData);
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -1640,6 +1645,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           response = await invoiceApi.update(itemId.toString(), itemData);
         } else if (endpoint === 'documents') {
           response = await documentApi.update(itemId.toString(), itemData);
+        } else if (endpoint === 'assets') {
+          response = await assetApi.update(itemId.toString(), itemData);
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -1836,6 +1843,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
           await invoiceApi.delete(itemId.toString());
         } else if (endpoint === 'documents') {
           await documentApi.delete(itemId.toString());
+        } else if (endpoint === 'assets') {
+          await assetApi.delete(itemId.toString());
         } else {
           throw new Error(`Unknown endpoint: ${endpoint}`);
         }
@@ -2094,7 +2103,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
     const isLoansEndpoint = endpoint === 'loans';
     const isInvoicesEndpoint = endpoint === 'invoices';
     const isDocumentsEndpoint = endpoint === 'documents';
-    const isMoneyEndpoint = isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint || isDocumentsEndpoint;
+    const isAssetsEndpoint = endpoint === 'assets';
+    const isMoneyEndpoint = isExpensesEndpoint || isIncomesEndpoint || isPayrollsEndpoint || isBillsEndpoint || isTaxesEndpoint || isBankDepositsEndpoint || isLoansEndpoint || isInvoicesEndpoint || isDocumentsEndpoint || isAssetsEndpoint;
     const shouldForce = force || isSalesEndpoint || isProductsEndpoint || isMoneyEndpoint;
     
     // Don't refresh if already loading (unless forced)

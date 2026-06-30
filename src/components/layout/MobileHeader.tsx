@@ -1,14 +1,12 @@
 import { useMemo } from "react";
 import { ArrowLeft, Menu } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubdomain } from "@/hooks/useSubdomain";
 import { getDashboardPath } from "@/lib/appRoutes";
 import { HeaderNotificationBell } from "./HeaderNotificationBell";
 import { HeaderSettingsMenu, HeaderSettingsIconButton } from "./HeaderSettingsMenu";
 import { HeaderAccountAvatar } from "./HeaderAccountAvatar";
-import { useSettingsModal } from "@/components/settings/settingsModalState";
 import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
 import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
 import { HeaderPlusIcon } from "./HeaderPlusIcon";
@@ -19,18 +17,10 @@ interface MobileHeaderProps {
 }
 
 export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderProps) {
-  const { user } = useCurrentUser();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const subdomain = useSubdomain();
-
-  const { openSettings } = useSettingsModal();
-
-  const firstName = useMemo(() => {
-    if (user?.name) return user.name.split(" ")[0];
-    return "User";
-  }, [user?.name]);
 
   const showDashboardBack = useMemo(() => {
     const path = location.pathname;
@@ -61,22 +51,6 @@ export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderPr
             <ArrowLeft className="h-6 w-6" strokeWidth={2.25} />
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => openSettings("profile")}
-          className="min-w-0 flex-1 rounded-lg py-1 text-left transition-colors hover:bg-white/60"
-          aria-label={t("profileSectionTitle")}
-        >
-          <div className="flex min-w-0 flex-col">
-            <div className="flex items-center gap-1">
-              <span className="text-sm text-muted-foreground">{t("hello")},</span>
-              <span className="truncate text-sm font-semibold text-foreground">{firstName}</span>
-            </div>
-            {user?.businessName && (
-              <span className="truncate text-xs text-muted-foreground">{user.businessName}</span>
-            )}
-          </div>
-        </button>
       </div>
 
       <div className="ml-auto flex shrink-0 items-center justify-end gap-0.5">

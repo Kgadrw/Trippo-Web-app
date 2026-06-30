@@ -10,36 +10,22 @@ export interface StockProduct {
   packageQuantity?: number;
 }
 
-export function formatStockDisplay(product: StockProduct, language: 'en' | 'rw' = 'en'): string {
+export function formatStockDisplay(product: StockProduct): string {
   if (product.stock === 0) {
-    return language === 'rw' ? 'Nta bicuruzwa bisigaye' : 'Sold Out';
+    return "Sold Out";
   }
 
-  // For package products
   if (product.isPackage && product.packageQuantity && product.packageQuantity > 0) {
     const fullPackages = Math.floor(product.stock / product.packageQuantity);
     const remainingItems = product.stock % product.packageQuantity;
 
     if (remainingItems === 0) {
-      // Perfect packages only
-      if (language === 'rw') {
-        return `${fullPackages} ${fullPackages === 1 ? 'ipaki' : 'amapaki'}`;
-      }
-      return `${fullPackages} ${fullPackages === 1 ? 'package' : 'packages'}`;
-    } else {
-      // Partial package
-      if (language === 'rw') {
-        return `${fullPackages} ${fullPackages === 1 ? 'ipaki' : 'amapaki'} + ${remainingItems} ${remainingItems === 1 ? 'igicuruzwa' : 'ibicuruzwa'}`;
-      }
-      return `${fullPackages} ${fullPackages === 1 ? 'package' : 'packages'} + ${remainingItems} ${remainingItems === 1 ? 'item' : 'items'}`;
+      return `${fullPackages} ${fullPackages === 1 ? "package" : "packages"}`;
     }
+    return `${fullPackages} ${fullPackages === 1 ? "package" : "packages"} + ${remainingItems} ${remainingItems === 1 ? "item" : "items"}`;
   }
 
-  // For non-package products
-  if (language === 'rw') {
-    return `${product.stock} ${product.stock === 1 ? 'igicuruzwa' : 'ibicuruzwa'}`;
-  }
-  return `${product.stock} ${product.stock === 1 ? 'item' : 'items'}`;
+  return `${product.stock} ${product.stock === 1 ? "item" : "items"}`;
 }
 
 /**
@@ -57,13 +43,13 @@ export function getStockBreakdown(product: StockProduct): {
     return {
       fullPackages,
       remainingItems,
-      totalItems: product.stock
+      totalItems: product.stock,
     };
   }
 
   return {
     fullPackages: 0,
     remainingItems: product.stock,
-    totalItems: product.stock
+    totalItems: product.stock,
   };
 }

@@ -17,7 +17,7 @@
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-    font-family: "Google Sans Flex", sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   
   #root {
@@ -561,6 +561,12 @@
   .login-modal input[type="button"],
   .login-modal input[type="submit"],
   .login-modal input[type="reset"] {
+    border-radius: 9999px !important;
+  }
+
+  /* Rounded controls inside workspace chat (send, header actions) */
+  .workspace-chat button.rounded-full,
+  .workspace-chat button[data-chat-send] {
     border-radius: 9999px !important;
   }
 

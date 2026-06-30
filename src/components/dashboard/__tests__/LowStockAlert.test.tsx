@@ -37,7 +37,7 @@ vi.mock("@/lib/sound", () => ({
 
 // Mock formatStockDisplay
 vi.mock("@/lib/stockFormatter", () => ({
-  formatStockDisplay: vi.fn((_product: any, _lang: string) => "3 items"),
+  formatStockDisplay: vi.fn((_product: any) => "3 items"),
 }));
 
 // ---------- helpers ----------
@@ -58,20 +58,7 @@ describe("LowStockAlert – useTranslation hook usage", () => {
     vi.clearAllMocks();
   });
 
-  it("calls useTranslation and uses the t function", async () => {
-    setupUseApi([
-      { _id: "1", name: "Widget", stock: 2, minStock: 5 },
-    ]);
-
-    // Dynamic import after mocks are set up
-    const { LowStockAlert } = await import("../LowStockAlert");
-    render(<LowStockAlert />);
-
-    // The component should have called t("language") for formatStockDisplay
-    expect(mockT).toHaveBeenCalledWith("language");
-  });
-
-  it("passes the language from t() to formatStockDisplay", async () => {
+  it("calls formatStockDisplay for low-stock products", async () => {
     const { formatStockDisplay } = await import("@/lib/stockFormatter");
 
     setupUseApi([
@@ -81,10 +68,8 @@ describe("LowStockAlert – useTranslation hook usage", () => {
     const { LowStockAlert } = await import("../LowStockAlert");
     render(<LowStockAlert />);
 
-    // formatStockDisplay should have been called with the "en" language value
     expect(formatStockDisplay).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Gadget" }),
-      "en"
     );
   });
 

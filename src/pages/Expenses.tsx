@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input, searchBarInputClass } from "@/components/ui/input";
 
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "@/components/categories/CategorySelect";
 
 import {
   Dialog,
@@ -70,6 +71,8 @@ import {
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { ApprovalStatusBadge } from "@/components/approvals/ApprovalStatusBadge";
+import { isApprovedForReporting } from "@/lib/approvalWorkflow";
 
 function expenseId(e: Expense): string {
   return String(e._id ?? e.id ?? "");
@@ -98,6 +101,8 @@ interface Expense {
   accountId?: string;
   receiptUrl?: string;
   receiptFileName?: string;
+  approvalStatus?: string;
+  rejectionNote?: string;
 }
 
 type ExpenseSort = "default" | "date-desc" | "date-asc" | "title-asc" | "title-desc" | "amount-desc" | "amount-asc";
@@ -223,7 +228,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
   const total = useMemo(
 
-    () => expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
+    () => expenses.filter(isApprovedForReporting).reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
 
     [expenses],
 
@@ -916,6 +921,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                       <div className={cn("text-gray-900", compact ? "text-xs font-medium" : "text-sm font-medium")}>
                         {expense.title}
                       </div>
+                      <ApprovalStatusBadge status={expense.approvalStatus} className="mt-1" />
                     </td>
                     <td className={tdClass}>
                       <div className={cn("text-gray-700", compact ? "text-xs" : "text-sm")}>
@@ -1073,7 +1079,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                     />
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "font-semibold text-gray-900 max-w-[180px] truncate")}>
-                    {expense.title}
+                    <div className="truncate">{expense.title}</div>
+                    <ApprovalStatusBadge status={expense.approvalStatus} className="mt-1" />
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>
                     {formatPaymentMode(expense.paymentMethod, t)}
@@ -1291,12 +1298,12 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px] sm:text-xs">{t("category")}</Label>
-                    <Input
+                    <CategorySelect
+                      type="expense"
                       value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      placeholder={t("expenseCategoryPlaceholder")}
+                      onValueChange={setCategory}
                       disabled={isSaving}
-                      className="h-9 sm:h-10 text-sm sm:text-base"
+                      triggerClassName="h-9 sm:h-10 text-sm sm:text-base"
                     />
                   </div>
                 </div>

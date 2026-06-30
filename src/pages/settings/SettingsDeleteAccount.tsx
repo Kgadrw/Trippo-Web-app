@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +6,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { usePinAuth } from "@/hooks/usePinAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { authApi } from "@/lib/api";
+import { clearAppSession, logoutAndGoHome } from "@/lib/session";
 import { LOGIN_PREF_REMEMBER, LOGIN_PREF_SAVED_EMAIL } from "@/lib/loginPrefs";
 import { playErrorBeep, playUpdateBeep, initAudio } from "@/lib/sound";
 import {
@@ -23,7 +23,6 @@ import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHead
 import { clearAllStores } from '@/lib/indexedDB';
 
 export default function SettingsDeleteAccount({ embedded = false }: { embedded?: boolean }) {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
   const { clearAuth } = usePinAuth();
@@ -41,25 +40,16 @@ export default function SettingsDeleteAccount({ embedded = false }: { embedded?:
 
       clearAuth();
       clearUser();
-      localStorage.removeItem("profit-pilot-user-id");
-      localStorage.removeItem("profit-pilot-user-name");
-      localStorage.removeItem("profit-pilot-user-email");
-      localStorage.removeItem("profit-pilot-business-name");
-      localStorage.removeItem("profit-pilot-profile-picture-url");
-      localStorage.removeItem("profit-pilot-is-admin");
-      localStorage.removeItem("profit-pilot-authenticated");
+      clearAppSession();
       localStorage.removeItem("profit-pilot-pin");
       localStorage.removeItem(LOGIN_PREF_SAVED_EMAIL);
       localStorage.removeItem(LOGIN_PREF_REMEMBER);
-      sessionStorage.clear();
 
       try {
         await clearAllStores();
       } catch (error) {
         console.error("Error clearing IndexedDB on account deletion:", error);
       }
-
-      window.dispatchEvent(new Event("pin-auth-changed"));
 
       playUpdateBeep();
       toast({
@@ -68,8 +58,7 @@ export default function SettingsDeleteAccount({ embedded = false }: { embedded?:
       });
 
       setTimeout(() => {
-        window.history.replaceState(null, "", "/");
-        navigate("/", { replace: true });
+        logoutAndGoHome();
       }, 900);
     } catch (error: unknown) {
       playErrorBeep();

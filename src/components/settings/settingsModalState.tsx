@@ -15,7 +15,6 @@ export const SettingsModalContext = createContext<SettingsModalContextValue | nu
 const PANEL_PATH_SUFFIX: Record<string, SettingsPanelKey> = {
   profile: "profile",
   business: "business",
-  language: "language",
   security: "security",
   notifications: "notifications",
   billing: "billing",

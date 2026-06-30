@@ -116,6 +116,7 @@ export function useWorkspaceMemberAvatars() {
   }, [members, currentUserId]);
 
   return {
+    members,
     visibleMembers,
     overflowMembers,
     overflowCount,

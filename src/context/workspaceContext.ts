@@ -16,7 +16,7 @@ export type WorkspaceContextValue = {
   isWorkspaceAdmin: boolean;
   switchToPersonal: () => void;
   switchToWorkspace: (workspace: WorkspaceSummary) => void;
-  refreshWorkspaces: () => Promise<void>;
+  refreshWorkspaces: (options?: { force?: boolean }) => Promise<void>;
   createWorkspace: (name: string) => Promise<WorkspaceSummary>;
   canAccessPage: (pageKey: WorkspacePageKey) => boolean;
   pages: typeof WORKSPACE_PAGES;

@@ -1,10 +1,11 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { LoginModal } from "@/components/LoginModal";
 import { User } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import { getSubdomainUrl, isBookfySubdomainHost } from "@/hooks/useSubdomain";
+import { getSubdomainUrl, getDashboardLoginUrl, isBookfySubdomainHost, redirectToBookfyWithSession } from "@/hooks/useSubdomain";
+import { GoogleOneTapPrompt } from "@/components/auth/GoogleOneTapPrompt";
+import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { contentApi } from "@/lib/api";
 import { usePlatformContact } from "@/hooks/usePlatformContact";
 import { PlatformContactFooter } from "@/components/support/PlatformContactCard";
@@ -115,10 +116,15 @@ function buildFallbackHomepageContent(t: (key: string) => string): ResolvedHomep
 }
 
 const Home = () => {
-  const { t, language } = useTranslation();
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [loginModalTab, setLoginModalTab] = useState<"login" | "create">("create");
+  const { t } = useTranslation();
   const [homepageContent, setHomepageContent] = useState<ResolvedHomepageContent | null>(null);
+  const dashboardSignupUrl = getDashboardLoginUrl("/login?tab=create");
+  const { handleGoogleSuccess, isGoogleLoading } = useGoogleAuth({ redirectToBookfy: true });
+  const showGoogleOneTap = useMemo(() => {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
+    return !(userId && authenticated);
+  }, []);
 
   const fallbackContent = useMemo(() => buildFallbackHomepageContent(t), [t]);
   const content = homepageContent ?? fallbackContent;
@@ -126,25 +132,17 @@ const Home = () => {
 
   const loadHomepageContent = useCallback(async () => {
     try {
-      const res = await contentApi.getHomepage(language);
+      const res = await contentApi.getHomepage("en");
       if (res.data) {
         setHomepageContent(res.data as ResolvedHomepageContent);
       }
     } catch {
       setHomepageContent(null);
     }
-  }, [language]);
+  }, []);
 
   useEffect(() => {
     void loadHomepageContent();
-  }, [loadHomepageContent]);
-
-  useEffect(() => {
-    const handleLanguageChange = () => {
-      void loadHomepageContent();
-    };
-    window.addEventListener("language-changed", handleLanguageChange);
-    return () => window.removeEventListener("language-changed", handleLanguageChange);
   }, [loadHomepageContent]);
 
   // Only allow Home page on main domain; send returning users straight to the app
@@ -171,23 +169,11 @@ const Home = () => {
       window.location.replace(getSubdomainUrl("admin"));
       return;
     }
-    window.location.replace(getSubdomainUrl("bookfy"));
+    redirectToBookfyWithSession("/");
   }, []);
 
-  // Reset login modal state when user logs out (listen for auth changes)
+  // Reset state when user logs out (listen for auth changes)
   useEffect(() => {
-    const handleAuthChange = () => {
-      const userId = localStorage.getItem("profit-pilot-user-id");
-      const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
-      
-      // If user is logged out, ensure modal can be opened
-      if (!userId || !authenticated) {
-        setLoginModalOpen(false);
-        setLoginModalTab("login");
-      }
-    };
-
-    // Prevent back button navigation to protected routes
     const handlePopState = () => {
       const userId = localStorage.getItem("profit-pilot-user-id");
       const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
@@ -202,24 +188,24 @@ const Home = () => {
       }
     };
 
-    window.addEventListener("pin-auth-changed", handleAuthChange);
-    window.addEventListener("storage", handleAuthChange);
     window.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener("pin-auth-changed", handleAuthChange);
-      window.removeEventListener("storage", handleAuthChange);
       window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
   const openSignup = () => {
-    setLoginModalTab("create");
-    setLoginModalOpen(true);
+    window.location.href = dashboardSignupUrl;
   };
 
   return (
     <div className="homepage min-h-screen bg-white lg:bg-white">
+      <GoogleOneTapPrompt
+        onSuccess={handleGoogleSuccess}
+        disabled={isGoogleLoading || !showGoogleOneTap}
+        autoSelect
+      />
       <Navbar />
       
       {/* Hero Section */}
@@ -391,13 +377,6 @@ const Home = () => {
         </div>
       </main>
 
-      {/* Login Modal */}
-      <LoginModal
-        open={loginModalOpen}
-        onOpenChange={setLoginModalOpen}
-        defaultTab={loginModalTab}
-      />
-      
       <PlatformContactFooter contact={contact} />
     </div>
   );

@@ -4,6 +4,7 @@ import { categoryBudgetApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "@/components/categories/CategorySelect";
 import {
   Dialog,
   DialogContent,
@@ -70,7 +71,7 @@ export function CategoryBudgetsTab() {
   const [totalBudget, setTotalBudget] = useState(0);
   const [totalActual, setTotalActual] = useState(0);
 
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState("general");
   const [amount, setAmount] = useState("");
   const [budgetPeriod, setBudgetPeriod] = useState("monthly");
   const [open, setOpen] = useState(false);
@@ -120,7 +121,7 @@ export function CategoryBudgetsTab() {
       } as CategoryBudgetEntry);
       await loadSummary();
       toast({ title: t("budgetCreated"), description: t("budgetCreatedDesc") });
-      setCategory("");
+      setCategory("general");
       setAmount("");
       setOpen(false);
     } catch (error: unknown) {
@@ -243,7 +244,7 @@ export function CategoryBudgetsTab() {
           <div className="space-y-3 py-2">
             <div className="space-y-2">
               <Label>{t("category")}</Label>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="general" />
+              <CategorySelect type="expense" value={category} onValueChange={setCategory} />
             </div>
             <div className="space-y-2">
               <Label>{t("budget")}</Label>

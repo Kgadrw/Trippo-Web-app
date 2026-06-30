@@ -71,6 +71,7 @@ const Dashboard = () => {
     dueDate: string;
     amount: number;
     status?: string;
+    period?: string;
   }>({
     endpoint: "taxes",
     defaultValue: [],
@@ -89,6 +90,8 @@ const Dashboard = () => {
     date: string;
     timestamp?: string;
     revenue: number;
+    cost?: number;
+    profit?: number;
   }>({
     endpoint: "sales",
     defaultValue: [],
@@ -104,6 +107,7 @@ const Dashboard = () => {
     principalAmount: number;
     startDate: string;
     remainingBalance?: number;
+    installmentAmount?: number;
     status?: string;
     nextDueDate?: string;
     payments?: Array<{ paymentDate: string; amount: number }>;

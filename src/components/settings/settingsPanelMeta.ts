@@ -1,7 +1,6 @@
 export type SettingsPanelKey =
   | "profile"
   | "business"
-  | "language"
   | "security"
   | "notifications"
   | "billing"
@@ -13,7 +12,6 @@ export const settingsPanelItems: Array<{
   labelKey:
     | "profileSectionTitle"
     | "businessInfo"
-    | "language"
     | "security"
     | "notifications"
     | "billing"
@@ -23,7 +21,6 @@ export const settingsPanelItems: Array<{
 }> = [
   { key: "profile", labelKey: "profileSectionTitle" },
   { key: "business", labelKey: "businessInfo" },
-  { key: "language", labelKey: "language" },
   { key: "security", labelKey: "security" },
   { key: "notifications", labelKey: "notifications" },
   { key: "billing", labelKey: "billing" },

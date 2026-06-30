@@ -5,6 +5,7 @@ class WebSocketManager {
   private static instance: WebSocketManager;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
   private ws: ReturnType<typeof useWebSocket> | null = null;
+  private pendingEmits: Array<{ eventType: string; data: Record<string, unknown> }> = [];
 
   private constructor() {}
 
@@ -17,6 +18,21 @@ class WebSocketManager {
 
   initialize(ws: ReturnType<typeof useWebSocket>) {
     this.ws = ws;
+    if (ws.isConnected) {
+      this.flushPendingEmits();
+    }
+  }
+
+  flushPendingEmits() {
+    if (!this.ws?.isConnected || !this.pendingEmits.length) return;
+    const queue = [...this.pendingEmits];
+    this.pendingEmits = [];
+    for (const item of queue) {
+      this.ws.send({
+        type: item.eventType,
+        ...item.data,
+      });
+    }
   }
 
   // Subscribe to a specific event type
@@ -40,30 +56,30 @@ class WebSocketManager {
 
   // Handle incoming WebSocket messages
   handleMessage(message: { type: string; data?: any }) {
-    console.log(`[WebSocketManager] Received message:`, message.type, message.data ? 'with data' : 'no data');
     const callbacks = this.listeners.get(message.type);
     if (callbacks && callbacks.size > 0) {
-      console.log(`[WebSocketManager] Found ${callbacks.size} listener(s) for ${message.type}`);
-      callbacks.forEach(callback => {
+      callbacks.forEach((callback) => {
         try {
           callback(message.data);
         } catch (error) {
           console.error(`[WebSocketManager] Error in callback for ${message.type}:`, error);
         }
       });
-    } else {
-      console.log(`[WebSocketManager] No listeners for ${message.type}`);
     }
   }
 
   // Emit event to server (if needed)
-  emit(eventType: string, data: any) {
-    if (this.ws && this.ws.isConnected) {
+  emit(eventType: string, data: Record<string, unknown> = {}) {
+    if (this.ws?.isConnected) {
       this.ws.send({
         type: eventType,
-        data: data,
+        ...data,
       });
+      return true;
     }
+
+    this.pendingEmits.push({ eventType, data });
+    return false;
   }
 
   isConnected(): boolean {

@@ -27,9 +27,6 @@ export type PlatformSettings = {
 
 type SettingsForm = {
   adminEmail: string;
-  currentPin: string;
-  newPin: string;
-  confirmNewPin: string;
   subscriptionAmount: string;
   trialDays: string;
   supportEmail: string;
@@ -62,39 +59,6 @@ function SectionHeader({
   );
 }
 
-function PinInput({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs text-gray-600">
-        {label}
-      </Label>
-      <Input
-        id={id}
-        type="password"
-        inputMode="numeric"
-        maxLength={4}
-        autoComplete="off"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
-        placeholder={placeholder}
-        className="h-10 bg-white"
-      />
-    </div>
-  );
-}
-
 export function AdminSettingsPanel() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -102,9 +66,6 @@ export function AdminSettingsPanel() {
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
   const [form, setForm] = useState<SettingsForm>({
     adminEmail: "",
-    currentPin: "",
-    newPin: "",
-    confirmNewPin: "",
     subscriptionAmount: "10000",
     trialDays: "7",
     supportEmail: "",
@@ -117,8 +78,7 @@ export function AdminSettingsPanel() {
 
   const applySettings = useCallback((data: PlatformSettings) => {
     setSettings(data);
-    setForm((prev) => ({
-      ...prev,
+    setForm({
       adminEmail: data.adminEmail,
       subscriptionAmount: String(data.subscriptionAmount),
       trialDays: String(data.trialDays),
@@ -128,10 +88,7 @@ export function AdminSettingsPanel() {
       instagramUrl: data.instagramUrl || "",
       companyName: data.companyName || "Trippo",
       maintenanceMode: Boolean(data.maintenanceMode),
-      currentPin: "",
-      newPin: "",
-      confirmNewPin: "",
-    }));
+    });
   }, []);
 
   const loadSettings = useCallback(async () => {
@@ -156,31 +113,10 @@ export function AdminSettingsPanel() {
   };
 
   const handleSave = async () => {
-    if (!form.currentPin || form.currentPin.length !== 4) {
-      toast({
-        title: "PIN required",
-        description: "Enter your current 4-digit PIN to save changes.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (form.newPin && form.newPin !== form.confirmNewPin) {
-      toast({
-        title: "PIN mismatch",
-        description: "New PIN and confirmation do not match.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setSaving(true);
     try {
       const res = await adminApi.updatePlatformSettings({
-        currentPin: form.currentPin,
         adminEmail: form.adminEmail.trim(),
-        newPin: form.newPin || undefined,
-        confirmNewPin: form.confirmNewPin || undefined,
         subscriptionAmount: Number(form.subscriptionAmount),
         trialDays: Number(form.trialDays),
         supportEmail: form.supportEmail.trim(),
@@ -234,7 +170,7 @@ export function AdminSettingsPanel() {
         <SectionHeader
           icon={Shield}
           title="Login credentials"
-          description="Change the email and PIN used to sign in to the admin portal."
+          description="Change the email used to sign in to the admin portal."
         />
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
@@ -250,28 +186,6 @@ export function AdminSettingsPanel() {
               autoComplete="email"
             />
           </div>
-          <PinInput
-            id="current-pin"
-            label="Current PIN (required to save)"
-            value={form.currentPin}
-            onChange={(value) => patchForm({ currentPin: value })}
-            placeholder="••••"
-          />
-          <div className="hidden sm:block" />
-          <PinInput
-            id="new-pin"
-            label="New PIN (optional)"
-            value={form.newPin}
-            onChange={(value) => patchForm({ newPin: value })}
-            placeholder="Leave blank to keep current"
-          />
-          <PinInput
-            id="confirm-pin"
-            label="Confirm new PIN"
-            value={form.confirmNewPin}
-            onChange={(value) => patchForm({ confirmNewPin: value })}
-            placeholder="Repeat new PIN"
-          />
         </div>
       </div>
 
