@@ -76,7 +76,9 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
         }
 
         // Check for updates on page load (but not continuously)
-        registration.update();
+        void registration.update().catch(() => {
+          // Host may not serve sw.js yet (partial deploy) — ignore.
+        });
 
         return registration;
       })

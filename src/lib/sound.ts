@@ -1,24 +1,48 @@
 // Sound utility for playing notification beeps using Web Audio API
 
 let audioContext: AudioContext | null = null;
+let unlockBound = false;
+
+function bindAudioUnlock() {
+  if (unlockBound || typeof window === "undefined") return;
+  unlockBound = true;
+
+  const unlock = () => {
+    try {
+      const ctx = getOrCreateAudioContext();
+      if (ctx?.state === "suspended") {
+        void ctx.resume().catch(() => {
+          // Autoplay policies can reject until a stronger gesture — ignore.
+        });
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  window.addEventListener("pointerdown", unlock, { passive: true });
+  window.addEventListener("keydown", unlock, { passive: true });
+  window.addEventListener("touchstart", unlock, { passive: true });
+}
 
 /**
  * Get or create audio context - must be called from user interaction
  */
 function getOrCreateAudioContext(): AudioContext | null {
   try {
+    bindAudioUnlock();
     if (!audioContext) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext || (window as any).mozAudioContext;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as any).webkitAudioContext ||
+        (window as any).mozAudioContext;
       if (!AudioContextClass) {
-        console.warn("⚠️ Web Audio API not supported in this browser");
         return null;
       }
       audioContext = new AudioContextClass();
-      console.log("✅ Audio context created");
     }
     return audioContext;
-  } catch (error) {
-    console.error("❌ Error creating audio context:", error);
+  } catch {
     return null;
   }
 }
@@ -28,24 +52,23 @@ function getOrCreateAudioContext(): AudioContext | null {
  */
 function playBeepDirectly(frequency: number, duration: number, volume: number, type: OscillatorType = "sine"): void {
   const ctx = getOrCreateAudioContext();
-  if (!ctx) {
-    console.warn("⚠️ Cannot play beep - audio context not available");
-    return;
-  }
+  if (!ctx) return;
 
   try {
-    // Resume if suspended
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(() => {
-        playBeepNow(ctx, frequency, duration, volume, type);
-      }).catch((err) => {
-        console.error("❌ Error resuming audio context:", err);
-      });
-    } else {
-      playBeepNow(ctx, frequency, duration, volume, type);
+    if (ctx.state === "suspended") {
+      void ctx
+        .resume()
+        .then(() => {
+          playBeepNow(ctx, frequency, duration, volume, type);
+        })
+        .catch(() => {
+          // Browser blocked audio until a user gesture — skip quietly.
+        });
+      return;
     }
-  } catch (error) {
-    console.error("❌ Error in playBeepDirectly:", error);
+    playBeepNow(ctx, frequency, duration, volume, type);
+  } catch {
+    // ignore playback failures
   }
 }
 

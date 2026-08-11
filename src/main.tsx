@@ -66,9 +66,3 @@ requestAnimationFrame(() => {
   createRoot(document.getElementById("root")!).render(<App />);
 });
 
-// Unregister any service workers cached from www.trippo.rw
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    registrations.forEach(reg => reg.unregister());
-  });
-}

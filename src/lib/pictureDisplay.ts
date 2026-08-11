@@ -34,6 +34,7 @@ function isAlreadyDisplayable(url: string): boolean {
 function isPublicExternalUrl(url: string): boolean {
   if (!url.startsWith("http://") && !url.startsWith("https://")) return false;
   try {
+    if (/res\.cloudinary\.com\//i.test(url)) return true;
     const base = PUBLIC_API_BASE_URL.replace(/\/$/, "");
     if (base.startsWith("http") && url.startsWith(base)) return false;
     if (url.includes("/api/files/") || url.includes("/uploads/")) return false;

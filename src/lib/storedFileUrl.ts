@@ -1,10 +1,14 @@
 /**
  * Normalize legacy or absolute file paths to canonical `/api/files/...` form
  * so auth-token + GET routes always match.
+ * Public CDN URLs (e.g. Cloudinary) are left unchanged.
  */
 export function normalizeStoredFileUrl(fileUrl: string): string {
   if (!fileUrl) return fileUrl;
   if (fileUrl.startsWith("blob:") || fileUrl.startsWith("data:")) return fileUrl;
+  if (/res\.cloudinary\.com\//i.test(fileUrl) || /cloudinary\.com\/.*\/image\/upload\//i.test(fileUrl)) {
+    return fileUrl;
+  }
 
   let pathname = fileUrl;
   try {
