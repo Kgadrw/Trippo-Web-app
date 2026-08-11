@@ -154,6 +154,14 @@ function assigneeKey(task: TeamTaskRecord) {
   return assigneeName(task) || "unknown";
 }
 
+function canCurrentUserChangeTaskStatus(
+  task: TeamTaskRecord,
+  currentTeamMemberId: string | null,
+) {
+  if (!currentTeamMemberId) return false;
+  return assigneeKey(task) === currentTeamMemberId;
+}
+
 function getAssigneeCardColor(key: string) {
   return ASSIGNEE_BORDER_COLORS[hashString(key) % ASSIGNEE_BORDER_COLORS.length];
 }
@@ -167,6 +175,7 @@ function TaskBoardCard({
   task,
   t,
   assigneeProfilePictureUrl,
+  canChangeStatus,
   onComplete,
   onStatusChange,
   onEdit,
@@ -176,6 +185,7 @@ function TaskBoardCard({
   task: TeamTaskRecord;
   t: (key: string) => string;
   assigneeProfilePictureUrl?: string;
+  canChangeStatus: boolean;
   onComplete: (task: TeamTaskRecord) => void;
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
   onEdit: (task: TeamTaskRecord) => void;
@@ -196,10 +206,10 @@ function TaskBoardCard({
       <div className="flex gap-2">
         <Checkbox
           checked={isDone}
-          disabled={isDone}
+          disabled={isDone || !canChangeStatus}
           className="mt-0.5 shrink-0"
           onCheckedChange={() => {
-            if (!isDone) onComplete(task);
+            if (!isDone && canChangeStatus) onComplete(task);
           }}
           aria-label={t("teamMarkComplete")}
         />
@@ -215,11 +225,13 @@ function TaskBoardCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
-                  <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
-                    {statusLabel(s, t)}
-                  </DropdownMenuItem>
-                ))}
+                {canChangeStatus
+                  ? TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
+                      <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
+                        {statusLabel(s, t)}
+                      </DropdownMenuItem>
+                    ))
+                  : null}
                 <DropdownMenuItem onClick={() => onEdit(task)}>
                   <Pencil size={14} className="mr-2" />
                   {t("edit")}
@@ -267,6 +279,7 @@ function TaskBoardColumn({
   tasks,
   t,
   resolveAssigneeAvatar,
+  currentTeamMemberId,
   onComplete,
   onStatusChange,
   onEdit,
@@ -277,6 +290,7 @@ function TaskBoardColumn({
   tasks: TeamTaskRecord[];
   t: (key: string) => string;
   resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
+  currentTeamMemberId: string | null;
   onComplete: (task: TeamTaskRecord) => void;
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
   onEdit: (task: TeamTaskRecord) => void;
@@ -303,6 +317,7 @@ function TaskBoardColumn({
               task={task}
               t={t}
               assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
+              canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
               onComplete={onComplete}
               onStatusChange={onStatusChange}
               onEdit={onEdit}
@@ -384,6 +399,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     () => members.filter((m) => m.status !== "inactive"),
     [members],
   );
+
+  const currentTeamMemberId = useMemo(() => {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) return null;
+    const mine = members.find((m) => m.linkedUserId && String(m.linkedUserId) === String(userId));
+    return mine?._id || null;
+  }, [members]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -515,6 +537,10 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   };
 
   const openComplete = (task: TeamTaskRecord) => {
+    if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {
+      toast({ title: t("teamTaskStatusAssigneeOnly"), variant: "destructive" });
+      return;
+    }
     setCompleting(task);
     setCompletionNote(task.completionNote || "");
     setCompleteOpen(true);
@@ -534,16 +560,19 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
       setIsSaving(true);
       try {
-        const payload = {
+        const canEditStatus = canCurrentUserChangeTaskStatus(editing, currentTeamMemberId);
+        const payload: Record<string, unknown> = {
           title: title.trim(),
           description: description.trim(),
           assigneeId,
           department: taskDepartment,
-          status,
           priority,
           dueDate: dueDate || undefined,
           monthKey: taskMonthKey,
         };
+        if (canEditStatus) {
+          payload.status = status;
+        }
         const res = await teamTaskApi.update(taskId(editing), payload);
         applyTaskUpdate((res.data as TeamTaskRecord) || { ...editing, ...payload });
         toast({ title: t("teamTaskUpdated") });
@@ -644,6 +673,11 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   };
 
   const handleStatusChange = async (task: TeamTaskRecord, nextStatus: string) => {
+    if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {
+      toast({ title: t("teamTaskStatusAssigneeOnly"), variant: "destructive" });
+      return;
+    }
+
     if (nextStatus === "done") {
       openComplete(task);
       return;
@@ -663,7 +697,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       }
     } catch {
       applyTaskUpdate(previous);
-      toast({ title: t("teamSaveFailed"), variant: "destructive" });
+      toast({ title: t("teamTaskStatusAssigneeOnly"), variant: "destructive" });
     }
   };
 
@@ -759,6 +793,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 tasks={tasksBySection[statusKey]}
                 t={t}
                 resolveAssigneeAvatar={resolveAssigneeAvatar}
+                currentTeamMemberId={currentTeamMemberId}
                 onComplete={openComplete}
                 onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
                 onEdit={openEdit}
@@ -953,7 +988,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <Label>{t("teamStatus")}</Label>
-                <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+                <Select
+                  value={status}
+                  onValueChange={(v) => setStatus(v as typeof status)}
+                  disabled={
+                    !editing || !canCurrentUserChangeTaskStatus(editing, currentTeamMemberId)
+                  }
+                >
                   <SelectTrigger className="bg-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -965,6 +1006,9 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                     ))}
                   </SelectContent>
                 </Select>
+                {editing && !canCurrentUserChangeTaskStatus(editing, currentTeamMemberId) ? (
+                  <p className="mt-1 text-xs text-gray-500">{t("teamTaskStatusAssigneeOnly")}</p>
+                ) : null}
               </div>
               <div>
                 <Label>{t("teamPriority")}</Label>

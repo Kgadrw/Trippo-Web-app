@@ -1,4 +1,7 @@
 import { PUBLIC_API_BASE_URL } from "./api";
+import { normalizeStoredFileUrl } from "./storedFileUrl";
+
+export { normalizeStoredFileUrl } from "./storedFileUrl";
 
 type CacheEntry = {
   blob: Blob;
@@ -10,22 +13,27 @@ const inflight = new Map<string, Promise<Blob>>();
 const BLOB_CACHE_MS = 30 * 60 * 1000;
 
 export function resolveAuthenticatedFileUrl(fileUrl: string): string {
-  if (fileUrl.startsWith("http")) return fileUrl;
+  if (fileUrl.startsWith("blob:") || fileUrl.startsWith("data:")) return fileUrl;
+
+  const normalized = normalizeStoredFileUrl(fileUrl);
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
 
   const base = PUBLIC_API_BASE_URL.replace(/\/$/, "");
 
-  if (fileUrl.startsWith("/api")) {
+  if (normalized.startsWith("/api")) {
     if (base.startsWith("http")) {
-      return `${base}${fileUrl.slice(4)}`;
+      return `${base}${normalized.slice(4)}`;
     }
-    return fileUrl;
+    return normalized;
   }
 
-  if (fileUrl.startsWith("/")) {
-    return `${base}${fileUrl}`;
+  if (normalized.startsWith("/")) {
+    return `${base}${normalized}`;
   }
 
-  return `${base}/${fileUrl}`;
+  return `${base}/${normalized}`;
 }
 
 function sleep(ms: number) {
@@ -84,14 +92,22 @@ export async function fetchAuthenticatedFileBlob(
       }
 
       if (!res.ok) {
+        if ((res.status >= 500 || res.status === 408) && retry < 3) {
+          await sleep(Math.min(400 * 2 ** retry, 4_000));
+          retry += 1;
+          continue;
+        }
         throw new Error(`Could not load file (${res.status})`);
       }
 
       const contentType = res.headers.get("content-type") || undefined;
       const rawBlob = await res.blob();
+      if (!rawBlob || rawBlob.size === 0) {
+        throw new Error("Empty file response");
+      }
       const blob =
         contentType && !rawBlob.type
-          ? new Blob([rawBlob], { type: contentType.split(";")[0]?.trim() || rawBlob.type })
+          ? new Blob([rawBlob], { type: contentType.split(";")[0]?.trim() || "application/octet-stream" })
           : rawBlob;
       blobCache.set(url, { blob, at: Date.now() });
       return blob;

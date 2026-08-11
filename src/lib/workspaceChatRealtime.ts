@@ -1,9 +1,19 @@
 export const WORKSPACE_CHAT_EVENT = "workspace-chat:message";
 export const WORKSPACE_CHAT_READ_EVENT = "workspace-chat:read";
+export const WORKSPACE_CHAT_EDIT_EVENT = "workspace-chat:edit";
+export const WORKSPACE_CHAT_DELETE_EVENT = "workspace-chat:delete";
+export const WORKSPACE_CHAT_TYPING_EVENT = "workspace-chat:typing";
 export const WORKSPACE_PRESENCE_UPDATE_EVENT = "workspace:presence:update";
 export const WORKSPACE_PRESENCE_JOIN_EVENT = "workspace:presence:join";
 export const WORKSPACE_PRESENCE_HEARTBEAT_EVENT = "workspace:presence:heartbeat";
 export const WORKSPACE_PRESENCE_LEAVE_EVENT = "workspace:presence:leave";
+
+export interface WorkspaceChatTypingPayload {
+  workspaceId: string;
+  userId: string;
+  userName: string;
+  isTyping: boolean;
+}
 
 export interface WorkspaceActiveUser {
   userId: string;
@@ -33,6 +43,8 @@ export interface WorkspaceChatMessage {
   mentionAll?: boolean;
   mentions?: WorkspaceChatMention[];
   createdAt: string;
+  editedAt?: string | null;
+  deletedAt?: string | null;
   deliveredTo?: WorkspaceChatReceipt[];
   readBy?: WorkspaceChatReceipt[];
 }

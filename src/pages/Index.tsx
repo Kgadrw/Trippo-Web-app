@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
-import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -422,8 +421,6 @@ const Dashboard = () => {
           loading={!dashboardReady}
         />
       </div>
-
-      <AddToHomeScreen />
 
       <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-[21rem] sm:max-w-[560px] max-h-[min(70vh,100dvh-2rem)] sm:max-h-[85vh] overflow-y-auto overflow-x-hidden p-0 bg-white border-gray-200 shadow-xl">

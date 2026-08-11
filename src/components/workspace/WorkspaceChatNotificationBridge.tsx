@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
 import { useWorkspaceChatSocket } from "@/hooks/useWorkspaceChatSocket";
@@ -10,6 +11,10 @@ import {
   setWorkspaceChatNotificationClickHandler,
 } from "@/lib/workspaceChatNotifications";
 import { registerWebPushSubscription } from "@/lib/pushNotifications";
+import {
+  WORKSPACE_GROUP_CHAT_PATH,
+  isWorkspaceGroupChatPath,
+} from "@/lib/workspaceGroupChat";
 
 function isOwnMessage(message: WorkspaceChatMessage, currentUserId: string | null) {
   return Boolean(currentUserId && String(message.senderUserId) === currentUserId);
@@ -25,20 +30,24 @@ function shouldAlertForMessage(chatOpen: boolean, tabHidden: boolean) {
  */
 export function WorkspaceChatNotificationBridge() {
   const { mode, activeWorkspace } = useWorkspace();
-  const { open, setOpen, incrementUnread, clearUnread, unreadCount } = useWorkspaceChatPanel();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { incrementUnread, clearUnread, unreadCount } = useWorkspaceChatPanel();
   const workspaceId = activeWorkspace?.id || "";
   const currentUserId = localStorage.getItem("profit-pilot-user-id");
-  const openRef = useRef(open);
+  const viewingGroupOnMessages = isWorkspaceGroupChatPath(location.pathname);
+  const chatOpen = viewingGroupOnMessages;
+  const openRef = useRef(chatOpen);
   const baseTitleRef = useRef(typeof document !== "undefined" ? document.title : "Trippo");
 
-  openRef.current = open;
+  openRef.current = chatOpen;
 
   useEffect(() => {
     if (mode !== "workspace") return;
 
     const openChat = () => {
-      setOpen(true);
       clearUnread();
+      navigate(WORKSPACE_GROUP_CHAT_PATH);
     };
 
     setWorkspaceChatNotificationClickHandler(openChat);
@@ -55,11 +64,11 @@ export function WorkspaceChatNotificationBridge() {
       setWorkspaceChatNotificationClickHandler(null);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
-  }, [mode, setOpen, clearUnread]);
+  }, [mode, clearUnread, navigate]);
 
   useEffect(() => {
-    if (open) clearUnread();
-  }, [open, clearUnread]);
+    if (chatOpen) clearUnread();
+  }, [chatOpen, clearUnread]);
 
   useEffect(() => {
     if (mode !== "workspace") {
@@ -108,14 +117,14 @@ export function WorkspaceChatNotificationBridge() {
     onMessage: (message) => {
       if (isOwnMessage(message, currentUserId)) return;
 
-      const chatOpen = openRef.current;
+      const isChatOpen = openRef.current;
       const tabHidden = typeof document !== "undefined" && document.hidden;
 
-      if (!chatOpen) {
+      if (!isChatOpen) {
         incrementUnread();
       }
 
-      if (!shouldAlertForMessage(chatOpen, tabHidden)) return;
+      if (!shouldAlertForMessage(isChatOpen, tabHidden)) return;
 
       initAudio();
       playChatMessageBeep();

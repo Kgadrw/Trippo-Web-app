@@ -4,6 +4,7 @@ import { projectApi, teamMemberApi, type TeamMemberRecord } from "@/lib/api";
 import {
   PROJECT_PRIORITIES,
   PROJECT_STATUSES,
+  formatProjectTimeframe,
   projectStatusClass,
   projectStatusLabel,
   type ProjectRecord,
@@ -45,7 +46,6 @@ import { Loader2, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   FINANCE_TD_CLASS,
   FINANCE_TH_CLASS,
-  formatFinanceTableDate,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -166,7 +166,7 @@ export function ProjectsListTab() {
         priority,
         startDate: startDate || undefined,
         targetEndDate: targetEndDate || undefined,
-        leadMemberId: leadMemberId || undefined,
+        leadMemberId: leadMemberId || null,
         clientName: clientName.trim(),
       };
       if (editing) {
@@ -179,8 +179,9 @@ export function ProjectsListTab() {
       setDialogOpen(false);
       resetForm();
       void loadProjects();
-    } catch {
-      toast({ title: t("projectSaveFailed"), variant: "destructive" });
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : t("projectSaveFailed");
+      toast({ title: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -248,7 +249,7 @@ export function ProjectsListTab() {
                 <th className={FINANCE_TH_CLASS}>{t("projectName")}</th>
                 <th className={FINANCE_TH_CLASS}>{t("projectStatus")}</th>
                 <th className={FINANCE_TH_CLASS}>{t("projectLead")}</th>
-                <th className={FINANCE_TH_CLASS}>{t("projectTargetEnd")}</th>
+                <th className={FINANCE_TH_CLASS}>{t("projectTimeframe")}</th>
                 <th className={FINANCE_TH_CLASS} />
               </tr>
             </thead>
@@ -275,7 +276,7 @@ export function ProjectsListTab() {
                   </td>
                   <td className={FINANCE_TD_CLASS}>{leadName(project)}</td>
                   <td className={FINANCE_TD_CLASS}>
-                    {project.targetEndDate ? formatFinanceTableDate(project.targetEndDate) : "—"}
+                    {formatProjectTimeframe(project.startDate, project.targetEndDate)}
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right")}>
                     <DropdownMenu>

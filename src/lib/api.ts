@@ -2,6 +2,7 @@
 import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
+import { normalizeStoredFileUrl } from './storedFileUrl';
 
 // API URL Configuration
 const getApiBaseUrl = (): string => {
@@ -35,6 +36,15 @@ export interface ApiResponse<T = any> {
   error?: string;
   user?: T;
   isAdmin?: boolean;
+  sync?: {
+    created?: number;
+    updated?: number;
+    reactivated?: number;
+    deactivated?: number;
+    membershipCount?: number;
+    totalTeamMembers?: number;
+    workspaceId?: string;
+  };
 }
 
 export class ApiError extends Error {
@@ -51,6 +61,57 @@ export class ApiError extends Error {
 // Request cache to prevent duplicate requests
 const requestCache = new Map<string, { promise: Promise<ApiResponse<any>>; timestamp: number }>();
 const CACHE_TTL = 30000; // 30 seconds cache for GET requests (increased to reduce API calls)
+
+/**
+ * cacheKey shape: `${METHOD}:${endpoint}:${userId}:${workspaceScope}`
+ * endpoint starts with `/` (no colons). workspaceScope is `personal` or `workspace:${id}`.
+ * Do not split the whole key on `:` — that breaks endpoint extraction (parts[1] becomes "").
+ */
+function cachedEndpointFromKey(cacheKey: string): string {
+  const match = cacheKey.match(/^(?:GET|PUT|POST|PATCH|DELETE):(\/.*?):(?:[^:]+):(personal|workspace:.+)$/);
+  return match?.[1] || '';
+}
+
+/** Clear cached GETs so mutates (create/update/delete) show fresh data without a hard refresh. */
+export function invalidateRequestCache(endpointPrefix?: string) {
+  if (!endpointPrefix) {
+    requestCache.clear();
+    return;
+  }
+  const prefix = endpointPrefix.split('?')[0];
+  for (const key of [...requestCache.keys()]) {
+    const cachedEndpoint = cachedEndpointFromKey(key);
+    if (
+      cachedEndpoint === prefix ||
+      cachedEndpoint.startsWith(`${prefix}/`) ||
+      cachedEndpoint.startsWith(`${prefix}?`)
+    ) {
+      requestCache.delete(key);
+    }
+  }
+}
+
+function invalidateRequestCacheForMutation(endpoint: string) {
+  const path = endpoint.split('?')[0];
+  const segments = path.split('/').filter(Boolean);
+  if (segments.length === 0) {
+    requestCache.clear();
+    return;
+  }
+  const root = `/${segments[0]}`;
+  for (const key of [...requestCache.keys()]) {
+    const cachedEndpoint = cachedEndpointFromKey(key);
+    if (
+      cachedEndpoint === path ||
+      cachedEndpoint.startsWith(`${path}/`) ||
+      cachedEndpoint === root ||
+      cachedEndpoint.startsWith(`${root}/`) ||
+      cachedEndpoint.startsWith(`${root}?`)
+    ) {
+      requestCache.delete(key);
+    }
+  }
+}
 
 // Generic API request function with retry logic for rate limiting
 async function request<T>(
@@ -309,6 +370,9 @@ async function executeRequest<T>(
       }
 
       // logger.log(`[API] Request successful:`, data);
+      if (!isGet) {
+        invalidateRequestCacheForMutation(endpoint);
+      }
       return data;
     })();
 
@@ -352,11 +416,16 @@ export const authApi = {
     });
   },
 
-  async login(data: { password: string; email: string; pin?: string }): Promise<ApiResponse> {
-    const password = data.password ?? data.pin ?? '';
+  async login(data: { password?: string; email: string; pin?: string }): Promise<ApiResponse> {
+    const secret = data.password ?? data.pin ?? '';
+    const isPin = Boolean(data.pin) || /^\d{4}$/.test(secret);
     return request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ password, email: data.email }),
+      body: JSON.stringify({
+        email: data.email,
+        password: secret,
+        ...(isPin ? { pin: data.pin ?? secret } : {}),
+      }),
     });
   },
 
@@ -408,7 +477,10 @@ export const authApi = {
         localStorage.setItem('profit-pilot-business-name', userData.businessName);
       }
       if (userData.profilePictureUrl) {
-        localStorage.setItem('profit-pilot-profile-picture-url', userData.profilePictureUrl);
+        localStorage.setItem(
+          'profit-pilot-profile-picture-url',
+          normalizeStoredFileUrl(String(userData.profilePictureUrl)),
+        );
       } else if (userData.profilePictureUrl === null || userData.profilePictureUrl === '') {
         localStorage.removeItem('profit-pilot-profile-picture-url');
       }
@@ -445,13 +517,16 @@ export const authApi = {
       }
       if (userData.businessName) {
         localStorage.setItem('profit-pilot-business-name', userData.businessName);
-      }
-      if (userData.profilePictureUrl) {
-        localStorage.setItem('profit-pilot-profile-picture-url', userData.profilePictureUrl);
-      } else if (userData.profilePictureUrl === null || userData.profilePictureUrl === '') {
-        localStorage.removeItem('profit-pilot-profile-picture-url');
       } else if (data.businessName !== undefined && !data.businessName) {
         localStorage.removeItem('profit-pilot-business-name');
+      }
+      if (userData.profilePictureUrl) {
+        localStorage.setItem(
+          'profit-pilot-profile-picture-url',
+          normalizeStoredFileUrl(String(userData.profilePictureUrl)),
+        );
+      } else if (userData.profilePictureUrl === null || userData.profilePictureUrl === '') {
+        localStorage.removeItem('profit-pilot-profile-picture-url');
       }
       if (userData.phone) {
         localStorage.setItem('profit-pilot-user-phone', userData.phone);
@@ -1309,6 +1384,10 @@ export const teamMemberApi = {
     });
   },
 
+  async syncFromWorkspace(): Promise<ApiResponse> {
+    return request("/team-members/sync-from-workspace", { method: "POST" });
+  },
+
   async update(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
     return request(`/team-members/${id}`, {
       method: "PUT",
@@ -1441,8 +1520,12 @@ export const projectApi = {
     return request(url, { method: "GET" });
   },
 
-  async getSummary(): Promise<ApiResponse> {
-    return request("/projects/summary", { method: "GET" });
+  async getSummary(params?: { projectId?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.projectId) queryParams.append("projectId", params.projectId);
+    const queryString = queryParams.toString();
+    const url = queryString ? `/projects/summary?${queryString}` : "/projects/summary";
+    return request(url, { method: "GET" });
   },
 
   async getById(id: string): Promise<ApiResponse> {
@@ -1531,107 +1614,6 @@ export const projectApi = {
 
   async deleteTimeEntry(projectId: string, entryId: string): Promise<ApiResponse> {
     return request(`/projects/${projectId}/time-entries/${entryId}`, { method: "DELETE" });
-  },
-};
-
-export const crmApi = {
-  async getSummary(): Promise<ApiResponse> {
-    return request("/crm/summary", { method: "GET" });
-  },
-
-  async getContacts(params?: { lifecycleStage?: string }): Promise<ApiResponse> {
-    const queryParams = new URLSearchParams();
-    if (params?.lifecycleStage) queryParams.append("lifecycleStage", params.lifecycleStage);
-    const queryString = queryParams.toString();
-    const url = queryString ? `/crm/contacts?${queryString}` : "/crm/contacts";
-    return request(url, { method: "GET" });
-  },
-
-  async createContact(data: Record<string, unknown>): Promise<ApiResponse> {
-    return request("/crm/contacts", { method: "POST", body: JSON.stringify(data) });
-  },
-
-  async updateContact(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
-    return request(`/crm/contacts/${id}`, { method: "PUT", body: JSON.stringify(data) });
-  },
-
-  async getContactProfile(id: string): Promise<ApiResponse> {
-    return request(`/crm/contacts/${id}/profile`, { method: "GET" });
-  },
-
-  async getDeals(params?: { stage?: string; clientId?: string }): Promise<ApiResponse> {
-    const queryParams = new URLSearchParams();
-    if (params?.stage) queryParams.append("stage", params.stage);
-    if (params?.clientId) queryParams.append("clientId", params.clientId);
-    const queryString = queryParams.toString();
-    const url = queryString ? `/crm/deals?${queryString}` : "/crm/deals";
-    return request(url, { method: "GET" });
-  },
-
-  async createDeal(data: Record<string, unknown>): Promise<ApiResponse> {
-    return request("/crm/deals", { method: "POST", body: JSON.stringify(data) });
-  },
-
-  async updateDeal(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
-    return request(`/crm/deals/${id}`, { method: "PUT", body: JSON.stringify(data) });
-  },
-
-  async deleteDeal(id: string): Promise<ApiResponse> {
-    return request(`/crm/deals/${id}`, { method: "DELETE" });
-  },
-
-  async getQuotes(params?: { status?: string; clientId?: string }): Promise<ApiResponse> {
-    const queryParams = new URLSearchParams();
-    if (params?.status) queryParams.append("status", params.status);
-    if (params?.clientId) queryParams.append("clientId", params.clientId);
-    const queryString = queryParams.toString();
-    const url = queryString ? `/crm/quotes?${queryString}` : "/crm/quotes";
-    return request(url, { method: "GET" });
-  },
-
-  async createQuote(data: Record<string, unknown>): Promise<ApiResponse> {
-    return request("/crm/quotes", { method: "POST", body: JSON.stringify(data) });
-  },
-
-  async updateQuote(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
-    return request(`/crm/quotes/${id}`, { method: "PUT", body: JSON.stringify(data) });
-  },
-
-  async deleteQuote(id: string): Promise<ApiResponse> {
-    return request(`/crm/quotes/${id}`, { method: "DELETE" });
-  },
-
-  async convertQuoteToInvoice(id: string): Promise<ApiResponse> {
-    return request(`/crm/quotes/${id}/convert-invoice`, { method: "POST" });
-  },
-
-  async getContracts(params?: { status?: string; clientId?: string }): Promise<ApiResponse> {
-    const queryParams = new URLSearchParams();
-    if (params?.status) queryParams.append("status", params.status);
-    if (params?.clientId) queryParams.append("clientId", params.clientId);
-    const queryString = queryParams.toString();
-    const url = queryString ? `/crm/contracts?${queryString}` : "/crm/contracts";
-    return request(url, { method: "GET" });
-  },
-
-  async createContract(data: Record<string, unknown>): Promise<ApiResponse> {
-    return request("/crm/contracts", { method: "POST", body: JSON.stringify(data) });
-  },
-
-  async updateContract(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
-    return request(`/crm/contracts/${id}`, { method: "PUT", body: JSON.stringify(data) });
-  },
-
-  async deleteContract(id: string): Promise<ApiResponse> {
-    return request(`/crm/contracts/${id}`, { method: "DELETE" });
-  },
-
-  async createActivity(data: Record<string, unknown>): Promise<ApiResponse> {
-    return request("/crm/activities", { method: "POST", body: JSON.stringify(data) });
-  },
-
-  async deleteActivity(id: string): Promise<ApiResponse> {
-    return request(`/crm/activities/${id}`, { method: "DELETE" });
   },
 };
 
@@ -2434,6 +2416,29 @@ export const workspaceApi = {
       method: 'POST',
       body: JSON.stringify({ messageIds }),
     });
+  },
+
+  async getChatUnreadSummary(workspaceId: string): Promise<ApiResponse> {
+    return request(`/workspaces/${encodeURIComponent(workspaceId)}/chat-unread-summary`, {
+      method: 'GET',
+    });
+  },
+
+  async editMessage(workspaceId: string, messageId: string, body: string): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/messages/${encodeURIComponent(messageId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ body }),
+      },
+    );
+  },
+
+  async deleteMessage(workspaceId: string, messageId: string): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/messages/${encodeURIComponent(messageId)}`,
+      { method: 'DELETE' },
+    );
   },
 
   async getDirectChatThreads(workspaceId: string): Promise<ApiResponse> {

@@ -7,9 +7,7 @@ export type HelpTranslationKey = keyof Translations;
 export const pageHelpByPath: Record<string, HelpTranslationKey> = {
   "/products": "helpProducts",
   "/sales": "helpSales",
-  "/documents": "helpDocOverview",
-  "/documents/archive": "helpDocArchive",
-  "/documents/registry": "helpDocRegistry",
+  "/documents": "helpDocuments",
   "/assets": "helpAssets",
   "/approvals": "helpApprovals",
   "/reports": "helpReports",
@@ -21,15 +19,9 @@ export const pageHelpByPath: Record<string, HelpTranslationKey> = {
   "/team/tasks": "helpTeamTasks",
   "/hr": "helpHrOverview",
   "/hr/people": "helpTeamMembers",
-  "/hr/org-chart": "helpHrOrgChart",
   "/hr/leave": "helpTeamLeave",
   "/projects": "helpProjectOverview",
   "/projects/all": "helpProjectList",
-  "/crm": "helpCrmOverview",
-  "/crm/pipeline": "helpCrmPipeline",
-  "/crm/contacts": "helpCrmContacts",
-  "/crm/quotes": "helpCrmQuotes",
-  "/crm/contracts": "helpCrmContracts",
   "/expenses": "helpExpenditure",
 };
 

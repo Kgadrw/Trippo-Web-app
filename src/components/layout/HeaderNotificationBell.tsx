@@ -270,7 +270,11 @@ export function HeaderNotificationBell({
                           }}
                           className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400"
                         >
-                          {selectedNotification.type === "workspace_invite" ? "Accept invitation" : "View Details"}
+                          {selectedNotification.type === "workspace_invite"
+                            ? "Accept invitation"
+                            : selectedNotification.type === "workspace_message"
+                              ? "Open messages"
+                              : "View Details"}
                         </Button>
                       </div>
                     )}

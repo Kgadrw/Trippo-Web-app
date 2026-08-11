@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { usePinAuth } from "@/hooks/usePinAuth";
@@ -19,6 +19,7 @@ import { clearAllStores } from "@/lib/indexedDB";
 import { clearAppSession, logoutAndGoHome } from "@/lib/session";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import type { WorkspacePageKey } from "@/lib/workspace";
+import { workspaceApi } from "@/lib/api";
 
 type SidebarMenuItem = {
   label: string;
@@ -26,7 +27,7 @@ type SidebarMenuItem = {
   matchPrefix?: string;
   sectionKey?: string;
   pageKey?: WorkspacePageKey;
-  children?: { label: string; to: string }[];
+  children?: { label: string; to: string; workspaceOnly?: boolean }[];
 };
 
 const financeChildren = [
@@ -55,7 +56,6 @@ const teamChildren = [
 const hrChildren = [
   { label: "Overview", to: "/hr" },
   { label: "People", to: "/hr/people" },
-  { label: "Org chart", to: "/hr/org-chart" },
   { label: "Leave", to: "/hr/leave" },
 ];
 
@@ -64,25 +64,10 @@ const projectChildren = [
   { label: "All projects", to: "/projects/all" },
 ];
 
-const crmChildren = [
-  { label: "Overview", to: "/crm" },
-  { label: "Pipeline", to: "/crm/pipeline" },
-  { label: "Contacts", to: "/crm/contacts" },
-  { label: "Quotes", to: "/crm/quotes" },
-  { label: "Contracts", to: "/crm/contracts" },
-];
-
-const documentChildren = [
-  { label: "Overview", to: "/documents" },
-  { label: "Archive", to: "/documents/archive" },
-  { label: "Registry", to: "/documents/registry" },
-];
-
 const calendarChildren = [
   { label: "Overview", to: "/calendar" },
-  { label: "Calendar", to: "/calendar/view" },
   { label: "Automations", to: "/calendar/schedules" },
-  { label: "Announcements", to: "/calendar/announcements" },
+  { label: "Announcements", to: "/calendar/announcements", workspaceOnly: true },
 ];
 
 const menuItems: SidebarMenuItem[] = [
@@ -122,14 +107,6 @@ const menuItems: SidebarMenuItem[] = [
     children: projectChildren,
   },
   {
-    label: "CRM",
-    path: "/crm",
-    matchPrefix: "/crm",
-    sectionKey: "crm",
-    pageKey: "crm",
-    children: crmChildren,
-  },
-  {
     label: "Finance",
     path: "/finance/income",
     matchPrefix: "/finance",
@@ -138,14 +115,7 @@ const menuItems: SidebarMenuItem[] = [
     children: financeChildren,
   },
   { label: "Reports", path: "/reports", pageKey: "reports" },
-  {
-    label: "Documents",
-    path: "/documents",
-    matchPrefix: "/documents",
-    sectionKey: "documents",
-    pageKey: "documents",
-    children: documentChildren,
-  },
+  { label: "Documents", path: "/documents", matchPrefix: "/documents", pageKey: "documents" },
   { label: "Assets", path: "/assets", pageKey: "assets" },
   { label: "Approvals", path: "/approvals", pageKey: "approvals" },
   { label: "Messages", path: "/messages", pageKey: "chat" },
@@ -179,14 +149,51 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const subdomain = useSubdomain();
-  const { mode, canAccessPage } = useWorkspace();
+  const { mode, activeWorkspace, canAccessPage } = useWorkspace();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [messagesUnread, setMessagesUnread] = useState(0);
 
   const visibleMenuItems = menuItems.filter((item) => {
-    if (mode !== "workspace" || !item.pageKey) return true;
+    if (!item.pageKey) return true;
     return canAccessPage(item.pageKey);
   });
+
+  const refreshMessagesUnread = useCallback(async () => {
+    if (mode !== "workspace" || !activeWorkspace?.id) {
+      setMessagesUnread(0);
+      return;
+    }
+    try {
+      const res = await workspaceApi.getChatUnreadSummary(activeWorkspace.id);
+      const total = Number((res.data as { total?: number } | undefined)?.total || 0);
+      setMessagesUnread(Number.isFinite(total) ? total : 0);
+    } catch {
+      // Keep last known count if the summary request fails.
+    }
+  }, [mode, activeWorkspace?.id]);
+
+  useEffect(() => {
+    void refreshMessagesUnread();
+    if (mode !== "workspace" || !activeWorkspace?.id) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      void refreshMessagesUnread();
+    }, 20000);
+
+    const onFocus = () => void refreshMessagesUnread();
+    const onNotifications = () => void refreshMessagesUnread();
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("notifications-updated", onNotifications);
+    window.addEventListener("notifications-should-refresh", onNotifications);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("notifications-updated", onNotifications);
+      window.removeEventListener("notifications-should-refresh", onNotifications);
+    };
+  }, [mode, activeWorkspace?.id, refreshMessagesUnread, location.pathname]);
 
   useEffect(() => {
     if (location.pathname.startsWith("/finance")) {
@@ -200,9 +207,6 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
     }
     if (location.pathname.startsWith("/projects")) {
       setOpenSections((prev) => ({ ...prev, projects: true }));
-    }
-    if (location.pathname.startsWith("/crm")) {
-      setOpenSections((prev) => ({ ...prev, crm: true }));
     }
   }, [location.pathname]);
 
@@ -256,7 +260,9 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
           </button>
           {sectionOpen && item.children && (
             <div className="mt-1 space-y-1 ml-1">
-              {item.children.map((sub) => {
+              {item.children
+                .filter((sub) => mode === "workspace" || !sub.workspaceOnly)
+                .map((sub) => {
                 const subActive = location.pathname === sub.to;
                 return (
                   <Link
@@ -286,6 +292,16 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
           className={cn("sidebar-item w-full", isActive && "sidebar-item-active")}
         >
           <span className={labelClass}>{item.label}</span>
+          {item.path === "/messages" && messagesUnread > 0 ? (
+            <span
+              className={cn(
+                "ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                isActive ? "bg-white text-[#5B2EFF]" : "bg-[#5B2EFF] text-white",
+              )}
+            >
+              {messagesUnread > 99 ? "99+" : messagesUnread}
+            </span>
+          ) : null}
         </Link>
       </div>
     );

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatCurrency, CurrencyAmount } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 import {
   EXPENSE_COLOR,
   INCOME_COLOR,

@@ -239,6 +239,8 @@ export interface Translations {
   toAccount: string;
   selectAccount: string;
   paymentAccount: string;
+  accountDeducted: string;
+  accountCredited: string;
   noAccountSelected: string;
   financialStatements: string;
   financialStatementsHint: string;
@@ -1372,6 +1374,9 @@ export interface Translations {
   workspaceChatNoActiveUsers: string;
   workspaceChatMentionEveryone: string;
   workspaceChatMentionHint: string;
+  chatTypingOne: string;
+  chatTypingTwo: string;
+  chatTypingMany: string;
   directChatTitle: string;
   directChatSearchPeople: string;
   directChatNoPeople: string;
@@ -1516,14 +1521,12 @@ export interface Translations {
   calSourceDeposit: string;
   calSourceLeave: string;
   calSourceMilestone: string;
-  calSourceClientMeeting: string;
   calSourceAnnouncement: string;
   corpCalOverviewTitle: string;
   corpCalOverviewSubtitle: string;
   corpCalOpenCalendar: string;
   corpCalOpenAnnouncements: string;
   corpCalUpcomingMeetings: string;
-  corpCalClientMeetings: string;
   corpCalLeaveWindows: string;
   corpCalLeaveHint: string;
   corpCalMilestones: string;
@@ -1566,6 +1569,7 @@ export interface Translations {
   corpAnnStatusDraft: string;
   corpAnnStatusPublished: string;
   corpAnnStatusArchived: string;
+  corpAnnAdminOnly: string;
   calToday: string;
   calViewDay: string;
   calViewWeek: string;
@@ -1630,6 +1634,7 @@ export interface Translations {
   teamUnknownMember: string;
   teamRecentCompletions: string;
   teamNoRecentCompletions: string;
+  teamRecentlyAdded: string;
   teamManageTasks: string;
   teamManageMembers: string;
   teamTasksSubtitle: string;
@@ -1638,6 +1643,7 @@ export interface Translations {
   teamFilterStatus: string;
   teamFilterMember: string;
   teamNoTasks: string;
+  teamNoOngoingTasks: string;
   teamDone: string;
   teamTaskTitle: string;
   teamAssignee: string;
@@ -1679,6 +1685,7 @@ export interface Translations {
   teamTaskCompleted: string;
   teamTaskDeleted: string;
   teamSaveFailed: string;
+  teamTaskStatusAssigneeOnly: string;
   teamDeleteFailed: string;
   teamMembersSubtitle: string;
   teamAddMember: string;
@@ -1702,11 +1709,29 @@ export interface Translations {
   teamImportFromPayrollRecords: string;
   teamImportFromPayrollNote: string;
   teamImportFromPayrollFailed: string;
+  teamSyncFromWorkspace: string;
+  teamSyncFromWorkspaceSuccess: string;
+  teamSyncFromWorkspaceUpToDate: string;
+  teamSyncFromWorkspaceFailed: string;
+  teamSyncFromWorkspacePersonal: string;
 
   hrPeople: string;
   hrOverview: string;
   hrOverviewTitle: string;
   hrOverviewSubtitle: string;
+  hrWorkingNow: string;
+  hrWorkingNowHint: string;
+  hrOnLeaveNow: string;
+  hrEmployeeWorkload: string;
+  hrEmployeeWorkloadHint: string;
+  hrCurrentFocus: string;
+  hrNoCurrentTask: string;
+  hrNoEmployees: string;
+  hrCurrentTasksTitle: string;
+  hrCurrentTasksHint: string;
+  hrRecentActivityTitle: string;
+  hrRecentActivityHint: string;
+  hrNoRecentActivity: string;
   hrLeave: string;
   hrOrgChart: string;
   hrOrgChartTitle: string;
@@ -1768,6 +1793,16 @@ export interface Translations {
   projectVelocityHours: string;
   projectVelocityHoursHint: string;
   projectNoVelocityData: string;
+  projectWorkQueueTitle: string;
+  projectWorkQueueSubtitle: string;
+  projectWorkQueueEmpty: string;
+  projectOpenTasksCount: string;
+  projectLeadLabel: string;
+  projectContributionTitle: string;
+  projectContributionSubtitle: string;
+  projectSelectProject: string;
+  projectContributionEmpty: string;
+  projectTimeframe: string;
   projectAllProjects: string;
   projectAllProjectsSubtitle: string;
   projectAdd: string;
@@ -1841,114 +1876,6 @@ export interface Translations {
   helpProjectList: string;
 
   notes: string;
-  crmOverviewTitle: string;
-  crmOverviewSubtitle: string;
-  crmOpenPipeline: string;
-  crmOpenContacts: string;
-  crmTotalContacts: string;
-  crmPendingQuotes: string;
-  crmActiveContracts: string;
-  crmLeadFunnel: string;
-  crmLeadFunnelHint: string;
-  crmPipelineByStage: string;
-  crmPipelineByStageHint: string;
-  crmDealValue: string;
-  crmDealCount: string;
-  crmOmnichannelTitle: string;
-  crmOmnichannelBody: string;
-  crmPipelineTitle: string;
-  crmPipelineSubtitle: string;
-  crmAddDeal: string;
-  crmDealTitle: string;
-  crmProbability: string;
-  crmDealCreated: string;
-  crmLoadFailed: string;
-  crmSaveFailed: string;
-  crmStageLead: string;
-  crmStageQualified: string;
-  crmStageProposal: string;
-  crmStageNegotiation: string;
-  crmStageWon: string;
-  crmStageLost: string;
-  crmContactsTitle: string;
-  crmContactsSubtitle: string;
-  crmAddContact: string;
-  crmAllLifecycle: string;
-  crmLifecycle: string;
-  crmLifecycleLead: string;
-  crmLifecycleProspect: string;
-  crmLifecycleCustomer: string;
-  crmLifecycleInactive: string;
-  crmCompany: string;
-  crmSource: string;
-  crmNoContacts: string;
-  crmProfileLoadFailed: string;
-  crmContactNotFound: string;
-  crmBackToContacts: string;
-  crmNoContactInfo: string;
-  crmOpenDeals: string;
-  crmNoDeals: string;
-  crmRecentQuotes: string;
-  crmCommunicationTimeline: string;
-  crmCommunicationTimelineHint: string;
-  crmActivityType: string;
-  crmChannel: string;
-  crmActivitySubject: string;
-  crmActivityBody: string;
-  crmLogActivity: string;
-  crmNoActivities: string;
-  crmActivityLogged: string;
-  crmActivityNote: string;
-  crmActivityCall: string;
-  crmActivityEmail: string;
-  crmActivityMeeting: string;
-  crmActivityMessage: string;
-  crmChannelInternal: string;
-  crmChannelPhone: string;
-  crmChannelEmail: string;
-  crmChannelSms: string;
-  crmChannelWhatsapp: string;
-  crmChannelInPerson: string;
-  crmChannelOther: string;
-  crmContracts: string;
-  crmQuotesTitle: string;
-  crmQuotesSubtitle: string;
-  crmAddQuote: string;
-  crmQuoteNumber: string;
-  crmQuoteStatus: string;
-  crmQuoteAmount: string;
-  crmQuoteTitle: string;
-  crmValidUntil: string;
-  crmLineItems: string;
-  crmAddLine: string;
-  crmQuoteLinesRequired: string;
-  crmQuoteCreated: string;
-  crmMarkSent: string;
-  crmConvertToInvoice: string;
-  crmQuoteConverted: string;
-  crmNoQuotes: string;
-  crmQuoteDraft: string;
-  crmQuoteSent: string;
-  crmQuoteAccepted: string;
-  crmQuoteRejected: string;
-  crmQuoteExpired: string;
-  crmAllStatuses: string;
-  crmContractsTitle: string;
-  crmContractsSubtitle: string;
-  crmAddContract: string;
-  crmContractTitle: string;
-  crmContractStatus: string;
-  crmContractValue: string;
-  crmRenewalDate: string;
-  crmContractStart: string;
-  crmContractEnd: string;
-  crmActivateContract: string;
-  crmContractCreated: string;
-  crmNoContracts: string;
-  crmContractDraft: string;
-  crmContractActive: string;
-  crmContractExpired: string;
-  crmContractTerminated: string;
 
   docOverviewTitle: string;
   docOverviewSubtitle: string;
@@ -1959,11 +1886,16 @@ export interface Translations {
   docSignedCount: string;
   docSharedCount: string;
   docArchiveTitle: string;
+  docDocumentsTitle: string;
   docUpload: string;
   docArchiveEmpty: string;
+  docDocumentsEmpty: string;
   docOpenFailed: string;
   docRegistryType: string;
   docRegistryStatus: string;
+  docCategoryOptional: string;
+  docStatusOptional: string;
+  docOptional: string;
   docEffectiveDate: string;
   docExpiryDate: string;
   docLoadFailed: string;
@@ -1989,6 +1921,7 @@ export interface Translations {
   docVerifyComplete: string;
   docNotFound: string;
   docBackToArchive: string;
+  docBackToDocuments: string;
   docTabOverview: string;
   docTabVersions: string;
   docTabSharing: string;
@@ -2015,11 +1948,6 @@ export interface Translations {
   docShareDownload: string;
   docShareEdit: string;
 
-  helpCrmOverview: string;
-  helpCrmPipeline: string;
-  helpCrmContacts: string;
-  helpCrmQuotes: string;
-  helpCrmContracts: string;
   helpDocOverview: string;
   helpDocArchive: string;
   helpDocRegistry: string;
@@ -2415,6 +2343,8 @@ export const translations: Record<Language, Partial<Translations>> = {
     toAccount: "To Account",
     selectAccount: "Select account",
     paymentAccount: "Payment account",
+    accountDeducted: "Account deducted (paid from)",
+    accountCredited: "Account credited",
     noAccountSelected: "No account selected",
     financialStatements: "Financial Statements",
     financialStatementsHint: "Profit & loss, balance sheet, and cash flow for your business.",
@@ -2504,21 +2434,11 @@ export const translations: Record<Language, Partial<Translations>> = {
     helpTeamLeave:
       "Request time off and track approval status. Team members submit leave; workspace owners and admins approve or reject.",
     helpHrOverview:
-      "Headcount, pending leave, and org structure. People, leave, and payroll live here — separate from task tracking in Team.",
+      "See every employee’s workload, current tasks, leave, and recent activity so HR knows what people are working on.",
     helpProjectOverview:
       "Portfolio snapshot with velocity charts — tasks completed and hours logged over the last four weeks.",
     helpProjectList:
       "Create projects, map milestones, assign cross-functional teams, and track deliverables from planning through completion.",
-    helpCrmOverview:
-      "Lead funnel, pipeline value, and recent customer activity across your CRM workspace.",
-    helpCrmPipeline:
-      "Move deals through stages from lead to won — track value and probability at each step.",
-    helpCrmContacts:
-      "Unified customer database with lifecycle stages from lead through customer.",
-    helpCrmQuotes:
-      "Create quotations with line items, mark as sent, and convert accepted quotes to invoices.",
-    helpCrmContracts:
-      "Track contract terms, renewal dates, and active agreements with customers.",
     loadStatementsFailed: "Failed to load financial statements",
     asOfDate: "As of date",
     generateReport: "Generate report",

@@ -111,13 +111,6 @@ export function ProductsTab() {
     [products, pageSearchQuery],
   );
 
-  const stats = useMemo(() => {
-    const physical = products.filter((p) => !isService(p));
-    const low = physical.filter((p) => p.stock > 0 && p.stock <= (p.minStock ?? 5)).length;
-    const out = physical.filter((p) => p.stock === 0).length;
-    return { total: products.length, low, out };
-  }, [products]);
-
   const resetForm = () => {
     setName("");
     setCategory("general");
@@ -306,21 +299,6 @@ export function ProductsTab() {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">{t("products")}</p>
-          <p className="text-xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-        <div className="border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-xs text-amber-700">{t("lowStock")}</p>
-          <p className="text-xl font-bold text-amber-800">{stats.low}</p>
-        </div>
-        <div className="border border-red-200 bg-red-50 px-4 py-3">
-          <p className="text-xs text-red-700">{t("outOfStock")}</p>
-          <p className="text-xl font-bold text-red-800">{stats.out}</p>
-        </div>
-      </div>
-
       <FinanceTableShell
         title={t("products")}
         onAdd={openCreate}

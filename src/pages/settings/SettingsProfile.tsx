@@ -212,13 +212,25 @@ export default function SettingsProfile({ embedded = false }: { embedded?: boole
       <div className="rounded-lg border border-gray-200 bg-white p-4 lg:border-0 lg:bg-transparent lg:p-0">
         <div className="flex flex-col gap-4 lg:max-w-2xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <UserProfileAvatar
-              name={ownerName || user?.name}
-              profilePictureUrl={user?.profilePictureUrl}
-              previewUrl={previewUrl}
-              className="h-16 w-16 border-2 border-sky-400"
-              fallbackClassName="bg-sky-400 text-base text-white"
-            />
+            <button
+              type="button"
+              className="group relative h-16 w-16 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-60"
+              disabled={uploadingPicture || removingPicture}
+              onClick={() => fileInputRef.current?.click()}
+              aria-label={t("profilePictureChange")}
+            >
+              <UserProfileAvatar
+                name={ownerName || user?.name}
+                profilePictureUrl={user?.profilePictureUrl}
+                previewUrl={previewUrl}
+                pictureRevision={user?.profilePictureRevision}
+                className="h-16 w-16 border-2 border-sky-400"
+                fallbackClassName="bg-sky-400 text-base text-white"
+              />
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors group-hover:bg-black/35">
+                <Camera size={18} className="text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-100" />
+              </span>
+            </button>
 
             <div className="flex flex-wrap items-center gap-2">
               <input

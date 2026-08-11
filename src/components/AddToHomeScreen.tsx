@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
-import { X, Download, Smartphone, Sparkles } from "lucide-react";
+import { X, Download, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { isBookfySubdomainHost } from "@/hooks/useSubdomain";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
+
+const SHELL_CLASS =
+  "fixed top-4 left-4 right-4 z-[60] animate-slide-up-fade lg:left-auto lg:right-4 lg:max-w-sm";
+const CARD_CLASS =
+  "relative overflow-hidden rounded-2xl border border-sky-200/80 bg-white p-5 shadow-xl";
 
 export function AddToHomeScreen() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -19,134 +23,120 @@ export function AddToHomeScreen() {
   const [isDashboardSubdomain, setIsDashboardSubdomain] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
     }
 
-    // Detect iOS
+    if (sessionStorage.getItem("add-to-home-dismissed") === "true") {
+      return;
+    }
+
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setIsIOS(iOS);
-
-    // Detect Android
     const android = /Android/.test(navigator.userAgent);
-    setIsAndroid(android);
-
-    // Detect Windows
     const windows = /Windows/.test(navigator.userAgent);
+    setIsIOS(iOS);
+    setIsAndroid(android);
     setIsWindows(windows);
 
-    // Detect dashboard/admin subdomain context
     const host = window.location.hostname.toLowerCase();
     setIsDashboardSubdomain(isBookfySubdomainHost(host) || host.startsWith("admin."));
 
-    // Listen for the beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show prompt after a delay (e.g., 3 seconds after page load)
-      setTimeout(() => {
-        setShowPrompt(true);
-      }, 3000);
+      setTimeout(() => setShowPrompt(true), 1500);
     };
-
-    // For iOS, show instructions after a delay
-    if (iOS) {
-      setTimeout(() => {
-        setShowPrompt(true);
-      }, 5000);
-    }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    // Check if app was just installed
-    window.addEventListener("appinstalled", () => {
+    const fallbackTimer = window.setTimeout(() => {
+      setShowPrompt(true);
+    }, iOS ? 3000 : 2500);
+
+    const onInstalled = () => {
       setIsInstalled(true);
       setShowPrompt(false);
-    });
+    };
+    window.addEventListener("appinstalled", onInstalled);
 
     return () => {
+      window.clearTimeout(fallbackTimer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      // Show the install prompt
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === "accepted") {
-        setShowPrompt(false);
-        setIsInstalled(true);
-      }
-      
-      setDeferredPrompt(null);
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setShowPrompt(false);
+      setIsInstalled(true);
     }
+    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    // Don't show again for this session
     sessionStorage.setItem("add-to-home-dismissed", "true");
   };
 
-  // Don't show if already installed or dismissed
   if (isInstalled || !showPrompt || sessionStorage.getItem("add-to-home-dismissed") === "true") {
     return null;
   }
 
-  // Windows/Desktop prompt (Chrome/Edge)
-  if ((isWindows || (!isIOS && !isAndroid)) && deferredPrompt) {
-    return (
-      <div className="fixed bottom-4 right-4 z-50 max-w-sm animate-slide-up-fade">
-        <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border-0 overflow-hidden">
-          {/* Decorative gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-          
-          {/* Animated sparkle effect */}
-          <div className="absolute top-3 right-3 opacity-20 animate-pulse">
-            <Sparkles className="text-blue-500" size={24} />
-          </div>
+  const dismissButton = (
+    <button
+      type="button"
+      onClick={handleDismiss}
+      className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+      aria-label="Dismiss"
+    >
+      <X size={18} />
+    </button>
+  );
 
-          <div className="relative flex items-start justify-between mb-4">
+  // Native install prompt available (desktop / Android)
+  if (deferredPrompt && !isIOS) {
+    return (
+      <div className={SHELL_CLASS}>
+        <div className={CARD_CLASS}>
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl shadow-lg">
+              <div className="rounded-xl bg-sky-400 p-2.5 shadow-sm">
                 <Download className="text-white" size={20} />
               </div>
-              <h3 className="font-bold text-gray-900 text-lg">Install Trippo</h3>
+              <h3 className="text-lg font-bold text-gray-900">Install Trippo</h3>
             </div>
-            <button
-              onClick={handleDismiss}
-              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100/80 rounded-full transition-all duration-200"
-            >
-              <X size={18} />
-            </button>
+            {dismissButton}
           </div>
-          
-          <p className="text-sm text-gray-600 mb-5 leading-relaxed relative z-10">
-            Install Trippo as an app on your computer. It will run in its own window, work offline, and launch faster.
+
+          <p className="mb-4 text-sm leading-relaxed text-gray-600">
+            {isAndroid
+              ? "Add Trippo to your home screen for quick access and offline use."
+              : "Install Trippo as an app on your computer. It will run in its own window, work offline, and launch faster."}
           </p>
-          {isDashboardSubdomain && (
-            <p className="text-xs text-blue-700 mb-4">
-              Install from this dashboard subdomain to remove the browser URL/top bar.
+          {isDashboardSubdomain && !isAndroid ? (
+            <p className="mb-4 text-xs text-sky-700">
+              Install from this dashboard subdomain to remove the browser URL bar.
             </p>
-          )}
-          
-          <div className="flex gap-3 relative z-10">
+          ) : null}
+
+          <div className="flex gap-3">
             <Button
-              onClick={handleInstallClick}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold"
+              onClick={() => void handleInstallClick()}
+              className="flex-1 rounded-full border border-sky-400 bg-sky-400 text-white hover:bg-sky-500"
               size="sm"
             >
               <Download size={16} className="mr-2" />
-              Install App
+              {isAndroid ? "Install" : "Install App"}
             </Button>
             <Button
               onClick={handleDismiss}
               variant="ghost"
-              className="flex-1 rounded-full hover:bg-gray-100/80 transition-all duration-200 font-medium"
+              className="flex-1 rounded-full font-medium"
               size="sm"
             >
               Not now
@@ -157,50 +147,43 @@ export function AddToHomeScreen() {
     );
   }
 
-  // Windows/Desktop manual instructions (if prompt not available)
-  if ((isWindows || (!isIOS && !isAndroid)) && !deferredPrompt) {
+  // Desktop manual instructions
+  if (isWindows || (!isIOS && !isAndroid)) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 max-w-sm animate-slide-up-fade">
-        <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-          
-          <div className="absolute top-3 right-3 opacity-20 animate-pulse">
-            <Sparkles className="text-blue-500" size={24} />
-          </div>
-
-          <div className="relative flex items-start justify-between mb-4">
+      <div className={SHELL_CLASS}>
+        <div className={CARD_CLASS}>
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl shadow-lg">
+              <div className="rounded-xl bg-sky-400 p-2.5 shadow-sm">
                 <Download className="text-white" size={20} />
               </div>
-              <h3 className="font-bold text-gray-900 text-lg">Install Trippo</h3>
+              <h3 className="text-lg font-bold text-gray-900">Install Trippo</h3>
             </div>
-            <button
-              onClick={handleDismiss}
-              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100/80 rounded-full transition-all duration-200"
-            >
-              <X size={18} />
-            </button>
+            {dismissButton}
           </div>
-          
-          <p className="text-sm text-gray-600 mb-4 leading-relaxed relative z-10">
-            Install Trippo as an app on Windows:
+
+          <p className="mb-3 text-sm leading-relaxed text-gray-600">
+            Install Trippo as an app on your computer:
           </p>
-          {isDashboardSubdomain && (
-            <p className="text-xs text-blue-700 mb-3">
+          {isDashboardSubdomain ? (
+            <p className="mb-3 text-xs text-sky-700">
               Tip: install while on this dashboard subdomain so it opens without browser chrome.
             </p>
-          )}
-          
-          <ol className="text-sm text-gray-700 space-y-2.5 mb-5 list-decimal list-inside relative z-10 pl-2">
-            <li className="leading-relaxed">Click the <strong className="text-gray-900">Install</strong> icon <span className="text-blue-600 font-bold">⊕</span> in the address bar, or</li>
-            <li className="leading-relaxed">Click the <strong className="text-gray-900">Menu</strong> button <span className="text-blue-600 font-bold">⋮</span> (three dots) → <strong className="text-gray-900">"Install Trippo"</strong></li>
-            <li className="leading-relaxed">The app will open in its own window</li>
+          ) : null}
+
+          <ol className="mb-4 list-inside list-decimal space-y-2 pl-1 text-sm text-gray-700">
+            <li>
+              Click the <strong className="text-gray-900">Install</strong> icon in the address bar, or
+            </li>
+            <li>
+              Open the browser menu → <strong className="text-gray-900">Install Trippo</strong>
+            </li>
+            <li>The app will open in its own window</li>
           </ol>
-          
+
           <Button
             onClick={handleDismiss}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold relative z-10"
+            className="w-full rounded-full border border-sky-400 bg-sky-400 text-white hover:bg-sky-500"
             size="sm"
           >
             Got it!
@@ -213,42 +196,37 @@ export function AddToHomeScreen() {
   // iOS instructions
   if (isIOS) {
     return (
-      <div className="fixed bottom-20 left-4 right-4 z-50 animate-slide-up-fade">
-        <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 backdrop-blur-xl rounded-2xl shadow-2xl p-6 max-w-md mx-auto border-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-          
-          <div className="absolute top-3 right-3 opacity-20 animate-pulse">
-            <Sparkles className="text-blue-500" size={24} />
-          </div>
-
-          <div className="relative flex items-start justify-between mb-4">
+      <div className={SHELL_CLASS}>
+        <div className={`${CARD_CLASS} mx-auto max-w-md`}>
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl shadow-lg">
+              <div className="rounded-xl bg-sky-400 p-2.5 shadow-sm">
                 <Smartphone className="text-white" size={20} />
               </div>
-              <h3 className="font-bold text-gray-900 text-lg">Add to Home Screen</h3>
+              <h3 className="text-lg font-bold text-gray-900">Add to Home Screen</h3>
             </div>
-            <button
-              onClick={handleDismiss}
-              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100/80 rounded-full transition-all duration-200"
-            >
-              <X size={18} />
-            </button>
+            {dismissButton}
           </div>
-          
-          <p className="text-sm text-gray-600 mb-4 leading-relaxed relative z-10">
+
+          <p className="mb-3 text-sm leading-relaxed text-gray-600">
             Install Trippo on your iPhone for quick access:
           </p>
-          
-          <ol className="text-sm text-gray-700 space-y-2.5 mb-5 list-decimal list-inside relative z-10 pl-2">
-            <li className="leading-relaxed">Tap the <strong className="text-gray-900">Share</strong> button <span className="text-blue-600 font-bold">□↑</span> at the bottom</li>
-            <li className="leading-relaxed">Scroll down and tap <strong className="text-gray-900">"Add to Home Screen"</strong></li>
-            <li className="leading-relaxed">Tap <strong className="text-gray-900">"Add"</strong> to confirm</li>
+
+          <ol className="mb-4 list-inside list-decimal space-y-2 pl-1 text-sm text-gray-700">
+            <li>
+              Tap the <strong className="text-gray-900">Share</strong> button at the bottom
+            </li>
+            <li>
+              Scroll down and tap <strong className="text-gray-900">Add to Home Screen</strong>
+            </li>
+            <li>
+              Tap <strong className="text-gray-900">Add</strong> to confirm
+            </li>
           </ol>
-          
+
           <Button
             onClick={handleDismiss}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold relative z-10"
+            className="w-full rounded-full border border-sky-400 bg-sky-400 text-white hover:bg-sky-500"
             size="sm"
           >
             Got it!
@@ -258,98 +236,42 @@ export function AddToHomeScreen() {
     );
   }
 
-  // Android prompt
-  if (isAndroid && deferredPrompt) {
+  // Android manual instructions
+  if (isAndroid) {
     return (
-      <div className="fixed bottom-20 left-4 right-4 z-50 animate-slide-up-fade">
-        <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 backdrop-blur-xl rounded-2xl shadow-2xl p-6 max-w-md mx-auto border-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-          
-          <div className="absolute top-3 right-3 opacity-20 animate-pulse">
-            <Sparkles className="text-blue-500" size={24} />
-          </div>
-
-          <div className="relative flex items-start justify-between mb-4">
+      <div className={SHELL_CLASS}>
+        <div className={`${CARD_CLASS} mx-auto max-w-md`}>
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl shadow-lg">
-                <Download className="text-white" size={20} />
-              </div>
-              <h3 className="font-bold text-gray-900 text-lg">Install Trippo</h3>
-            </div>
-            <button
-              onClick={handleDismiss}
-              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100/80 rounded-full transition-all duration-200"
-            >
-              <X size={18} />
-            </button>
-          </div>
-          
-          <p className="text-sm text-gray-600 mb-5 leading-relaxed relative z-10">
-            Add Trippo to your home screen for quick access and offline use.
-          </p>
-          
-          <div className="flex gap-3 relative z-10">
-            <Button
-              onClick={handleInstallClick}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold"
-              size="sm"
-            >
-              <Download size={16} className="mr-2" />
-              Install
-            </Button>
-            <Button
-              onClick={handleDismiss}
-              variant="ghost"
-              className="flex-1 rounded-full hover:bg-gray-100/80 transition-all duration-200 font-medium"
-              size="sm"
-            >
-              Not now
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Android manual instructions (if prompt not available)
-  if (isAndroid && !deferredPrompt) {
-    return (
-      <div className="fixed bottom-20 left-4 right-4 z-50 animate-slide-up-fade">
-        <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 backdrop-blur-xl rounded-2xl shadow-2xl p-6 max-w-md mx-auto border-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-          
-          <div className="absolute top-3 right-3 opacity-20 animate-pulse">
-            <Sparkles className="text-blue-500" size={24} />
-          </div>
-
-          <div className="relative flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl shadow-lg">
+              <div className="rounded-xl bg-sky-400 p-2.5 shadow-sm">
                 <Smartphone className="text-white" size={20} />
               </div>
-              <h3 className="font-bold text-gray-900 text-lg">Add to Home Screen</h3>
+              <h3 className="text-lg font-bold text-gray-900">Add to Home Screen</h3>
             </div>
-            <button
-              onClick={handleDismiss}
-              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100/80 rounded-full transition-all duration-200"
-            >
-              <X size={18} />
-            </button>
+            {dismissButton}
           </div>
-          
-          <p className="text-sm text-gray-600 mb-4 leading-relaxed relative z-10">
+
+          <p className="mb-3 text-sm leading-relaxed text-gray-600">
             Install Trippo on your Android device:
           </p>
-          
-          <ol className="text-sm text-gray-700 space-y-2.5 mb-5 list-decimal list-inside relative z-10 pl-2">
-            <li className="leading-relaxed">Tap the <strong className="text-gray-900">Menu</strong> button <span className="text-blue-600 font-bold">⋮</span> (three dots)</li>
-            <li className="leading-relaxed">Select <strong className="text-gray-900">"Add to Home screen"</strong> or <strong className="text-gray-900">"Install app"</strong></li>
-            <li className="leading-relaxed">Tap <strong className="text-gray-900">"Add"</strong> or <strong className="text-gray-900">"Install"</strong> to confirm</li>
+
+          <ol className="mb-4 list-inside list-decimal space-y-2 pl-1 text-sm text-gray-700">
+            <li>
+              Tap the <strong className="text-gray-900">Menu</strong> button (three dots)
+            </li>
+            <li>
+              Select <strong className="text-gray-900">Add to Home screen</strong> or{" "}
+              <strong className="text-gray-900">Install app</strong>
+            </li>
+            <li>
+              Tap <strong className="text-gray-900">Add</strong> or{" "}
+              <strong className="text-gray-900">Install</strong> to confirm
+            </li>
           </ol>
-          
+
           <Button
             onClick={handleDismiss}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold relative z-10"
+            className="w-full rounded-full border border-sky-400 bg-sky-400 text-white hover:bg-sky-500"
             size="sm"
           >
             Got it!

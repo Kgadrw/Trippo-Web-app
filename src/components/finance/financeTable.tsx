@@ -143,10 +143,10 @@ export function FinanceTableCheckbox({
       onCheckedChange={onCheckedChange}
       aria-label={ariaLabel}
       className={cn(
-        "h-[18px] w-[18px] shrink-0 rounded border border-gray-300 bg-white shadow-sm",
-        "hover:border-gray-400",
-        "data-[state=checked]:bg-sky-400 data-[state=checked]:border-sky-400 data-[state=checked]:text-white",
-        "focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+        "h-[18px] w-[18px] shrink-0 rounded border border-solid !border-gray-400 bg-white shadow-none",
+        "hover:!border-gray-500",
+        "data-[state=checked]:bg-sky-400 data-[state=checked]:!border-gray-400 data-[state=checked]:text-white",
+        "focus-visible:ring-0 focus-visible:ring-offset-0",
         className,
       )}
     />

@@ -6,7 +6,6 @@ export type PlatformCalendarSource =
   | "automation"
   | "leave"
   | "milestone"
-  | "crm_meeting"
   | "announcement"
   | "sale"
   | "income"
@@ -36,9 +35,9 @@ export const PLATFORM_SOURCE_COLORS: Record<PlatformCalendarSource, string> = {
   automation: "#6366f1",
   leave: "#0d9488",
   milestone: "#dc2626",
-  crm_meeting: "#2563eb",
   announcement: "#7c3aed",
-  sale: "#059669",  income: "#16a34a",
+  sale: "#059669",
+  income: "#16a34a",
   expense: "#dc2626",
   bill: "#d97706",
   tax: "#9333ea",
@@ -52,9 +51,9 @@ export const PLATFORM_SOURCE_LABEL_KEYS: Record<PlatformCalendarSource, string> 
   automation: "calAutomationItem",
   leave: "calSourceLeave",
   milestone: "calSourceMilestone",
-  crm_meeting: "calSourceClientMeeting",
   announcement: "calSourceAnnouncement",
-  sale: "calSourceSale",  income: "calSourceIncome",
+  sale: "calSourceSale",
+  income: "calSourceIncome",
   expense: "calSourceExpense",
   bill: "calSourceBill",
   tax: "calSourceTax",
@@ -241,14 +240,17 @@ export function buildAutomationItems(
   schedules: { _id?: string; title: string; dueDate: string; status?: string; automationType?: string }[],
 ): CalendarDisplayItem[] {
   return schedules
-    .filter((s) => s.status === "pending")
+    .filter((s) => s.status !== "cancelled")
     .map((schedule) => ({
       id: rowId(schedule as unknown as Record<string, unknown>, "automation"),
       source: "automation" as const,
       title: schedule.title,
       date: schedule.dueDate,
       color: PLATFORM_SOURCE_COLORS.automation,
-      subtitle: schedule.automationType || "custom",
+      subtitle:
+        schedule.status === "completed"
+          ? `${schedule.automationType || "custom"} · completed`
+          : schedule.automationType || "custom",
       link: "/calendar/schedules",
       editable: false,
     }));
@@ -257,11 +259,11 @@ export function buildAutomationItems(
 export function buildCorporateFeedItems(feed: CorporateFeedItem[]): CalendarDisplayItem[] {
   return feed.map((item) => ({
     id: item.id,
-    source: item.feedType === "crm_meeting" ? "crm_meeting" : item.feedType,
+    source: item.feedType,
     title: item.title,
     date: item.startDate,
     endDate: item.endDate,
-    color: item.color || PLATFORM_SOURCE_COLORS[item.feedType === "crm_meeting" ? "crm_meeting" : item.feedType],
+    color: item.color || PLATFORM_SOURCE_COLORS[item.feedType],
     subtitle: item.subtitle,
     link: item.link,
     editable: false,

@@ -47,11 +47,19 @@ interface SaleEntry {
   profit?: number;
   date: string;
   paymentMethod?: string;
+  saleType?: string;
   createdByName?: string;
 }
 
 function saleId(s: SaleEntry): string {
   return String(s._id ?? s.id ?? "");
+}
+
+function saleProfit(s: SaleEntry): number {
+  if (typeof s.profit === "number" && Number.isFinite(s.profit)) return s.profit;
+  const revenue = Number(s.revenue) || 0;
+  const cost = Number(s.cost) || 0;
+  return revenue - cost;
 }
 
 function productOptionId(p: ProductEntry): string {
@@ -179,17 +187,29 @@ export function SalesTab() {
               <th className={FINANCE_TH_CLASS}>{t("productName")}</th>
               <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("quantity")}</th>
               <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("totalRevenue")}</th>
+              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("profit")}</th>
               <th className={FINANCE_TH_CLASS}>{t("saleDate")}</th>
               {mode === "workspace" ? <th className={FINANCE_TH_CLASS}>Added by</th> : null}
             </tr>
           </thead>
           <tbody className="bg-white">
-            {visibleSales.slice(0, 50).map((entry) => (
+            {visibleSales.slice(0, 50).map((entry) => {
+              const profit = saleProfit(entry);
+              return (
                 <tr key={saleId(entry)} className="border-t border-gray-100 hover:bg-gray-50/80">
                   <td className={cn(FINANCE_TD_CLASS, "font-medium")}>{entry.product}</td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums")}>{entry.quantity}</td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right font-semibold tabular-nums text-emerald-700")}>
                     {formatCurrency(entry.revenue)}
+                  </td>
+                  <td
+                    className={cn(
+                      FINANCE_TD_CLASS,
+                      "text-right font-semibold tabular-nums",
+                      profit >= 0 ? "text-sky-700" : "text-red-600",
+                    )}
+                  >
+                    {formatCurrency(profit)}
                   </td>
                   <td className={FINANCE_TD_CLASS}>{formatFinanceTableDate(entry.date)}</td>
                   {mode === "workspace" ? (
@@ -198,7 +218,8 @@ export function SalesTab() {
                     </td>
                   ) : null}
                 </tr>
-              ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -320,16 +320,20 @@
     @apply py-4 px-4 text-sm border-b-0 lg:border-b lg:border-border text-foreground;
   }
 
-  table [role="checkbox"] {
-    border: 1px solid rgb(209 213 219) !important;
+  table [role="checkbox"],
+  [role="dialog"] [role="checkbox"],
+  [role="checkbox"] {
+    border: 1px solid rgb(156 163 175) !important; /* gray-400 */
     border-radius: 0.25rem;
     background-color: #ffffff !important;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    box-shadow: none !important;
   }
 
-  table [role="checkbox"][data-state="checked"] {
-    background-color: rgb(56 189 248) !important;
-    border-color: rgb(56 189 248) !important;
+  table [role="checkbox"][data-state="checked"],
+  [role="dialog"] [role="checkbox"][data-state="checked"],
+  [role="checkbox"][data-state="checked"] {
+    background-color: rgb(56 189 248) !important; /* sky-400 */
+    border-color: rgb(156 163 175) !important;
     color: #ffffff !important;
   }
 
@@ -568,6 +572,22 @@
   .workspace-chat button.rounded-full,
   .workspace-chat button[data-chat-send] {
     border-radius: 9999px !important;
+  }
+
+  /* Keep chat panel border visible despite global border-transparent reset */
+  aside.workspace-chat.workspace-chat-panel {
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: rgb(14 165 233) !important; /* sky-500 */
+  }
+
+  aside.workspace-chat.workspace-chat-panel .border-sky-300 {
+    border-color: rgb(125 211 252) !important; /* sky-300 */
+  }
+
+  aside.workspace-chat.workspace-chat-panel .border-sky-500,
+  aside.workspace-chat.workspace-chat-panel .focus-within\:border-sky-500:focus-within {
+    border-color: rgb(14 165 233) !important;
   }
 
   /* Light blue for buttons using legacy primary classes */

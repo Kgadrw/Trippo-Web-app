@@ -21,15 +21,26 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useToast } from "@/hooks/use-toast";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
+import { WorkspaceProfileAvatar } from "@/components/workspace/WorkspaceProfileAvatar";
+import { WorkspaceGroupChatPane } from "@/components/workspace/WorkspaceGroupChatPane";
 import { cn } from "@/lib/utils";
 import { useDirectChatSocket } from "@/hooks/useDirectChatSocket";
+import { useWorkspaceChatSocket } from "@/hooks/useWorkspaceChatSocket";
+import { useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
+import {
+  WORKSPACE_GROUP_CHAT_PATH,
+  isWorkspaceGroupChatSegment,
+} from "@/lib/workspaceGroupChat";
+import type { WorkspaceChatMessage } from "@/lib/workspaceChatRealtime";
 import {
   mergeDirectMessages,
   canModifyDirectMessage,
   isDirectMessageDeleted,
+  WORKSPACE_DM_TYPING_EVENT,
   type DirectChatMessage,
   type DirectChatThread,
 } from "@/lib/workspaceDirectChatRealtime";
+import { formatTypingLabel, useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
 
 const CHAT_PURPLE = "#5B2EFF";
 const CHAT_BG_IMAGE = "/mobile.jpg";
@@ -118,6 +129,21 @@ function messagePreviewText(message: DirectChatMessage, deletedLabel: string) {
   return message.body?.trim() || "";
 }
 
+function groupMessagePreviewText(message: WorkspaceChatMessage, deletedLabel: string) {
+  if (message.deletedAt) return deletedLabel;
+  return message.body?.trim() || "";
+}
+
+/** Short one-line thumbnail for the thread list. */
+function shortenPreview(text: string, max = 42) {
+  const trimmed = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!trimmed) return "";
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, Math.max(1, max - 1))}…`;
+}
+
 function latestDirectMessage(messages: DirectChatMessage[]) {
   if (!messages.length) return null;
   return messages.reduce((latest, row) =>
@@ -142,6 +168,8 @@ export function MessagesPage() {
 
   const workspaceId = activeWorkspace?.id || "";
   const currentUserId = localStorage.getItem("profit-pilot-user-id");
+  const { unreadCount: groupUnreadCount } = useWorkspaceChatPanel();
+  const isGroupChat = isWorkspaceGroupChatSegment(selectedUserId);
 
   const [threads, setThreads] = useState<DirectChatThread[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
@@ -156,6 +184,12 @@ export function MessagesPage() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<DirectChatMessage | null>(null);
+  const [groupPreview, setGroupPreview] = useState<{
+    messageId: string | null;
+    body: string;
+    at: string | null;
+    senderUserId: string | null;
+  }>({ messageId: null, body: "", at: null, senderUserId: null });
 
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -174,15 +208,97 @@ export function MessagesPage() {
     [threads, selectedUserId],
   );
 
+  const dmTypingEnabled = Boolean(
+    mode === "workspace" &&
+      workspaceId &&
+      selectedUserId &&
+      !isGroupChat,
+  );
+  const { onComposerChange: notifyDmTyping, stopTyping: stopDmTyping } = useTypingEmitter({
+    enabled: dmTypingEnabled,
+    eventType: WORKSPACE_DM_TYPING_EVENT,
+    buildPayload: (isTyping) => ({
+      workspaceId,
+      conversationId: conversationId || undefined,
+      peerUserId: selectedUserId,
+      userName: currentUser?.name || "User",
+      isTyping,
+    }),
+  });
+  const { typingUsers: dmTypingUsers, clearTypingUser: clearDmTypingUser } = useTypingListener({
+    enabled: dmTypingEnabled,
+    eventType: WORKSPACE_DM_TYPING_EVENT,
+    currentUserId,
+    scopeKey: `${conversationId || ""}:${selectedUserId || ""}`,
+    matches: (payload) => {
+      if (String(payload.workspaceId || "") !== String(workspaceId)) return false;
+      if (conversationId && payload.conversationId) {
+        return String(payload.conversationId) === String(conversationId);
+      }
+      return (
+        String(payload.userId || payload.peerUserId || "") === String(selectedUserId || "")
+      );
+    },
+  });
+  const dmTypingLabel = formatTypingLabel(dmTypingUsers, t);
+
   const filteredThreads = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return threads;
-    return threads.filter(
-      (thread) =>
-        thread.otherUser.name.toLowerCase().includes(query) ||
-        thread.otherUser.email.toLowerCase().includes(query),
-    );
+    const list = !query
+      ? threads
+      : threads.filter(
+          (thread) =>
+            thread.otherUser.name.toLowerCase().includes(query) ||
+            thread.otherUser.email.toLowerCase().includes(query),
+        );
+
+    return [...list].sort((a, b) => {
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      if (aTime !== bTime) return bTime - aTime;
+      return a.otherUser.name.localeCompare(b.otherUser.name);
+    });
   }, [threads, search]);
+
+  const showGroupInList = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    const workspaceName = (activeWorkspace?.name || "").toLowerCase();
+    return (
+      workspaceName.includes(query) ||
+      t("workspaceChatTitle").toLowerCase().includes(query) ||
+      (groupPreview.body || "").toLowerCase().includes(query)
+    );
+  }, [search, activeWorkspace?.name, groupPreview.body, t]);
+
+  type SidebarChatItem =
+    | { kind: "group"; at: number }
+    | { kind: "dm"; at: number; thread: DirectChatThread };
+
+  const sidebarChats = useMemo(() => {
+    const items: SidebarChatItem[] = [];
+    if (showGroupInList) {
+      items.push({
+        kind: "group",
+        at: groupPreview.at ? new Date(groupPreview.at).getTime() : 0,
+      });
+    }
+    for (const thread of filteredThreads) {
+      items.push({
+        kind: "dm",
+        at: thread.lastMessageAt ? new Date(thread.lastMessageAt).getTime() : 0,
+        thread,
+      });
+    }
+    return items.sort((a, b) => {
+      if (a.at !== b.at) return b.at - a.at;
+      if (a.kind !== b.kind) return a.kind === "group" ? -1 : 1;
+      if (a.kind === "dm" && b.kind === "dm") {
+        return a.thread.otherUser.name.localeCompare(b.thread.otherUser.name);
+      }
+      return 0;
+    });
+  }, [filteredThreads, showGroupInList, groupPreview.at]);
 
   const updateThreadPreview = useCallback(
     (message: DirectChatMessage, conversationKey: string) => {
@@ -323,13 +439,78 @@ export function MessagesPage() {
       setThreads([]);
       setMessages([]);
       setConversationId(null);
+      setGroupPreview({ messageId: null, body: "", at: null, senderUserId: null });
       return;
     }
     void loadThreads();
   }, [mode, workspaceId, loadThreads]);
 
   useEffect(() => {
-    if (!selectedUserId || mode !== "workspace" || !workspaceId) {
+    if (mode !== "workspace" || !workspaceId) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await workspaceApi.getMessages(workspaceId, { limit: 1 });
+        if (cancelled) return;
+        const rows = (res.data as WorkspaceChatMessage[]) || [];
+        const latest = rows[rows.length - 1];
+        if (!latest) {
+          setGroupPreview({ messageId: null, body: "", at: null, senderUserId: null });
+          return;
+        }
+        setGroupPreview({
+          messageId: String(latest._id),
+          body: groupMessagePreviewText(latest, t("directChatMessageDeleted")),
+          at: latest.createdAt,
+          senderUserId: String(latest.senderUserId),
+        });
+      } catch {
+        // Preview is best-effort; list still works without it.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, workspaceId, t]);
+
+  const applyGroupPreviewFromMessage = useCallback(
+    (message: WorkspaceChatMessage) => {
+      const messageId = String(message._id);
+      const body = groupMessagePreviewText(message, t("directChatMessageDeleted"));
+      setGroupPreview((prev) => {
+        if (prev.messageId === messageId) {
+          return {
+            ...prev,
+            body,
+            senderUserId: String(message.senderUserId),
+          };
+        }
+        const incomingAt = new Date(message.createdAt).getTime();
+        const prevAt = prev.at ? new Date(prev.at).getTime() : 0;
+        if (!prev.messageId || incomingAt >= prevAt) {
+          return {
+            messageId,
+            body,
+            at: message.createdAt,
+            senderUserId: String(message.senderUserId),
+          };
+        }
+        return prev;
+      });
+    },
+    [t],
+  );
+
+  useWorkspaceChatSocket(workspaceId, mode === "workspace" && Boolean(workspaceId), {
+    onMessage: applyGroupPreviewFromMessage,
+    onEdit: applyGroupPreviewFromMessage,
+    onDelete: applyGroupPreviewFromMessage,
+  });
+
+  useEffect(() => {
+    if (!selectedUserId || isGroupChat || mode !== "workspace" || !workspaceId) {
       loadedSelectionRef.current = null;
       setConversationId(null);
       setMessages([]);
@@ -360,7 +541,16 @@ export function MessagesPage() {
         loadedSelectionRef.current = null;
       }
     })();
-  }, [selectedUserId, mode, workspaceId, threads, openChatWithUser, loadMessages, loadThreads]);
+  }, [
+    selectedUserId,
+    isGroupChat,
+    mode,
+    workspaceId,
+    threads,
+    openChatWithUser,
+    loadMessages,
+    loadThreads,
+  ]);
 
   useEffect(() => {
     if (!conversationId || messagesLoading) return;
@@ -404,6 +594,10 @@ export function MessagesPage() {
     onMessage: (message) => {
       const activeConversationId = conversationIdRef.current;
       const activeOtherUserId = selectedUserIdRef.current;
+
+      if (!isOwnMessage(message, currentUserId)) {
+        clearDmTypingUser(String(message.senderUserId));
+      }
 
       if (activeConversationId && String(message.conversationId) === activeConversationId) {
         setMessages((prev) => mergeDirectMessages(prev, message));
@@ -494,9 +688,11 @@ export function MessagesPage() {
 
   const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || !workspaceId || !conversationId || sending || uploadingAttachment) {
+    if (!trimmed || !workspaceId || !conversationId || sending) {
       return;
     }
+
+    stopDmTyping();
 
     if (editingMessageId) {
       setSending(true);
@@ -651,6 +847,8 @@ export function MessagesPage() {
   }
 
   const showThreadOnMobile = Boolean(selectedUserId);
+  const showGroupChat = isGroupChat;
+  const showDirectChat = Boolean(selectedUserId && selectedThread && !isGroupChat);
 
   return (
     <div className="workspace-chat flex h-full min-h-0 overflow-hidden bg-white">
@@ -681,16 +879,75 @@ export function MessagesPage() {
             <div className="flex items-center justify-center py-12 text-gray-500">
               <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
             </div>
-          ) : filteredThreads.length === 0 ? (
+          ) : sidebarChats.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-gray-500">{t("directChatNoPeople")}</p>
           ) : (
-            filteredThreads.map((thread) => {
+            sidebarChats.map((item) => {
+              if (item.kind === "group") {
+                return (
+                  <button
+                    key="workspace-group-chat"
+                    type="button"
+                    onClick={() => navigate(WORKSPACE_GROUP_CHAT_PATH)}
+                    className={cn(
+                      "flex w-full items-center gap-3 border-b border-gray-200/60 px-4 py-3 text-left transition-colors hover:bg-white/70",
+                      showGroupChat && "bg-white",
+                    )}
+                  >
+                    <WorkspaceProfileAvatar
+                      name={activeWorkspace.name}
+                      profilePictureUrl={activeWorkspace.profilePictureUrl}
+                      pictureRevision={activeWorkspace.profilePictureRevision}
+                      className="h-11 w-11 shrink-0"
+                      fallbackClassName="bg-sky-400 text-xs font-bold text-white"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          {activeWorkspace.name}
+                        </p>
+                        {groupPreview.at ? (
+                          <span className="shrink-0 text-[10px] text-gray-400">
+                            {formatThreadTime(groupPreview.at)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-xs text-gray-500">
+                          {groupPreview.body
+                            ? `${
+                                groupPreview.senderUserId === currentUserId
+                                  ? `${t("directChatYou")}: `
+                                  : ""
+                              }${shortenPreview(groupPreview.body)}`
+                            : t("workspaceChatSubtitle")}
+                        </p>
+                        {groupUnreadCount > 0 && !showGroupChat ? (
+                          <span className="flex shrink-0 items-center gap-1">
+                            <span className="rounded bg-[#5B2EFF]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#5B2EFF]">
+                              New
+                            </span>
+                            <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#5B2EFF] px-1 text-[10px] font-bold text-white">
+                              {groupUnreadCount > 99 ? "99+" : groupUnreadCount}
+                            </span>
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </button>
+                );
+              }
+
+              const thread = item.thread;
               const active = thread.otherUser.userId === selectedUserId;
-              const preview =
+              const rawPreview =
                 thread.lastMessageBody ||
                 (active ? t("directChatStartConversation") : t("directChatTapToChat"));
+              const preview = shortenPreview(rawPreview);
               const previewPrefix =
-                thread.lastSenderUserId === currentUserId ? `${t("directChatYou")}: ` : "";
+                thread.lastMessageBody && thread.lastSenderUserId === currentUserId
+                  ? `${t("directChatYou")}: `
+                  : "";
 
               return (
                 <button
@@ -725,8 +982,13 @@ export function MessagesPage() {
                         {preview}
                       </p>
                       {thread.unreadCount > 0 ? (
-                        <span className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-[#5B2EFF] px-1 text-[10px] font-bold text-white">
-                          {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
+                        <span className="flex shrink-0 items-center gap-1">
+                          <span className="rounded bg-[#5B2EFF]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#5B2EFF]">
+                            New
+                          </span>
+                          <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#5B2EFF] px-1 text-[10px] font-bold text-white">
+                            {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
+                          </span>
                         </span>
                       ) : null}
                     </div>
@@ -745,11 +1007,25 @@ export function MessagesPage() {
           !showThreadOnMobile && "hidden lg:flex",
         )}
       >
-        {!selectedUserId || !selectedThread ? (
+        {showGroupChat ? (
+          <WorkspaceGroupChatPane
+            active
+            variant="page"
+            className="h-full"
+            onBack={() => navigate("/messages")}
+          />
+        ) : !showDirectChat ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-gray-500">
             <img src="/chat.png" alt="" className="h-16 w-16 opacity-80" />
             <p className="text-base font-medium text-gray-800">{t("directChatSelectPerson")}</p>
             <p className="max-w-sm text-sm">{t("directChatSelectPersonHint")}</p>
+            <button
+              type="button"
+              onClick={() => navigate(WORKSPACE_GROUP_CHAT_PATH)}
+              className="mt-2 rounded-full bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+            >
+              {t("workspaceChatOpen")}
+            </button>
           </div>
         ) : (
           <>
@@ -922,6 +1198,11 @@ export function MessagesPage() {
             </div>
 
             <div className="border-t border-sky-100 bg-white px-3 py-3">
+              {dmTypingLabel ? (
+                <p className="mb-2 px-1 text-xs italic text-gray-500" aria-live="polite">
+                  {dmTypingLabel}
+                </p>
+              ) : null}
               {editingMessageId ? (
                 <div className="mb-2 flex items-center justify-between rounded-xl bg-sky-50 px-3 py-2 text-sm text-gray-700">
                   <span>{t("directChatEditing")}</span>
@@ -938,7 +1219,11 @@ export function MessagesPage() {
                 <textarea
                   ref={inputRef}
                   value={text}
-                  onChange={(event) => setText(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setText(value);
+                    notifyDmTyping(value);
+                  }}
                   onKeyDown={handleKeyDown}
                   rows={1}
                   placeholder={t("workspaceChatSend")}

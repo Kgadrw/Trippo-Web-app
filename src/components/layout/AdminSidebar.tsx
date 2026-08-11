@@ -34,39 +34,15 @@ type AdminNavItem = {
   section: string;
 };
 
-type AdminNavGroup = {
-  label: string;
-  items: AdminNavItem[];
-};
-
-const adminMenuGroups: AdminNavGroup[] = [
-  {
-    label: "Dashboard",
-    items: [{ icon: LayoutDashboard, label: "Overview", section: "overview" }],
-  },
-  {
-    label: "Users & access",
-    items: [
-      { icon: Users, label: "Users", section: "users" },
-      { icon: UserCog, label: "Accounts", section: "accounts" },
-      { icon: Activity, label: "Activity", section: "activity" },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
-      { icon: Bell, label: "Notifications", section: "notifications" },
-      { icon: CreditCard, label: "Payments", section: "payments" },
-    ],
-  },
-  {
-    label: "Content",
-    items: [{ icon: Globe, label: "Homepage", section: "homepage" }],
-  },
-  {
-    label: "System",
-    items: [{ icon: Settings, label: "Settings", section: "settings" }],
-  },
+const adminMenuItems: AdminNavItem[] = [
+  { icon: LayoutDashboard, label: "Overview", section: "overview" },
+  { icon: Users, label: "Users", section: "users" },
+  { icon: UserCog, label: "Accounts", section: "accounts" },
+  { icon: Activity, label: "Activity", section: "activity" },
+  { icon: Bell, label: "Notifications", section: "notifications" },
+  { icon: CreditCard, label: "Payments", section: "payments" },
+  { icon: Globe, label: "Homepage", section: "homepage" },
+  { icon: Settings, label: "Settings", section: "settings" },
 ];
 
 interface AdminSidebarProps {
@@ -230,50 +206,39 @@ export function AdminSidebar({
         </div>
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-4 overflow-y-auto scrollbar-thin">
-        {adminMenuGroups.map((group) => (
-          <div key={group.label} className="space-y-1">
-            {isExpanded ? (
-              <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                {group.label}
-              </p>
-            ) : (
-              <div className="h-px bg-sidebar-border mx-2 my-2 first:hidden" aria-hidden />
-            )}
-            {group.items.map((item) => {
-              const isActive = activeSection === item.section;
-              return (
-                <button
-                  key={item.section}
-                  onClick={() => onSectionChange(item.section)}
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+        {adminMenuItems.map((item) => {
+          const isActive = activeSection === item.section;
+          return (
+            <button
+              key={item.section}
+              onClick={() => onSectionChange(item.section)}
+              className={cn(
+                "sidebar-item w-full",
+                isActive && "sidebar-item-active",
+                !isExpanded && "justify-start px-2",
+              )}
+              title={!isExpanded ? item.label : undefined}
+            >
+              <item.icon
+                size={20}
+                strokeWidth={2.5}
+                className={isActive ? "text-white" : "text-gray-600"}
+              />
+              {isExpanded && (
+                <span
                   className={cn(
-                    "sidebar-item w-full",
-                    isActive && "sidebar-item-active",
-                    !isExpanded && "justify-start px-2",
+                    "flex-1 text-left font-semibold",
+                    isActive ? "text-white" : "text-gray-600",
+                    isMobile ? "text-xs" : "text-sm",
                   )}
-                  title={!isExpanded ? item.label : undefined}
                 >
-                  <item.icon
-                    size={20}
-                    strokeWidth={2.5}
-                    className={isActive ? "text-white" : "text-gray-600"}
-                  />
-                  {isExpanded && (
-                    <span
-                      className={cn(
-                        "flex-1 text-left font-semibold",
-                        isActive ? "text-white" : "text-gray-600",
-                        isMobile ? "text-xs" : "text-sm",
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+                  {item.label}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="p-2 border-t border-sidebar-border">

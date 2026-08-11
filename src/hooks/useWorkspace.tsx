@@ -27,6 +27,7 @@ import {
   type WorkspacePageKey,
   type WorkspaceSummary,
 } from '@/lib/workspace';
+import { normalizeStoredFileUrl } from '@/lib/storedFileUrl';
 import { apiCache } from '@/lib/apiCache';
 import { clearAllStores } from '@/lib/indexedDB';
 import { getWorkspaceScopeKey, STORED_DATA_SCOPE_KEY } from '@/lib/workspace';
@@ -70,6 +71,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const prevById = new Map(prev.map((workspace) => [String(workspace.id), workspace]));
         return list.map((workspace) => {
           const previous = prevById.get(String(workspace.id));
+          const incomingPicture =
+            workspace.profilePictureUrl != null && workspace.profilePictureUrl !== ''
+              ? normalizeStoredFileUrl(String(workspace.profilePictureUrl))
+              : workspace.profilePictureUrl ?? null;
           if (shouldPreserveWorkspacePicture(previous)) {
             return {
               ...workspace,
@@ -79,6 +84,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           }
           return {
             ...workspace,
+            profilePictureUrl: incomingPicture,
             profilePictureRevision: previous?.profilePictureRevision,
           };
         });

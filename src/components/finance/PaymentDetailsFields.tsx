@@ -16,6 +16,7 @@ export type FinancePaymentPayload = {
   bankAccountName?: string;
   bankAccountNumber?: string;
   accountId?: string;
+  creditedAccountId?: string;
 };
 
 export function showsBankAccountFields(paymentMethod: string) {
@@ -27,6 +28,7 @@ export function buildFinancePaymentPayload(
   bankAccountName: string,
   bankAccountNumber: string,
   accountId?: string,
+  creditedAccountId?: string,
 ): FinancePaymentPayload {
   const payload: FinancePaymentPayload = { paymentMethod: paymentMethod || "cash" };
   if (showsBankAccountFields(paymentMethod)) {
@@ -37,6 +39,9 @@ export function buildFinancePaymentPayload(
   }
   if (accountId && accountId !== "none") {
     payload.accountId = accountId;
+  }
+  if (creditedAccountId && creditedAccountId !== "none") {
+    payload.creditedAccountId = creditedAccountId;
   }
   return payload;
 }
@@ -50,6 +55,10 @@ type PaymentDetailsFieldsProps = {
   onBankAccountNumberChange: (value: string) => void;
   accountId?: string;
   onAccountIdChange?: (value: string) => void;
+  accountLabel?: string;
+  creditedAccountId?: string;
+  onCreditedAccountIdChange?: (value: string) => void;
+  creditedAccountLabel?: string;
   disabled?: boolean;
   labelClassName?: string;
   selectTriggerClassName?: string;
@@ -65,6 +74,10 @@ export function PaymentDetailsFields({
   onBankAccountNumberChange,
   accountId = "",
   onAccountIdChange,
+  accountLabel,
+  creditedAccountId = "",
+  onCreditedAccountIdChange,
+  creditedAccountLabel,
   disabled = false,
   labelClassName,
   selectTriggerClassName,
@@ -72,7 +85,7 @@ export function PaymentDetailsFields({
 }: PaymentDetailsFieldsProps) {
   const { t } = useTranslation();
   const showBank = showsBankAccountFields(paymentMethod);
-  const accounts = useAccountOptions(Boolean(onAccountIdChange));
+  const accounts = useAccountOptions(Boolean(onAccountIdChange || onCreditedAccountIdChange));
 
   return (
     <div className="space-y-3">
@@ -94,7 +107,7 @@ export function PaymentDetailsFields({
       </div>
       {onAccountIdChange ? (
         <div className="space-y-1">
-          <Label className={labelClassName}>{t("paymentAccount")}</Label>
+          <Label className={labelClassName}>{accountLabel || t("paymentAccount")}</Label>
           <Select
             value={accountId || "none"}
             onValueChange={(value) => onAccountIdChange(value === "none" ? "" : value)}
@@ -109,6 +122,32 @@ export function PaymentDetailsFields({
                 const id = String(account._id ?? account.id ?? "");
                 return (
                   <SelectItem key={id} value={id}>
+                    {account.name}
+                    {account.type ? ` (${account.type})` : ""}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+      {onCreditedAccountIdChange ? (
+        <div className="space-y-1">
+          <Label className={labelClassName}>{creditedAccountLabel || t("accountCredited")}</Label>
+          <Select
+            value={creditedAccountId || "none"}
+            onValueChange={(value) => onCreditedAccountIdChange(value === "none" ? "" : value)}
+            disabled={disabled}
+          >
+            <SelectTrigger className={cn(selectTriggerClassName)}>
+              <SelectValue placeholder={t("selectAccount")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{t("noAccountSelected")}</SelectItem>
+              {accounts.map((account) => {
+                const id = String(account._id ?? account.id ?? "");
+                return (
+                  <SelectItem key={`credited-${id}`} value={id}>
                     {account.name}
                     {account.type ? ` (${account.type})` : ""}
                   </SelectItem>

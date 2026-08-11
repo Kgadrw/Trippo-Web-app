@@ -1,10 +1,11 @@
 import { PUBLIC_API_BASE_URL } from "./api";
-import { getAuthenticatedFileUrl } from "./fileAccessToken";
+import { invalidateFileAccessTokens } from "./fileAccessToken";
 import {
   fetchAuthenticatedFileBlob,
   invalidateAuthenticatedFileCache,
   resolveAuthenticatedFileUrl,
 } from "./authenticatedFileFetch";
+import { invalidatePictureDisplayCache, resolvePictureDisplayUrl } from "./pictureDisplay";
 
 export function workspacePictureFetchUrl(
   profilePictureUrl: string,
@@ -20,27 +21,7 @@ export async function getWorkspacePictureDisplayUrl(
   profilePictureUrl: string,
   revision?: number,
 ): Promise<string | null> {
-  if (!profilePictureUrl) return null;
-  if (profilePictureUrl.startsWith("blob:") || profilePictureUrl.startsWith("data:")) {
-    return profilePictureUrl;
-  }
-
-  try {
-    let displayUrl = await getAuthenticatedFileUrl(profilePictureUrl);
-    if (revision != null) {
-      const separator = displayUrl.includes("?") ? "&" : "?";
-      displayUrl = `${displayUrl}${separator}v=${revision}`;
-    }
-    return displayUrl;
-  } catch {
-    const blob = await fetchWorkspacePictureBlob(profilePictureUrl);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Could not load workspace profile picture"));
-      reader.readAsDataURL(blob);
-    });
-  }
+  return resolvePictureDisplayUrl(profilePictureUrl, { revision });
 }
 
 export async function fetchWorkspacePictureBlob(profilePictureUrl: string): Promise<Blob> {
@@ -80,6 +61,8 @@ export async function uploadWorkspaceProfilePicture(
   }
 
   invalidateAuthenticatedFileCache();
+  invalidateFileAccessTokens();
+  invalidatePictureDisplayCache();
   return { profilePictureUrl };
 }
 
@@ -103,4 +86,6 @@ export async function removeWorkspaceProfilePicture(workspaceId: string): Promis
   }
 
   invalidateAuthenticatedFileCache();
+  invalidateFileAccessTokens();
+  invalidatePictureDisplayCache();
 }

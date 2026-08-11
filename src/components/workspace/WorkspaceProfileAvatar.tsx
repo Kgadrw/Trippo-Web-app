@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useEffect, useMemo, useState } from "react";
 import { useWorkspacePictureSrc } from "@/hooks/useWorkspacePictureSrc";
 import { cn } from "@/lib/utils";
 
@@ -36,25 +35,45 @@ export function WorkspaceProfileAvatar({
     previewUrl,
     pictureRevision,
   );
+  const [imgFailed, setImgFailed] = useState(false);
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [imageSrc, profilePictureUrl, previewUrl, pictureRevision]);
+
+  const showImage = Boolean(imageSrc) && !imgFailed;
 
   return (
-    <Avatar className={cn("relative h-10 w-10 shrink-0 overflow-hidden rounded-full", className)}>
-      {imageSrc ? (
-        <AvatarImage
-          key={`${profilePictureUrl || "none"}-${pictureRevision ?? 0}`}
-          src={imageSrc}
-          alt={name || "Workspace"}
-          className="relative z-10 h-full w-full object-cover"
-        />
-      ) : null}
-      <AvatarFallback
+    <div
+      className={cn(
+        "relative h-10 w-10 shrink-0 overflow-hidden rounded-full",
+        className,
+      )}
+      aria-label={name || "Workspace"}
+    >
+      <span
         className={cn(
-          "absolute inset-0 z-0 flex items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white",
+          "absolute inset-0 flex items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white",
           fallbackClassName,
         )}
+        aria-hidden={showImage}
       >
         {initials}
-      </AvatarFallback>
-    </Avatar>
+      </span>
+      {imageSrc ? (
+        <img
+          key={`${imageSrc.slice(0, 64)}-${pictureRevision ?? 0}`}
+          src={imageSrc}
+          alt={name || "Workspace"}
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover",
+            showImage ? "opacity-100" : "opacity-0",
+          )}
+          onLoad={() => setImgFailed(false)}
+          onError={() => setImgFailed(true)}
+          draggable={false}
+        />
+      ) : null}
+    </div>
   );
 }

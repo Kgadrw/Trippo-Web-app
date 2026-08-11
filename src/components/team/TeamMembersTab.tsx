@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
 import { Link } from "react-router-dom";
@@ -7,6 +7,7 @@ import { teamMemberApi, type TeamMemberRecord } from "@/lib/api";
 import { type TeamDepartment } from "@/lib/teamConstants";
 import { EMPLOYMENT_TYPES, employmentTypeLabel, memberId } from "@/lib/hrProfile";
 import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { CategorySelect } from "@/components/categories/CategorySelect";
 import { useWorkspaceCategories } from "@/hooks/useWorkspaceCategories";
 import { formatCategoryLabel } from "@/lib/workspaceCategories";
@@ -42,8 +43,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreVertical, Pencil, Trash2, Users } from "lucide-react";
+import { Loader2, MoreVertical, Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import { HelpTip } from "@/components/ui/help-tip";
+import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 
 interface PayrollEntryLike {
   employeeName: string;
@@ -52,8 +54,36 @@ interface PayrollEntryLike {
 export function TeamMembersTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { mode, activeWorkspace } = useWorkspace();
   const { categories: departmentCategories } = useWorkspaceCategories("department");
   const { members: workspaceMembers } = useWorkspaceMemberAvatars();
+  const avatarByUserId = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    for (const member of workspaceMembers) {
+      map.set(String(member.userId), member.profilePictureUrl || undefined);
+    }
+    return map;
+  }, [workspaceMembers]);
+  const avatarByEmail = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    for (const member of workspaceMembers) {
+      if (member.email) {
+        map.set(member.email.trim().toLowerCase(), member.profilePictureUrl || undefined);
+      }
+    }
+    return map;
+  }, [workspaceMembers]);
+
+  const resolveMemberPicture = (member: TeamMemberRecord) => {
+    if (member.linkedUserId && avatarByUserId.has(String(member.linkedUserId))) {
+      return avatarByUserId.get(String(member.linkedUserId));
+    }
+    if (member.email) {
+      return avatarByEmail.get(member.email.trim().toLowerCase());
+    }
+    return undefined;
+  };
+
   const { items: payrolls, isLoading: payrollsLoading } = useApi<PayrollEntryLike>({
     endpoint: "payrolls",
     defaultValue: [],
@@ -66,8 +96,10 @@ export function TeamMembersTab() {
   const [editing, setEditing] = useState<TeamMemberRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedImportKeys, setSelectedImportKeys] = useState<Set<string>>(new Set());
+  const autoSyncedWorkspaceRef = useRef<string | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -100,9 +132,64 @@ export function TeamMembersTab() {
     }
   }, [toast, t]);
 
+  const applySyncResult = useCallback(
+    (res: Awaited<ReturnType<typeof teamMemberApi.syncFromWorkspace>>, notify: boolean) => {
+      const syncedMembers = (res.data as TeamMemberRecord[]) || [];
+      setMembers(syncedMembers);
+      const sync = res.sync;
+      const created = Number(sync?.created || 0);
+      const updated = Number(sync?.updated || 0) + Number(sync?.reactivated || 0);
+      if (!notify) return;
+      if (created > 0 || updated > 0) {
+        toast({
+          title: t("teamSyncFromWorkspaceSuccess")
+            .replace("{created}", String(created))
+            .replace("{updated}", String(updated)),
+        });
+      } else {
+        toast({ title: t("teamSyncFromWorkspaceUpToDate") });
+      }
+    },
+    [t, toast],
+  );
+
+  const handleSyncFromWorkspace = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (mode !== "workspace" || !activeWorkspace?.id) {
+        if (!opts?.silent) {
+          toast({ title: t("teamSyncFromWorkspacePersonal"), variant: "destructive" });
+        }
+        return;
+      }
+
+      setIsSyncing(true);
+      try {
+        const res = await teamMemberApi.syncFromWorkspace();
+        applySyncResult(res, !opts?.silent);
+      } catch {
+        if (!opts?.silent) {
+          toast({ title: t("teamSyncFromWorkspaceFailed"), variant: "destructive" });
+        }
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [mode, activeWorkspace?.id, applySyncResult, t, toast],
+  );
+
   useEffect(() => {
     void loadMembers();
   }, [loadMembers]);
+
+  useEffect(() => {
+    if (mode !== "workspace" || !activeWorkspace?.id) {
+      autoSyncedWorkspaceRef.current = null;
+      return;
+    }
+    if (autoSyncedWorkspaceRef.current === activeWorkspace.id) return;
+    autoSyncedWorkspaceRef.current = activeWorkspace.id;
+    void handleSyncFromWorkspace({ silent: true });
+  }, [mode, activeWorkspace?.id, handleSyncFromWorkspace]);
 
   const resetForm = () => {
     setName("");
@@ -323,6 +410,18 @@ export function TeamMembersTab() {
           <p className="text-sm text-gray-600">{t("teamMembersSubtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {mode === "workspace" ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleSyncFromWorkspace()}
+              disabled={isSyncing}
+              className="h-10 gap-2 rounded-none border-gray-300"
+            >
+              {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              {t("teamSyncFromWorkspace")}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -360,8 +459,17 @@ export function TeamMembersTab() {
               {visibleMembers.map((member) => (
                 <tr key={member._id} className="border-b border-gray-100 hover:bg-gray-50/60">
                   <td className="px-3 py-3 font-medium text-gray-900">
-                    <Link to={`/hr/people/${member._id}`} className="text-sky-700 hover:underline">
-                      {member.name}
+                    <Link
+                      to={`/hr/people/${member._id}`}
+                      className="inline-flex items-center gap-2 text-sky-700 hover:underline"
+                    >
+                      <UserProfileAvatar
+                        name={member.name}
+                        profilePictureUrl={resolveMemberPicture(member)}
+                        className="h-8 w-8 border border-gray-200"
+                        fallbackClassName="bg-gray-200 text-[10px] text-gray-700"
+                      />
+                      <span>{member.name}</span>
                     </Link>
                   </td>
                   <td className="px-3 py-3 text-gray-700">{member.jobTitle || "—"}</td>

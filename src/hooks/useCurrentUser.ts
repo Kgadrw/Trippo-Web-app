@@ -1,6 +1,7 @@
 // Hook to get current logged-in user data
 // Fetches user data ONCE and caches it to prevent shaking during other data fetches
 import { useState, useEffect, useCallback, useRef } from "react";
+import { normalizeStoredFileUrl } from "@/lib/storedFileUrl";
 
 const USER_NAME_KEY = "profit-pilot-user-name";
 const USER_EMAIL_KEY = "profit-pilot-user-email";
@@ -12,6 +13,8 @@ export interface CurrentUser {
   email?: string;
   businessName?: string;
   profilePictureUrl?: string;
+  /** Bumped when the picture changes so avatars refetch even if the URL path is unchanged. */
+  profilePictureRevision?: number;
 }
 
 // Global cache for user data - fetched once, shared across all components
@@ -27,7 +30,13 @@ const initializeUserData = (): CurrentUser | null => {
   const name = localStorage.getItem(USER_NAME_KEY);
   const email = localStorage.getItem(USER_EMAIL_KEY);
   const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
-  const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
+  const profilePictureUrlRaw = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
+  const profilePictureUrl = profilePictureUrlRaw
+    ? normalizeStoredFileUrl(profilePictureUrlRaw)
+    : null;
+  if (profilePictureUrlRaw && profilePictureUrl && profilePictureUrlRaw !== profilePictureUrl) {
+    localStorage.setItem(PROFILE_PICTURE_URL_KEY, profilePictureUrl);
+  }
 
   if (name) {
     globalUserCache = {
@@ -168,7 +177,10 @@ export const useCurrentUser = () => {
     }
     if (userData.profilePictureUrl !== undefined) {
       if (userData.profilePictureUrl) {
-        localStorage.setItem(PROFILE_PICTURE_URL_KEY, userData.profilePictureUrl);
+        localStorage.setItem(
+          PROFILE_PICTURE_URL_KEY,
+          normalizeStoredFileUrl(userData.profilePictureUrl),
+        );
       } else {
         localStorage.removeItem(PROFILE_PICTURE_URL_KEY);
       }
@@ -186,29 +198,38 @@ export const useCurrentUser = () => {
     const email = localStorage.getItem(USER_EMAIL_KEY);
     const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
     const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
-    
-    const updatedUser: CurrentUser | null = name ? {
-      name,
-      email: email || undefined,
-      businessName: businessName || undefined,
-      profilePictureUrl: profilePictureUrl || undefined,
-    } : null;
-    
+    const pictureTouched = userData.profilePictureUrl !== undefined;
+    const nextRevision = pictureTouched
+      ? Date.now()
+      : globalUserCache?.profilePictureRevision;
+
+    const updatedUser: CurrentUser | null = name
+      ? {
+          name,
+          email: email || undefined,
+          businessName: businessName || undefined,
+          profilePictureUrl: profilePictureUrl || undefined,
+          profilePictureRevision: nextRevision,
+        }
+      : null;
+
     globalUserCache = updatedUser;
-    
-    // Update state only if it changed
+
+    // Always apply when picture changed (same URL can still mean new bytes).
     setUser((prevUser) => {
       if (
+        !pictureTouched &&
         prevUser?.name === updatedUser?.name &&
         prevUser?.email === updatedUser?.email &&
         prevUser?.businessName === updatedUser?.businessName &&
-        prevUser?.profilePictureUrl === updatedUser?.profilePictureUrl
+        prevUser?.profilePictureUrl === updatedUser?.profilePictureUrl &&
+        prevUser?.profilePictureRevision === updatedUser?.profilePictureRevision
       ) {
-        return prevUser; // No change, prevent re-render
+        return prevUser;
       }
       return updatedUser;
     });
-    
+
     // Trigger event to update other components
     window.dispatchEvent(new Event("user-data-changed"));
   }, []);

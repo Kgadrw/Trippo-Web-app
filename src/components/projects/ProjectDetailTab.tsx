@@ -111,6 +111,25 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
     });
   }, []);
 
+  const currentTeamMemberId = useMemo(() => {
+    const userId = localStorage.getItem("profit-pilot-user-id");
+    if (!userId) return null;
+    const mine = teamMembers.find((m) => m.linkedUserId && String(m.linkedUserId) === String(userId));
+    return mine?._id || null;
+  }, [teamMembers]);
+
+  const canChangeTaskStatus = useCallback(
+    (task: ProjectTaskRecord) => {
+      if (!currentTeamMemberId || !task.assigneeId) return false;
+      const assignee =
+        typeof task.assigneeId === "object" && task.assigneeId
+          ? String(task.assigneeId._id)
+          : String(task.assigneeId);
+      return assignee === currentTeamMemberId;
+    },
+    [currentTeamMemberId],
+  );
+
   const tasksChartData = useMemo(
     () =>
       (profile?.velocity.tasksCompletedWeekly || []).map((row) => ({
@@ -153,8 +172,9 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
       setMilestoneDueDate("");
       setMilestoneStatus("pending");
       void loadProfile();
-    } catch {
-      toast({ title: t("projectSaveFailed"), variant: "destructive" });
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : t("projectSaveFailed");
+      toast({ title: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -180,8 +200,9 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
       setTaskPriority("medium");
       setTaskEstimatedHours("");
       void loadProfile();
-    } catch {
-      toast({ title: t("projectSaveFailed"), variant: "destructive" });
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : t("projectSaveFailed");
+      toast({ title: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -198,9 +219,10 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
       setMemberOpen(false);
       setMemberTeamMemberId("");
       setMemberRole("member");
-      void loadProfile();
-    } catch {
-      toast({ title: t("projectMemberAddFailed"), variant: "destructive" });
+      await loadProfile();
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : t("projectMemberAddFailed");
+      toast({ title: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -228,11 +250,15 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
   };
 
   const updateTaskStatus = async (task: ProjectTaskRecord, status: string) => {
+    if (!canChangeTaskStatus(task)) {
+      toast({ title: t("teamTaskStatusAssigneeOnly"), variant: "destructive" });
+      return;
+    }
     try {
       await projectApi.updateTask(projectId, task._id, { status });
       void loadProfile();
     } catch {
-      toast({ title: t("projectSaveFailed"), variant: "destructive" });
+      toast({ title: t("teamTaskStatusAssigneeOnly"), variant: "destructive" });
     }
   };
 
@@ -476,6 +502,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                       <Select
                         value={task.status || "todo"}
                         onValueChange={(value) => void updateTaskStatus(task, value)}
+                        disabled={!canChangeTaskStatus(task)}
                       >
                         <SelectTrigger className="w-[150px]">
                           <SelectValue />
@@ -650,9 +677,20 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
               <Select value={memberTeamMemberId} onValueChange={setMemberTeamMemberId}>
                 <SelectTrigger><SelectValue placeholder={t("projectSelectMember")} /></SelectTrigger>
                 <SelectContent>
-                  {teamMembers.map((m) => (
-                    <SelectItem key={m._id} value={m._id}>{m.name}</SelectItem>
-                  ))}
+                  {teamMembers
+                    .filter((m) => {
+                      const taken = new Set(
+                        members.map((row) =>
+                          typeof row.teamMemberId === "object" && row.teamMemberId
+                            ? String(row.teamMemberId._id)
+                            : String(row.teamMemberId || ""),
+                        ),
+                      );
+                      return !taken.has(String(m._id));
+                    })
+                    .map((m) => (
+                      <SelectItem key={m._id} value={m._id}>{m.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

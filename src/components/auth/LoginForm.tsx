@@ -16,11 +16,17 @@ import { GoogleOneTapPrompt } from "@/components/auth/GoogleOneTapPrompt";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import type { CredentialResponse } from "@react-oauth/google";
 import { cn } from "@/lib/utils";
+import { validatePIN } from "@/lib/security";
 
 const MIN_PASSWORD_LENGTH = 8;
 
 function isValidPassword(password: string): boolean {
   return password.length >= MIN_PASSWORD_LENGTH;
+}
+
+/** Login accepts a normal password or a legacy 4-digit PIN. */
+function isValidLoginCredential(value: string): boolean {
+  return isValidPassword(value) || validatePIN(value);
 }
 
 function isValidEmail(value: string): boolean {
@@ -359,10 +365,10 @@ export function LoginForm({
   };
 
   const handleLogin = async () => {
-    if (!isValidPassword(loginPassword)) {
+    if (!isValidLoginCredential(loginPassword)) {
       setErrors((prev) => ({
         ...prev,
-        loginPassword: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+        loginPassword: `Enter your password (min ${MIN_PASSWORD_LENGTH} characters) or 4-digit PIN`,
       }));
       return;
     }
@@ -388,8 +394,10 @@ export function LoginForm({
         return;
       }
 
+      const isPin = validatePIN(loginPassword);
       const response = await authApi.login({
         password: loginPassword,
+        ...(isPin ? { pin: loginPassword } : {}),
         email: normalizedEmail,
       });
 
@@ -756,7 +764,7 @@ export function LoginForm({
               </div>
               <div>
                 <Label htmlFor="login-password" className={fieldLabelClass(pillStyle, compact)}>
-                  Password
+                  Password or PIN
                 </Label>
                 <PasswordInput
                   id="login-password"
@@ -767,7 +775,7 @@ export function LoginForm({
                     setErrors((prev) => ({ ...prev, loginPassword: undefined }));
                   }}
                   onKeyPress={(e) => handleKeyPress(e, handleLogin)}
-                  placeholder="Enter your password"
+                  placeholder="Password or 4-digit PIN"
                   className={fieldInputClass(pillStyle, Boolean(errors.loginPassword), compact)}
                   disabled={isLoading}
                   autoComplete="current-password"
@@ -796,7 +804,7 @@ export function LoginForm({
               <Button
                 onClick={handleLogin}
                 className={actionButtonClass(pillStyle, "primary", compact)}
-                disabled={!isValidPassword(loginPassword) || isLoading}
+                disabled={!isValidLoginCredential(loginPassword) || isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>

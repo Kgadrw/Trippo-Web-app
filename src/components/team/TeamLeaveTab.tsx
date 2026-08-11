@@ -30,6 +30,7 @@ import {
 } from "@/components/finance/financeTable";
 import { Loader2, Plus, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   formatLeaveRange,
   leaveId,
@@ -49,14 +50,17 @@ function dispatchLeaveRefresh() {
 export function TeamLeaveTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { mode, isWorkspaceAdmin } = useWorkspace();
+  const { mode, isWorkspaceAdmin, activeWorkspace } = useWorkspace();
+  const canReviewLeave =
+    mode === "workspace" &&
+    (isWorkspaceAdmin || (activeWorkspace?.permissions || []).includes("hr"));
 
   const [requests, setRequests] = useState<LeaveRequestRecord[]>([]);
   const [members, setMembers] = useState<TeamMemberRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const [view, setView] = useState<"mine" | "team">("mine");
+  const [view, setView] = useState<"mine" | "team" | "public">("mine");
 
   const [open, setOpen] = useState(false);
   const [leaveType, setLeaveType] = useState<LeaveType>("annual");
@@ -64,6 +68,7 @@ export function TeamLeaveTab() {
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [teamMemberId, setTeamMemberId] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [rejectTarget, setRejectTarget] = useState<LeaveRequestRecord | null>(null);
@@ -100,15 +105,30 @@ export function TeamLeaveTab() {
   }, [loadData]);
 
   const visibleRequests = useMemo(() => {
-    if (isWorkspaceAdmin && view === "team") return requests;
     const userId = localStorage.getItem("profit-pilot-user-id");
+    if (canReviewLeave && view === "team") return requests;
+    if (view === "public") {
+      return requests.filter(
+        (r) =>
+          Boolean(r.isPublic) &&
+          (r.status === "approved" || r.status === "rejected") &&
+          (!userId || String(r.requesterUserId || "") !== userId),
+      );
+    }
     if (!userId) return requests;
     return requests.filter((r) => String(r.requesterUserId || "") === userId);
-  }, [requests, isWorkspaceAdmin, view]);
+  }, [requests, canReviewLeave, view]);
 
   const pendingTeamCount = useMemo(
-    () => requests.filter((r) => r.status === "pending").length,
-    [requests],
+    () =>
+      canReviewLeave
+        ? requests.filter((r) => r.status === "pending").length
+        : requests.filter(
+            (r) =>
+              r.status === "pending" &&
+              String(r.requesterUserId || "") === localStorage.getItem("profit-pilot-user-id"),
+          ).length,
+    [requests, canReviewLeave],
   );
 
   const resetForm = () => {
@@ -117,6 +137,7 @@ export function TeamLeaveTab() {
     setEndDate("");
     setReason("");
     setTeamMemberId("");
+    setIsPublic(false);
   };
 
   const openCreate = () => {
@@ -145,12 +166,13 @@ export function TeamLeaveTab() {
         endDate,
         reason: reason.trim() || undefined,
         teamMemberId: teamMemberId || undefined,
+        isPublic: mode === "workspace" ? isPublic : false,
       });
       toast({
         title: "Leave requested",
         description:
-          mode === "workspace" && !isWorkspaceAdmin
-            ? "Your manager will review this request."
+          mode === "workspace" && !canReviewLeave
+            ? "HR or a workspace admin will review this request."
             : "Leave request saved.",
       });
       setOpen(false);
@@ -166,6 +188,7 @@ export function TeamLeaveTab() {
   };
 
   const handleApprove = async (record: LeaveRequestRecord) => {
+    if (!canReviewLeave) return;
     const id = leaveId(record);
     setActingId(`${id}-approve`);
     try {
@@ -182,7 +205,7 @@ export function TeamLeaveTab() {
   };
 
   const handleRejectConfirm = async () => {
-    if (!rejectTarget) return;
+    if (!canReviewLeave || !rejectTarget) return;
     const id = leaveId(rejectTarget);
     setActingId(`${id}-reject`);
     try {
@@ -226,21 +249,24 @@ export function TeamLeaveTab() {
         <div className="rounded-lg border bg-white px-4 py-3 sm:col-span-2">
           <p className="text-xs text-gray-500">Leave requests</p>
           <p className="text-sm text-gray-700 mt-1">
-            Team members submit leave here. Workspace owners and admins approve or reject requests before time off is confirmed.
+            Team members submit leave here. Workspace admins and HR can approve or reject requests.
+            Decisions marked public by the requester are visible to the team.
           </p>
         </div>
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {isWorkspaceAdmin ? (
-          <>
-            <Button size="sm" variant={view === "mine" ? "default" : "outline"} onClick={() => setView("mine")}>
-              My requests
-            </Button>
-            <Button size="sm" variant={view === "team" ? "default" : "outline"} onClick={() => setView("team")}>
-              Team requests
-            </Button>
-          </>
+        <Button size="sm" variant={view === "mine" ? "default" : "outline"} onClick={() => setView("mine")}>
+          My requests
+        </Button>
+        {canReviewLeave ? (
+          <Button size="sm" variant={view === "team" ? "default" : "outline"} onClick={() => setView("team")}>
+            Team requests
+          </Button>
+        ) : mode === "workspace" ? (
+          <Button size="sm" variant={view === "public" ? "default" : "outline"} onClick={() => setView("public")}>
+            Team decisions
+          </Button>
         ) : null}
         {(["all", "pending", "approved", "rejected"] as const).map((value) => (
           <Button
@@ -275,7 +301,7 @@ export function TeamLeaveTab() {
             <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 <tr>
-                  {isWorkspaceAdmin && view === "team" ? (
+                  {(canReviewLeave && view === "team") || view === "public" ? (
                     <th className={FINANCE_TH_CLASS}>Employee</th>
                   ) : null}
                   <th className={FINANCE_TH_CLASS}>Type</th>
@@ -295,13 +321,16 @@ export function TeamLeaveTab() {
 
                   return (
                     <tr key={id} className="transition-colors hover:bg-gray-50/80">
-                      {isWorkspaceAdmin && view === "team" ? (
+                      {(canReviewLeave && view === "team") || view === "public" ? (
                         <td className={cn(FINANCE_TD_CLASS, "font-medium text-gray-900")}>
                           {record.requesterName}
                         </td>
                       ) : null}
                       <td className={cn(FINANCE_TD_CLASS, "text-gray-700")}>
                         {leaveTypeLabel(record.leaveType)}
+                        {record.isPublic && isOwn ? (
+                          <span className="ml-1 text-[10px] font-medium uppercase text-sky-600">Public</span>
+                        ) : null}
                       </td>
                       <td className={cn(FINANCE_TD_CLASS, "text-gray-700 tabular-nums whitespace-nowrap")}>
                         {formatLeaveRange(record.startDate, record.endDate, record.dayCount)}
@@ -334,7 +363,7 @@ export function TeamLeaveTab() {
                       </td>
                       <td className={FINANCE_TD_CLASS}>
                         <div className="flex flex-wrap gap-1">
-                          {isWorkspaceAdmin && isPending && view === "team" ? (
+                          {canReviewLeave && isPending && view === "team" ? (
                             <>
                               <Button
                                 size="sm"
@@ -445,6 +474,21 @@ export function TeamLeaveTab() {
                 placeholder="Brief note for your manager..."
               />
             </div>
+            {mode === "workspace" ? (
+              <label className="flex items-start gap-2.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
+                <Checkbox
+                  checked={isPublic}
+                  onCheckedChange={(checked) => setIsPublic(checked === true)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium text-gray-900">Share decision with the team</span>
+                  <span className="mt-0.5 block text-xs text-gray-500">
+                    If enabled, other members can see the approved or rejected result (not the pending request).
+                  </span>
+                </span>
+              </label>
+            ) : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { resetForm(); setOpen(false); }}>Cancel</Button>

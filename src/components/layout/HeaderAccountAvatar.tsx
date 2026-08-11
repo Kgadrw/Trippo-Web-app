@@ -17,6 +17,7 @@ export function HeaderAccountAvatar({
     <UserProfileAvatar
       name={user?.name}
       profilePictureUrl={user?.profilePictureUrl}
+      pictureRevision={user?.profilePictureRevision}
       className={cn(
         "h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-gray-300 bg-white ring-1 ring-gray-200",
         className,

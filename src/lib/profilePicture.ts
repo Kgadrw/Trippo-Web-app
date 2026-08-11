@@ -1,28 +1,17 @@
 import { PUBLIC_API_BASE_URL } from "./api";
-import { getAuthenticatedFileUrl } from "./fileAccessToken";
+import { invalidateFileAccessTokens } from "./fileAccessToken";
 import { fetchAuthenticatedFileBlob, invalidateAuthenticatedFileCache } from "./authenticatedFileFetch";
+import { invalidatePictureDisplayCache, resolvePictureDisplayUrl } from "./pictureDisplay";
 
 export function profilePictureFetchUrl(profilePictureUrl: string): string {
   return profilePictureUrl;
 }
 
-export async function getProfilePictureDisplayUrl(profilePictureUrl: string): Promise<string | null> {
-  if (!profilePictureUrl) return null;
-  if (profilePictureUrl.startsWith("blob:") || profilePictureUrl.startsWith("data:")) {
-    return profilePictureUrl;
-  }
-
-  try {
-    return await getAuthenticatedFileUrl(profilePictureUrl);
-  } catch {
-    const blob = await fetchAuthenticatedFileBlob(profilePictureUrl);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Could not load profile picture"));
-      reader.readAsDataURL(blob);
-    });
-  }
+export async function getProfilePictureDisplayUrl(
+  profilePictureUrl: string,
+  options?: { revision?: number; force?: boolean },
+): Promise<string | null> {
+  return resolvePictureDisplayUrl(profilePictureUrl, options);
 }
 
 export async function fetchProfilePictureBlob(profilePictureUrl: string): Promise<Blob> {
@@ -56,6 +45,8 @@ export async function uploadProfilePicture(file: File): Promise<{ profilePicture
   }
 
   invalidateAuthenticatedFileCache();
+  invalidateFileAccessTokens();
+  invalidatePictureDisplayCache();
   return { profilePictureUrl };
 }
 
@@ -76,4 +67,6 @@ export async function removeProfilePicture(): Promise<void> {
   }
 
   invalidateAuthenticatedFileCache();
+  invalidateFileAccessTokens();
+  invalidatePictureDisplayCache();
 }

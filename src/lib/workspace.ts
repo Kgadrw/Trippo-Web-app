@@ -15,7 +15,6 @@ export type WorkspacePageKey =
   | 'team'
   | 'hr'
   | 'projects'
-  | 'crm'
   | 'finance'
   | 'reports'
   | 'documents'
@@ -50,7 +49,6 @@ export const WORKSPACE_PAGES: WorkspacePageMeta[] = [
   { key: 'team', label: 'Team', path: '/team' },
   { key: 'hr', label: 'HR', path: '/hr' },
   { key: 'projects', label: 'Projects', path: '/projects' },
-  { key: 'crm', label: 'CRM', path: '/crm' },
   { key: 'finance', label: 'Finance', path: '/finance/income' },
   { key: 'reports', label: 'Reports', path: '/reports' },
   { key: 'documents', label: 'Documents', path: '/documents' },
@@ -58,6 +56,27 @@ export const WORKSPACE_PAGES: WorkspacePageMeta[] = [
   { key: 'approvals', label: 'Approvals', path: '/approvals' },
   { key: 'chat', label: 'Messages', path: '/messages' },
 ];
+
+/** Pages available only in a shared workspace (hidden in personal mode). */
+export const WORKSPACE_ONLY_PAGE_KEYS: ReadonlySet<WorkspacePageKey> = new Set([
+  'team',
+  'hr',
+  'projects',
+  'chat',
+]);
+
+/** Sub-routes that are workspace-only (not top-level page keys). */
+export const WORKSPACE_ONLY_PATH_PREFIXES = ['/calendar/announcements'] as const;
+
+export function isWorkspaceOnlyPage(pageKey: WorkspacePageKey): boolean {
+  return WORKSPACE_ONLY_PAGE_KEYS.has(pageKey);
+}
+
+export function isWorkspaceOnlyPath(pathname: string): boolean {
+  return WORKSPACE_ONLY_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
 
 export function getStoredWorkspaceMode(): WorkspaceMode {
   const value = localStorage.getItem(WORKSPACE_MODE_KEY);
@@ -153,15 +172,15 @@ export function canAccessPage(
   permissions: WorkspacePageKey[],
   pageKey: WorkspacePageKey,
 ): boolean {
-  if (mode === 'personal') return true;
+  if (mode === 'personal') {
+    return !isWorkspaceOnlyPage(pageKey);
+  }
   if (!role) return false;
   if (role === 'owner' || role === 'admin') return true;
   if (pageKey === 'hr' && permissions.includes('team')) return true;
   if (pageKey === 'team' && permissions.includes('hr')) return true;
   if (pageKey === 'projects' && permissions.includes('team')) return true;
   if (pageKey === 'team' && permissions.includes('projects')) return true;
-  if (pageKey === 'crm' && permissions.includes('finance')) return true;
-  if (pageKey === 'finance' && permissions.includes('crm')) return true;
   if (pageKey === 'calendar' && permissions.includes('schedules')) return true;
   if (pageKey === 'schedules' && permissions.includes('calendar')) return true;
   return permissions.includes(pageKey);
@@ -171,7 +190,6 @@ export function pathToWorkspacePage(pathname: string): WorkspacePageKey | null {
   if (pathname.startsWith('/finance')) return 'finance';
   if (pathname.startsWith('/hr')) return 'hr';
   if (pathname.startsWith('/projects')) return 'projects';
-  if (pathname.startsWith('/crm')) return 'crm';
   if (pathname.startsWith('/team')) return 'team';
   if (pathname.startsWith('/messages')) return 'chat';
   if (pathname.startsWith('/dashboard') || pathname === '/') return 'dashboard';
@@ -199,7 +217,6 @@ const ENDPOINT_PAGE_KEYS: Partial<Record<string, WorkspacePageKey>> = {
   documents: 'documents',
   assets: 'assets',
   projects: 'projects',
-  crm: 'crm',
   approvals: 'approvals',
   clients: 'finance',
   vendors: 'finance',

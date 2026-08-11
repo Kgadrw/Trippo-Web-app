@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   teamMemberApi,
@@ -7,6 +7,7 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceCategories } from "@/hooks/useWorkspaceCategories";
+import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
 import { formatCategoryLabel } from "@/lib/workspaceCategories";
 import {
   employmentTypeLabel,
@@ -24,6 +25,7 @@ import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 
 type ProfileTab = "overview" | "leave" | "payroll";
 
@@ -31,9 +33,26 @@ export function TeamEmployeeProfileTab({ memberId: routeMemberId }: { memberId: 
   const { t } = useTranslation();
   const { toast } = useToast();
   const { categories: departmentCategories } = useWorkspaceCategories("department");
+  const { members: workspaceMembers } = useWorkspaceMemberAvatars();
   const [profile, setProfile] = useState<TeamMemberProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ProfileTab>("overview");
+
+  const profilePictureUrl = useMemo(() => {
+    const member = profile?.member;
+    if (!member) return undefined;
+    if (member.linkedUserId) {
+      const linked = workspaceMembers.find((m) => String(m.userId) === String(member.linkedUserId));
+      if (linked?.profilePictureUrl) return linked.profilePictureUrl;
+    }
+    if (member.email) {
+      const byEmail = workspaceMembers.find(
+        (m) => m.email?.trim().toLowerCase() === member.email?.trim().toLowerCase(),
+      );
+      return byEmail?.profilePictureUrl || undefined;
+    }
+    return undefined;
+  }, [profile?.member, workspaceMembers]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -102,14 +121,22 @@ export function TeamEmployeeProfileTab({ memberId: routeMemberId }: { memberId: 
 
       <div className="border border-gray-200 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">{member.name}</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              {[member.jobTitle, deptLabel].filter(Boolean).join(" · ") || deptLabel}
-            </p>
-            <p className="mt-1 text-xs capitalize text-gray-500">
-              {member.status || "active"} · {employmentTypeLabel(member.employmentType, t)}
-            </p>
+          <div className="flex items-start gap-3">
+            <UserProfileAvatar
+              name={member.name}
+              profilePictureUrl={profilePictureUrl}
+              className="h-14 w-14 border border-gray-200"
+              fallbackClassName="bg-gray-200 text-sm text-gray-700"
+            />
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">{member.name}</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                {[member.jobTitle, deptLabel].filter(Boolean).join(" · ") || deptLabel}
+              </p>
+              <p className="mt-1 text-xs capitalize text-gray-500">
+                {member.status || "active"} · {employmentTypeLabel(member.employmentType, t)}
+              </p>
+            </div>
           </div>
           <div className="text-right text-sm text-gray-600">
             {member.employeeNumber ? (

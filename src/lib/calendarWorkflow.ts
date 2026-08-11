@@ -1,7 +1,6 @@
 export type CorporateFeedType =
   | "leave"
   | "milestone"
-  | "crm_meeting"
   | "announcement";
 
 export type AnnouncementScope = "workspace" | "regional" | "global";
@@ -32,7 +31,6 @@ export interface CorporateCalendarSummary {
   pendingAutomations: number;
   approvedLeaveWindows: number;
   upcomingMilestones: number;
-  clientMeetings: number;
 }
 
 export interface CompanyAnnouncementRecord {
@@ -83,7 +81,6 @@ export function corporateFeedTypeLabel(feedType: CorporateFeedType, t: TFn) {
   const map: Record<CorporateFeedType, string> = {
     leave: t("calSourceLeave"),
     milestone: t("calSourceMilestone"),
-    crm_meeting: t("calSourceClientMeeting"),
     announcement: t("calSourceAnnouncement"),
   };
   return map[feedType] || feedType;

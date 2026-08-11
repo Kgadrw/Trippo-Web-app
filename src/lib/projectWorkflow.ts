@@ -75,6 +75,33 @@ export interface WeeklyVelocityPoint {
   value: number;
 }
 
+export interface ProjectWorkQueueItem {
+  _id: string;
+  name: string;
+  status: ProjectStatus;
+  priority?: "low" | "medium" | "high";
+  startDate?: string | null;
+  targetEndDate?: string | null;
+  clientName?: string;
+  leadName?: string;
+  openTasks: number;
+  updatedAt?: string | null;
+}
+
+export interface ProjectContributionDay {
+  date: string;
+  hours: number;
+  tasks: number;
+  count: number;
+  level: 0 | 1 | 2 | 3 | 4;
+}
+
+export interface ProjectContributionGraph {
+  projectId: string | null;
+  projectName: string | null;
+  days: ProjectContributionDay[];
+}
+
 export interface ProjectsSummary {
   totalProjects: number;
   byStatus: Record<ProjectStatus, number>;
@@ -82,6 +109,9 @@ export interface ProjectsSummary {
   openTasks: number;
   tasksCompletedWeekly: WeeklyVelocityPoint[];
   hoursLoggedWeekly: WeeklyVelocityPoint[];
+  workQueue?: ProjectWorkQueueItem[];
+  projectOptions?: Array<{ _id: string; name: string; status?: ProjectStatus }>;
+  contributionGraph?: ProjectContributionGraph;
 }
 
 export interface ProjectProfilePayload {
@@ -161,4 +191,34 @@ export function milestoneStatusLabel(status: string, t: (key: string) => string)
 export function formatWeekLabel(weekStart: string) {
   const date = new Date(`${weekStart}T12:00:00`);
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(`${value.split("T")[0]}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value.split("T")[0];
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+export function formatProjectTimeframe(startDate?: string | null, targetEndDate?: string | null) {
+  const start = startDate ? startDate.split("T")[0] : "";
+  const end = targetEndDate ? targetEndDate.split("T")[0] : "";
+  if (start && end) return `${formatShortDate(start)} → ${formatShortDate(end)}`;
+  if (start) return `From ${formatShortDate(start)}`;
+  if (end) return `Due ${formatShortDate(end)}`;
+  return "No timeframe set";
+}
+
+export function contributionLevelClass(level: number) {
+  switch (level) {
+    case 1:
+      return "bg-emerald-200";
+    case 2:
+      return "bg-emerald-400";
+    case 3:
+      return "bg-emerald-600";
+    case 4:
+      return "bg-emerald-800";
+    default:
+      return "bg-gray-100";
+  }
 }

@@ -17,6 +17,8 @@ export type LeaveRequestRecord = {
   rejectionNote?: string;
   dayCount?: number;
   createdAt?: string;
+  /** When true, approved/rejected decision is visible to other members. */
+  isPublic?: boolean;
 };
 
 export function leaveId(record: LeaveRequestRecord): string {

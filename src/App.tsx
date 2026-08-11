@@ -97,9 +97,7 @@ import FinanceTransactions from "./pages/finance/FinanceTransactions";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
 import { DocumentsLayout } from "./components/documents/DocumentsLayout";
-import DocumentsOverview from "./pages/documents/DocumentsOverview";
-import DocumentsArchive from "./pages/documents/DocumentsArchive";
-import DocumentRegistry from "./pages/documents/DocumentRegistry";
+import Documents from "./pages/Documents";
 import DocumentDetail from "./pages/documents/DocumentDetail";
 import Assets from "./pages/Assets";
 import AssetDetail from "./pages/AssetDetail";
@@ -117,19 +115,11 @@ import { HrLayout } from "./components/hr/HrLayout";
 import HrOverview from "./pages/hr/HrOverview";
 import HrPeople from "./pages/hr/HrPeople";
 import HrEmployeeProfile from "./pages/hr/HrEmployeeProfile";
-import HrOrgChart from "./pages/hr/HrOrgChart";
 import HrLeave from "./pages/hr/HrLeave";
 import { ProjectsLayout } from "./components/projects/ProjectsLayout";
 import ProjectsOverview from "./pages/projects/ProjectsOverview";
 import ProjectsList from "./pages/projects/ProjectsList";
 import ProjectDetail from "./pages/projects/ProjectDetail";
-import { CrmLayout } from "./components/crm/CrmLayout";
-import CrmOverview from "./pages/crm/CrmOverview";
-import CrmPipeline from "./pages/crm/CrmPipeline";
-import CrmContacts from "./pages/crm/CrmContacts";
-import CrmContactDetail from "./pages/crm/CrmContactDetail";
-import CrmQuotes from "./pages/crm/CrmQuotes";
-import CrmContracts from "./pages/crm/CrmContracts";
 import SettingsModalRoute from "./pages/settings/SettingsModalRoute";
 import { SettingsModalProvider } from "@/components/settings/SettingsModalProvider";
 import { PageSearchProvider } from "@/hooks/usePageSearch";
@@ -228,9 +218,9 @@ const SubdomainRouter = () => {
           path="/documents"
           element={<DocumentsLayout />}
         >
-          <Route index element={<DocumentsOverview />} />
-          <Route path="archive" element={<DocumentsArchive />} />
-          <Route path="registry" element={<DocumentRegistry />} />
+          <Route index element={<Documents />} />
+          <Route path="archive" element={<Navigate to="/documents" replace />} />
+          <Route path="registry" element={<Navigate to="/documents" replace />} />
           <Route path=":documentId" element={<DocumentDetail />} />
         </Route>
         <Route
@@ -266,7 +256,6 @@ const SubdomainRouter = () => {
           <Route path="tasks/finance" element={<Navigate to="/team/tasks" replace />} />
           <Route path="members" element={<Navigate to="/hr/people" replace />} />
           <Route path="members/:memberId" element={<RedirectTeamMemberToHr />} />
-          <Route path="org-chart" element={<Navigate to="/hr/org-chart" replace />} />
           <Route path="leave" element={<Navigate to="/hr/leave" replace />} />
         </Route>
         <Route
@@ -276,8 +265,8 @@ const SubdomainRouter = () => {
           <Route index element={<HrOverview />} />
           <Route path="people" element={<HrPeople />} />
           <Route path="people/:memberId" element={<HrEmployeeProfile />} />
-          <Route path="org-chart" element={<HrOrgChart />} />
           <Route path="leave" element={<HrLeave />} />
+          <Route path="org-chart" element={<Navigate to="/hr" replace />} />
         </Route>
         <Route
           path="/projects"
@@ -286,17 +275,6 @@ const SubdomainRouter = () => {
           <Route index element={<ProjectsOverview />} />
           <Route path="all" element={<ProjectsList />} />
           <Route path=":projectId" element={<ProjectDetail />} />
-        </Route>
-        <Route
-          path="/crm"
-          element={<CrmLayout />}
-        >
-          <Route index element={<CrmOverview />} />
-          <Route path="pipeline" element={<CrmPipeline />} />
-          <Route path="contacts" element={<CrmContacts />} />
-          <Route path="contacts/:clientId" element={<CrmContactDetail />} />
-          <Route path="quotes" element={<CrmQuotes />} />
-          <Route path="contracts" element={<CrmContracts />} />
         </Route>
         <Route
           path="/billing"
@@ -339,7 +317,6 @@ const SubdomainRouter = () => {
       <Route path="/team/*" element={mainDomainAppRedirect} />
       <Route path="/hr/*" element={mainDomainAppRedirect} />
       <Route path="/projects/*" element={mainDomainAppRedirect} />
-      <Route path="/crm/*" element={mainDomainAppRedirect} />
       <Route path="/finance/*" element={mainDomainAppRedirect} />
       <Route path="/income" element={mainDomainAppRedirect} />
       <Route path="/expenses" element={mainDomainAppRedirect} />
@@ -488,6 +465,7 @@ const App = () => {
               <SplashScreen />
               <SubdomainRouter />
             <OfflineIndicator />
+            <AddToHomeScreen />
             <NotificationManager />
             <StockUpdateDialog
               productId={stockUpdateProductId}

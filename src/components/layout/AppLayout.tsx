@@ -8,11 +8,9 @@ import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { cn } from "@/lib/utils";
 import { LowStockAlertDock } from "@/components/dashboard/LowStockAlert";
 import { WorkspacePageGuard } from "@/components/workspace/WorkspacePageGuard";
-import { WorkspaceChatWidget } from "@/components/workspace/WorkspaceChatWidget";
 import { WorkspaceChatNotificationBridge } from "@/components/workspace/WorkspaceChatNotificationBridge";
-import { WorkspaceChatPanelProvider, useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
+import { WorkspaceChatPanelProvider } from "@/hooks/useWorkspaceChatPanel";
 import { WorkspacePresenceProvider } from "@/hooks/useWorkspacePresence";
-import { useWorkspace } from "@/hooks/useWorkspace";
 
 interface AppLayoutProps {
   title?: string;
@@ -31,8 +29,6 @@ export function AppLayout(_props?: AppLayoutProps) {
 function AppLayoutInner(_props?: AppLayoutProps) {
   const location = useLocation();
   const { loading: subLoading, isLocked } = useSubscriptionAccess();
-  const { mode } = useWorkspace();
-  const { open: chatOpen } = useWorkspaceChatPanel();
   const isBillingRoute = location.pathname.startsWith("/billing");
   const isMessagesRoute = location.pathname.startsWith("/messages");
 
@@ -169,7 +165,6 @@ function AppLayoutInner(_props?: AppLayoutProps) {
             ? cn("ml-0", !isMessagesRoute && "pb-6")
             : cn(
                 sidebarOpen ? "lg:ml-52" : "lg:ml-0",
-                mode === "workspace" && chatOpen && !isMessagesRoute && "lg:mr-80",
                 isMessagesRoute && "overflow-hidden pb-0",
               ),
         )}
@@ -219,7 +214,6 @@ function AppLayoutInner(_props?: AppLayoutProps) {
 
       <LowStockAlertDock />
       <WorkspaceChatNotificationBridge />
-      <WorkspaceChatWidget topOffset={isMobile ? mobileTopHeight : desktopTopHeight} />
     </div>
   );
 }

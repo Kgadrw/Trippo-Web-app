@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { approvalApi } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -74,11 +74,6 @@ export function ApprovalsTab() {
     return () => window.removeEventListener("approvals-should-refresh", onRefresh);
   }, [loadQueue]);
 
-  const pendingCount = useMemo(
-    () => items.filter((item) => item.approvalStatus === "pending_approval").length,
-    [items],
-  );
-
   const handleApprove = async (item: ApprovalQueueItem) => {
     const key = `${item.entityType}-${item.id}-approve`;
     setActingId(key);
@@ -126,19 +121,6 @@ export function ApprovalsTab() {
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-lg border bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">Pending your review</p>
-          <p className="text-lg font-semibold text-gray-900">{pendingCount}</p>
-        </div>
-        <div className="rounded-lg border bg-white px-4 py-3 sm:col-span-2">
-          <p className="text-xs text-gray-500">How it works</p>
-          <p className="text-sm text-gray-700 mt-1">
-            Workspace members submit expenses, bills, and payroll for review. Owners and admins approve or reject before records affect reports and payments.
-          </p>
-        </div>
-      </div>
-
       <div className="mb-3 flex flex-wrap gap-2">
         {(["pending_approval", "rejected", "all"] as const).map((value) => (
           <Button

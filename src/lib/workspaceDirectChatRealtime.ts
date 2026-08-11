@@ -2,6 +2,16 @@ export const WORKSPACE_DM_MESSAGE_EVENT = "workspace-dm:message";
 export const WORKSPACE_DM_READ_EVENT = "workspace-dm:read";
 export const WORKSPACE_DM_EDIT_EVENT = "workspace-dm:edit";
 export const WORKSPACE_DM_DELETE_EVENT = "workspace-dm:delete";
+export const WORKSPACE_DM_TYPING_EVENT = "workspace-dm:typing";
+
+export interface DirectChatTypingPayload {
+  workspaceId: string;
+  conversationId?: string | null;
+  peerUserId?: string;
+  userId: string;
+  userName: string;
+  isTyping: boolean;
+}
 
 export interface DirectChatReceipt {
   userId: string;

@@ -154,23 +154,6 @@ export function AssetsTab() {
     [sortedAssets, pageSearchQuery],
   );
 
-  const metrics = useMemo(() => {
-    const activeStatuses = new Set(["active", "in_use", "maintenance"]);
-    const active = assets.filter((a) => activeStatuses.has(a.status || "active"));
-    return {
-      activeCount: active.length,
-      totalPurchaseValue: active.reduce((s, a) => s + (Number(a.purchaseCost) || 0), 0),
-      totalCurrentValue: active.reduce((s, a) => s + (Number(a.currentValue) || 0), 0),
-      warrantyExpiringCount: active.filter((a) => isWarrantyExpiringSoon(a.warrantyExpires)).length,
-      maintenanceDueCount: active.reduce((sum, asset) => {
-        const due = (asset.maintenanceRecords || []).filter(
-          (row) => row.status === "scheduled" || row.status === "overdue",
-        );
-        return sum + due.length;
-      }, 0),
-    };
-  }, [assets]);
-
   const allSelected =
     visibleAssets.length > 0 && visibleAssets.every((e) => selectedIds.has(assetId(e)));
 
@@ -322,29 +305,6 @@ export function AssetsTab() {
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="rounded-lg border bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">{t("assetActiveCount")}</p>
-          <p className="text-lg font-semibold text-gray-900">{metrics.activeCount}</p>
-        </div>
-        <div className="rounded-lg border bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">{t("assetPurchaseValue")}</p>
-          <p className="text-lg font-semibold text-gray-900">{formatCurrency(metrics.totalPurchaseValue)}</p>
-        </div>
-        <div className="rounded-lg border bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">{t("assetCurrentValue")}</p>
-          <p className="text-lg font-semibold text-gray-900">{formatCurrency(metrics.totalCurrentValue)}</p>
-        </div>
-        <div className="rounded-lg border bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">{t("assetWarrantyExpiring")}</p>
-          <p className="text-lg font-semibold text-gray-900">{metrics.warrantyExpiringCount}</p>
-        </div>
-        <div className="rounded-lg border bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">{t("assetMaintenanceDue")}</p>
-          <p className="text-lg font-semibold text-gray-900">{metrics.maintenanceDueCount}</p>
-        </div>
-      </div>
-
       <FinanceTableShell
         title={t("assets")}
         onAdd={openCreate}

@@ -1,5 +1,6 @@
 import { PUBLIC_API_BASE_URL } from "./api";
 import { resolveAuthenticatedFileUrl } from "./authenticatedFileFetch";
+import { normalizeStoredFileUrl } from "./storedFileUrl";
 
 type TokenCacheEntry = {
   token: string;
@@ -10,7 +11,7 @@ const tokenCache = new Map<string, TokenCacheEntry>();
 const inflight = new Map<string, Promise<string>>();
 
 function cacheKeyForFileUrl(fileUrl: string) {
-  return resolveAuthenticatedFileUrl(fileUrl);
+  return resolveAuthenticatedFileUrl(normalizeStoredFileUrl(fileUrl));
 }
 
 async function requestFileAccessToken(fileUrl: string): Promise<string> {
@@ -19,13 +20,16 @@ async function requestFileAccessToken(fileUrl: string): Promise<string> {
     throw new Error("Not authenticated");
   }
 
+  // Backend parseStoredFileUrl expects a path containing /files/... or /uploads/...
+  const urlForApi = normalizeStoredFileUrl(fileUrl);
+
   const res = await fetch(`${PUBLIC_API_BASE_URL}/files/access-token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-User-Id": userId,
     },
-    body: JSON.stringify({ url: fileUrl }),
+    body: JSON.stringify({ url: urlForApi }),
   });
 
   const json = await res.json().catch(() => ({}));
@@ -34,7 +38,6 @@ async function requestFileAccessToken(fileUrl: string): Promise<string> {
   }
 
   const token = json.data?.token;
-  const expiresIn = Number(json.data?.expiresIn) || 3600;
   if (!token) {
     throw new Error("No access token returned");
   }
@@ -59,7 +62,7 @@ export async function getAuthenticatedFileUrl(fileUrl: string): Promise<string> 
     return appendAccessToken(resolved, token);
   }
 
-  const promise = requestFileAccessToken(fileUrl.startsWith("/api") ? fileUrl : resolved);
+  const promise = requestFileAccessToken(fileUrl);
   inflight.set(resolved, promise);
 
   try {

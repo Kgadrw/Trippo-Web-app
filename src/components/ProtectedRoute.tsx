@@ -84,7 +84,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
         const protectedRoutes = [
           '/dashboard', '/finance', '/income', '/expenses', '/reports', '/billing', '/settings',
           '/admin-dashboard', '/sales', '/products', '/documents', '/assets', '/approvals', '/schedules',
-          '/team', '/hr', '/projects', '/crm', '/calendar',
+          '/team', '/hr', '/projects', '/calendar',
         ];
         const isProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));
 

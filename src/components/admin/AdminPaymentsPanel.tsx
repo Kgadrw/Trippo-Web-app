@@ -227,7 +227,10 @@ export function AdminPaymentsPanel() {
   const handleMarkUserPaid = async (userId: string) => {
     try {
       await adminApi.markUserPaid(userId);
-      toast({ title: "Marked paid", description: "User subscription activated manually." });
+      toast({
+        title: "Access granted",
+        description: "User marked paid and can access the platform.",
+      });
       await loadData();
       setDetailOpen(false);
     } catch (error: unknown) {

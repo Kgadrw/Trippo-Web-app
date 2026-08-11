@@ -5,8 +5,14 @@ import { documentApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CategorySelect } from "@/components/categories/CategorySelect";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -102,11 +108,10 @@ export function DocumentsTab() {
   }, [refresh]);
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("general");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
-  const [registryType, setRegistryType] = useState("general");
-  const [registryStatus, setRegistryStatus] = useState("draft");
+  const [registryType, setRegistryType] = useState("");
+  const [registryStatus, setRegistryStatus] = useState("");
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -170,11 +175,10 @@ export function DocumentsTab() {
 
   const resetForm = () => {
     setTitle("");
-    setCategory("general");
     setDate(new Date().toISOString().split("T")[0]);
     setNote("");
-    setRegistryType("general");
-    setRegistryStatus("draft");
+    setRegistryType("");
+    setRegistryStatus("");
     setEffectiveDate("");
     setExpiryDate("");
     setFile(null);
@@ -192,11 +196,10 @@ export function DocumentsTab() {
   const openEdit = (entry: CompanyDocumentEntry) => {
     setEditing(entry);
     setTitle(entry.title);
-    setCategory(entry.category || "general");
     setDate(entry.date ? entry.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setNote(entry.note || "");
-    setRegistryType(entry.registryType || "general");
-    setRegistryStatus(entry.registryStatus || "draft");
+    setRegistryType(entry.registryType || entry.category || "");
+    setRegistryStatus(entry.registryStatus || "");
     setEffectiveDate(entry.effectiveDate ? entry.effectiveDate.split("T")[0] : "");
     setExpiryDate(entry.expiryDate ? entry.expiryDate.split("T")[0] : "");
     setFile(null);
@@ -243,9 +246,9 @@ export function DocumentsTab() {
 
       const payload = {
         title: title.trim(),
-        category: category.trim() || "general",
-        registryType,
-        registryStatus,
+        category: registryType || null,
+        registryType: registryType || null,
+        registryStatus: registryStatus || null,
         effectiveDate: effectiveDate || undefined,
         expiryDate: expiryDate || undefined,
         date: buildDocumentDate(date),
@@ -297,7 +300,7 @@ export function DocumentsTab() {
   return (
     <>
       <FinanceTableShell
-        title={t("docArchiveTitle")}
+        title={t("docDocumentsTitle")}
         onAdd={openCreate}
         addLabel={t("docUpload")}
         onRefresh={() => void handleRefresh()}
@@ -307,7 +310,7 @@ export function DocumentsTab() {
           <FinanceTableLoading />
         ) : visibleDocuments.length === 0 ? (
           <div className="px-4 py-16 text-center text-sm text-gray-500">
-            {t("docArchiveEmpty")}
+            {t("docDocumentsEmpty")}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -353,7 +356,11 @@ export function DocumentsTab() {
                         {formatFinanceTableDate(entry.date)}
                       </td>
                       <td className={cn(FINANCE_TD_CLASS, "text-gray-600 capitalize")}>
-                        {entry.category || "general"}
+                        {entry.registryType
+                          ? registryTypeLabel(entry.registryType, t)
+                          : entry.category
+                            ? registryTypeLabel(entry.category, t)
+                            : "—"}
                       </td>
                       <td className={FINANCE_TD_CLASS}>
                         <FinanceDocumentRefCell
@@ -451,8 +458,19 @@ export function DocumentsTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Category</Label>
-                <CategorySelect type="document" value={category} onValueChange={setCategory} />
+                <Label>{t("docCategoryOptional")}</Label>
+                <Select
+                  value={registryType || "none"}
+                  onValueChange={(value) => setRegistryType(value === "none" ? "" : value)}
+                >
+                  <SelectTrigger><SelectValue placeholder={t("docOptional")} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("docOptional")}</SelectItem>
+                    {REGISTRY_TYPES.map((value) => (
+                      <SelectItem key={value} value={value}>{registryTypeLabel(value, t)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label>Date</Label>
@@ -461,37 +479,28 @@ export function DocumentsTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>{t("docRegistryType")}</Label>
-                <Select value={registryType} onValueChange={setRegistryType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label>{t("docStatusOptional")}</Label>
+                <Select
+                  value={registryStatus || "none"}
+                  onValueChange={(value) => setRegistryStatus(value === "none" ? "" : value)}
+                >
+                  <SelectTrigger><SelectValue placeholder={t("docOptional")} /></SelectTrigger>
                   <SelectContent>
-                    {REGISTRY_TYPES.map((value) => (
-                      <SelectItem key={value} value={value}>{registryTypeLabel(value, t)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>{t("docRegistryStatus")}</Label>
-                <Select value={registryStatus} onValueChange={setRegistryStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                    <SelectItem value="none">{t("docOptional")}</SelectItem>
                     {REGISTRY_STATUSES.map((value) => (
                       <SelectItem key={value} value={value}>{registryStatusLabel(value, t)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t("docEffectiveDate")}</Label>
                 <Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label>{t("docExpiryDate")}</Label>
-                <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
-              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>{t("docExpiryDate")}</Label>
+              <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>File</Label>

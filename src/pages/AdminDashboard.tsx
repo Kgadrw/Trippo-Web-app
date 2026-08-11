@@ -69,7 +69,6 @@ import { AdminSettingsPanel } from "@/components/admin/AdminSettingsPanel";
 import { AdminPlatformHealthPanel } from "@/components/admin/AdminPlatformHealthPanel";
 import { AdminPlatformTrafficChart } from "@/components/admin/AdminPlatformTrafficChart";
 import { ADMIN_CARD_CLASS, ADMIN_INNER_SURFACE_CLASS, ADMIN_TITLE_CLASS } from "@/components/admin/adminStyles";
-import { AddToHomeScreen } from "@/components/AddToHomeScreen";
 
 interface SystemStats {
   totalUsers: number;
@@ -308,6 +307,7 @@ const AdminDashboard = () => {
   const [billingStatus, setBillingStatus] = useState("active");
   const [billingActive, setBillingActive] = useState(true);
   const [isSavingBilling, setIsSavingBilling] = useState(false);
+  const [markingPaidUserId, setMarkingPaidUserId] = useState<string | null>(null);
   const [userPaymentFilter, setUserPaymentFilter] = useState<UserPaymentFilter>("all");
 
   const openBilling = (u: User) => {
@@ -348,16 +348,36 @@ const AdminDashboard = () => {
   };
 
   const markPaid = async (u: User) => {
+    const confirmed = window.confirm(
+      `Mark ${u.name} as paid and grant platform access for the next billing period?`,
+    );
+    if (!confirmed) return;
+
+    setMarkingPaidUserId(u._id);
     try {
-      await adminApi.markUserPaid(u._id);
-      toast({ title: "Marked paid", description: `${u.name} marked as paid.` });
+      const res = await adminApi.markUserPaid(u._id);
+      const accessGranted =
+        (res as { data?: { accessGranted?: boolean; hasPlus?: boolean } })?.data?.accessGranted ===
+          true ||
+        (res as { data?: { hasPlus?: boolean } })?.data?.hasPlus === true;
+      toast({
+        title: "Access granted",
+        description: accessGranted
+          ? `${u.name} is marked paid and can use the platform.`
+          : `${u.name} marked as paid.`,
+      });
       await loadDashboardData();
+      if (billingUser?._id === u._id) {
+        setBillingDialogOpen(false);
+      }
     } catch (error: any) {
       toast({
         title: "Failed",
         description: error?.message || "Failed to mark as paid.",
         variant: "destructive",
       });
+    } finally {
+      setMarkingPaidUserId(null);
     }
   };
 
@@ -523,19 +543,24 @@ const AdminDashboard = () => {
   const matchesUserPaymentFilter = (user: User, filter: UserPaymentFilter) => {
     const summary = user.paymentSummary;
     const subscription = user.subscription;
+    const hasPaidAccess =
+      subscription?.hasPlus === true &&
+      Boolean(subscription?.lastPaidAt || user.paymentPlan?.lastPaidAt) &&
+      !subscription?.isOnTrial;
     switch (filter) {
       case "paid":
-        return (summary?.successfulPayments ?? 0) > 0;
+        return hasPaidAccess || (summary?.successfulPayments ?? 0) > 0;
       case "failed":
         return (summary?.failedPayments ?? 0) > 0;
       case "trial":
         return subscription?.isOnTrial === true;
       case "none":
         return (
-          !summary ||
-          (summary.successfulPayments === 0 &&
-            summary.failedPayments === 0 &&
-            summary.pendingPayments === 0)
+          !hasPaidAccess &&
+          (!summary ||
+            (summary.successfulPayments === 0 &&
+              summary.failedPayments === 0 &&
+              summary.pendingPayments === 0))
         );
       default:
         return true;
@@ -561,8 +586,30 @@ const AdminDashboard = () => {
       past_due: "bg-red-100 text-red-800",
       paused: "bg-gray-100 text-gray-800",
     };
+
+    let accessLabel = "No access";
+    let accessStyle = "bg-red-100 text-red-800";
+    if (sub?.isOnTrial) {
+      accessLabel = "Trial access";
+      accessStyle = "bg-blue-100 text-blue-800";
+    } else if (sub?.hasPlus) {
+      accessLabel = "Platform access";
+      accessStyle = "bg-green-100 text-green-800";
+    } else if (sub?.requiresPayment) {
+      accessLabel = "Payment required";
+      accessStyle = "bg-amber-100 text-amber-800";
+    }
+
     return (
       <div className="space-y-1">
+        <span
+          className={cn(
+            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+            accessStyle,
+          )}
+        >
+          {accessLabel}
+        </span>
         <span
           className={cn(
             "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
@@ -663,9 +710,12 @@ const AdminDashboard = () => {
           <DollarSign className="mr-2 h-4 w-4" />
           Payment plan
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => markPaid(user)}>
+        <DropdownMenuItem
+          onClick={() => void markPaid(user)}
+          disabled={markingPaidUserId === user._id}
+        >
           <CheckCircle className="mr-2 h-4 w-4" />
-          Mark paid
+          {markingPaidUserId === user._id ? "Granting access…" : "Mark paid & grant access"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {user.isActive !== false ? (
@@ -1802,7 +1852,9 @@ const AdminDashboard = () => {
             <DialogHeader>
               <DialogTitle>Monthly Payment Plan</DialogTitle>
               <DialogDescription>
-                Set the monthly payment structure for {billingUser?.name || "user"}.
+                Edit billing settings for {billingUser?.name || "user"}. Use{" "}
+                <span className="font-medium text-foreground">Mark paid &amp; grant access</span> to
+                unlock the platform for the next period.
               </DialogDescription>
             </DialogHeader>
 
@@ -1853,18 +1905,30 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="cancel" onClick={() => setBillingDialogOpen(false)} disabled={isSavingBilling}>
-                Cancel
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => billingUser && void markPaid(billingUser)}
+                disabled={!billingUser || markingPaidUserId === billingUser?._id || isSavingBilling}
+              >
+                <CheckCircle className="h-4 w-4" />
+                {markingPaidUserId === billingUser?._id
+                  ? "Granting access…"
+                  : "Mark paid & grant access"}
               </Button>
-              <Button onClick={saveBilling} disabled={isSavingBilling || !billingUser}>
-                {isSavingBilling ? "Saving..." : "Save Plan"}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="cancel" onClick={() => setBillingDialogOpen(false)} disabled={isSavingBilling}>
+                  Cancel
+                </Button>
+                <Button onClick={saveBilling} disabled={isSavingBilling || !billingUser}>
+                  {isSavingBilling ? "Saving..." : "Save Plan"}
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-      <AddToHomeScreen />
     </AdminLayout>
   );
 };

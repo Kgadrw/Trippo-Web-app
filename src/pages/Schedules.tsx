@@ -970,18 +970,6 @@ const Schedules = () => {
     return diffDays;
   };
 
-  const upcomingSchedules = useMemo(() => {
-    return schedules.filter((s) => {
-      const dueDate = new Date(s.dueDate);
-      const now = new Date();
-      return dueDate >= now && s.status === "pending";
-    }).slice(0, 5);
-  }, [schedules]);
-
-  const overdueSchedules = useMemo(() => {
-    return schedules.filter((s) => isOverdue(s.dueDate) && s.status === "pending");
-  }, [schedules]);
-
   const { query: pageSearchQuery } = usePageSearch();
 
   // Flat filtered schedule list for card grid
@@ -1058,10 +1046,6 @@ const Schedules = () => {
     return list;
   }, [schedules, statusFilter, dateFilter, frequencyFilter, automationTypeFilter, clientFilter, pageSearchQuery]);
 
-  // Stats
-  const activeCount = schedules.filter((s) => s.status === "pending").length;
-  const completedCount = schedules.filter((s) => s.status === "completed").length;
-  const overdueCount = overdueSchedules.length;
   const hasActiveFilters =
     statusFilter !== "all" ||
     dateFilter !== "all" ||
@@ -1120,7 +1104,6 @@ const Schedules = () => {
               </h2>
               <HelpTip text={t("helpAutomations")} />
             </div>
-            <p className="text-sm text-gray-500 mt-0.5">{t("emailAutomationsSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button onClick={openClientCreateModal} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 gap-2 flex-1 sm:flex-initial">
@@ -1130,22 +1113,6 @@ const Schedules = () => {
               <Plus size={16} /> {t("newAutomation")}
             </Button>
           </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-3">
-          <button onClick={() => setStatusFilter(statusFilter === "pending" ? "all" : "pending")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", statusFilter === "pending" ? "bg-blue-50 border-blue-300 ring-1 ring-blue-300" : "bg-white border-gray-200 hover:border-blue-200")}>
-            <div className="text-xs font-medium text-gray-500 mb-1">{t("statusActive")}</div>
-            <div className="text-xl sm:text-2xl font-bold text-blue-700">{activeCount}</div>
-          </button>
-          <button onClick={() => setStatusFilter(statusFilter === "completed" ? "all" : "completed")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", statusFilter === "completed" ? "bg-green-50 border-green-300 ring-1 ring-green-300" : "bg-white border-gray-200 hover:border-green-200")}>
-            <div className="text-xs font-medium text-gray-500 mb-1">{t("statusCompleted")}</div>
-            <div className="text-xl sm:text-2xl font-bold text-green-700">{completedCount}</div>
-          </button>
-          <button onClick={() => setDateFilter(dateFilter === "overdue" ? "all" : "overdue")} className={cn("text-left rounded-xl border p-3 sm:p-4 transition-all", dateFilter === "overdue" ? "bg-red-50 border-red-300 ring-1 ring-red-300" : "bg-white border-gray-200 hover:border-red-200")}>
-            <div className="text-xs font-medium text-gray-500 mb-1">{t("statusOverdue")}</div>
-            <div className={cn("text-xl sm:text-2xl font-bold", overdueCount > 0 ? "text-red-600" : "text-gray-400")}>{overdueCount}</div>
-          </button>
         </div>
 
         {/* Filters */}
@@ -1552,14 +1519,14 @@ const Schedules = () => {
                     <div className={cn(
                       "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold",
                       currentStep >= step 
-                        ? "bg-gray-900 text-white" 
+                        ? "bg-sky-400 text-white border border-sky-400" 
                         : "bg-gray-200 text-gray-600"
                     )}>
                       {step}
                     </div>
                     <span className={cn(
                       "text-[10px] sm:text-xs mt-0.5 sm:mt-1 text-center",
-                      currentStep >= step ? "text-gray-900 font-medium" : "text-gray-500"
+                      currentStep >= step ? "text-sky-600 font-medium" : "text-gray-500"
                     )}>
                       {step === 1 && t("stepBasic")}
                       {step === 2 && t("stepClient")}
@@ -1570,7 +1537,7 @@ const Schedules = () => {
                   {step < 4 && (
                     <div className={cn(
                       "h-0.5 flex-1 mx-1 sm:mx-2",
-                      currentStep > step ? "bg-gray-900" : "bg-gray-200"
+                      currentStep > step ? "bg-sky-400" : "bg-gray-200"
                     )} />
                   )}
                 </div>

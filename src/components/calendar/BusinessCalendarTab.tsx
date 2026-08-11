@@ -174,7 +174,7 @@ function eventId(event: CalendarEventRecord) {
   return String(event._id ?? event.id ?? "");
 }
 
-export function BusinessCalendarTab() {
+export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -365,6 +365,20 @@ export function BusinessCalendarTab() {
 
   useEffect(() => {
     void loadCalendarData();
+  }, [loadCalendarData]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void loadCalendarData();
+    };
+    window.addEventListener("corporate-calendar-should-refresh", onRefresh);
+    window.addEventListener("announcements-should-refresh", onRefresh);
+    window.addEventListener("leave-requests-should-refresh", onRefresh);
+    return () => {
+      window.removeEventListener("corporate-calendar-should-refresh", onRefresh);
+      window.removeEventListener("announcements-should-refresh", onRefresh);
+      window.removeEventListener("leave-requests-should-refresh", onRefresh);
+    };
   }, [loadCalendarData]);
 
   const platformItems = useMemo(
@@ -930,7 +944,14 @@ export function BusinessCalendarTab() {
   const isDayView = viewMode === "day";
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4 lg:px-6 lg:pb-6">
+    <div
+      className={cn(
+        "flex min-h-0 flex-col",
+        embedded
+          ? "min-h-[640px] overflow-visible px-0 pb-0"
+          : "h-full overflow-hidden px-4 pb-4 lg:px-6 lg:pb-6",
+      )}
+    >
       <div className="mb-4 flex shrink-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-1.5">

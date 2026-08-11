@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
-  Building2,
   Camera,
   Check,
   ChevronDown,
@@ -9,8 +8,6 @@ import {
   Plus,
   Settings2,
   Trash2,
-  User,
-  Users,
   X,
 } from 'lucide-react';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -29,6 +26,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkspaceProfileAvatar } from '@/components/workspace/WorkspaceProfileAvatar';
+import { UserProfileAvatar } from '@/components/profile/UserProfileAvatar';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTranslation } from '@/hooks/useTranslation';
 import { initAudio, playErrorBeep, playUpdateBeep } from '@/lib/sound';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -60,7 +59,7 @@ import { cn } from '@/lib/utils';
 import { WorkspaceInviteEmailInput } from './WorkspaceInviteEmailInput';
 
 const workspacePermissionCheckboxClass =
-  'border-2 border-sky-500 bg-white shadow-sm hover:border-sky-600 data-[state=checked]:bg-sky-400 data-[state=checked]:border-sky-500 data-[state=checked]:text-white focus-visible:ring-sky-400';
+  '!border !border-solid !border-gray-400 bg-white shadow-none hover:!border-gray-500 data-[state=checked]:!bg-sky-400 data-[state=checked]:!border-gray-400 data-[state=checked]:text-white focus-visible:ring-0 focus-visible:ring-offset-0';
 
 type WorkspaceMemberRow = {
   id: string;
@@ -93,8 +92,8 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
     switchToPersonal,
     switchToWorkspace,
     createWorkspace,
-    isWorkspaceAdmin,
   } = useWorkspace();
+  const { user: currentUser } = useCurrentUser();
   const { toast } = useToast();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -102,12 +101,36 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
   const [workspaceName, setWorkspaceName] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const personalWorkspaceLabel = useMemo(() => {
+    const fullName = currentUser?.name?.trim() || "";
+    const parts = fullName.split(/\s+/).filter(Boolean);
+    const lastName = parts.length > 1 ? parts[parts.length - 1] : parts[0] || "";
+    if (!lastName) return "My workspace";
+    const possessive = lastName.toLowerCase().endsWith("s") ? `${lastName}'` : `${lastName}'s`;
+    return `${possessive} workspace`;
+  }, [currentUser?.name]);
+
   const label = useMemo(() => {
     if (mode === 'workspace' && activeWorkspace) {
       return activeWorkspace.name;
     }
-    return 'Personal';
-  }, [mode, activeWorkspace]);
+    return personalWorkspaceLabel;
+  }, [mode, activeWorkspace, personalWorkspaceLabel]);
+
+  const [manageWorkspace, setManageWorkspace] = useState<{
+    id: string;
+    name: string;
+    profilePictureUrl?: string | null;
+  } | null>(null);
+
+  const openManageWorkspace = (ws: { id: string; name: string; profilePictureUrl?: string | null }) => {
+    setManageWorkspace({
+      id: ws.id,
+      name: ws.name,
+      profilePictureUrl: ws.profilePictureUrl,
+    });
+    setManageOpen(true);
+  };
 
   const handleCreate = async () => {
     const name = workspaceName.trim();
@@ -147,17 +170,27 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
                 fallbackClassName="bg-blue-600 text-[10px] text-white"
               />
             ) : (
-              <Building2 size={16} className="shrink-0 text-blue-600" />
+              <UserProfileAvatar
+                name={currentUser?.name || 'Personal'}
+                profilePictureUrl={currentUser?.profilePictureUrl}
+                className="h-6 w-6 border border-gray-200"
+                fallbackClassName="bg-sky-100 text-[10px] font-semibold text-sky-700"
+              />
             )}
             <span className="hidden max-w-[100px] truncate sm:inline">{label}</span>
             <ChevronDown size={14} className="shrink-0 opacity-60" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align="end" className="w-72">
           <DropdownMenuLabel>Switch workspace</DropdownMenuLabel>
-          <DropdownMenuItem onClick={switchToPersonal} className="gap-2">
-            <User size={14} />
-            <span className="flex-1">Personal data</span>
+          <DropdownMenuItem onClick={switchToPersonal} className="gap-2.5 py-2">
+            <UserProfileAvatar
+              name={currentUser?.name || 'Personal'}
+              profilePictureUrl={currentUser?.profilePictureUrl}
+              className="h-8 w-8 shrink-0 border border-gray-200 pointer-events-none"
+              fallbackClassName="bg-sky-100 text-[11px] font-semibold text-sky-700"
+            />
+            <span className="flex-1 truncate">{personalWorkspaceLabel}</span>
             {mode === 'personal' ? <Check size={14} className="text-blue-600" /> : null}
           </DropdownMenuItem>
           {loading ? (
@@ -170,27 +203,51 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
               No shared workspaces yet
             </DropdownMenuItem>
           ) : (
-            workspaces.map((ws) => (
-              <DropdownMenuItem key={ws.id} onClick={() => switchToWorkspace(ws)} className="gap-2">
-                <Users size={14} />
-                <span className="flex-1 truncate">{ws.name}</span>
-                {mode === 'workspace' && activeWorkspace?.id === ws.id ? (
-                  <Check size={14} className="text-blue-600" />
-                ) : null}
-              </DropdownMenuItem>
-            ))
+            workspaces.map((ws) => {
+              const canManage = ws.role === 'owner' || ws.role === 'admin';
+              return (
+                <div key={ws.id} className="flex items-center gap-0.5 px-1">
+                  <DropdownMenuItem
+                    onClick={() => switchToWorkspace(ws)}
+                    className="min-w-0 flex-1 gap-2.5 py-2"
+                  >
+                    <WorkspaceProfileAvatar
+                      name={ws.name}
+                      profilePictureUrl={ws.profilePictureUrl}
+                      pictureRevision={ws.profilePictureRevision}
+                      className="h-8 w-8 shrink-0 border border-gray-200 pointer-events-none"
+                      fallbackClassName="bg-blue-600 text-[11px] text-white"
+                    />
+                    <span className="flex-1 truncate font-medium">{ws.name}</span>
+                    {mode === 'workspace' && activeWorkspace?.id === ws.id ? (
+                      <Check size={14} className="shrink-0 text-blue-600" />
+                    ) : null}
+                  </DropdownMenuItem>
+                  {canManage ? (
+                    <button
+                      type="button"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-accent hover:text-gray-800"
+                      aria-label={`Manage ${ws.name}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openManageWorkspace(ws);
+                      }}
+                    >
+                      <Settings2 size={14} />
+                    </button>
+                  ) : (
+                    <span className="h-8 w-8 shrink-0" aria-hidden />
+                  )}
+                </div>
+              );
+            })
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setCreateOpen(true)} className="gap-2">
             <Plus size={14} />
             Create workspace
           </DropdownMenuItem>
-          {mode === 'workspace' && activeWorkspace && isWorkspaceAdmin ? (
-            <DropdownMenuItem onClick={() => setManageOpen(true)} className="gap-2">
-              <Settings2 size={14} />
-              Manage workspace
-            </DropdownMenuItem>
-          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -223,13 +280,16 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
         </DialogContent>
       </Dialog>
 
-      {activeWorkspace ? (
+      {manageWorkspace ? (
         <ManageWorkspaceDialog
           open={manageOpen}
-          onOpenChange={setManageOpen}
-          workspaceId={activeWorkspace.id}
-          workspaceName={activeWorkspace.name}
-          workspaceProfilePictureUrl={activeWorkspace.profilePictureUrl}
+          onOpenChange={(open) => {
+            setManageOpen(open);
+            if (!open) setManageWorkspace(null);
+          }}
+          workspaceId={manageWorkspace.id}
+          workspaceName={manageWorkspace.name}
+          workspaceProfilePictureUrl={manageWorkspace.profilePictureUrl}
           onChanged={(patch) => notifyWorkspaceMetaChanged(patch)}
         />
       ) : null}
@@ -508,7 +568,7 @@ function ManageWorkspaceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[95vw] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Manage workspace</DialogTitle>
           <DialogDescription>
@@ -614,7 +674,7 @@ function ManageWorkspaceDialog({
               </Select>
             </div>
             {inviteRole === 'member' ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {WORKSPACE_PAGES.map((page) => (
                   <label key={page.key} className="flex items-center gap-2 text-sm">
                     <Checkbox
@@ -741,7 +801,7 @@ function MemberAccessEditor({
         </SelectContent>
       </Select>
       {role === 'member' ? (
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
           {WORKSPACE_PAGES.map((page) => (
             <label key={page.key} className="flex items-center gap-2 text-xs">
               <Checkbox

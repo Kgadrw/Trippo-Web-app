@@ -1598,7 +1598,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
       setItems((prev) =>
         prev.map((i) => {
           const currentId = (i as any)._id || (i as any).id;
-          return currentId === itemId ? updatedItem : i;
+          return String(currentId) === String(itemId) ? updatedItem : i;
         })
       );
       dispatchDataChanged({ endpoint, action: 'update', item: updatedItem });
@@ -1669,7 +1669,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           setItems((prev) =>
             prev.map((i) => {
               const currentId = (i as any)._id || (i as any).id;
-              return currentId === itemId ? syncedItem : i;
+              return String(currentId) === String(itemId) ? syncedItem : i;
             })
           );
           dispatchDataChanged({ endpoint, action: 'update', item: syncedItem });
@@ -1693,7 +1693,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
             setItems((prev) =>
               prev.map((i) => {
                 const currentId = (i as any)._id || (i as any).id;
-                return currentId === itemId ? previousItem : i;
+                return String(currentId) === String(itemId) ? previousItem : i;
               }),
             );
             dispatchDataChanged({ endpoint, action: 'update', item: previousItem });
@@ -1724,7 +1724,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
             setItems((prev) =>
               prev.map((i) => {
                 const currentId = (i as any)._id || (i as any).id;
-                return currentId === itemId ? previousItem : i;
+                return String(currentId) === String(itemId) ? previousItem : i;
               }),
             );
             dispatchDataChanged({ endpoint, action: 'update', item: previousItem });

@@ -151,7 +151,7 @@ export function DocumentDetailTab({ documentId }: { documentId: string }) {
       <div className="p-6 text-center">
         <p className="text-sm text-gray-600">{t("docNotFound")}</p>
         <Button asChild variant="link" className="mt-2">
-          <Link to="/documents/archive">{t("docBackToArchive")}</Link>
+          <Link to="/documents">{t("docBackToDocuments")}</Link>
         </Button>
       </div>
     );
@@ -167,9 +167,9 @@ export function DocumentDetailTab({ documentId }: { documentId: string }) {
   return (
     <div className="space-y-4 p-4 lg:p-6">
       <Button asChild variant="ghost" size="sm" className="px-2">
-        <Link to="/documents/archive">
+        <Link to="/documents">
           <ArrowLeft className="mr-1 h-4 w-4" />
-          {t("docBackToArchive")}
+          {t("docBackToDocuments")}
         </Link>
       </Button>
 
@@ -181,9 +181,11 @@ export function DocumentDetailTab({ documentId }: { documentId: string }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", registryStatusClass(doc.registryStatus || "draft"))}>
-            {registryStatusLabel(doc.registryStatus || "draft", t)}
-          </span>
+          {doc.registryStatus ? (
+            <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", registryStatusClass(doc.registryStatus))}>
+              {registryStatusLabel(doc.registryStatus, t)}
+            </span>
+          ) : null}
           <Button size="sm" variant="outline" onClick={() => void documentApi.openFile(documentId)}>
             {t("docViewFile")}
           </Button>
@@ -209,7 +211,12 @@ export function DocumentDetailTab({ documentId }: { documentId: string }) {
       {tab === "overview" && (
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-2 text-sm">
-            <p><span className="text-gray-500">{t("docRegistryType")}:</span> {registryTypeLabel(doc.registryType || "general", t)}</p>
+            <p>
+              <span className="text-gray-500">{t("docCategoryOptional")}:</span>{" "}
+              {doc.registryType || doc.category
+                ? registryTypeLabel(doc.registryType || doc.category || "", t)
+                : "—"}
+            </p>
             <p><span className="text-gray-500">{t("docEffectiveDate")}:</span> {doc.effectiveDate ? formatFinanceTableDate(doc.effectiveDate) : "—"}</p>
             <p><span className="text-gray-500">{t("docExpiryDate")}:</span> {doc.expiryDate ? formatFinanceTableDate(doc.expiryDate) : "—"}</p>
             <p><span className="text-gray-500">{t("docContentHash")}:</span> <code className="text-xs">{truncateHash(doc.contentHash, 16)}</code></p>

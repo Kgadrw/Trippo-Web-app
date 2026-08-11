@@ -12,6 +12,7 @@ import {
   announcementStatusLabel,
   type CompanyAnnouncementRecord,
 } from "@/lib/calendarWorkflow";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,8 @@ const EMPTY_FORM = {
 export function CompanyAnnouncementsTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { mode, isWorkspaceAdmin } = useWorkspace();
+  const canManage = mode === "workspace" && isWorkspaceAdmin;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rows, setRows] = useState<CompanyAnnouncementRecord[]>([]);
@@ -82,12 +85,14 @@ export function CompanyAnnouncementsTab() {
   const visibleRows = useMemo(() => rows, [rows]);
 
   const openCreate = () => {
+    if (!canManage) return;
     setEditing(null);
     setForm(EMPTY_FORM);
     setModalOpen(true);
   };
 
   const openEdit = (row: CompanyAnnouncementRecord) => {
+    if (!canManage) return;
     setEditing(row);
     setForm({
       title: row.title,
@@ -104,7 +109,7 @@ export function CompanyAnnouncementsTab() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.startDate) return;
+    if (!canManage || !form.title.trim() || !form.startDate) return;
     setSaving(true);
     try {
       const payload = {
@@ -126,6 +131,8 @@ export function CompanyAnnouncementsTab() {
       toast({ title: t("corpAnnSaved") });
       setModalOpen(false);
       await loadRows();
+      window.dispatchEvent(new CustomEvent("corporate-calendar-should-refresh"));
+      window.dispatchEvent(new CustomEvent("announcements-should-refresh"));
     } catch {
       toast({ title: t("corpAnnSaveFailed"), variant: "destructive" });
     } finally {
@@ -134,11 +141,15 @@ export function CompanyAnnouncementsTab() {
   };
 
   const handleDelete = async (row: CompanyAnnouncementRecord) => {
+    if (!canManage) return;
     if (!window.confirm(t("corpAnnDeleteConfirm"))) return;
     try {
       await corporateCalendarApi.deleteAnnouncement(row._id);
       toast({ title: t("corpAnnDeleted") });
+      setRows((prev) => prev.filter((r) => r._id !== row._id));
       await loadRows();
+      window.dispatchEvent(new CustomEvent("corporate-calendar-should-refresh"));
+      window.dispatchEvent(new CustomEvent("announcements-should-refresh"));
     } catch {
       toast({ title: t("corpAnnSaveFailed"), variant: "destructive" });
     }
@@ -152,22 +163,25 @@ export function CompanyAnnouncementsTab() {
             <h2 className="text-lg font-semibold text-gray-900">{t("corpAnnTitle")}</h2>
             <HelpTip text={t("helpCorpCalAnnouncements")} />
           </div>
-          <p className="text-sm text-gray-500">{t("corpAnnSubtitle")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("corpAnnAllStatuses")}</SelectItem>
-              {ANNOUNCEMENT_STATUSES.map((value) => (
-                <SelectItem key={value} value={value}>{announcementStatusLabel(value, t)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            {t("corpAnnAdd")}
-          </Button>
+          {canManage ? (
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] shadow-none"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("corpAnnAllStatuses")}</SelectItem>
+                {ANNOUNCEMENT_STATUSES.map((value) => (
+                  <SelectItem key={value} value={value}>{announcementStatusLabel(value, t)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          {canManage ? (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              {t("corpAnnAdd")}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -217,14 +231,16 @@ export function CompanyAnnouncementsTab() {
                     </span>
                   </td>
                   <td className={FINANCE_TD_CLASS}>
-                    <div className="flex justify-end gap-1">
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => void handleDelete(row)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
+                    {canManage ? (
+                      <div className="flex justify-end gap-1">
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => void handleDelete(row)}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -298,7 +314,7 @@ export function CompanyAnnouncementsTab() {
               <div className="space-y-1">
                 <Label>{t("corpAnnColStatus")}</Label>
                 <Select value={form.status} onValueChange={(value) => setForm((f) => ({ ...f, status: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="shadow-none"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ANNOUNCEMENT_STATUSES.map((value) => (
                       <SelectItem key={value} value={value}>{announcementStatusLabel(value, t)}</SelectItem>

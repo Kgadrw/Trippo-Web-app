@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { User, Menu, Mail, Building2, X, ChevronDown } from "lucide-react";
 import { useSettingsModal } from "@/components/settings/settingsModalState";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import {
   Dialog,
   DialogContent,
@@ -48,18 +48,6 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
     second: "2-digit",
     hour12: true,
   });
-
-  // Get user initials for avatar - memoized to prevent shaking
-  const userInitials = useMemo(() => {
-    if (user?.name) {
-      const names = user.name.split(" ");
-      if (names.length >= 2) {
-        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-      }
-      return user.name.substring(0, 2).toUpperCase();
-    }
-    return isAdmin ? "A" : "U";
-  }, [user?.name, isAdmin]);
 
   // Get first name only - memoized to prevent shaking
   const firstName = useMemo(() => {
@@ -109,11 +97,13 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
                 {subtitle}
               </p>
             </div>
-            <Avatar className="h-10 w-10 border border-blue-700 cursor-pointer">
-              <AvatarFallback className={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-blue-700 text-white font-bold"}>
-                {userInitials}
-              </AvatarFallback>
-            </Avatar>
+            <UserProfileAvatar
+              name={user?.name}
+              profilePictureUrl={user?.profilePictureUrl}
+              pictureRevision={user?.profilePictureRevision}
+              className="h-10 w-10 border border-blue-700 cursor-pointer"
+              fallbackClassName={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-blue-700 text-white font-bold"}
+            />
           </button>
           <button
             onClick={() => openSettings()}
@@ -136,11 +126,13 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center justify-center">
-              <Avatar className={cn("h-20 w-20 border-2", isAdmin ? "border-purple-500" : "border-gray-500")}>
-                <AvatarFallback className={cn("text-white font-bold text-2xl", isAdmin ? "bg-purple-500" : "bg-gray-500")}>
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
+              <UserProfileAvatar
+                name={user?.name}
+                profilePictureUrl={user?.profilePictureUrl}
+                pictureRevision={user?.profilePictureRevision}
+                className={cn("h-20 w-20 border-2", isAdmin ? "border-purple-500" : "border-gray-500")}
+                fallbackClassName={cn("text-white font-bold text-2xl", isAdmin ? "bg-purple-500" : "bg-gray-500")}
+              />
             </div>
             
             <div className="space-y-3">

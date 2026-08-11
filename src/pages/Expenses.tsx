@@ -99,6 +99,7 @@ interface Expense {
   bankAccountName?: string;
   bankAccountNumber?: string;
   accountId?: string;
+  creditedAccountId?: string;
   receiptUrl?: string;
   receiptFileName?: string;
   approvalStatus?: string;
@@ -190,6 +191,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
   const [bankAccountName, setBankAccountName] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [creditedAccountId, setCreditedAccountId] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | undefined>();
   const [existingReceiptName, setExistingReceiptName] = useState<string | undefined>();
@@ -363,6 +365,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
     setBankAccountName("");
     setBankAccountNumber("");
     setAccountId("");
+    setCreditedAccountId("");
     setReceiptFile(null);
     setExistingReceiptUrl(undefined);
     setExistingReceiptName(undefined);
@@ -402,7 +405,18 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
     setPaymentMethod(expense.paymentMethod || "cash");
     setBankAccountName(expense.bankAccountName || "");
     setBankAccountNumber(expense.bankAccountNumber || "");
-    setAccountId(expense.accountId || "");
+    setAccountId(
+      typeof expense.accountId === "object" && expense.accountId && "_id" in (expense.accountId as object)
+        ? String((expense.accountId as { _id: string })._id)
+        : String(expense.accountId || ""),
+    );
+    setCreditedAccountId(
+      typeof expense.creditedAccountId === "object" &&
+        expense.creditedAccountId &&
+        "_id" in (expense.creditedAccountId as object)
+        ? String((expense.creditedAccountId as { _id: string })._id)
+        : String(expense.creditedAccountId || ""),
+    );
     setReceiptFile(null);
     setExistingReceiptUrl(expense.receiptUrl);
     setExistingReceiptName(expense.receiptFileName);
@@ -521,7 +535,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
       try {
         const receipt = await resolveReceipt();
-        const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId);
+        const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId, creditedAccountId);
         await update(
           buildExpensePayload(title, parsedAmount, category, date, note, editing, {
             ...payment,
@@ -558,7 +572,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
     if (addMode === "bulk") {
 
-      const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId);
+      const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId, creditedAccountId);
       const expensesToAdd = bulkRows
 
         .map((row) => {
@@ -659,7 +673,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
     try {
       const receipt = await resolveReceipt();
-      const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId);
+      const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId, creditedAccountId);
       await add(
         buildExpensePayload(title, parsedAmount, category, date, note, {}, {
           ...payment,
@@ -1338,6 +1352,10 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                   onBankAccountNumberChange={setBankAccountNumber}
                   accountId={accountId}
                   onAccountIdChange={setAccountId}
+                  accountLabel={t("accountDeducted")}
+                  creditedAccountId={creditedAccountId}
+                  onCreditedAccountIdChange={setCreditedAccountId}
+                  creditedAccountLabel={t("accountCredited")}
                   disabled={isSaving}
                   labelClassName="text-[11px] sm:text-xs"
                   selectTriggerClassName="h-9 sm:h-10 text-sm sm:text-base"
@@ -1362,6 +1380,10 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                   onBankAccountNumberChange={setBankAccountNumber}
                   accountId={accountId}
                   onAccountIdChange={setAccountId}
+                  accountLabel={t("accountDeducted")}
+                  creditedAccountId={creditedAccountId}
+                  onCreditedAccountIdChange={setCreditedAccountId}
+                  creditedAccountLabel={t("accountCredited")}
                   disabled={isSaving}
                   labelClassName="text-[11px] sm:text-xs"
                   selectTriggerClassName="h-9 sm:h-10 text-sm sm:text-base"
