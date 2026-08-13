@@ -181,6 +181,8 @@ export function InvoicesTab() {
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<InvoiceEntry>();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [bankAccountName, setBankAccountName] = useState("");
@@ -371,6 +373,26 @@ export function InvoicesTab() {
     }
   };
 
+  const handleBulkDeleteConfirm = async () => {
+    const selected = invoices.filter((e) => selectedIds.has(invoiceId(e)));
+    if (selected.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selected) {
+        await remove(item);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted"), description: t("invoiceRemovedDesc") });
+      window.dispatchEvent(new CustomEvent("finance-should-refresh"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("deleteInvoiceFailed");
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleDownloadPdf = (entry: InvoiceEntry) => {
     downloadInvoicePdf({
       invoiceNumber: entry.invoiceNumber,
@@ -536,6 +558,9 @@ export function InvoicesTab() {
         addLabel={t("add")}
         onRefresh={() => void refresh(true)}
         isRefreshing={isRefreshing}
+        selectedCount={selectedIds.size}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
       >
         {renderTable()}
       </FinanceTableShell>
@@ -717,6 +742,18 @@ export function InvoicesTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedIds.size))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

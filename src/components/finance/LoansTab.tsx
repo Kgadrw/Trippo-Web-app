@@ -219,6 +219,8 @@ export function LoansTab() {
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<LoanEntry>();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -488,6 +490,35 @@ export function LoansTab() {
     }
   };
 
+  const handleBulkDeleteConfirm = async () => {
+    const selected = loans.filter(
+      (e) => selectedIds.has(loanId(e)) && !(e.totalPaid || 0),
+    );
+    if (selected.length === 0) {
+      toast({
+        title: t("error"),
+        description: t("loanDeleteHasPayments"),
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selected) {
+        await remove(item);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted"), description: t("loanRemovedDesc") });
+      window.dispatchEvent(new CustomEvent("loans-should-refresh"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("deleteLoanFailed");
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const renderTable = () => {
     if (isLoading) return <FinanceTableLoading />;
 
@@ -650,6 +681,9 @@ export function LoansTab() {
         addLabel={t("add")}
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
+        selectedCount={selectedIds.size}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
       >
         {renderTable()}
       </FinanceTableShell>
@@ -876,6 +910,18 @@ export function LoansTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedIds.size))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

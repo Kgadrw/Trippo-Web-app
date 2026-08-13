@@ -57,6 +57,7 @@ import {
   isWorkspaceGroupChatSegment,
 } from "@/lib/workspaceGroupChat";
 import type { WorkspaceChatMessage } from "@/lib/workspaceChatRealtime";
+import { clearDirectChatOsNotification } from "@/lib/workspaceChatNotifications";
 import {
   mergeDirectMessages,
   canModifyDirectMessage,
@@ -69,6 +70,7 @@ import {
 import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
 import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { websocketManager } from "@/lib/websocketManager";
+import { useChatComposerPad } from "@/hooks/useChatComposerPad";
 
 const CHAT_PURPLE = "#5B2EFF";
 const CHAT_BG_IMAGE = "/mobile.jpg";
@@ -347,6 +349,7 @@ export function MessagesPage() {
   }>({ messageId: null, body: "", at: null, senderUserId: null });
 
   const listRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottomRef = useRef(true);
   const markedReadIdsRef = useRef<Set<string>>(new Set());
@@ -561,7 +564,15 @@ export function MessagesPage() {
     requestAnimationFrame(() => scrollToBottom("smooth"));
   }, [dmTypingUsers.length, scrollToBottom]);
 
-  /** WhatsApp-style: keep the latest bubble visible while the keyboard animates up. */
+  const composerPad = useChatComposerPad(composerRef, [
+    conversationId,
+    replyTo,
+    editingMessageId,
+    voiceRecording,
+    text,
+  ]);
+
+  /** Keep the latest bubble visible while the keyboard opens — light, fast. */
   const keepLastMessageVisible = useCallback(() => {
     stickToBottomRef.current = true;
     setShowScrollDown(false);
@@ -572,9 +583,7 @@ export function MessagesPage() {
     };
     run();
     requestAnimationFrame(run);
-    window.setTimeout(run, 50);
-    window.setTimeout(run, 150);
-    window.setTimeout(run, 320);
+    window.setTimeout(run, 120);
   }, []);
 
   // Keep the latest message visible when the keyboard shrinks the list.
@@ -589,25 +598,6 @@ export function MessagesPage() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [conversationId, selectedUserId]);
-
-  useEffect(() => {
-    if (!conversationId) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const onViewportChange = () => {
-      if (stickToBottomRef.current) {
-        const el = listRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
-      }
-      if (window.scrollY !== 0) window.scrollTo(0, 0);
-    };
-    vv.addEventListener("resize", onViewportChange);
-    vv.addEventListener("scroll", onViewportChange);
-    return () => {
-      vv.removeEventListener("resize", onViewportChange);
-      vv.removeEventListener("scroll", onViewportChange);
-    };
-  }, [conversationId]);
 
   const loadThreads = useCallback(async () => {
     if (!hasJoinedOrgs) return;
@@ -720,6 +710,7 @@ export function MessagesPage() {
           ),
         );
         refreshMessagesUnreadBadge();
+        clearDirectChatOsNotification(activeConversationId);
       } catch {
         pending.forEach((id) => markedReadIdsRef.current.delete(id));
       } finally {
@@ -1702,7 +1693,8 @@ export function MessagesPage() {
               <div
                 ref={listRef}
                 onScroll={handleListScroll}
-                className="relative z-10 h-full w-full overflow-y-auto overscroll-contain px-3 pb-28 pt-4 scroll-smooth max-lg:pb-24 sm:px-4 lg:pb-44"
+                className="relative z-10 h-full w-full overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-3 pt-4 scroll-smooth sm:px-4"
+                style={{ paddingBottom: composerPad }}
               >
                 <DisappearingBanner
                   durationSec={disappearingDurationSec}
@@ -1912,7 +1904,8 @@ export function MessagesPage() {
                 <button
                   type="button"
                   onClick={() => scrollToBottom("smooth")}
-                  className="absolute bottom-32 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md ring-1 ring-sky-100 max-lg:bottom-28 lg:bottom-44 lg:h-10 lg:w-10"
+                  className="absolute right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md ring-1 ring-sky-100 lg:h-10 lg:w-10"
+                  style={{ bottom: Math.max(composerPad - 8, 72) }}
                   aria-label={t("directChatScrollDown")}
                 >
                   <ChevronDown size={18} />
@@ -1921,6 +1914,7 @@ export function MessagesPage() {
 
               {/* Floating composer — sits above native soft keyboard via visualViewport shell */}
               <div
+                ref={composerRef}
                 data-chat-composer
                 className={cn(
                   "pointer-events-none absolute inset-x-0 bottom-0 z-20",
@@ -2012,6 +2006,11 @@ export function MessagesPage() {
                         sendLabel={t("chatVoiceSend")}
                         micLabel={t("chatVoiceRecord")}
                         permissionDeniedLabel={t("chatVoicePermissionDenied")}
+                        holdHintLabel={t("chatVoiceHoldHint")}
+                        slideUpLockLabel={t("chatVoiceSlideUpLock")}
+                        slideCancelLabel={t("chatVoiceSlideCancel")}
+                        lockedLabel={t("chatVoiceLocked")}
+                        releaseToSendLabel={t("chatVoiceReleaseToSend")}
                         onRecordingChange={setVoiceRecording}
                         onError={(message) =>
                           toast({ title: message, variant: "destructive" })

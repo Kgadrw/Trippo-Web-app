@@ -23,15 +23,17 @@ import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { Loader2, MoreVertical, Pencil, Trash2, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, CurrencyAmount } from "@/lib/currency";
 import type { ProductEntry } from "@/components/inventory/ProductsTab";
 import type { CustomerEntry } from "@/components/finance/CustomersTab";
+import { CustomerSearchSelect } from "@/components/finance/CustomerSearchSelect";
 import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
   formatFinanceTableDate,
+  FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -41,18 +43,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { playSaleBeep, playErrorBeep } from "@/lib/sound";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { WorkspaceRecordBy } from "@/components/workspace/WorkspaceRecordBy";
+import { useTableSelection } from "@/hooks/useTableSelection";
+import { clientApi } from "@/lib/api";
 
 interface SaleEntry {
   id?: number;
@@ -121,35 +116,36 @@ export function SalesTab() {
     endpoint: "products",
     defaultValue: [],
   });
-  const { items: customers } = useApi<CustomerEntry>({
+  const { items: customers, refresh: refreshCustomers } = useApi<CustomerEntry>({
     endpoint: "clients",
     defaultValue: [],
   });
 
-  const customerOptions = useMemo(
-    () =>
-      [...customers]
-        .filter((c) => (c as { clientType?: string }).clientType !== "worker")
-        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
-    [customers],
-  );
+  useEffect(() => {
+    void (async () => {
+      try {
+        await clientApi.mergeDuplicates();
+        await refreshCustomers(true);
+      } catch {
+        // merge is best-effort
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SaleEntry | null>(null);
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [sellingPrice, setSellingPrice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [clientId, setClientId] = useState("");
   const [buyerName, setBuyerName] = useState("");
-  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const deleteConfirm = useDeleteConfirm<SaleEntry>();
-
-  const selectedCustomerLabel = useMemo(() => {
-    if (!clientId) return "";
-    return customerOptions.find((c) => customerOptionId(c) === clientId)?.name || "";
-  }, [clientId, customerOptions]);
 
   const sellableProducts = useMemo(() => {
     const editingProductId = editing?.productId ? String(editing.productId) : "";
@@ -176,19 +172,20 @@ export function SalesTab() {
   }, [toast, t]);
 
   const selectedProduct = sellableProducts.find((p) => productOptionId(p) === productId);
-  const unitPrice = selectedProduct?.sellingPrice ?? 0;
+  const unitPrice = Number(sellingPrice);
   const qty = parseInt(quantity, 10) || 0;
-  const lineTotal = unitPrice * qty;
+  const lineTotal =
+    Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice * qty : 0;
 
   const resetForm = () => {
     setEditing(null);
     setProductId("");
     setQuantity("1");
+    setSellingPrice("");
     setPaymentMethod("cash");
     setSaleDate(new Date().toISOString().slice(0, 10));
     setClientId("");
     setBuyerName("");
-    setCustomerPickerOpen(false);
   };
 
   const openCreate = () => {
@@ -201,6 +198,16 @@ export function SalesTab() {
     setEditing(sale);
     setProductId(sale.productId ? String(sale.productId) : "");
     setQuantity(String(sale.quantity || 1));
+    const qtyVal = Number(sale.quantity) || 1;
+    const derivedUnit =
+      qtyVal > 0 && Number.isFinite(Number(sale.revenue))
+        ? Number(sale.revenue) / qtyVal
+        : undefined;
+    setSellingPrice(
+      derivedUnit != null && Number.isFinite(derivedUnit)
+        ? String(Math.round(derivedUnit * 100) / 100)
+        : "",
+    );
     setPaymentMethod(sale.paymentMethod || "cash");
     setSaleDate(toDateInputValue(sale.date));
     setClientId(sale.clientId ? String(sale.clientId) : "");
@@ -208,9 +215,29 @@ export function SalesTab() {
     setOpen(true);
   };
 
+  const handleProductChange = (nextId: string) => {
+    setProductId(nextId);
+    if (!nextId) {
+      setSellingPrice("");
+      return;
+    }
+    const product = sellableProducts.find((p) => productOptionId(p) === nextId);
+    if (product) {
+      setSellingPrice(String(product.sellingPrice ?? 0));
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedProduct || qty <= 0) {
       toast({ title: t("saveFailed"), description: t("saleRequiredFields"), variant: "destructive" });
+      return;
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      toast({
+        title: t("saveFailed"),
+        description: t("invalidPriceDesc"),
+        variant: "destructive",
+      });
       return;
     }
 
@@ -229,7 +256,7 @@ export function SalesTab() {
     try {
       const cost = (selectedProduct.costPrice ?? 0) * qty;
       const revenue = lineTotal;
-      const selectedCustomer = customerOptions.find((c) => customerOptionId(c) === clientId);
+      const selectedCustomer = customers.find((c) => customerOptionId(c) === clientId);
       const resolvedBuyerName =
         buyerName.trim() || selectedCustomer?.name || "";
 
@@ -305,6 +332,36 @@ export function SalesTab() {
     ]);
   }, [sales, pageSearchQuery]);
 
+  const {
+    selectedIds,
+    selectedCount,
+    selectedItems,
+    allSelected,
+    toggleSelectAll,
+    toggleSelectRow,
+    clearSelection,
+  } = useTableSelection(visibleSales, saleId);
+
+  const handleBulkDeleteConfirm = async () => {
+    if (!canManageSales || selectedItems.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const sale of selectedItems) {
+        await remove(sale);
+      }
+      clearSelection();
+      setBulkDeleteOpen(false);
+      toast({ title: t("saleDeletedTitle") });
+      void refresh(true);
+    } catch (error: unknown) {
+      playErrorBeep();
+      const message = error instanceof Error ? error.message : t("deleteSaleFailedDesc");
+      toast({ title: t("deleteSaleFailedTitle"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const renderTable = () => {
     if (isLoading) return <FinanceTableLoading />;
     if (sales.length === 0) {
@@ -330,6 +387,15 @@ export function SalesTab() {
         <table className="w-full min-w-[800px] border-collapse">
           <thead>
             <tr>
+              {canManageSales ? (
+                <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
+                  <FinanceTableCheckbox
+                    checked={allSelected}
+                    onCheckedChange={toggleSelectAll}
+                    ariaLabel="Select all"
+                  />
+                </th>
+              ) : null}
               <th className={FINANCE_TH_CLASS}>{t("productName")}</th>
               <th className={FINANCE_TH_CLASS}>{t("buyerName")}</th>
               <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("quantity")}</th>
@@ -342,9 +408,19 @@ export function SalesTab() {
           </thead>
           <tbody className="bg-white">
             {visibleSales.slice(0, 50).map((entry) => {
+              const id = saleId(entry);
               const profit = saleProfit(entry);
               return (
-                <tr key={saleId(entry)} className="border-t border-gray-100 hover:bg-gray-50/80">
+                <tr key={id} className="border-t border-gray-100 hover:bg-gray-50/80">
+                  {canManageSales ? (
+                    <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
+                      <FinanceTableCheckbox
+                        checked={selectedIds.has(id)}
+                        onCheckedChange={() => toggleSelectRow(id)}
+                        ariaLabel={`Select ${entry.product}`}
+                      />
+                    </td>
+                  ) : null}
                   <td className={cn(FINANCE_TD_CLASS, "font-medium")}>{entry.product}</td>
                   <td className={FINANCE_TD_CLASS}>{entry.buyerName?.trim() || "—"}</td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums")}>{entry.quantity}</td>
@@ -407,6 +483,9 @@ export function SalesTab() {
         addLabel={t("add")}
         onRefresh={() => void refresh(true)}
         isRefreshing={false}
+        selectedCount={canManageSales ? selectedCount : 0}
+        onBulkDelete={canManageSales ? () => setBulkDeleteOpen(true) : undefined}
+        bulkDeleting={isBulkDeleting}
       >
         {renderTable()}
       </FinanceTableShell>
@@ -425,7 +504,10 @@ export function SalesTab() {
           <div className="space-y-3 py-2">
             <div className="space-y-2">
               <Label>{t("productName")}</Label>
-              <Select value={productId || "none"} onValueChange={(v) => setProductId(v === "none" ? "" : v)}>
+              <Select
+                value={productId || "none"}
+                onValueChange={(v) => handleProductChange(v === "none" ? "" : v)}
+              >
                 <SelectTrigger><SelectValue placeholder={t("selectProduct")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("selectProduct")}</SelectItem>
@@ -440,68 +522,20 @@ export function SalesTab() {
 
             <div className="space-y-2">
               <Label>{t("selectCustomer")}</Label>
-              <Popover open={customerPickerOpen} onOpenChange={setCustomerPickerOpen} modal>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={customerPickerOpen}
-                    className="h-10 w-full justify-between font-normal"
-                  >
-                    <span className={cn("truncate", !selectedCustomerLabel && "text-muted-foreground")}>
-                      {selectedCustomerLabel || t("selectCustomer")}
-                    </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder={t("search")} />
-                    <CommandList>
-                      <CommandEmpty>{t("noCustomersYet")}</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          value="__none__"
-                          onSelect={() => {
-                            setClientId("");
-                            setCustomerPickerOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn("mr-2 h-4 w-4", clientId ? "opacity-0" : "opacity-100")}
-                          />
-                          {t("optional")}
-                        </CommandItem>
-                        {customerOptions.map((c) => {
-                          const id = customerOptionId(c);
-                          return (
-                            <CommandItem
-                              key={id}
-                              value={c.name}
-                              onSelect={() => {
-                                setClientId(id);
-                                if (c.name && !buyerName.trim()) {
-                                  setBuyerName(c.name);
-                                }
-                                setCustomerPickerOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  clientId === id ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                              {c.name}
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <CustomerSearchSelect
+                customers={customers}
+                value={clientId}
+                onChange={(id, customer) => {
+                  setClientId(id);
+                  if (customer?.name && !buyerName.trim()) {
+                    setBuyerName(customer.name);
+                  }
+                }}
+                placeholder={t("selectCustomer")}
+                searchPlaceholder={t("search")}
+                noneLabel={t("optional")}
+                emptyLabel={t("noCustomersYet")}
+              />
             </div>
 
             <div className="space-y-2">
@@ -519,32 +553,62 @@ export function SalesTab() {
                 <Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>{t("saleDate")}</Label>
-                <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+                <Label>{t("sellingPrice")} (Rwf)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  inputMode="decimal"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  placeholder={selectedProduct ? String(selectedProduct.sellingPrice ?? 0) : "0"}
+                  disabled={!productId}
+                />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>{t("paymentMethod")}</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">{t("cash")}</SelectItem>
-                  <SelectItem value="momo">{t("momoPay")}</SelectItem>
-                  <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
-                  <SelectItem value="card">{t("card")}</SelectItem>
-                  <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{t("saleDate")}</Label>
+                <Input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("paymentMethod")}</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">{t("cash")}</SelectItem>
+                    <SelectItem value="momo">{t("momoPay")}</SelectItem>
+                    <SelectItem value="airtel">{t("airtelPay")}</SelectItem>
+                    <SelectItem value="card">{t("card")}</SelectItem>
+                    <SelectItem value="transfer">{t("bankTransfer")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {selectedProduct ? (
-              <p className="text-sm text-gray-600">
-                {t("total")}:{" "}
-                <span className="font-semibold text-emerald-700">
-                  <CurrencyAmount amount={lineTotal} codeFirst codeClassName="text-emerald-700/70" />
-                </span>
-              </p>
+              <div className="rounded-lg bg-emerald-50/80 px-3 py-2 text-sm text-gray-700">
+                <p>
+                  {t("unitPrice")}:{" "}
+                  <span className="font-medium tabular-nums">
+                    {Number.isFinite(unitPrice) ? formatCurrency(unitPrice) : "—"}
+                  </span>
+                  {selectedProduct.sellingPrice != null &&
+                  Number.isFinite(unitPrice) &&
+                  unitPrice !== Number(selectedProduct.sellingPrice) ? (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      ({t("sellingPrice")}: {formatCurrency(Number(selectedProduct.sellingPrice))})
+                    </span>
+                  ) : null}
+                </p>
+                <p className="mt-1">
+                  {t("total")}:{" "}
+                  <span className="font-semibold text-emerald-700">
+                    <CurrencyAmount amount={lineTotal} codeFirst codeClassName="text-emerald-700/70" />
+                  </span>
+                </p>
+              </div>
             ) : null}
           </div>
           <DialogFooter>
@@ -577,6 +641,17 @@ export function SalesTab() {
         cancelLabel={t("cancel")}
         onConfirm={() => void handleDeleteConfirm()}
         isDeleting={deleteConfirm.isDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("delete")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedCount))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

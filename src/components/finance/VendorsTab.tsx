@@ -30,11 +30,13 @@ import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
   formatFinanceTableDate,
+  FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useTableSelection } from "@/hooks/useTableSelection";
 
 export interface VendorEntry {
   id?: number;
@@ -94,6 +96,18 @@ export function VendorsTab() {
     takeTarget,
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<VendorEntry>();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const {
+    selectedIds,
+    selectedCount,
+    selectedItems,
+    allSelected,
+    toggleSelectAll,
+    toggleSelectRow,
+    clearSelection,
+  } = useTableSelection(visibleVendors, vendorId);
 
   const outstandingByVendor = useMemo(() => {
     const map = new Map<string, number>();
@@ -193,6 +207,24 @@ export function VendorsTab() {
     }
   };
 
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedItems.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selectedItems) {
+        await remove(item);
+      }
+      clearSelection();
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted"), description: t("vendorRemovedDesc") });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("deleteVendorFailed");
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleStatementPdf = () => {
     if (!viewing || !activity) return;
     downloadVendorStatementPdf(
@@ -224,6 +256,13 @@ export function VendorsTab() {
         <table className="w-full min-w-[800px] border-collapse">
           <thead>
             <tr>
+              <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
+                <FinanceTableCheckbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  ariaLabel="Select all"
+                />
+              </th>
               <th className={FINANCE_TH_CLASS}>{t("vendorName")}</th>
               <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>{t("email")}</th>
               <th className={cn(FINANCE_TH_CLASS, "hidden md:table-cell")}>{t("phone")}</th>
@@ -237,6 +276,13 @@ export function VendorsTab() {
               const outstanding = outstandingByVendor.get(id) || 0;
               return (
                 <tr key={id} className="border-t border-gray-100 hover:bg-gray-50/80">
+                  <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
+                    <FinanceTableCheckbox
+                      checked={selectedIds.has(id)}
+                      onCheckedChange={() => toggleSelectRow(id)}
+                      ariaLabel={`Select ${entry.name}`}
+                    />
+                  </td>
                   <td className={cn(FINANCE_TD_CLASS, "font-medium")}>{entry.name}</td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>{entry.email || "—"}</td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell text-gray-600")}>{entry.phone || "—"}</td>
@@ -283,6 +329,9 @@ export function VendorsTab() {
         addLabel={t("add")}
         onRefresh={() => void refresh(true)}
         isRefreshing={false}
+        selectedCount={selectedCount}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
       >
         {renderTable()}
       </FinanceTableShell>
@@ -400,6 +449,18 @@ export function VendorsTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedCount))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

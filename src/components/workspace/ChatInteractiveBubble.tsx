@@ -45,10 +45,9 @@ function haptic(ms = 12) {
 
 /**
  * WhatsApp/Telegram-style message interactions:
- * - swipe horizontally to reply (mobile)
+ * - swipe horizontally to reply (mobile) — locked to the bubble only
  * - long-press for action sheet (mobile)
- * - hover actions + double-click reply (desktop Web WhatsApp style)
- * - actions are absolutely positioned so own-message right edges stay aligned
+ * - hover actions + double-click reply (desktop)
  */
 export function ChatInteractiveBubble({
   own = false,
@@ -72,9 +71,12 @@ export function ChatInteractiveBubble({
   const [replyArmed, setReplyArmed] = useState(false);
   const [hovered, setHovered] = useState(false);
 
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const trackingSwipe = useRef(false);
+  const replyArmedRef = useRef(false);
+  const offsetXRef = useRef(0);
   const suppressClick = useRef(false);
   const didLongPress = useRef(false);
 
@@ -95,63 +97,87 @@ export function ChatInteractiveBubble({
     setSheetOpen(true);
   }, [actions.length, disabled]);
 
-  const onTouchStart = (event: ReactTouchEvent) => {
-    if (disabled) return;
-    const touch = event.touches[0];
-    if (!touch) return;
-    startRef.current = { x: touch.clientX, y: touch.clientY };
-    trackingSwipe.current = false;
-    didLongPress.current = false;
-    setReplyArmed(false);
-    clearLongPress();
-    longPressTimer.current = window.setTimeout(() => {
-      openActions();
-    }, LONG_PRESS_MS);
-  };
+  // Non-passive listeners so we can preventDefault once a horizontal reply swipe locks —
+  // stops the whole chat thread from rubber-banding sideways on mobile.
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (!el || disabled) return;
 
-  const onTouchMove = (event: ReactTouchEvent) => {
-    if (disabled || !startRef.current) return;
-    const touch = event.touches[0];
-    if (!touch) return;
-    const dx = touch.clientX - startRef.current.x;
-    const dy = touch.clientY - startRef.current.y;
-
-    if (!trackingSwipe.current) {
-      if (Math.abs(dx) > MOVE_CANCEL_PX || Math.abs(dy) > MOVE_CANCEL_PX) {
-        clearLongPress();
-      }
-      if (Math.abs(dx) > MOVE_CANCEL_PX && Math.abs(dx) > Math.abs(dy) * 1.2) {
-        trackingSwipe.current = true;
-      } else {
-        return;
-      }
-    }
-
-    const directed = own ? Math.min(0, dx) : Math.max(0, dx);
-    const next = Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, directed));
-    setOffsetX(next);
-    const armed = Math.abs(next) >= SWIPE_REPLY_THRESHOLD;
-    if (armed && !replyArmed) haptic(8);
-    setReplyArmed(armed);
-  };
-
-  const finishGesture = () => {
-    clearLongPress();
-    const shouldReply = replyArmed && onReply;
-    if (shouldReply) {
-      suppressClick.current = true;
-      haptic(14);
-      onReply();
-    }
-    setOffsetX(0);
-    setReplyArmed(false);
-    trackingSwipe.current = false;
-    startRef.current = null;
-    window.setTimeout(() => {
-      suppressClick.current = false;
+    const onTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      startRef.current = { x: touch.clientX, y: touch.clientY };
+      trackingSwipe.current = false;
       didLongPress.current = false;
-    }, 280);
-  };
+      replyArmedRef.current = false;
+      setReplyArmed(false);
+      clearLongPress();
+      longPressTimer.current = window.setTimeout(() => {
+        openActions();
+      }, LONG_PRESS_MS);
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (!startRef.current) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startRef.current.x;
+      const dy = touch.clientY - startRef.current.y;
+
+      if (!trackingSwipe.current) {
+        if (Math.abs(dx) > MOVE_CANCEL_PX || Math.abs(dy) > MOVE_CANCEL_PX) {
+          clearLongPress();
+        }
+        if (Math.abs(dx) > MOVE_CANCEL_PX && Math.abs(dx) > Math.abs(dy) * 1.2) {
+          trackingSwipe.current = true;
+        } else {
+          return;
+        }
+      }
+
+      event.preventDefault();
+      const directed = own ? Math.min(0, dx) : Math.max(0, dx);
+      const next = Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, directed));
+      offsetXRef.current = next;
+      setOffsetX(next);
+      const armed = Math.abs(next) >= SWIPE_REPLY_THRESHOLD;
+      if (armed && !replyArmedRef.current) haptic(8);
+      replyArmedRef.current = armed;
+      setReplyArmed(armed);
+    };
+
+    const finishGesture = () => {
+      clearLongPress();
+      const shouldReply = replyArmedRef.current && onReply;
+      if (shouldReply) {
+        suppressClick.current = true;
+        haptic(14);
+        onReply();
+      }
+      offsetXRef.current = 0;
+      setOffsetX(0);
+      replyArmedRef.current = false;
+      setReplyArmed(false);
+      trackingSwipe.current = false;
+      startRef.current = null;
+      window.setTimeout(() => {
+        suppressClick.current = false;
+        didLongPress.current = false;
+      }, 280);
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", finishGesture);
+    el.addEventListener("touchcancel", finishGesture);
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", finishGesture);
+      el.removeEventListener("touchcancel", finishGesture);
+    };
+  }, [clearLongPress, disabled, onReply, openActions, own]);
 
   const replyHintOpacity = Math.min(1, Math.abs(offsetX) / SWIPE_REPLY_THRESHOLD);
   const showDesktopChrome = !disabled && (hovered || sheetOpen);
@@ -161,14 +187,12 @@ export function ChatInteractiveBubble({
       <div
         className={cn(
           "group/bubble relative max-w-full",
-          // Keep a consistent outer width so own bubbles share the same right edge.
           own ? "ml-auto" : "mr-auto",
           className,
         )}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* Desktop hover toolbar — absolute so it never shifts bubble alignment */}
         {!disabled && actions.length > 0 ? (
           <div
             className={cn(
@@ -222,8 +246,7 @@ export function ChatInteractiveBubble({
           </div>
         ) : null}
 
-        <div className="relative max-w-full">
-          {/* Swipe reply affordance (mobile) */}
+        <div className="relative max-w-full overflow-x-clip">
           <div
             className={cn(
               "pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-opacity lg:hidden",
@@ -236,15 +259,13 @@ export function ChatInteractiveBubble({
           </div>
 
           <div
+            ref={surfaceRef}
             className="relative z-10 touch-pan-y select-none lg:select-text"
             style={{
               transform: offsetX ? `translateX(${offsetX}px)` : undefined,
               transition: trackingSwipe.current ? "none" : "transform 160ms ease-out",
+              touchAction: "pan-y",
             }}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={finishGesture}
-            onTouchCancel={finishGesture}
             onDoubleClick={(event) => {
               if (disabled || !onReply) return;
               if (window.matchMedia("(max-width: 1023px)").matches) return;
@@ -255,9 +276,7 @@ export function ChatInteractiveBubble({
               if (window.matchMedia("(max-width: 1023px)").matches) {
                 event.preventDefault();
                 openActions();
-                return;
               }
-              // Desktop: native context is fine; also open our menu-friendly sheet? skip
             }}
             onClickCapture={(event) => {
               if (suppressClick.current || didLongPress.current) {
@@ -287,7 +306,6 @@ export function ChatInteractiveBubble({
                 disabled={action.disabled}
                 onClick={() => {
                   setSheetOpen(false);
-                  // Defer so Sheet focus restore doesn't steal the composer cursor.
                   window.setTimeout(() => action.onSelect(), 80);
                 }}
                 className={cn(

@@ -219,6 +219,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<Expense>();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { query, setQuery } = usePageSearch();
@@ -338,7 +340,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
   const handleEmbeddedRefresh = async () => {
     setIsRefreshing(true);
     try {
-      } finally {
+      await refresh(true);
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -783,6 +786,29 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
     }
 
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const selected = expenses.filter((e) => selectedIds.has(expenseId(e)));
+    if (selected.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selected) {
+        await remove(item as any);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted"), description: t("expenseRemovedDesc") });
+      window.dispatchEvent(new CustomEvent("finance-should-refresh"));
+    } catch (error: any) {
+      toast({
+        title: t("error"),
+        description: error?.message || t("deleteExpenseFailed"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
   };
 
   const titleLabel = t("expenseTitle");
@@ -1251,6 +1277,9 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
             addLabel={t("add")}
             onRefresh={() => void handleEmbeddedRefresh()}
             isRefreshing={isRefreshing}
+            selectedCount={selectedIds.size}
+            onBulkDelete={() => setBulkDeleteOpen(true)}
+            bulkDeleting={isBulkDeleting}
           >
             <FinanceTableLoading />
           </FinanceTableShell>
@@ -1269,6 +1298,9 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
           addLabel={t("add")}
           onRefresh={() => void handleEmbeddedRefresh()}
           isRefreshing={isRefreshing}
+          selectedCount={selectedIds.size}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+          bulkDeleting={isBulkDeleting}
         >
           {renderEmbeddedExpensesTable()}
         </FinanceTableShell>
@@ -1577,6 +1609,18 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedIds.size))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

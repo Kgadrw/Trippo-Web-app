@@ -167,6 +167,8 @@ export function BankDepositsTab() {
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<BankDepositEntry>();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const sortedDeposits = useMemo(() => sortDeposits(deposits), [deposits]);
@@ -245,7 +247,8 @@ export function BankDepositsTab() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      } finally {
+      await refresh(true);
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -379,6 +382,26 @@ export function BankDepositsTab() {
     } finally {
       setDeletingId(null);
       setIsDeleteDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const selected = deposits.filter((e) => selectedIds.has(depositId(e)));
+    if (selected.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selected) {
+        await remove(item);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted"), description: t("depositRemovedDesc") });
+      window.dispatchEvent(new CustomEvent("finance-should-refresh"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("deleteDepositFailed");
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -584,6 +607,9 @@ export function BankDepositsTab() {
         addLabel={t("add")}
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
+        selectedCount={selectedIds.size}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
       >
         {renderTable()}
       </FinanceTableShell>
@@ -720,6 +746,18 @@ export function BankDepositsTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedIds.size))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

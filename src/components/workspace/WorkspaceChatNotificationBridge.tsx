@@ -10,6 +10,8 @@ import type { DirectChatMessage } from "@/lib/workspaceDirectChatRealtime";
 import {
   notifyIncomingChatAlert,
   setWorkspaceChatNotificationClickHandler,
+  clearGroupChatOsNotification,
+  clearDirectChatOsNotification,
 } from "@/lib/workspaceChatNotifications";
 import { registerWebPushSubscription } from "@/lib/pushNotifications";
 import {
@@ -34,8 +36,8 @@ function alertForIncoming(viewingThisChat: boolean, tabHidden: boolean) {
 }
 
 /**
- * App-wide chat alerts: bottom-right popup while the site is open,
- * browser/OS notifications when the tab is hidden, and web-push when closed.
+ * App-wide chat alerts: in-app popup while visible, sticky OS notifications when
+ * backgrounded, and web-push when the app is closed (WhatsApp-style).
  */
 export function WorkspaceChatNotificationBridge() {
   const { mode, activeWorkspace } = useWorkspace();
@@ -58,6 +60,15 @@ export function WorkspaceChatNotificationBridge() {
     const openHref = (href: string) => {
       clearUnread();
       refreshMessagesUnreadBadge();
+      if (isWorkspaceGroupChatPath(href) || href.includes("/messages/group")) {
+        if (workspaceId) clearGroupChatOsNotification(workspaceId);
+      } else {
+        const match = href.match(/\/messages\/([^/?]+)/);
+        const otherUserId = match?.[1];
+        if (otherUserId && otherUserId !== "group") {
+          clearDirectChatOsNotification(undefined, otherUserId);
+        }
+      }
       navigate(href || WORKSPACE_GROUP_CHAT_PATH);
     };
 
@@ -80,14 +91,27 @@ export function WorkspaceChatNotificationBridge() {
       setWorkspaceChatNotificationClickHandler(null);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
-  }, [mode, clearUnread, navigate]);
+  }, [mode, clearUnread, navigate, workspaceId]);
 
   useEffect(() => {
     if (viewingGroupOnMessages) {
       clearUnread();
       refreshMessagesUnreadBadge();
+      if (workspaceId) clearGroupChatOsNotification(workspaceId);
     }
-  }, [viewingGroupOnMessages, clearUnread]);
+  }, [viewingGroupOnMessages, clearUnread, workspaceId]);
+
+  // When a DM thread is open and the tab is visible, clear its sticky OS notification.
+  useEffect(() => {
+    if (mode !== "workspace") return;
+    const path = location.pathname;
+    const dmMatch = path.match(/^\/messages\/([^/]+)/);
+    if (!dmMatch) return;
+    const otherUserId = dmMatch[1];
+    if (otherUserId === "group") return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    clearDirectChatOsNotification(undefined, otherUserId);
+  }, [mode, location.pathname, location.search]);
 
   useEffect(() => {
     if (mode !== "workspace") {

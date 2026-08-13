@@ -44,7 +44,7 @@ function PopupCard({
     <div
       className={cn(
         "pointer-events-auto relative w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]",
-        "animate-in slide-in-from-right-4 fade-in duration-300",
+        "animate-in fade-in duration-300 max-sm:slide-in-from-top-4 sm:slide-in-from-right-4",
       )}
     >
       <button
@@ -74,7 +74,7 @@ function PopupCard({
 }
 
 /**
- * Bottom-right incoming chat popups while the web app is open.
+ * Incoming chat popups: top on mobile, bottom-right on desktop.
  */
 export function ChatIncomingPopupHost() {
   const navigate = useNavigate();
@@ -85,7 +85,13 @@ export function ChatIncomingPopupHost() {
   if (!items.length) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[120] flex flex-col-reverse gap-2 sm:bottom-6 sm:right-6">
+    <div
+      className={cn(
+        "pointer-events-none fixed left-1/2 z-[120] flex w-full max-w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col gap-2",
+        "top-[max(0.75rem,env(safe-area-inset-top))] px-3",
+        "sm:left-auto sm:right-6 sm:top-auto sm:bottom-6 sm:w-auto sm:max-w-none sm:translate-x-0 sm:flex-col-reverse sm:px-0",
+      )}
+    >
       {items.map((item) => (
         <div key={item.id} className="relative">
           <PopupCard
@@ -100,3 +106,4 @@ export function ChatIncomingPopupHost() {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { ChevronDown, FileText, Plus, RefreshCw, MoreVertical } from "lucide-react";
+import { ChevronDown, FileText, Loader2, Plus, RefreshCw, MoreVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help-tip";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -183,6 +183,11 @@ type FinanceTableToolbarProps = {
   isRefreshing?: boolean;
   showAdd?: boolean;
   menuItems?: FinanceTableMenuItem[];
+  /** When > 0, shows a bulk delete action in the toolbar. */
+  selectedCount?: number;
+  onBulkDelete?: () => void;
+  bulkDeleteLabel?: string;
+  bulkDeleting?: boolean;
 };
 
 export function FinanceTableToolbar({
@@ -194,11 +199,18 @@ export function FinanceTableToolbar({
   isRefreshing = false,
   showAdd = true,
   menuItems = [],
+  selectedCount = 0,
+  onBulkDelete,
+  bulkDeleteLabel,
+  bulkDeleting = false,
 }: FinanceTableToolbarProps) {
   const location = useLocation();
   const { t } = useTranslation();
   const routeHelpKey = resolvePageHelpKey(location.pathname);
   const resolvedHelp = helpText ?? (routeHelpKey ? t(routeHelpKey) : undefined);
+  const deleteLabel =
+    bulkDeleteLabel ||
+    (selectedCount > 0 ? `${t("delete")} (${selectedCount})` : t("delete"));
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -214,6 +226,17 @@ export function FinanceTableToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {selectedCount > 0 && onBulkDelete ? (
+          <Button
+            variant="outline"
+            className="h-9 gap-1.5 rounded-none border-red-200 px-3 text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={onBulkDelete}
+            disabled={bulkDeleting}
+          >
+            {bulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            {deleteLabel}
+          </Button>
+        ) : null}
         {showAdd ? (
           <Button
             className="h-9 gap-1.5 rounded-none bg-sky-400 px-4 text-white hover:bg-sky-500 border border-sky-400"
@@ -269,6 +292,10 @@ export function FinanceTableShell({
   isRefreshing,
   showAdd,
   menuItems,
+  selectedCount,
+  onBulkDelete,
+  bulkDeleteLabel,
+  bulkDeleting,
   children,
 }: FinanceTableToolbarProps & { children: ReactNode }) {
   return (
@@ -283,6 +310,10 @@ export function FinanceTableShell({
           isRefreshing={isRefreshing}
           showAdd={showAdd}
           menuItems={menuItems}
+          selectedCount={selectedCount}
+          onBulkDelete={onBulkDelete}
+          bulkDeleteLabel={bulkDeleteLabel}
+          bulkDeleting={bulkDeleting}
         />
       ) : null}
       {children}

@@ -57,6 +57,8 @@ import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
+import { clearGroupChatOsNotification } from "@/lib/workspaceChatNotifications";
+import { useChatComposerPad } from "@/hooks/useChatComposerPad";
 import {
   mergeChatMessages,
   WORKSPACE_CHAT_TYPING_EVENT,
@@ -392,11 +394,20 @@ export function WorkspaceGroupChatPane({
   const [voiceRecording, setVoiceRecording] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const markingReadRef = useRef(false);
   const markedReadIdsRef = useRef<Set<string>>(new Set());
   const loadedWorkspaceRef = useRef<string | null>(null);
   const fetchStartedRef = useRef<string | null>(null);
+  const composerPad = useChatComposerPad(composerRef, [
+    workspaceId,
+    replyTo,
+    editingMessageId,
+    voiceRecording,
+    text,
+    variant,
+  ]);
   const mentionMembers = useMemo(
     () =>
       workspaceMembers.map((member) => ({
@@ -582,6 +593,7 @@ export function WorkspaceGroupChatPane({
         }
         clearUnread();
         refreshMessagesUnreadBadge();
+        clearGroupChatOsNotification(workspaceId);
       } catch {
         pending.forEach((id) => markedReadIdsRef.current.delete(id));
       } finally {
@@ -1105,9 +1117,10 @@ export function WorkspaceGroupChatPane({
                 ref={listRef}
                 onScroll={handleListScroll}
                 className={cn(
-                  "relative z-10 h-full min-h-0 w-full overflow-y-auto overscroll-contain px-3 pt-4 scroll-smooth sm:px-4",
-                  variant === "page" ? "pb-28 max-lg:pb-24 lg:pb-44" : "pb-5",
+                  "relative z-10 h-full min-h-0 w-full overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-3 pt-4 scroll-smooth sm:px-4",
+                  variant !== "page" && "pb-5",
                 )}
+                style={variant === "page" ? { paddingBottom: composerPad } : undefined}
               >
               {loading && messages.length === 0 ? (
                 <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 text-gray-500">
@@ -1356,6 +1369,7 @@ export function WorkspaceGroupChatPane({
 
             {/* Composer — sits above native soft keyboard via visualViewport shell */}
             <div
+              ref={composerRef}
               data-chat-composer
               className={cn(
                 variant === "panel"
@@ -1463,9 +1477,7 @@ export function WorkspaceGroupChatPane({
                     };
                     run();
                     requestAnimationFrame(run);
-                    window.setTimeout(run, 50);
-                    window.setTimeout(run, 150);
-                    window.setTimeout(run, 320);
+                    window.setTimeout(run, 120);
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder={t("workspaceChatSend")}
@@ -1496,6 +1508,11 @@ export function WorkspaceGroupChatPane({
                     sendLabel={t("chatVoiceSend")}
                     micLabel={t("chatVoiceRecord")}
                     permissionDeniedLabel={t("chatVoicePermissionDenied")}
+                    holdHintLabel={t("chatVoiceHoldHint")}
+                    slideUpLockLabel={t("chatVoiceSlideUpLock")}
+                    slideCancelLabel={t("chatVoiceSlideCancel")}
+                    lockedLabel={t("chatVoiceLocked")}
+                    releaseToSendLabel={t("chatVoiceReleaseToSend")}
                     onRecordingChange={setVoiceRecording}
                     onError={(message) =>
                       toast({

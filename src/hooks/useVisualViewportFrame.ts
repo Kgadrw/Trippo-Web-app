@@ -18,9 +18,19 @@ const INITIAL: VisualViewportFrame = {
   keyboardOpen: false,
 };
 
+function nearlySame(a: VisualViewportFrame, b: VisualViewportFrame) {
+  return (
+    Math.abs(a.offsetTop - b.offsetTop) < 1 &&
+    Math.abs(a.height - b.height) < 1 &&
+    Math.abs(a.keyboardInset - b.keyboardInset) < 1 &&
+    a.keyboardOpen === b.keyboardOpen
+  );
+}
+
 /**
  * Tracks the visible viewport so mobile chat can keep chrome fixed
  * and sit the composer just above the native soft keyboard.
+ * Updates are rAF-coalesced for smooth keyboard show/hide.
  */
 export function useVisualViewportFrame(enabled: boolean): VisualViewportFrame {
   const [frame, setFrame] = useState<VisualViewportFrame>(INITIAL);
@@ -31,35 +41,45 @@ export function useVisualViewportFrame(enabled: boolean): VisualViewportFrame {
       return;
     }
 
-    const update = () => {
+    let rafId = 0;
+    let latest: VisualViewportFrame = INITIAL;
+
+    const read = (): VisualViewportFrame => {
       const vv = window.visualViewport;
       const height = vv?.height ?? window.innerHeight;
       const offsetTop = vv?.offsetTop ?? 0;
-      // Prefer layout viewport height so we measure keyboard cover correctly
-      // even when interactive-widget / browser chrome differs by platform.
       const layoutHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
       const keyboardInset = Math.max(0, Math.round(layoutHeight - height - offsetTop));
-      setFrame({
+      return {
         offsetTop,
         height,
         keyboardInset,
         keyboardOpen: keyboardInset > 48,
-      });
-      // Stop iOS from leaving the layout scrolled under the keyboard.
-      if (window.scrollY !== 0) {
-        window.scrollTo(0, 0);
-      }
+      };
+    };
+
+    const flush = () => {
+      rafId = 0;
+      const next = latest;
+      setFrame((prev) => (nearlySame(prev, next) ? prev : next));
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
       if (document.documentElement.scrollTop !== 0) {
         document.documentElement.scrollTop = 0;
       }
     };
 
-    update();
+    const schedule = () => {
+      latest = read();
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(flush);
+    };
+
+    schedule();
     const vv = window.visualViewport;
-    vv?.addEventListener("resize", update);
-    vv?.addEventListener("scroll", update);
-    window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
+    vv?.addEventListener("resize", schedule);
+    vv?.addEventListener("scroll", schedule);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("orientationchange", schedule);
 
     const prevOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
@@ -71,10 +91,11 @@ export function useVisualViewportFrame(enabled: boolean): VisualViewportFrame {
     document.body.style.height = "100%";
 
     return () => {
-      vv?.removeEventListener("resize", update);
-      vv?.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
+      if (rafId) window.cancelAnimationFrame(rafId);
+      vv?.removeEventListener("resize", schedule);
+      vv?.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("orientationchange", schedule);
       document.body.style.overflow = prevOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
       document.documentElement.style.height = prevHtmlHeight;

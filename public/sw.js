@@ -1,6 +1,6 @@
 // Service Worker for PWA, offline support, and background notifications
 
-const CACHE_VERSION = "v1"; // Change this only when you deploy a new version
+const CACHE_VERSION = "v2"; // Bump when SW notification behavior changes
 const CACHE_NAME = `trippo-${CACHE_VERSION}`;
 const API_BASE_URL = 'http://localhost:3000/api';
 const NOTIFICATION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -197,6 +197,12 @@ self.addEventListener("message", async (event) => {
     lastKnownProductIds.clear();
     lastKnownStock.clear();
     console.log('[SW] Cleared all notification tracking data');
+    return;
+  }
+
+  // Clear a sticky chat (or other) notification by tag once the thread is read
+  if (event.data.type === "CLEAR_NOTIFICATION_TAG" && event.data.tag) {
+    event.waitUntil(closeNotificationByTag(event.data.tag));
     return;
   }
 
@@ -495,6 +501,7 @@ async function showNotification(options) {
       data: options.data || {},
       requireInteraction: options.requireInteraction !== undefined ? options.requireInteraction : false,
       silent: options.silent === true,
+      renotify: options.renotify === true,
       vibrate: [200, 100, 200], // Vibration pattern for mobile devices
       timestamp: Date.now(),
     });
@@ -525,6 +532,7 @@ self.addEventListener("notificationclick", async (event) => {
 
   // Open workspace chat from a message notification
   if (data && data.action === "open_workspace_chat") {
+    const groupPath = data.href || "/messages/group";
     event.waitUntil(
       clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
         for (const client of clientList) {
@@ -534,7 +542,7 @@ self.addEventListener("notificationclick", async (event) => {
           return clientList[0].focus();
         }
         if (clients.openWindow) {
-          return clients.openWindow(self.location.origin);
+          return clients.openWindow(new URL(groupPath, self.location.origin).href);
         }
       }),
     );
@@ -678,17 +686,46 @@ self.addEventListener("push", (event) => {
     return new URL(value, self.location.origin).href;
   };
 
+  const action = data.data?.action;
+  const isChat =
+    action === "open_workspace_chat" || action === "open_direct_chat";
+
   event.waitUntil(
-    self.registration.showNotification(data.title || "Trippo", {
-      body: data.body || "You have a new update",
-      icon: resolveAssetUrl(data.icon),
-      badge: resolveAssetUrl(data.badge),
-      data: data.data || {},
-      tag: data.tag || "trippo-push",
-      requireInteraction: false,
-      silent: data.silent === true,
-      vibrate: [200, 100, 200],
-      timestamp: Date.now(),
-    })
+    (async () => {
+      // If the app is open and visible, socket/in-app alerts already handle chat.
+      if (isChat) {
+        const clientList = await clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        const hasVisibleClient = clientList.some(
+          (client) => client.visibilityState === "visible",
+        );
+        if (hasVisibleClient) {
+          console.log("[SW] Skipping chat push — app is visible");
+          return;
+        }
+      }
+
+      await self.registration.showNotification(data.title || "Trippo", {
+        body: data.body || "You have a new update",
+        icon: resolveAssetUrl(data.icon),
+        badge: resolveAssetUrl(data.badge),
+        data: data.data || {},
+        tag: data.tag || "trippo-push",
+        // Chat stays in the tray until opened/read (WhatsApp-style).
+        requireInteraction: isChat
+          ? true
+          : data.requireInteraction === true,
+        silent: data.silent === true,
+        renotify: isChat || data.renotify === true,
+        vibrate: [200, 100, 200],
+        timestamp: Date.now(),
+      });
+
+      const count = await countActiveNotifications();
+      activeNotificationCount = count;
+      await updateBadge(count);
+    })(),
   );
 });

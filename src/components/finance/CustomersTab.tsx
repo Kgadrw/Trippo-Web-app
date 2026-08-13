@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { Plus, Loader2, MoreVertical, Pencil, Trash2, FileDown, Eye } from "lucide-react";
+import { Loader2, MoreVertical, Pencil, Trash2, FileDown, Eye, Combine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, CurrencyAmount } from "@/lib/currency";
 import { downloadClientStatementPdf } from "@/lib/invoicePdf";
@@ -32,11 +32,13 @@ import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
   formatFinanceTableDate,
+  FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useTableSelection } from "@/hooks/useTableSelection";
 
 export interface CustomerEntry {
   id?: number;
@@ -52,13 +54,6 @@ function customerId(c: CustomerEntry): string {
   return String(c._id ?? c.id ?? "");
 }
 
-function customerDedupeKey(c: CustomerEntry): string {
-  const name = (c.name || "").trim().toLowerCase();
-  const email = (c.email || "").trim().toLowerCase();
-  const phone = (c.phone || "").replace(/\D/g, "");
-  return `${name}|${email}|${phone}`;
-}
-
 export function CustomersTab() {
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -69,22 +64,17 @@ export function CustomersTab() {
   const { items: invoices } = useApi<InvoiceEntry>({ endpoint: "invoices", defaultValue: [] });
 
   const { query: pageSearchQuery } = usePageSearch();
-  const visibleCustomers = useMemo(() => {
-    const seen = new Set<string>();
-    const unique = customers.filter((entry) => {
-      const dedupeKey = customerDedupeKey(entry);
-      if (seen.has(dedupeKey)) return false;
-      seen.add(dedupeKey);
-      return true;
-    });
-    return filterByPageSearch(unique, pageSearchQuery, (entry) => [
-      entry.name,
-      entry.email,
-      entry.phone,
-      entry.businessType,
-      entry.notes,
-    ]);
-  }, [customers, pageSearchQuery]);
+  const visibleCustomers = useMemo(
+    () =>
+      filterByPageSearch(customers, pageSearchQuery, (entry) => [
+        entry.name,
+        entry.email,
+        entry.phone,
+        entry.businessType,
+        entry.notes,
+      ]),
+    [customers, pageSearchQuery],
+  );
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -94,6 +84,9 @@ export function CustomersTab() {
   const [editing, setEditing] = useState<CustomerEntry | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [viewing, setViewing] = useState<CustomerEntry | null>(null);
   const [activity, setActivity] = useState<{
     invoices: InvoiceEntry[];
@@ -112,13 +105,52 @@ export function CustomersTab() {
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<CustomerEntry>();
 
-  // Clear stale local client copies once, then reload from API
+  const {
+    selectedIds,
+    selectedCount,
+    selectedItems,
+    allSelected,
+    toggleSelectAll,
+    toggleSelectRow,
+    clearSelection,
+  } = useTableSelection(visibleCustomers, customerId);
+
+  const mergeDuplicates = async (silent = false) => {
+    setIsMerging(true);
+    try {
+      const res = await clientApi.mergeDuplicates();
+      const removed = Number(res.data?.removedCount ?? 0);
+      await clearStore("clients");
+      apiCache.invalidateStore("clients");
+      localStorage.setItem("profit-pilot-clients-changed", "true");
+      await refresh(true);
+      if (!silent) {
+        toast({
+          title: t("mergeDuplicates"),
+          description:
+            removed > 0
+              ? t("customersMerged").replace("{count}", String(removed))
+              : t("customersMergedNone"),
+        });
+      }
+    } catch (error: unknown) {
+      if (!silent) {
+        const message = error instanceof Error ? error.message : t("error");
+        toast({ title: t("error"), description: message, variant: "destructive" });
+      }
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  // Clear stale local client copies, merge duplicate names, then reload
   useEffect(() => {
     void (async () => {
       try {
         await clearStore("clients");
         apiCache.invalidateStore("clients");
         localStorage.setItem("profit-pilot-clients-changed", "true");
+        await clientApi.mergeDuplicates().catch(() => undefined);
         await refresh(true);
       } catch {
         // IndexedDB optional
@@ -227,6 +259,24 @@ export function CustomersTab() {
     }
   };
 
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedItems.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selectedItems) {
+        await remove(item);
+      }
+      clearSelection();
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted"), description: t("customerRemovedDesc") });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("deleteCustomerFailed");
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleStatementPdf = () => {
     if (!viewing || !activity) return;
     downloadClientStatementPdf(
@@ -262,6 +312,13 @@ export function CustomersTab() {
         <table className="w-full min-w-[800px] border-collapse">
           <thead>
             <tr>
+              <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
+                <FinanceTableCheckbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  ariaLabel="Select all"
+                />
+              </th>
               <th className={FINANCE_TH_CLASS}>{t("customerName")}</th>
               <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>{t("email")}</th>
               <th className={cn(FINANCE_TH_CLASS, "hidden md:table-cell")}>{t("phone")}</th>
@@ -275,6 +332,13 @@ export function CustomersTab() {
               const balance = balances.get(id) || 0;
               return (
                 <tr key={id} className="border-t border-gray-100 hover:bg-gray-50/80">
+                  <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
+                    <FinanceTableCheckbox
+                      checked={selectedIds.has(id)}
+                      onCheckedChange={() => toggleSelectRow(id)}
+                      ariaLabel={`Select ${entry.name}`}
+                    />
+                  </td>
                   <td className={cn(FINANCE_TD_CLASS, "font-medium")}>{entry.name}</td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>{entry.email || "—"}</td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell text-gray-600")}>{entry.phone || "—"}</td>
@@ -320,7 +384,17 @@ export function CustomersTab() {
         onAdd={openCreate}
         addLabel={t("add")}
         onRefresh={() => void refresh(true)}
-        isRefreshing={isRefreshing}
+        isRefreshing={isRefreshing || isMerging}
+        selectedCount={selectedCount}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
+        menuItems={[
+          {
+            label: t("mergeDuplicates"),
+            onSelect: () => void mergeDuplicates(false),
+            icon: <Combine className="mr-2 h-4 w-4" />,
+          },
+        ]}
       >
         {renderTable()}
       </FinanceTableShell>
@@ -438,6 +512,18 @@ export function CustomersTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedCount))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

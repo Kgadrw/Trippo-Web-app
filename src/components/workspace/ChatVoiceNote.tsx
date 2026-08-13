@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Loader2, Mic, Pause, Play, Send, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -126,6 +126,8 @@ export function ChatVoicePlayer({
   own?: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const userPlayingRef = useRef(false);
+  const durationHackDoneRef = useRef(false);
   const [src, setSrc] = useState<string | null>(
     attachment.url.startsWith("blob:") || attachment.url.startsWith("data:")
       ? attachment.url
@@ -180,6 +182,8 @@ export function ChatVoicePlayer({
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !src) return;
+    durationHackDoneRef.current = false;
+    userPlayingRef.current = false;
 
     const applyKnownDuration = () => {
       const meta = audio.duration;
@@ -196,20 +200,33 @@ export function ChatVoicePlayer({
 
     const onTime = () => setCurrent(audio.currentTime || 0);
     const onMeta = () => {
-      if (applyKnownDuration()) return;
-      // WebM from MediaRecorder often reports Infinity until we force a seek.
+      if (applyKnownDuration()) {
+        durationHackDoneRef.current = true;
+        return;
+      }
+      // Never seek while the user is listening — that caused pause/unpause loops.
+      if (userPlayingRef.current || !audio.paused || durationHackDoneRef.current) {
+        return;
+      }
+      if (Number.isFinite(attachment.duration) && (attachment.duration || 0) > 0) {
+        setDuration(Number(attachment.duration));
+        durationHackDoneRef.current = true;
+        return;
+      }
+      // WebM from MediaRecorder often reports Infinity until we force a one-time seek.
       try {
+        durationHackDoneRef.current = true;
         const onDurationHack = () => {
           audio.removeEventListener("timeupdate", onDurationHack);
           if (Number.isFinite(audio.duration) && audio.duration > 0 && audio.duration !== Infinity) {
             setDuration(audio.duration);
-          } else if (Number.isFinite(attachment.duration) && (attachment.duration || 0) > 0) {
-            setDuration(Number(attachment.duration));
           }
-          try {
-            audio.currentTime = 0;
-          } catch {
-            // ignore
+          if (!userPlayingRef.current && audio.paused) {
+            try {
+              audio.currentTime = 0;
+            } catch {
+              // ignore
+            }
           }
         };
         audio.addEventListener("timeupdate", onDurationHack);
@@ -218,11 +235,20 @@ export function ChatVoicePlayer({
         applyKnownDuration();
       }
     };
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    const onPlay = () => {
+      userPlayingRef.current = true;
+      setPlaying(true);
+    };
+    const onPause = () => {
+      // Ignore pause events caused by metadata seeks before the user pressed play.
+      if (!userPlayingRef.current) return;
+      setPlaying(false);
+    };
     const onEnded = () => {
+      userPlayingRef.current = false;
       setPlaying(false);
       setCurrent(0);
+      if (activeVoicePlayer === audio) activeVoicePlayer = null;
     };
 
     audio.addEventListener("timeupdate", onTime);
@@ -240,12 +266,17 @@ export function ChatVoicePlayer({
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
+      if (activeVoicePlayer === audio) {
+        audio.pause();
+        activeVoicePlayer = null;
+      }
     };
   }, [src, attachment.duration]);
 
   // Build waveform from decoded audio when message has none stored.
+  // Skip while this note is actively playing so we don't fight the audio session.
   useEffect(() => {
-    if (!src || attachment.waveform?.length) return;
+    if (!src || attachment.waveform?.length || playing) return;
     let cancelled = false;
     const AudioCtx =
       window.AudioContext ||
@@ -256,6 +287,7 @@ export function ChatVoicePlayer({
       try {
         const response = await fetch(src);
         const buffer = await response.arrayBuffer();
+        if (cancelled) return;
         const ctx = new AudioCtx();
         const decoded = await ctx.decodeAudioData(buffer.slice(0));
         if (cancelled) {
@@ -281,7 +313,7 @@ export function ChatVoicePlayer({
     return () => {
       cancelled = true;
     };
-  }, [src, attachment.waveform, duration]);
+  }, [src, attachment.waveform, duration, playing]);
 
   if (loading) {
     return (
@@ -320,14 +352,27 @@ export function ChatVoicePlayer({
         own ? "bg-white/15" : "bg-black/5",
       )}
     >
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio ref={audioRef} src={src} preload="metadata" playsInline />
       <button
         type="button"
         onClick={() => {
           const audio = audioRef.current;
           if (!audio) return;
-          if (audio.paused) void audio.play();
-          else audio.pause();
+          audio.setAttribute("playsinline", "true");
+          audio.setAttribute("webkit-playsinline", "true");
+          if (!audio.paused) {
+            userPlayingRef.current = false;
+            audio.pause();
+            setPlaying(false);
+            return;
+          }
+          claimActiveVoicePlayer(audio);
+          userPlayingRef.current = true;
+          setPlaying(true);
+          void audio.play().catch(() => {
+            userPlayingRef.current = false;
+            setPlaying(false);
+          });
         }}
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
@@ -357,6 +402,20 @@ export function ChatVoicePlayer({
   );
 }
 
+/** Only one voice note should play at a time (mobile audio session). */
+let activeVoicePlayer: HTMLAudioElement | null = null;
+
+function claimActiveVoicePlayer(audio: HTMLAudioElement) {
+  if (activeVoicePlayer && activeVoicePlayer !== audio) {
+    try {
+      activeVoicePlayer.pause();
+    } catch {
+      // ignore
+    }
+  }
+  activeVoicePlayer = audio;
+}
+
 type ChatVoiceRecorderProps = {
   disabled?: boolean;
   className?: string;
@@ -365,10 +424,21 @@ type ChatVoiceRecorderProps = {
   sendLabel: string;
   micLabel: string;
   permissionDeniedLabel: string;
+  holdHintLabel?: string;
+  slideUpLockLabel?: string;
+  slideCancelLabel?: string;
+  lockedLabel?: string;
+  releaseToSendLabel?: string;
   onError: (message: string) => void;
   onSend: (payload: VoiceNoteSendPayload) => void | Promise<void>;
   onRecordingChange?: (recording: boolean) => void;
 };
+
+type HoldPhase = "idle" | "holding" | "locked";
+
+const LOCK_SWIPE_PX = 56;
+const CANCEL_SWIPE_PX = 72;
+const TAP_LOCK_MS = 280;
 
 export function ChatVoiceRecorderButton({
   disabled,
@@ -378,6 +448,11 @@ export function ChatVoiceRecorderButton({
   sendLabel,
   micLabel,
   permissionDeniedLabel,
+  holdHintLabel = "Hold to record",
+  slideUpLockLabel = "Slide up to lock",
+  slideCancelLabel = "Slide left to cancel",
+  lockedLabel = "Locked — tap send when done",
+  releaseToSendLabel = "Release to send",
   onError,
   onSend,
   onRecordingChange,
@@ -392,11 +467,27 @@ export function ChatVoiceRecorderButton({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const levelSamplesRef = useRef<number[]>([]);
   const liveBarsRef = useRef<number[]>(normalizePeaks(undefined));
+  const pointerIdRef = useRef<number | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number; at: number } | null>(null);
+  const holdIntentRef = useRef(false);
+  const phaseRef = useRef<HoldPhase>("idle");
+  const cancelArmedRef = useRef(false);
+  const pendingReleaseRef = useRef<"send" | "cancel" | "lock" | null>(null);
+  const startingRef = useRef(false);
+  const micBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const [recording, setRecording] = useState(false);
+  const [phase, setPhase] = useState<HoldPhase>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
   const [livePeaks, setLivePeaks] = useState(() => normalizePeaks(undefined));
+  const [cancelArmed, setCancelArmed] = useState(false);
+  const [lockHint, setLockHint] = useState(false);
+
+  const setHoldPhase = (next: HoldPhase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  };
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -480,54 +571,18 @@ export function ChatVoiceRecorderButton({
     rafRef.current = window.requestAnimationFrame(tick);
   };
 
-  const startRecording = async () => {
-    if (disabled || recording || busy) return;
-    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      onError("Voice recording is not supported on this device.");
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      streamRef.current = stream;
-      const format = pickVoiceRecordingFormat();
-      const recorder = format.mimeType
-        ? new MediaRecorder(stream, { mimeType: format.mimeType })
-        : new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      chunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
-
-      startLevelMonitor(stream);
-      recorder.start(250);
-      startedAtRef.current = Date.now();
-      setElapsed(0);
-      setRecording(true);
-      onRecordingChange?.(true);
-      clearTick();
-      tickRef.current = window.setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
-      }, 200);
-    } catch {
-      stopAnalyser();
-      stopTracks();
-      onError(permissionDeniedLabel);
-    }
-  };
-
   const finishRecording = (action: "send" | "cancel") => {
     const recorder = mediaRecorderRef.current;
     const durationSec = Math.max(0, (Date.now() - startedAtRef.current) / 1000);
     const waveform = downsamplePeaks(levelSamplesRef.current);
+    holdIntentRef.current = false;
+    pendingReleaseRef.current = null;
+    cancelArmedRef.current = false;
+    setCancelArmed(false);
+    setLockHint(false);
+    setHoldPhase("idle");
+    pointerIdRef.current = null;
+    pointerStartRef.current = null;
 
     if (!recorder || recorder.state === "inactive") {
       stopAnalyser();
@@ -584,58 +639,278 @@ export function ChatVoiceRecorderButton({
     }
   };
 
+  const lockRecording = () => {
+    cancelArmedRef.current = false;
+    setCancelArmed(false);
+    setLockHint(false);
+    setHoldPhase("locked");
+    try {
+      navigator.vibrate?.(10);
+    } catch {
+      // ignore
+    }
+  };
+
+  const applyPendingRelease = () => {
+    const pending = pendingReleaseRef.current;
+    pendingReleaseRef.current = null;
+    if (!pending) return;
+    if (pending === "lock") {
+      lockRecording();
+      return;
+    }
+    finishRecording(pending);
+  };
+
+  const startRecording = async (initialPhase: HoldPhase = "holding") => {
+    if (disabled || recording || busy || startingRef.current) return;
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      onError("Voice recording is not supported on this device.");
+      return;
+    }
+
+    startingRef.current = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      streamRef.current = stream;
+      const format = pickVoiceRecordingFormat();
+      const recorder = format.mimeType
+        ? new MediaRecorder(stream, { mimeType: format.mimeType })
+        : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+
+      startLevelMonitor(stream);
+      recorder.start(250);
+      startedAtRef.current = Date.now();
+      setElapsed(0);
+      setRecording(true);
+      onRecordingChange?.(true);
+      setHoldPhase(initialPhase);
+      clearTick();
+      tickRef.current = window.setInterval(() => {
+        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+      }, 200);
+
+      // Finger may have released while permission dialog was open.
+      if (!holdIntentRef.current) {
+        applyPendingRelease();
+      } else if (pendingReleaseRef.current) {
+        applyPendingRelease();
+      }
+    } catch {
+      stopAnalyser();
+      stopTracks();
+      holdIntentRef.current = false;
+      pendingReleaseRef.current = null;
+      setHoldPhase("idle");
+      onError(permissionDeniedLabel);
+    } finally {
+      startingRef.current = false;
+    }
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (disabled || busy || recording || startingRef.current) return;
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+
+    event.preventDefault();
+    holdIntentRef.current = true;
+    pendingReleaseRef.current = null;
+    cancelArmedRef.current = false;
+    setCancelArmed(false);
+    setLockHint(false);
+    pointerIdRef.current = event.pointerId;
+    pointerStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      at: Date.now(),
+    };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    void startRecording("holding");
+  };
+
+  // While holding, track gestures on window — the mic button unmounts into the recording bar.
+  useEffect(() => {
+    if (!recording || phase !== "holding") return;
+
+    const matchesPointer = (event: PointerEvent) =>
+      pointerIdRef.current == null || event.pointerId === pointerIdRef.current;
+
+    const onMove = (event: PointerEvent) => {
+      if (!holdIntentRef.current || phaseRef.current !== "holding") return;
+      if (!matchesPointer(event)) return;
+      const start = pointerStartRef.current;
+      if (!start) return;
+
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+
+      if (dy < -LOCK_SWIPE_PX) {
+        holdIntentRef.current = false;
+        lockRecording();
+        return;
+      }
+
+      const armed = dx < -CANCEL_SWIPE_PX;
+      cancelArmedRef.current = armed;
+      setCancelArmed(armed);
+      setLockHint(dy < -20 && !armed);
+    };
+
+    const onUp = (event: PointerEvent) => {
+      if (!matchesPointer(event)) return;
+      if (phaseRef.current === "locked") {
+        holdIntentRef.current = false;
+        pointerIdRef.current = null;
+        pointerStartRef.current = null;
+        return;
+      }
+      if (phaseRef.current !== "holding") return;
+
+      const start = pointerStartRef.current;
+      const heldMs = start ? Date.now() - start.at : 0;
+      holdIntentRef.current = false;
+      pointerIdRef.current = null;
+
+      if (heldMs < TAP_LOCK_MS && !cancelArmedRef.current) {
+        lockRecording();
+        pointerStartRef.current = null;
+        return;
+      }
+
+      finishRecording(cancelArmedRef.current ? "cancel" : "send");
+      pointerStartRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [recording, phase]);
+
   if (recording) {
+    const holding = phase === "holding";
     return (
       <div
         className={cn(
-          "flex w-full items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-2",
+          "relative flex w-full items-center gap-2 rounded-full border px-3 py-2",
+          cancelArmed
+            ? "border-red-300 bg-red-100"
+            : holding
+              ? "border-red-200 bg-red-50"
+              : "border-sky-200 bg-sky-50",
           className,
         )}
       >
+        {holding ? (
+          <div className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-gray-900/90 px-3 py-1 text-[11px] font-medium text-white shadow-md">
+            {cancelArmed
+              ? slideCancelLabel
+              : lockHint
+                ? slideUpLockLabel
+                : releaseToSendLabel}
+          </div>
+        ) : null}
+
+        {holding ? (
+          <div className="pointer-events-none absolute -top-16 left-1/2 flex -translate-x-1/2 flex-col items-center text-sky-600">
+            <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">
+              {slideUpLockLabel}
+            </span>
+            <span className="text-lg leading-none">↑</span>
+          </div>
+        ) : null}
+
         <span className="relative flex h-2.5 w-2.5 shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
         </span>
         <div className="min-w-0 flex-1">
           <VoiceWaveform peaks={livePeaks} live />
-          <p className="mt-0.5 text-[11px] tabular-nums text-red-600">
-            {recordingLabel} · {formatDuration(elapsed)}
+          <p
+            className={cn(
+              "mt-0.5 text-[11px] tabular-nums",
+              cancelArmed ? "text-red-700" : holding ? "text-red-600" : "text-sky-700",
+            )}
+          >
+            {holding
+              ? `${recordingLabel} · ${formatDuration(elapsed)}`
+              : `${lockedLabel} · ${formatDuration(elapsed)}`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => finishRecording("cancel")}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-100"
-          aria-label={cancelLabel}
-          title={cancelLabel}
-        >
-          <Trash2 size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={() => finishRecording("send")}
-          disabled={busy || elapsed < 1}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
-          aria-label={sendLabel}
-          title={sendLabel}
-        >
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} className="translate-x-px" />}
-        </button>
+
+        {holding ? (
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow"
+            aria-hidden
+          >
+            <Mic size={18} />
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => finishRecording("cancel")}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-100"
+              aria-label={cancelLabel}
+              title={cancelLabel}
+            >
+              <Trash2 size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => finishRecording("send")}
+              disabled={busy || elapsed < 1}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
+              aria-label={sendLabel}
+              title={sendLabel}
+            >
+              {busy ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Send size={15} className="translate-x-px" />
+              )}
+            </button>
+          </>
+        )}
       </div>
     );
   }
 
   return (
     <button
+      ref={micBtnRef}
       type="button"
       disabled={disabled || busy}
-      onClick={() => void startRecording()}
+      onPointerDown={onPointerDown}
+      // Prevent the synthetic click after a completed hold gesture.
+      onClick={(event) => event.preventDefault()}
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40",
+        "flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40",
+        "select-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
         className,
       )}
-      aria-label={micLabel}
-      title={micLabel}
+      aria-label={`${micLabel}. ${holdHintLabel}. ${slideUpLockLabel}.`}
+      title={`${micLabel} — ${holdHintLabel}`}
     >
       {busy ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
     </button>

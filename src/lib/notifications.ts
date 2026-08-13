@@ -14,6 +14,8 @@ export interface NotificationData {
   tag?: string; // Used to replace existing notifications with same tag
   requireInteraction?: boolean;
   silent?: boolean;
+  /** Buzz again when replacing a notification with the same tag (chat unread updates). */
+  renotify?: boolean;
   data?: any; // Additional data for notification click handling
   onClick?: () => void;
 }
@@ -209,49 +211,31 @@ class NotificationService {
     const lastTime = this.lastNotificationTimes.get(notificationKey);
     const now = Date.now();
 
-    if (lastTime && now - lastTime < 1500) {
+    // Allow rapid updates for the same chat tag (WhatsApp-style replace).
+    if (!data.renotify && lastTime && now - lastTime < 1500) {
       return;
     }
 
     this.lastNotificationTimes.set(notificationKey, now);
 
+    const options: NotificationOptions & { renotify?: boolean } = {
+      body: data.body,
+      icon: data.icon || "/logo.png",
+      badge: data.badge || "/logo.png",
+      tag: data.tag || notificationKey,
+      requireInteraction: Boolean(data.requireInteraction),
+      silent: data.silent ?? false,
+      renotify: Boolean(data.renotify),
+      data: data.data || {},
+    };
+
     try {
       if ("serviceWorker" in navigator) {
         const registration = await navigator.serviceWorker.ready;
-
-        registration.active?.postMessage({
-          type: "SHOW_NOTIFICATION",
-          notification: {
-            title: data.title,
-            body: data.body,
-            icon: data.icon || "/logo.png",
-            badge: data.badge || "/logo.png",
-            tag: data.tag || notificationKey,
-            requireInteraction: data.requireInteraction || false,
-            silent: data.silent ?? false,
-            data: data.data || {},
-          },
-        });
-
-        await registration.showNotification(data.title, {
-          body: data.body,
-          icon: data.icon || "/logo.png",
-          badge: data.badge || "/logo.png",
-          tag: data.tag || notificationKey,
-          requireInteraction: data.requireInteraction || false,
-          silent: data.silent ?? false,
-          data: data.data || {},
-        });
+        // Single show path only — avoid postMessage + showNotification duplicates.
+        await registration.showNotification(data.title, options);
       } else {
-        const notification = new Notification(data.title, {
-          body: data.body,
-          icon: data.icon || "/logo.png",
-          badge: data.badge || "/logo.png",
-          tag: data.tag || notificationKey,
-          requireInteraction: data.requireInteraction || false,
-          silent: data.silent ?? false,
-          data: data.data || {},
-        });
+        const notification = new Notification(data.title, options);
 
         notification.onclick = (event) => {
           event.preventDefault();
@@ -391,6 +375,9 @@ class NotificationService {
       navigator.serviceWorker.ready.then((registration) => {
         registration.getNotifications({ tag }).then((notifications) => {
           notifications.forEach((notification) => notification.close());
+        });
+        registration.active?.postMessage({
+          type: "UPDATE_BADGE",
         });
       });
     }

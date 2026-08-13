@@ -71,19 +71,34 @@ export function isChatAudioAttachment(mimeType?: string, fileName?: string) {
 /** Pick a MediaRecorder mime + file extension that this browser supports. */
 export function pickVoiceRecordingFormat(): { mimeType: string; extension: string } {
   if (typeof MediaRecorder === "undefined") {
-    return { mimeType: "audio/webm", extension: "webm" };
+    return { mimeType: "audio/mp4", extension: "m4a" };
   }
-  const candidates: Array<{ mimeType: string; extension: string }> = [
-    { mimeType: "audio/webm;codecs=opus", extension: "webm" },
-    { mimeType: "audio/webm", extension: "webm" },
-    { mimeType: "audio/mp4", extension: "m4a" },
-    { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
-    { mimeType: "audio/ogg", extension: "ogg" },
-  ];
+
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isAppleMobile =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  // Prefer mp4/m4a on iOS (WebM often won't play back). Prefer WebM elsewhere.
+  const candidates: Array<{ mimeType: string; extension: string }> = isAppleMobile
+    ? [
+        { mimeType: "audio/mp4", extension: "m4a" },
+        { mimeType: "audio/aac", extension: "m4a" },
+        { mimeType: "audio/webm;codecs=opus", extension: "webm" },
+        { mimeType: "audio/webm", extension: "webm" },
+      ]
+    : [
+        { mimeType: "audio/webm;codecs=opus", extension: "webm" },
+        { mimeType: "audio/webm", extension: "webm" },
+        { mimeType: "audio/mp4", extension: "m4a" },
+        { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
+        { mimeType: "audio/ogg", extension: "ogg" },
+      ];
+
   for (const candidate of candidates) {
     if (MediaRecorder.isTypeSupported(candidate.mimeType)) return candidate;
   }
-  return { mimeType: "", extension: "webm" };
+  return { mimeType: "", extension: isAppleMobile ? "m4a" : "webm" };
 }
 
 export async function uploadDirectChatAttachment(

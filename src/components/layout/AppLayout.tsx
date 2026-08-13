@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, useLocation, Navigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileTopBar } from "./MobileTopBar";
@@ -46,8 +46,9 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     return saved !== "true";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchEndRef = useRef<{ x: number; y: number } | null>(null);
+  const minSwipeDistance = 50;
   const [mobileTopHeight, setMobileTopHeight] = useState(64);
   const [desktopTopHeight, setDesktopTopHeight] = useState(56);
 
@@ -63,9 +64,6 @@ function AppLayoutInner(_props?: AppLayoutProps) {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
-
-  // Minimum swipe distance
-  const minSwipeDistance = 50;
 
   // Handle responsive sidebar - always collapsed on mobile
   useEffect(() => {
@@ -89,34 +87,38 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Handle touch start for swipe detection
+  // Nav drawer swipe — refs only (no setState on touchmove) so chat stays fixed while scrolling.
   const onTouchStart = (e: React.TouchEvent) => {
-    // Only handle on mobile
     if (window.innerWidth >= 1024) return;
-    
-    setTouchEnd(null);
-    setTouchStart({
+    // Inside an open conversation, leave gestures to chat (reply / edge-back).
+    if (isMessagesConversationOpen && !mobileMenuOpen) {
+      touchStartRef.current = null;
+      touchEndRef.current = null;
+      return;
+    }
+    touchEndRef.current = null;
+    touchStartRef.current = {
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
-    });
+    };
   };
 
-  // Handle touch move for swipe detection
   const onTouchMove = (e: React.TouchEvent) => {
-    // Only handle on mobile
     if (window.innerWidth >= 1024) return;
-    
-    setTouchEnd({
+    if (!touchStartRef.current) return;
+    touchEndRef.current = {
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
-    });
+    };
   };
 
-  // Handle touch end and detect swipe
   const onTouchEnd = () => {
-    // Only handle on mobile
     if (window.innerWidth >= 1024) return;
-    
+
+    const touchStart = touchStartRef.current;
+    const touchEnd = touchEndRef.current;
+    touchStartRef.current = null;
+    touchEndRef.current = null;
     if (!touchStart || !touchEnd) return;
 
     const distanceX = touchStart.x - touchEnd.x;
@@ -125,16 +127,12 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     const isRightSwipe = distanceX < -minSwipeDistance;
     const isVerticalSwipe = Math.abs(distanceY) > Math.abs(distanceX);
 
-    // Only handle horizontal swipes
     if (isVerticalSwipe) return;
 
-    // Swipe from left edge to open nav — skip when a chat thread is open
-    // so the conversation can use edge-swipe-back instead.
     if (isRightSwipe && touchStart.x < 30 && !mobileMenuOpen && !isMessagesConversationOpen) {
       setMobileMenuOpen(true);
     }
 
-    // Swipe left to close when menu is open
     if (isLeftSwipe && mobileMenuOpen) {
       setMobileMenuOpen(false);
     }

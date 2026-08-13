@@ -122,6 +122,8 @@ export function DocumentsTab() {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -297,6 +299,26 @@ export function DocumentsTab() {
     }
   };
 
+  const handleBulkDeleteConfirm = async () => {
+    const selected = documents.filter((e) => selectedIds.has(documentId(e)));
+    if (selected.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selected) {
+        await remove(item as CompanyDocumentEntry);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted") });
+      window.dispatchEvent(new CustomEvent("documents-should-refresh"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not delete document.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   return (
     <>
       <FinanceTableShell
@@ -305,6 +327,9 @@ export function DocumentsTab() {
         addLabel={t("docUpload")}
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
+        selectedCount={selectedIds.size}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
       >
         {isLoading ? (
           <FinanceTableLoading />
@@ -557,6 +582,18 @@ export function DocumentsTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedIds.size))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

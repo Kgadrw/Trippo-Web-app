@@ -29,11 +29,13 @@ import { usePageSearch } from "@/hooks/usePageSearch";
 import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
+  FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useTableSelection } from "@/hooks/useTableSelection";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { WorkspaceRecordBy } from "@/components/workspace/WorkspaceRecordBy";
 
@@ -99,6 +101,8 @@ export function ProductsTab() {
     takeTarget,
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<ProductEntry>();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const { query: pageSearchQuery } = usePageSearch();
   const visibleProducts = useMemo(
@@ -110,6 +114,16 @@ export function ProductsTab() {
       ]),
     [products, pageSearchQuery],
   );
+
+  const {
+    selectedIds,
+    selectedCount,
+    selectedItems,
+    allSelected,
+    toggleSelectAll,
+    toggleSelectRow,
+    clearSelection,
+  } = useTableSelection(visibleProducts, productId);
 
   const resetForm = () => {
     setName("");
@@ -202,6 +216,24 @@ export function ProductsTab() {
     }
   };
 
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedItems.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selectedItems) {
+        await remove(item);
+      }
+      clearSelection();
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted") });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("pleaseTryAgain");
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const renderTable = () => {
     if (isLoading) return <FinanceTableLoading />;
     if (products.length === 0) {
@@ -218,6 +250,13 @@ export function ProductsTab() {
         <table className="w-full min-w-[900px] border-collapse">
           <thead>
             <tr>
+              <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
+                <FinanceTableCheckbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  ariaLabel="Select all"
+                />
+              </th>
               <th className={FINANCE_TH_CLASS}>{t("productName")}</th>
               <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>{t("category")}</th>
               <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("stock")}</th>
@@ -237,6 +276,13 @@ export function ProductsTab() {
               const status = stockStatus(entry, t);
               return (
                 <tr key={id} className="border-t border-gray-100 hover:bg-gray-50/80">
+                  <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
+                    <FinanceTableCheckbox
+                      checked={selectedIds.has(id)}
+                      onCheckedChange={() => toggleSelectRow(id)}
+                      ariaLabel={`Select ${entry.name}`}
+                    />
+                  </td>
                   <td className={cn(FINANCE_TD_CLASS, "font-medium")}>{entry.name}</td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>{entry.category || "—"}</td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums")}>
@@ -305,6 +351,9 @@ export function ProductsTab() {
         addLabel={t("add")}
         onRefresh={() => void refresh(true)}
         isRefreshing={false}
+        selectedCount={selectedCount}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
       >
         {renderTable()}
       </FinanceTableShell>
@@ -375,6 +424,18 @@ export function ProductsTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteProduct")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedCount))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

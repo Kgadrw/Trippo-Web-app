@@ -236,6 +236,13 @@ export interface Translations {
   noAccountsYet: string;
   accountsEmptyHint: string;
   openingBalance: string;
+  openingBalanceHint: string;
+  setAccountBalance: string;
+  setAccountBalanceHint: string;
+  topUpBalance: string;
+  topUpAmount: string;
+  topUpSuccess: string;
+  topUpSuccessDesc: string;
   transferFunds: string;
   fromAccount: string;
   toAccount: string;
@@ -510,6 +517,10 @@ export interface Translations {
   delete: string;
   deleteConfirmTitle: string;
   deleteConfirmDesc: string;
+  deleteSelectedDesc: string;
+  mergeDuplicates: string;
+  customersMerged: string;
+  customersMergedNone: string;
   edit: string;
   add: string;
   name: string;
@@ -1455,6 +1466,11 @@ export interface Translations {
   chatVoicePermissionDenied: string;
   chatVoiceSendFailed: string;
   chatVoiceMessage: string;
+  chatVoiceHoldHint: string;
+  chatVoiceSlideUpLock: string;
+  chatVoiceSlideCancel: string;
+  chatVoiceLocked: string;
+  chatVoiceReleaseToSend: string;
   validationErrorTitle: string;
   invalidEmailTitle: string;
   invalidEmailDescMsg: string;
@@ -2418,6 +2434,13 @@ export const translations: Record<Language, Partial<Translations>> = {
     noAccountsYet: "No accounts yet",
     accountsEmptyHint: "Add cash, bank, MoMo, or Airtel accounts to track balances.",
     openingBalance: "Opening Balance",
+    openingBalanceHint: "Can be negative if this account starts in debt.",
+    setAccountBalance: "Current balance",
+    setAccountBalanceHint: "Set the real balance now. Negative means the account is in debt; credits will clear the debt first.",
+    topUpBalance: "Top up / adjust",
+    topUpAmount: "Amount to add",
+    topUpSuccess: "Balance updated",
+    topUpSuccessDesc: "Account balance has been adjusted.",
     transferFunds: "Transfer Funds",
     fromAccount: "From Account",
     toAccount: "To Account",

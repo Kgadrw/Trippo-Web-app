@@ -4,6 +4,7 @@ import { pushChatIncomingPopup } from "@/lib/chatIncomingPopupStore";
 import { WORKSPACE_GROUP_CHAT_PATH } from "@/lib/workspaceGroupChat";
 
 const notifiedMessageIds = new Set<string>();
+const unreadByTag = new Map<string, number>();
 const MAX_BODY_LENGTH = 140;
 
 type ChatNotificationClickHandler = (href: string) => void;
@@ -13,6 +14,53 @@ export function setWorkspaceChatNotificationClickHandler(
   handler: ChatNotificationClickHandler | null,
 ) {
   onChatNotificationClick = handler;
+}
+
+/** Stable OS notification tag per group workspace (replaces previous unread alert). */
+export function chatNotificationTagForGroup(workspaceId: string) {
+  return `workspace-chat-${String(workspaceId || "group")}`;
+}
+
+/** Stable OS notification tag per DM conversation. */
+export function chatNotificationTagForDm(conversationId?: string, otherUserId?: string) {
+  if (conversationId) return `workspace-dm-${conversationId}`;
+  if (otherUserId) return `workspace-dm-user-${otherUserId}`;
+  return "workspace-dm";
+}
+
+export function resolveChatNotificationTag(input: {
+  action: "open_workspace_chat" | "open_direct_chat";
+  workspaceId?: string;
+  conversationId?: string;
+  otherUserId?: string;
+}) {
+  if (input.action === "open_direct_chat") {
+    return chatNotificationTagForDm(input.conversationId, input.otherUserId);
+  }
+  return chatNotificationTagForGroup(input.workspaceId || "");
+}
+
+/** Clear sticky OS chat notification once the thread is opened / marked read. */
+export function clearChatOsNotification(tag: string) {
+  if (!tag) return;
+  unreadByTag.delete(tag);
+  notificationService.clearNotifications(tag);
+  if ("serviceWorker" in navigator) {
+    void navigator.serviceWorker.ready.then((registration) => {
+      registration.active?.postMessage({
+        type: "CLEAR_NOTIFICATION_TAG",
+        tag,
+      });
+    });
+  }
+}
+
+export function clearGroupChatOsNotification(workspaceId: string) {
+  clearChatOsNotification(chatNotificationTagForGroup(workspaceId));
+}
+
+export function clearDirectChatOsNotification(conversationId?: string, otherUserId?: string) {
+  clearChatOsNotification(chatNotificationTagForDm(conversationId, otherUserId));
 }
 
 function truncateBody(body: string, maxLength = MAX_BODY_LENGTH) {
@@ -63,10 +111,10 @@ export type IncomingChatAlertInput = {
 };
 
 /**
- * Incoming chat alert:
- * - Bottom-right in-app popup while the site tab is visible
- * - Browser/OS notification when the tab is hidden (away from the page)
- * - Server web-push still covers fully closed / background app cases
+ * Incoming chat alert (WhatsApp-style):
+ * - Visible tab: in-app popup
+ * - Background / locked phone: sticky OS notification that stays until the chat is read
+ * - App fully closed: server web-push (same conversation tag)
  */
 export async function notifyIncomingChatAlert(input: IncomingChatAlertInput): Promise<void> {
   if (input.suppress) return;
@@ -89,44 +137,52 @@ export async function notifyIncomingChatAlert(input: IncomingChatAlertInput): Pr
   const replyPrefix = input.replyTo
     ? `↩ ${input.replyTo.senderName || "Message"}: ${truncateBody(input.replyTo.body || "", 60)}\n`
     : "";
-  const body = `${replyPrefix}${truncateBody(input.body)}`;
+  const preview = `${replyPrefix}${truncateBody(input.body)}`;
   const icon = resolveIconUrl(input.iconUrl);
+  const tag = resolveChatNotificationTag(input);
+  const unreadCount = (unreadByTag.get(tag) || 0) + 1;
+  unreadByTag.set(tag, unreadCount);
+  const body =
+    unreadCount > 1 ? `${preview}\n(${unreadCount} unread)` : preview;
   const tabHidden = typeof document !== "undefined" && document.hidden;
+  const href = input.href || WORKSPACE_GROUP_CHAT_PATH;
+  const notificationData = {
+    action: input.action,
+    workspaceId: input.workspaceId,
+    messageId,
+    otherUserId: input.otherUserId,
+    conversationId: input.conversationId,
+    href,
+    tag,
+  };
 
-  // In-app bottom-right popup while using the website.
+  // Foreground: in-app banner (also replace by conversation tag).
   if (!tabHidden) {
     pushChatIncomingPopup({
-      id: messageId,
+      id: tag,
       title,
-      body,
+      body: preview,
       iconUrl: icon,
-      href: input.href || WORKSPACE_GROUP_CHAT_PATH,
+      href,
     });
     return;
   }
 
-  // Tab is in the background — use browser/OS notification.
-  // When the site is fully closed, server web-push still delivers.
+  // Background: sticky OS notification that stays until the chat is opened/read.
   await notificationService.showEphemeralNotification({
     title,
     body,
     icon,
     badge: "/chat.png",
-    tag:
-      input.action === "open_direct_chat"
-        ? `workspace-dm-${messageId}`
-        : `workspace-chat-${messageId}`,
-    silent: true,
-    requireInteraction: false,
-    data: {
-      action: input.action,
-      workspaceId: input.workspaceId,
-      messageId,
-      otherUserId: input.otherUserId,
-      conversationId: input.conversationId,
-      href: input.href,
+    tag,
+    silent: false,
+    requireInteraction: true,
+    renotify: true,
+    data: notificationData,
+    onClick: () => {
+      clearChatOsNotification(tag);
+      onChatNotificationClick?.(href);
     },
-    onClick: () => onChatNotificationClick?.(input.href),
   });
 }
 

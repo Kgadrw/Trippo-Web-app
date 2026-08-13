@@ -1024,6 +1024,12 @@ export const clientApi = {
     });
   },
 
+  async mergeDuplicates(): Promise<ApiResponse> {
+    return request('/clients/merge-duplicates', {
+      method: 'POST',
+    });
+  },
+
   // Get single client
   async getById(id: string): Promise<ApiResponse> {
     return request(`/clients/${id}`, {

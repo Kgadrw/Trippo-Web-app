@@ -113,6 +113,8 @@ export function AssetsTab() {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const {
     target: deleteTarget,
@@ -303,6 +305,26 @@ export function AssetsTab() {
     }
   };
 
+  const handleBulkDeleteConfirm = async () => {
+    const selected = assets.filter((e) => selectedIds.has(assetId(e)));
+    if (selected.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selected) {
+        await remove(item as AssetEntry);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted") });
+      window.dispatchEvent(new CustomEvent("assets-should-refresh"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not delete asset.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   return (
     <>
       <FinanceTableShell
@@ -311,6 +333,9 @@ export function AssetsTab() {
         addLabel={t("assetAdd")}
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
+        selectedCount={selectedIds.size}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        bulkDeleting={isBulkDeleting}
       >
         {isLoading ? (
           <FinanceTableLoading />
@@ -594,6 +619,17 @@ export function AssetsTab() {
         cancelLabel={t("cancel")}
         onConfirm={() => void handleDeleteConfirm()}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("assetDeleteTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedIds.size))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </>
   );

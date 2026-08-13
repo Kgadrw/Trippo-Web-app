@@ -578,6 +578,13 @@
     border-radius: 9999px !important;
   }
 
+  /* Keep header icons + profile avatars circular */
+  header button.rounded-full,
+  .profile-avatar,
+  button.profile-avatar {
+    border-radius: 9999px !important;
+  }
+
   /* Rounded controls inside workspace chat (send, header actions) */
   .workspace-chat button.rounded-full,
   .workspace-chat button[data-chat-send] {
@@ -715,13 +722,13 @@
   /* Mobile chat composer: above home indicator when keyboard closed;
      drop safe-area gap when native keyboard is open (--keyboard-open=1). */
   .chat-composer-pad {
-    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   }
 
   @media (max-width: 1023px) {
     .workspace-chat .chat-composer-pad {
       padding-bottom: max(
-        6px,
+        8px,
         calc(env(safe-area-inset-bottom, 0px) * (1 - var(--keyboard-open, 0)))
       );
     }

@@ -165,6 +165,8 @@ export function BillsTab() {
     handleOpenChange: handleDeleteOpenChange,
   } = useDeleteConfirm<BillEntry>();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { query: pageSearchQuery } = usePageSearch();
@@ -241,7 +243,8 @@ export function BillsTab() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      } finally {
+      await refresh(true);
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -414,6 +417,27 @@ export function BillsTab() {
     } finally {
       setDeletingId(null);
       setIsDeleteDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const selected = bills.filter(
+      (e) => selectedIds.has(billId(e)) && (e.status || "pending") !== "paid",
+    );
+    if (selected.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const item of selected) {
+        await remove(item as BillEntry);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      toast({ title: t("deleted"), description: t("billRemovedDesc") });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("deleteBillFailed");
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -650,6 +674,17 @@ export function BillsTab() {
           </div>
 
           <div className="flex items-center gap-2">
+            {selectedIds.size > 0 ? (
+              <Button
+                variant="outline"
+                className="h-9 gap-1.5 rounded-none border-red-200 px-3 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={isBulkDeleting}
+              >
+                {isBulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                {`${t("delete")} (${selectedIds.size})`}
+              </Button>
+            ) : null}
             <Button
               className="h-9 gap-1.5 rounded-none bg-primary px-4 text-white hover:bg-sky-500"
               onClick={openCreate}
@@ -847,6 +882,18 @@ export function BillsTab() {
         deletingLabel={t("deleting")}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleteDeleting}
+      />
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteSelectedDesc").replace("{count}", String(selectedIds.size))}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        deletingLabel={t("deleting")}
+        onConfirm={() => void handleBulkDeleteConfirm()}
+        isDeleting={isBulkDeleting}
       />
     </div>
   );
