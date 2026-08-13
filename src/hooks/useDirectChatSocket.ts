@@ -27,7 +27,12 @@ export function useDirectChatSocket(
     if (!enabled || !workspaceId) return;
 
     const onMessage = (message: DirectChatMessage) => {
-      if (!message || String(message.workspaceId) !== String(workspaceId)) return;
+      if (!message) return;
+      const rawWorkspace =
+        typeof message.workspaceId === "object" && message.workspaceId
+          ? String((message.workspaceId as { _id?: string })._id || message.workspaceId)
+          : String(message.workspaceId || "");
+      if (rawWorkspace && rawWorkspace !== String(workspaceId)) return;
       handlersRef.current.onMessage?.(message);
     };
 

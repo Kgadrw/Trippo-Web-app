@@ -163,15 +163,6 @@ export function TeamOverviewTab() {
     ];
   }, [t, tasks]);
 
-  const counts = useMemo(
-    () => ({
-      todo: tasks.filter((task) => (task.status || "todo") === "todo").length,
-      inProgress: tasks.filter((task) => task.status === "in_progress").length,
-      done: tasks.filter((task) => task.status === "done").length,
-    }),
-    [tasks],
-  );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-500">
@@ -191,7 +182,7 @@ export function TeamOverviewTab() {
           </div>
           <p className="text-sm text-gray-500">{t("teamOverviewSubtitle")}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Select value={monthKey} onValueChange={setMonthKey}>
             <SelectTrigger className={filterSelectClass}>
               <SelectValue />
@@ -204,24 +195,18 @@ export function TeamOverviewTab() {
               ))}
             </SelectContent>
           </Select>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/team/tasks" className="gap-1.5">
+              {t("teamManageTasks")}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/hr/people">{t("teamManageMembers")}</Link>
+          </Button>
           <Button asChild size="sm">
             <Link to="/team/tasks">{t("teamAssignTask")}</Link>
           </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("teamStatusTodo")}</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900">{counts.todo}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-sky-600">{t("teamStatusInProgress")}</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900">{counts.inProgress}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">{t("teamRecentCompletions")}</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900">{counts.done}</p>
         </div>
       </div>
 
@@ -284,18 +269,6 @@ export function TeamOverviewTab() {
             </ul>
           </section>
         ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link to="/team/tasks" className="gap-1.5">
-            {t("teamManageTasks")}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/hr/people">{t("teamManageMembers")}</Link>
-        </Button>
       </div>
     </div>
   );

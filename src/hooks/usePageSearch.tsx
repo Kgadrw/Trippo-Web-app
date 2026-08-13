@@ -1,5 +1,4 @@
 import {
-  createContext,
   useContext,
   useEffect,
   useMemo,
@@ -9,15 +8,10 @@ import {
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "@/hooks/useTranslation";
 import { resolvePageSearchScope } from "@/lib/pageSearch";
-
-type PageSearchContextValue = {
-  query: string;
-  setQuery: (value: string) => void;
-  enabled: boolean;
-  placeholder: string;
-};
-
-const PageSearchContext = createContext<PageSearchContextValue | null>(null);
+import {
+  PAGE_SEARCH_FALLBACK,
+  PageSearchContext,
+} from "@/hooks/pageSearchContext";
 
 export function PageSearchProvider({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState("");
@@ -50,9 +44,5 @@ export function PageSearchProvider({ children }: { children: ReactNode }) {
 }
 
 export function usePageSearch() {
-  const ctx = useContext(PageSearchContext);
-  if (!ctx) {
-    throw new Error("usePageSearch must be used within PageSearchProvider");
-  }
-  return ctx;
+  return useContext(PageSearchContext) ?? PAGE_SEARCH_FALLBACK;
 }

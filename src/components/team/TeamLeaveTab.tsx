@@ -60,7 +60,16 @@ export function TeamLeaveTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const [view, setView] = useState<"mine" | "team" | "public">("mine");
+  const [view, setView] = useState<"mine" | "team" | "public">(canReviewLeave ? "team" : "mine");
+
+  useEffect(() => {
+    // Reviewers should land on team queue so pending requests are visible.
+    if (canReviewLeave) {
+      setView((prev) => (prev === "public" ? prev : "team"));
+    } else {
+      setView((prev) => (prev === "team" ? "mine" : prev));
+    }
+  }, [canReviewLeave]);
 
   const [open, setOpen] = useState(false);
   const [leaveType, setLeaveType] = useState<LeaveType>("annual");
@@ -171,8 +180,8 @@ export function TeamLeaveTab() {
       toast({
         title: "Leave requested",
         description:
-          mode === "workspace" && !canReviewLeave
-            ? "HR or a workspace admin will review this request."
+          mode === "workspace"
+            ? "Request submitted as pending. An admin or HR will review it."
             : "Leave request saved.",
       });
       setOpen(false);
@@ -241,20 +250,6 @@ export function TeamLeaveTab() {
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-lg border bg-white px-4 py-3">
-          <p className="text-xs text-gray-500">Pending review</p>
-          <p className="text-lg font-semibold text-gray-900">{pendingTeamCount}</p>
-        </div>
-        <div className="rounded-lg border bg-white px-4 py-3 sm:col-span-2">
-          <p className="text-xs text-gray-500">Leave requests</p>
-          <p className="text-sm text-gray-700 mt-1">
-            Team members submit leave here. Workspace admins and HR can approve or reject requests.
-            Decisions marked public by the requester are visible to the team.
-          </p>
-        </div>
-      </div>
-
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Button size="sm" variant={view === "mine" ? "default" : "outline"} onClick={() => setView("mine")}>
           My requests
@@ -294,7 +289,20 @@ export function TeamLeaveTab() {
           <FinanceTableLoading />
         ) : visibleRequests.length === 0 ? (
           <div className="px-4 py-16 text-center text-sm text-gray-500">
-            No leave requests yet. Click &quot;Request leave&quot; to submit time off.
+            {canReviewLeave && view === "mine" && pendingTeamCount > 0 ? (
+              <>
+                No personal leave in this filter.{" "}
+                <button
+                  type="button"
+                  className="font-medium text-sky-600 hover:underline"
+                  onClick={() => setView("team")}
+                >
+                  View {pendingTeamCount} pending team request{pendingTeamCount === 1 ? "" : "s"}
+                </button>
+              </>
+            ) : (
+              <>No leave requests yet. Click &quot;Request leave&quot; to submit time off.</>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">

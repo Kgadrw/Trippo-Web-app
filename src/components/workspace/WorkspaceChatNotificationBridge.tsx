@@ -3,11 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
 import { useWorkspaceChatSocket } from "@/hooks/useWorkspaceChatSocket";
+import { useDirectChatSocket } from "@/hooks/useDirectChatSocket";
 import { notificationService } from "@/lib/notifications";
-import { initAudio, playChatMessageBeep } from "@/lib/sound";
 import type { WorkspaceChatMessage } from "@/lib/workspaceChatRealtime";
+import type { DirectChatMessage } from "@/lib/workspaceDirectChatRealtime";
 import {
-  notifyNewWorkspaceChatMessage,
+  notifyIncomingChatAlert,
   setWorkspaceChatNotificationClickHandler,
 } from "@/lib/workspaceChatNotifications";
 import { registerWebPushSubscription } from "@/lib/pushNotifications";
@@ -15,18 +16,26 @@ import {
   WORKSPACE_GROUP_CHAT_PATH,
   isWorkspaceGroupChatPath,
 } from "@/lib/workspaceGroupChat";
+import {
+  bumpMessagesUnread,
+  refreshMessagesUnreadBadge,
+} from "@/lib/messagesUnreadEvents";
 
-function isOwnMessage(message: WorkspaceChatMessage, currentUserId: string | null) {
+function isOwnGroupMessage(message: WorkspaceChatMessage, currentUserId: string | null) {
   return Boolean(currentUserId && String(message.senderUserId) === currentUserId);
 }
 
-function shouldAlertForMessage(chatOpen: boolean, tabHidden: boolean) {
-  return !chatOpen || tabHidden;
+function isOwnDirectMessage(message: DirectChatMessage, currentUserId: string | null) {
+  return Boolean(currentUserId && String(message.senderUserId) === currentUserId);
+}
+
+function alertForIncoming(viewingThisChat: boolean, tabHidden: boolean) {
+  return !viewingThisChat || tabHidden;
 }
 
 /**
- * Listens for workspace chat messages app-wide and triggers unread badge,
- * sound, and browser notifications when the user is not actively viewing chat.
+ * App-wide chat alerts: bottom-right popup while the site is open,
+ * browser/OS notifications when the tab is hidden, and web-push when closed.
  */
 export function WorkspaceChatNotificationBridge() {
   const { mode, activeWorkspace } = useWorkspace();
@@ -36,25 +45,32 @@ export function WorkspaceChatNotificationBridge() {
   const workspaceId = activeWorkspace?.id || "";
   const currentUserId = localStorage.getItem("profit-pilot-user-id");
   const viewingGroupOnMessages = isWorkspaceGroupChatPath(location.pathname);
-  const chatOpen = viewingGroupOnMessages;
-  const openRef = useRef(chatOpen);
+  const pathnameRef = useRef(location.pathname);
+  const openRef = useRef(viewingGroupOnMessages);
   const baseTitleRef = useRef(typeof document !== "undefined" ? document.title : "Trippo");
 
-  openRef.current = chatOpen;
+  pathnameRef.current = location.pathname;
+  openRef.current = viewingGroupOnMessages;
 
   useEffect(() => {
     if (mode !== "workspace") return;
 
-    const openChat = () => {
+    const openHref = (href: string) => {
       clearUnread();
-      navigate(WORKSPACE_GROUP_CHAT_PATH);
+      refreshMessagesUnreadBadge();
+      navigate(href || WORKSPACE_GROUP_CHAT_PATH);
     };
 
-    setWorkspaceChatNotificationClickHandler(openChat);
+    setWorkspaceChatNotificationClickHandler(openHref);
 
     const onServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data?.type === "OPEN_WORKSPACE_CHAT") {
-        openChat();
+        openHref(WORKSPACE_GROUP_CHAT_PATH);
+        return;
+      }
+      if (event.data?.type === "OPEN_DIRECT_CHAT") {
+        const otherUserId = event.data.otherUserId ? String(event.data.otherUserId) : "";
+        openHref(otherUserId ? `/messages/${otherUserId}` : "/messages");
       }
     };
 
@@ -67,8 +83,11 @@ export function WorkspaceChatNotificationBridge() {
   }, [mode, clearUnread, navigate]);
 
   useEffect(() => {
-    if (chatOpen) clearUnread();
-  }, [chatOpen, clearUnread]);
+    if (viewingGroupOnMessages) {
+      clearUnread();
+      refreshMessagesUnreadBadge();
+    }
+  }, [viewingGroupOnMessages, clearUnread]);
 
   useEffect(() => {
     if (mode !== "workspace") {
@@ -115,28 +134,71 @@ export function WorkspaceChatNotificationBridge() {
 
   useWorkspaceChatSocket(workspaceId, mode === "workspace" && Boolean(workspaceId), {
     onMessage: (message) => {
-      if (isOwnMessage(message, currentUserId)) return;
+      if (isOwnGroupMessage(message, currentUserId)) return;
 
-      const isChatOpen = openRef.current;
+      const viewingThisChat = openRef.current;
       const tabHidden = typeof document !== "undefined" && document.hidden;
 
-      if (!isChatOpen) {
+      if (!viewingThisChat) {
         incrementUnread();
+        bumpMessagesUnread(1);
       }
 
-      if (!shouldAlertForMessage(isChatOpen, tabHidden)) return;
+      if (!alertForIncoming(viewingThisChat, tabHidden)) return;
 
-      initAudio();
-      playChatMessageBeep();
+      void notifyIncomingChatAlert({
+        messageId: String(message._id),
+        senderName: message.senderName || "Someone",
+        body: message.body || "",
+        iconUrl: message.senderProfilePictureUrl,
+        workspaceId,
+        workspaceName: activeWorkspace?.name,
+        href: WORKSPACE_GROUP_CHAT_PATH,
+        action: "open_workspace_chat",
+        replyTo: message.replyTo
+          ? {
+              senderName: message.replyTo.senderName,
+              body: message.replyTo.body,
+            }
+          : null,
+      });
+    },
+  });
 
-      // Fallback for browsers without a saved push subscription (server push handles closed/inactive app).
-      if (!localStorage.getItem("trippo-push-synced-endpoint")) {
-        void notifyNewWorkspaceChatMessage({
-          message,
-          workspaceName: activeWorkspace?.name,
-          workspaceId,
-        });
+  useDirectChatSocket(workspaceId, mode === "workspace" && Boolean(workspaceId), {
+    onMessage: (message) => {
+      if (isOwnDirectMessage(message, currentUserId)) return;
+
+      const path = pathnameRef.current;
+      const senderId = String(message.senderUserId);
+      const href = `/messages/${senderId}`;
+      const viewingThisChat = path === href;
+      const tabHidden = typeof document !== "undefined" && document.hidden;
+
+      if (!viewingThisChat) {
+        bumpMessagesUnread(1);
       }
+
+      if (!alertForIncoming(viewingThisChat, tabHidden)) return;
+
+      void notifyIncomingChatAlert({
+        messageId: String(message._id),
+        senderName: message.senderName || "Someone",
+        body: message.body || "",
+        iconUrl: message.senderProfilePictureUrl,
+        workspaceId,
+        workspaceName: activeWorkspace?.name,
+        href,
+        action: "open_direct_chat",
+        otherUserId: senderId,
+        conversationId: String(message.conversationId || ""),
+        replyTo: message.replyTo
+          ? {
+              senderName: message.replyTo.senderName,
+              body: message.replyTo.body,
+            }
+          : null,
+      });
     },
   });
 

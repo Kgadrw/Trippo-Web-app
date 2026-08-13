@@ -102,11 +102,38 @@ export interface ProjectContributionGraph {
   days: ProjectContributionDay[];
 }
 
+export interface ProjectReminderItem {
+  id: string;
+  type: "overdue_task" | "due_soon_task" | "overdue_milestone";
+  title: string;
+  dueDate?: string | null;
+  projectId?: string;
+  projectName?: string;
+  priority?: "low" | "medium" | "high";
+}
+
+export interface ProjectAchievementItem {
+  id: string;
+  type:
+    | "tasks_completed_week"
+    | "milestones_completed_week"
+    | "milestone_completed"
+    | "project_completed";
+  title: string;
+  count?: number;
+  projectId?: string;
+  projectName?: string;
+  completedAt?: string | null;
+}
+
 export interface ProjectsSummary {
   totalProjects: number;
   byStatus: Record<ProjectStatus, number>;
   overdueMilestones: number;
   openTasks: number;
+  taskStatus?: { todo: number; in_progress: number; done: number };
+  reminders?: ProjectReminderItem[];
+  achievements?: ProjectAchievementItem[];
   tasksCompletedWeekly: WeeklyVelocityPoint[];
   hoursLoggedWeekly: WeeklyVelocityPoint[];
   workQueue?: ProjectWorkQueueItem[];
@@ -118,6 +145,7 @@ export interface ProjectProfilePayload {
   project: ProjectRecord;
   milestones: ProjectMilestoneRecord[];
   tasks: ProjectTaskRecord[];
+  teamTasks?: import("@/lib/api").TeamTaskRecord[];
   members: ProjectMemberRecord[];
   timeEntries: TimeEntryRecord[];
   progress: {
@@ -128,6 +156,7 @@ export interface ProjectProfilePayload {
     totalMilestones: number;
     doneMilestones: number;
     totalHoursLogged: number;
+    taskStatus?: { todo: number; in_progress: number; done: number };
   };
   velocity: {
     tasksCompletedWeekly: WeeklyVelocityPoint[];
@@ -186,6 +215,30 @@ export function milestoneStatusLabel(status: string, t: (key: string) => string)
     completed: t("projectMilestoneCompleted"),
   };
   return map[status] || status;
+}
+
+export function milestoneStatusClass(status: string) {
+  switch (status) {
+    case "in_progress":
+      return "bg-sky-100 text-sky-800";
+    case "completed":
+      return "bg-emerald-100 text-emerald-800";
+    case "pending":
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+export function milestoneColumnAccent(status: string) {
+  switch (status) {
+    case "in_progress":
+      return "#e0f2fe";
+    case "completed":
+      return "#d1fae5";
+    case "pending":
+    default:
+      return "#f1f5f9";
+  }
 }
 
 export function formatWeekLabel(weekStart: string) {

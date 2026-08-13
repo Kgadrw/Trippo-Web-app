@@ -33,6 +33,14 @@ export interface WorkspaceChatMention {
   userName: string;
 }
 
+export interface WorkspaceChatReplyTo {
+  messageId: string;
+  senderUserId?: string | null;
+  senderName?: string;
+  body?: string;
+  deletedAt?: string | null;
+}
+
 export interface WorkspaceChatMessage {
   _id: string;
   workspaceId: string;
@@ -40,6 +48,7 @@ export interface WorkspaceChatMessage {
   senderName: string;
   senderProfilePictureUrl?: string | null;
   body: string;
+  replyTo?: WorkspaceChatReplyTo | null;
   mentionAll?: boolean;
   mentions?: WorkspaceChatMention[];
   createdAt: string;
@@ -57,12 +66,40 @@ export function mergeChatMessages(
   prev: WorkspaceChatMessage[],
   incoming: WorkspaceChatMessage,
 ): WorkspaceChatMessage[] {
-  const id = chatMessageId(incoming);
+  const incomingReply = incoming.replyTo?.messageId
+    ? {
+        messageId: String(incoming.replyTo.messageId),
+        senderUserId: incoming.replyTo.senderUserId
+          ? String(incoming.replyTo.senderUserId)
+          : null,
+        senderName: incoming.replyTo.senderName || "User",
+        body: incoming.replyTo.body || "",
+        deletedAt: incoming.replyTo.deletedAt || null,
+      }
+    : null;
+
+  const normalized: WorkspaceChatMessage = {
+    ...incoming,
+    _id: String(incoming._id),
+    workspaceId: String(incoming.workspaceId),
+    senderUserId: String(incoming.senderUserId),
+    replyTo: incomingReply,
+  };
+  const id = chatMessageId(normalized);
   const index = prev.findIndex((row) => chatMessageId(row) === id);
   if (index === -1) {
-    return [...prev, incoming];
+    return [...prev, normalized];
   }
+  const existing = prev[index];
   const next = [...prev];
-  next[index] = { ...next[index], ...incoming };
+  next[index] = {
+    ...existing,
+    ...normalized,
+    replyTo: normalized.replyTo?.messageId
+      ? normalized.replyTo
+      : existing.replyTo?.messageId
+        ? existing.replyTo
+        : normalized.replyTo || null,
+  };
   return next;
 }

@@ -5,10 +5,12 @@ import { MobileTopBar } from "./MobileTopBar";
 import { DesktopHeader } from "./DesktopHeader";
 import { MobileFixedBackground } from "./MobileFixedBackground";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import { useVisualViewportFrame } from "@/hooks/useVisualViewportFrame";
 import { cn } from "@/lib/utils";
 import { LowStockAlertDock } from "@/components/dashboard/LowStockAlert";
 import { WorkspacePageGuard } from "@/components/workspace/WorkspacePageGuard";
 import { WorkspaceChatNotificationBridge } from "@/components/workspace/WorkspaceChatNotificationBridge";
+import { ChatIncomingPopupHost } from "@/components/workspace/ChatIncomingPopupHost";
 import { WorkspaceChatPanelProvider } from "@/hooks/useWorkspaceChatPanel";
 import { WorkspacePresenceProvider } from "@/hooks/useWorkspacePresence";
 
@@ -31,6 +33,9 @@ function AppLayoutInner(_props?: AppLayoutProps) {
   const { loading: subLoading, isLocked } = useSubscriptionAccess();
   const isBillingRoute = location.pathname.startsWith("/billing");
   const isMessagesRoute = location.pathname.startsWith("/messages");
+  const [isMobile, setIsMobile] = useState(false);
+  const mobileMessagesShell = isMobile && isMessagesRoute;
+  const viewport = useVisualViewportFrame(mobileMessagesShell);
 
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem("profit-pilot-sidebar-collapsed");
@@ -39,7 +44,6 @@ function AppLayoutInner(_props?: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [mobileTopHeight, setMobileTopHeight] = useState(64);
   const [desktopTopHeight, setDesktopTopHeight] = useState(56);
 
@@ -131,15 +135,30 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     }
   };
 
+  const messagesContentHeight = Math.max(
+    0,
+    viewport.height - mobileTopHeight,
+  );
+
   return (
     <div
-      className="relative min-h-screen w-full bg-white"
-      style={{ minHeight: "100vh" }}
+      className={cn(
+        "relative w-full bg-white",
+        mobileMessagesShell || isMessagesRoute
+          ? "h-[100dvh] overflow-hidden"
+          : "min-h-screen",
+      )}
+      style={
+        mobileMessagesShell || isMessagesRoute
+          ? undefined
+          : { minHeight: "100vh" }
+      }
     >
       <MobileFixedBackground />
       <MobileTopBar
         onMenuOpen={() => setMobileMenuOpen(true)}
         onHeightChange={setMobileTopHeight}
+        topOffset={mobileMessagesShell ? viewport.offsetTop : 0}
       />
 
       {/* Desktop header */}
@@ -167,6 +186,7 @@ function AppLayoutInner(_props?: AppLayoutProps) {
                 sidebarOpen ? "lg:ml-52" : "lg:ml-0",
                 isMessagesRoute && "overflow-hidden pb-0",
               ),
+          mobileMessagesShell && "fixed left-0 right-0 overflow-hidden",
         )}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -174,20 +194,42 @@ function AppLayoutInner(_props?: AppLayoutProps) {
         style={{
           touchAction: "pan-y",
           ["--app-header-height" as string]: `${isMobile ? mobileTopHeight : desktopTopHeight}px`,
-          ...(isMobile
-            ? isMessagesRoute
-              ? {
-                  paddingTop: mobileTopHeight,
-                  height: `calc(100dvh - ${mobileTopHeight}px)`,
-                  paddingBottom: 0,
-                }
-              : { paddingTop: mobileTopHeight }
-            : isMessagesRoute
-              ? {
-                  paddingTop: desktopTopHeight,
-                  height: `calc(100dvh - ${desktopTopHeight}px)`,
-                }
-              : { paddingTop: desktopTopHeight }),
+          ["--keyboard-open" as string]: viewport.keyboardOpen ? "1" : "0",
+          ...(mobileMessagesShell
+            ? {
+                top: viewport.offsetTop + mobileTopHeight,
+                // Pin to the screen bottom when the keyboard is closed so the
+                // chat list/sidebar has no gap; shrink only while typing.
+                ...(viewport.keyboardOpen
+                  ? {
+                      height: messagesContentHeight,
+                      bottom: "auto" as const,
+                    }
+                  : {
+                      bottom: 0,
+                      height: "auto" as const,
+                    }),
+                paddingTop: 0,
+                paddingBottom: 0,
+              }
+            : isMobile
+              ? isMessagesRoute
+                ? {
+                    // border-box height includes paddingTop — use full 100dvh so
+                    // the chat list reaches the viewport bottom (no white strip).
+                    paddingTop: mobileTopHeight,
+                    height: "100dvh",
+                    paddingBottom: 0,
+                  }
+                : { paddingTop: mobileTopHeight }
+              : isMessagesRoute
+                ? {
+                    paddingTop: desktopTopHeight,
+                    height: "100dvh",
+                    minHeight: "100dvh",
+                    paddingBottom: 0,
+                  }
+                : { paddingTop: desktopTopHeight }),
           ...(!isMobile &&
             !isMessagesRoute && {
               ["--content-left" as string]: sidebarOpen
@@ -198,14 +240,14 @@ function AppLayoutInner(_props?: AppLayoutProps) {
       >
         <main
           className={cn(
-            isMessagesRoute ? "h-full overflow-hidden p-0" : "p-4 pt-4 lg:p-6 lg:pt-4",
+            isMessagesRoute ? "flex h-full min-h-0 flex-col overflow-hidden p-0" : "p-4 pt-4 lg:p-6 lg:pt-4",
           )}
         >
           {!subLoading && isLocked && !isBillingRoute ? (
             <Navigate to="/billing" replace />
           ) : null}
           <WorkspacePageGuard>
-            <div className={cn(isMessagesRoute && "h-full")}>
+            <div className={cn(isMessagesRoute && "flex h-full min-h-0 flex-1 flex-col")}>
               <Outlet />
             </div>
           </WorkspacePageGuard>
@@ -214,6 +256,7 @@ function AppLayoutInner(_props?: AppLayoutProps) {
 
       <LowStockAlertDock />
       <WorkspaceChatNotificationBridge />
+      <ChatIncomingPopupHost />
     </div>
   );
 }

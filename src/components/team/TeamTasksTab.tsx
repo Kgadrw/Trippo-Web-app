@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  projectApi,
   teamMemberApi,
   teamTaskApi,
+  type ProjectRecord,
   type TeamMemberRecord,
   type TeamTaskRecord,
 } from "@/lib/api";
@@ -26,7 +28,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -41,14 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Loader2, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
-import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
 import { cn } from "@/lib/utils";
 import { websocketManager } from "@/lib/websocketManager";
@@ -59,6 +53,12 @@ import {
   taskMatchesListFilters,
   TEAM_TASK_EVENTS,
 } from "@/lib/teamTaskRealtime";
+import {
+  TeamTaskKanbanBoard,
+  canCurrentUserChangeTaskStatus,
+  teamTaskStatusLabel,
+  type TeamTaskSection,
+} from "@/components/team/TeamTaskBoard";
 
 interface TeamTasksTabProps {
   department?: TeamDepartment;
@@ -82,11 +82,10 @@ function initialCreateRows(count = 3): CreateTaskRow[] {
   return Array.from({ length: count }, () => newCreateTaskRow());
 }
 
-function assigneeName(task: TeamTaskRecord) {
-  if (typeof task.assigneeId === "object" && task.assigneeId?.name) {
-    return task.assigneeId.name;
-  }
-  return "";
+function linkedProjectIdValue(task: TeamTaskRecord | null | undefined) {
+  if (!task?.projectId) return "";
+  if (typeof task.projectId === "object") return String(task.projectId._id || "");
+  return String(task.projectId);
 }
 
 function resolveAssigneeProfilePicture(
@@ -109,226 +108,8 @@ function resolveAssigneeProfilePicture(
   return undefined;
 }
 
-function statusLabel(
-  status: string,
-  t: (key: string) => string,
-) {
-  return t(
-    `teamStatus${status === "in_progress" ? "InProgress" : status.charAt(0).toUpperCase() + status.slice(1)}`,
-  );
-}
-
-const TASK_SECTION_ORDER = ["todo", "in_progress", "done"] as const;
-
-const ASSIGNEE_BORDER_COLORS = [
-  "#bae6fd",
-  "#a7f3d0",
-  "#fde68a",
-  "#ddd6fe",
-  "#fbcfe8",
-  "#99f6e4",
-  "#fed7aa",
-  "#c7d2fe",
-  "#d9f99d",
-  "#a5f3fc",
-  "#fecdd3",
-  "#e9d5ff",
-] as const;
-
-function hashString(input: string) {
-  let hash = 0;
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function assigneeKey(task: TeamTaskRecord) {
-  if (typeof task.assigneeId === "object" && task.assigneeId?._id) {
-    return String(task.assigneeId._id);
-  }
-  if (typeof task.assigneeId === "string") {
-    return task.assigneeId;
-  }
-  return assigneeName(task) || "unknown";
-}
-
-function canCurrentUserChangeTaskStatus(
-  task: TeamTaskRecord,
-  currentTeamMemberId: string | null,
-) {
-  if (!currentTeamMemberId) return false;
-  return assigneeKey(task) === currentTeamMemberId;
-}
-
-function getAssigneeCardColor(key: string) {
-  return ASSIGNEE_BORDER_COLORS[hashString(key) % ASSIGNEE_BORDER_COLORS.length];
-}
-
-function formatDate(value?: string) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString();
-}
-
-function TaskBoardCard({
-  task,
-  t,
-  assigneeProfilePictureUrl,
-  canChangeStatus,
-  onComplete,
-  onStatusChange,
-  onEdit,
-  onDelete,
-  deletingId,
-}: {
-  task: TeamTaskRecord;
-  t: (key: string) => string;
-  assigneeProfilePictureUrl?: string;
-  canChangeStatus: boolean;
-  onComplete: (task: TeamTaskRecord) => void;
-  onStatusChange: (task: TeamTaskRecord, status: string) => void;
-  onEdit: (task: TeamTaskRecord) => void;
-  onDelete: (task: TeamTaskRecord) => void;
-  deletingId: string | null;
-}) {
-  const isDone = task.status === "done";
-  const id = taskId(task);
-  const currentStatus = task.status || "todo";
-  const name = assigneeName(task);
-  const cardColor = getAssigneeCardColor(assigneeKey(task));
-
-  return (
-    <li
-      className="rounded border p-3"
-      style={{ borderColor: cardColor, backgroundColor: cardColor }}
-    >
-      <div className="flex gap-2">
-        <Checkbox
-          checked={isDone}
-          disabled={isDone || !canChangeStatus}
-          className="mt-0.5 shrink-0"
-          onCheckedChange={() => {
-            if (!isDone && canChangeStatus) onComplete(task);
-          }}
-          aria-label={t("teamMarkComplete")}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-1">
-            <p className={cn("text-sm font-medium text-gray-900", isDone && "line-through text-gray-500")}>
-              {task.title}
-            </p>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                  <MoreVertical size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {canChangeStatus
-                  ? TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
-                      <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
-                        {statusLabel(s, t)}
-                      </DropdownMenuItem>
-                    ))
-                  : null}
-                <DropdownMenuItem onClick={() => onEdit(task)}>
-                  <Pencil size={14} className="mr-2" />
-                  {t("edit")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-red-600"
-                  disabled={deletingId === id}
-                  onClick={() => onDelete(task)}
-                >
-                  <Trash2 size={14} className="mr-2" />
-                  {t("delete")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          {task.description ? (
-            <p className={cn("mt-1 text-xs text-gray-500", isDone && "line-through")}>{task.description}</p>
-          ) : null}
-          {task.completionNote ? (
-            <p className="mt-1 text-xs text-emerald-700">{task.completionNote}</p>
-          ) : null}
-          <div className="mt-2 space-y-1 text-xs text-gray-500">
-            {name ? (
-              <div className="flex items-center gap-2">
-                <UserProfileAvatar
-                  name={name}
-                  profilePictureUrl={assigneeProfilePictureUrl}
-                  className="h-6 w-6 border border-gray-200"
-                  fallbackClassName="bg-sky-100 text-[9px] font-semibold text-sky-700"
-                />
-                <p className="truncate font-medium text-gray-700">{name}</p>
-              </div>
-            ) : null}
-            {task.dueDate ? <p>{t("teamDueDate")}: {formatDate(task.dueDate)}</p> : null}
-            <p className="capitalize">{task.priority || "medium"}</p>
-          </div>
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function TaskBoardColumn({
-  statusKey,
-  tasks,
-  t,
-  resolveAssigneeAvatar,
-  currentTeamMemberId,
-  onComplete,
-  onStatusChange,
-  onEdit,
-  onDelete,
-  deletingId,
-}: {
-  statusKey: (typeof TASK_SECTION_ORDER)[number];
-  tasks: TeamTaskRecord[];
-  t: (key: string) => string;
-  resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
-  currentTeamMemberId: string | null;
-  onComplete: (task: TeamTaskRecord) => void;
-  onStatusChange: (task: TeamTaskRecord, status: string) => void;
-  onEdit: (task: TeamTaskRecord) => void;
-  onDelete: (task: TeamTaskRecord) => void;
-  deletingId: string | null;
-}) {
-  return (
-    <div className="flex min-h-[280px] min-w-0 flex-col border-r border-gray-200 last:border-r-0">
-      <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2.5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
-          {statusLabel(statusKey, t)}
-        </h3>
-        <span className="text-xs tabular-nums text-gray-500">{tasks.length}</span>
-      </div>
-      <ul className="flex flex-1 flex-col gap-2 p-2">
-        {tasks.length === 0 ? (
-          <li className="flex flex-1 items-center justify-center px-2 py-8 text-center text-xs text-gray-400">
-            —
-          </li>
-        ) : (
-          tasks.map((task) => (
-            <TaskBoardCard
-              key={task._id}
-              task={task}
-              t={t}
-              assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
-              canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
-              onComplete={onComplete}
-              onStatusChange={onStatusChange}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              deletingId={deletingId}
-            />
-          ))
-        )}
-      </ul>
-    </div>
-  );
+function statusLabel(status: string, t: (key: string) => string) {
+  return teamTaskStatusLabel(status, t);
 }
 
 export function TeamTasksTab({ department }: TeamTasksTabProps) {
@@ -365,6 +146,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [tasks, setTasks] = useState<TeamTaskRecord[]>([]);
   const [members, setMembers] = useState<TeamMemberRecord[]>([]);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [open, setOpen] = useState(false);
@@ -382,6 +164,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [priority, setPriority] = useState<(typeof TEAM_PRIORITIES)[number]>("medium");
   const [dueDate, setDueDate] = useState("");
   const [taskMonthKey, setTaskMonthKey] = useState(getMonthKey());
+  const [linkedProjectId, setLinkedProjectId] = useState("");
   const [completionNote, setCompletionNote] = useState("");
   const [createRows, setCreateRows] = useState<CreateTaskRow[]>(() => initialCreateRows());
 
@@ -425,6 +208,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       toast({ title: t("teamLoadFailed"), variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+
+    try {
+      const projectsRes = await projectApi.getAll();
+      setProjects((projectsRes.data as ProjectRecord[]) || []);
+    } catch {
+      setProjects([]);
     }
   }, [monthKey, department, statusFilter, assigneeFilter, toast, t]);
 
@@ -486,22 +276,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     [tasks, pageSearchQuery],
   );
 
-  const tasksBySection = useMemo(() => {
-    const groups: Record<(typeof TASK_SECTION_ORDER)[number], TeamTaskRecord[]> = {
-      todo: [],
-      in_progress: [],
-      done: [],
-    };
-    for (const task of visibleTasks) {
-      const key = (task.status || "todo") as (typeof TASK_SECTION_ORDER)[number];
-      if (groups[key]) {
-        groups[key].push(task);
-      }
-    }
-    return groups;
-  }, [visibleTasks]);
-
-  const hasVisibleTasks = TASK_SECTION_ORDER.some((key) => tasksBySection[key].length > 0);
+  const hasVisibleTasks = visibleTasks.length > 0;
 
   const resetForm = () => {
     setTitle("");
@@ -512,6 +287,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setPriority("medium");
     setDueDate("");
     setTaskMonthKey(monthKey);
+    setLinkedProjectId("");
     setEditing(null);
     setCreateRows(initialCreateRows());
   };
@@ -533,6 +309,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setPriority(task.priority || "medium");
     setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
     setTaskMonthKey(task.monthKey || monthKey);
+    setLinkedProjectId(linkedProjectIdValue(task));
     setOpen(true);
   };
 
@@ -569,6 +346,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           priority,
           dueDate: dueDate || undefined,
           monthKey: taskMonthKey,
+          projectId: linkedProjectId || null,
         };
         if (canEditStatus) {
           payload.status = status;
@@ -608,6 +386,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         priority,
         dueDate: dueDate || undefined,
         monthKey: taskMonthKey,
+        projectId: linkedProjectId || null,
       };
 
       const created = await Promise.all(
@@ -701,6 +480,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     }
   };
 
+  const handleDropTask = (droppedId: string, nextStatus: TeamTaskSection) => {
+    const task = tasks.find((row) => taskId(row) === droppedId);
+    if (!task) return;
+    if ((task.status || "todo") === nextStatus) return;
+    void handleStatusChange(task, nextStatus);
+  };
+
   const handleDelete = async (task: TeamTaskRecord) => {
     const id = taskId(task);
     setTasks((prev) => prev.filter((t) => taskId(t) !== id));
@@ -784,25 +570,19 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           {tasks.length === 0 ? t("teamNoTasks") : "No matching tasks."}
         </p>
       ) : (
-        <div className="overflow-x-auto border border-gray-200">
-          <div className="grid min-w-[720px] grid-cols-3">
-            {TASK_SECTION_ORDER.map((statusKey) => (
-              <TaskBoardColumn
-                key={statusKey}
-                statusKey={statusKey}
-                tasks={tasksBySection[statusKey]}
-                t={t}
-                resolveAssigneeAvatar={resolveAssigneeAvatar}
-                currentTeamMemberId={currentTeamMemberId}
-                onComplete={openComplete}
-                onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
-                onEdit={openEdit}
-                onDelete={(task) => void handleDelete(task)}
-                deletingId={deletingId}
-              />
-            ))}
-          </div>
-        </div>
+        <TeamTaskKanbanBoard
+          tasks={visibleTasks}
+          t={t}
+          currentTeamMemberId={currentTeamMemberId}
+          resolveAssigneeAvatar={resolveAssigneeAvatar}
+          onComplete={openComplete}
+          onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
+          onEdit={openEdit}
+          onDelete={(task) => void handleDelete(task)}
+          onDropTask={handleDropTask}
+          deletingId={deletingId}
+          emptyLabel={t("teamNoTasks")}
+        />
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -890,6 +670,26 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
                     />
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <Label>{t("teamLinkProject")}</Label>
+                    <Select
+                      value={linkedProjectId || "__none__"}
+                      onValueChange={(value) => setLinkedProjectId(value === "__none__" ? "" : value)}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder={t("teamLinkProjectOptional")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">{t("teamNoProjectLink")}</SelectItem>
+                        {projects.map((project) => (
+                          <SelectItem key={project._id} value={project._id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-gray-500">{t("teamLinkProjectHint")}</p>
                   </div>
                 </div>
 
@@ -1048,6 +848,26 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
               />
+            </div>
+            <div>
+              <Label>{t("teamLinkProject")}</Label>
+              <Select
+                value={linkedProjectId || "__none__"}
+                onValueChange={(value) => setLinkedProjectId(value === "__none__" ? "" : value)}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder={t("teamLinkProjectOptional")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t("teamNoProjectLink")}</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project._id} value={project._id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-gray-500">{t("teamLinkProjectHint")}</p>
             </div>
               </>
             )}

@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { projectApi } from "@/lib/api";
 import {
   contributionLevelClass,
   formatProjectTimeframe,
-  formatWeekLabel,
   projectStatusClass,
   projectStatusLabel,
+  taskStatusLabel,
+  type ProjectAchievementItem,
   type ProjectContributionDay,
+  type ProjectReminderItem,
   type ProjectsSummary,
 } from "@/lib/projectWorkflow";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -21,16 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bell, Loader2, Trophy } from "lucide-react";
+import { formatFinanceTableDate } from "@/components/finance/financeTable";
+import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { projectApi } from "@/lib/api";
 
 function buildContributionWeeks(days: ProjectContributionDay[]) {
   if (!days.length) return [] as ProjectContributionDay[][];
@@ -180,26 +174,12 @@ export function ProjectsOverviewTab() {
     void loadSummary(projectId);
   };
 
-  const tasksChartData = useMemo(
-    () =>
-      (summary?.tasksCompletedWeekly || []).map((row) => ({
-        label: formatWeekLabel(row.weekStart),
-        value: row.value,
-      })),
-    [summary],
-  );
-
-  const hoursChartData = useMemo(
-    () =>
-      (summary?.hoursLoggedWeekly || []).map((row) => ({
-        label: formatWeekLabel(row.weekStart),
-        value: row.value,
-      })),
-    [summary],
-  );
-
   const workQueue = summary?.workQueue || [];
   const contributionDays = summary?.contributionGraph?.days || [];
+  const reminders = summary?.reminders || [];
+  const achievements = summary?.achievements || [];
+  const taskStatus = summary?.taskStatus || { todo: 0, in_progress: 0, done: 0 };
+  const taskStatusTotal = taskStatus.todo + taskStatus.in_progress + taskStatus.done;
   const graphOptions = useMemo(() => {
     const fromApi = (summary?.projectOptions || []).map((row) => ({
       id: row._id,
@@ -209,6 +189,13 @@ export function ProjectsOverviewTab() {
     return workQueue.map((row) => ({ id: row._id, name: row.name }));
   }, [summary, workQueue]);
 
+  const selectedGraphProjectId = useMemo(() => {
+    if (graphOptions.some((option) => option.id === graphProjectId)) {
+      return graphProjectId;
+    }
+    return graphOptions[0]?.id || "";
+  }, [graphOptions, graphProjectId]);
+
   if (loading && !summary) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-500">
@@ -217,16 +204,6 @@ export function ProjectsOverviewTab() {
       </div>
     );
   }
-
-  const stats = summary || {
-    totalProjects: 0,
-    byStatus: { planning: 0, active: 0, on_hold: 0, completed: 0, cancelled: 0 },
-    overdueMilestones: 0,
-    openTasks: 0,
-    tasksCompletedWeekly: [],
-    hoursLoggedWeekly: [],
-    workQueue: [],
-  };
 
   return (
     <div className="space-y-5 p-4 lg:p-6">
@@ -242,28 +219,6 @@ export function ProjectsOverviewTab() {
           <Link to="/projects/all">{t("projectViewAll")}</Link>
         </Button>
       </div>
-
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("projectTotalProjects")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.totalProjects}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {stats.byStatus.active} {t("projectStatusActive").toLowerCase()}
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("projectOpenTasks")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.openTasks}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("projectOverdueMilestones")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.overdueMilestones}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("projectCompletedCount")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.byStatus.completed}</p>
-        </div>
-      </section>
 
       <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -315,6 +270,115 @@ export function ProjectsOverviewTab() {
         )}
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+          <h3 className="text-sm font-semibold text-gray-900">{t("projectTaskStatusTitle")}</h3>
+          <p className="text-xs text-gray-500">{t("projectTaskStatusSubtitle")}</p>
+          <div className="mt-4 space-y-3">
+            {(["todo", "in_progress", "done"] as const).map((status) => {
+              const count = taskStatus[status] || 0;
+              const pct = taskStatusTotal ? Math.round((count / taskStatusTotal) * 100) : 0;
+              return (
+                <div key={status}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-gray-600">{taskStatusLabel(status, t)}</span>
+                    <span className="font-medium text-gray-900">{count}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className={cn(
+                        "h-full rounded-full",
+                        status === "todo" && "bg-slate-400",
+                        status === "in_progress" && "bg-sky-500",
+                        status === "done" && "bg-emerald-500",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            {taskStatusTotal === 0 ? (
+              <p className="py-4 text-center text-sm text-gray-500">{t("projectTaskStatusEmpty")}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+          <div className="mb-1 flex items-center gap-2">
+            <Bell className="h-4 w-4 text-amber-600" />
+            <h3 className="text-sm font-semibold text-gray-900">{t("projectRemindersTitle")}</h3>
+          </div>
+          <p className="text-xs text-gray-500">{t("projectRemindersSubtitle")}</p>
+          {reminders.length === 0 ? (
+            <p className="mt-6 py-4 text-center text-sm text-gray-500">{t("projectRemindersEmpty")}</p>
+          ) : (
+            <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto">
+              {reminders.map((item: ProjectReminderItem) => (
+                <li key={item.id}>
+                  <Link
+                    to={item.projectId ? `/projects/${item.projectId}` : "/projects"}
+                    className="block rounded-md border border-gray-100 px-3 py-2 hover:border-amber-200 hover:bg-amber-50/50"
+                  >
+                    <p className="text-sm font-medium text-gray-900">{item.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.type === "overdue_task"
+                        ? t("projectReminderOverdueTask")
+                        : item.type === "due_soon_task"
+                          ? t("projectReminderDueSoonTask")
+                          : t("projectReminderOverdueMilestone")}
+                      {item.projectName ? ` · ${item.projectName}` : ""}
+                      {item.dueDate ? ` · ${formatFinanceTableDate(item.dueDate)}` : ""}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+          <div className="mb-1 flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-emerald-600" />
+            <h3 className="text-sm font-semibold text-gray-900">{t("projectAchievementsTitle")}</h3>
+          </div>
+          <p className="text-xs text-gray-500">{t("projectAchievementsSubtitle")}</p>
+          {achievements.length === 0 ? (
+            <p className="mt-6 py-4 text-center text-sm text-gray-500">{t("projectAchievementsEmpty")}</p>
+          ) : (
+            <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto">
+              {achievements.map((item: ProjectAchievementItem) => (
+                <li
+                  key={item.id}
+                  className="rounded-md border border-emerald-100 bg-emerald-50/40 px-3 py-2"
+                >
+                  <p className="text-sm font-medium text-gray-900">
+                    {item.type === "tasks_completed_week"
+                      ? t("projectAchievementTasksWeek").replace("{count}", String(item.count || 0))
+                      : item.type === "milestones_completed_week"
+                        ? t("projectAchievementMilestonesWeek").replace(
+                            "{count}",
+                            String(item.count || 0),
+                          )
+                        : item.type === "project_completed"
+                          ? t("projectAchievementProjectDone").replace(
+                              "{name}",
+                              item.title || item.projectName || "",
+                            )
+                          : t("projectAchievementMilestoneDone")
+                              .replace("{title}", item.title)
+                              .replace("{project}", item.projectName || "")}
+                  </p>
+                  {item.completedAt ? (
+                    <p className="text-xs text-gray-500">{formatFinanceTableDate(item.completedAt)}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
       <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -322,7 +386,7 @@ export function ProjectsOverviewTab() {
             <p className="text-xs text-gray-500">{t("projectContributionSubtitle")}</p>
           </div>
           {graphOptions.length > 0 ? (
-            <Select value={graphProjectId || graphOptions[0].id} onValueChange={onSelectGraphProject}>
+            <Select value={selectedGraphProjectId} onValueChange={onSelectGraphProject}>
               <SelectTrigger className="w-[220px] shadow-none">
                 <SelectValue placeholder={t("projectSelectProject")} />
               </SelectTrigger>
@@ -347,47 +411,6 @@ export function ProjectsOverviewTab() {
             emptyLabel={t("projectContributionEmpty")}
           />
         )}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
-          <h3 className="text-sm font-semibold text-gray-900">{t("projectVelocityTasks")}</h3>
-          <p className="text-xs text-gray-500">{t("projectVelocityTasksHint")}</p>
-          <div className="mt-4 h-56">
-            {tasksChartData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tasksChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-10 text-center text-sm text-gray-500">{t("projectNoVelocityData")}</p>
-            )}
-          </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
-          <h3 className="text-sm font-semibold text-gray-900">{t("projectVelocityHours")}</h3>
-          <p className="text-xs text-gray-500">{t("projectVelocityHoursHint")}</p>
-          <div className="mt-4 h-56">
-            {hoursChartData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={hoursChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-10 text-center text-sm text-gray-500">{t("projectNoVelocityData")}</p>
-            )}
-          </div>
-        </div>
       </section>
     </div>
   );

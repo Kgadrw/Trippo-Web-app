@@ -237,6 +237,13 @@ export function canAccessEndpointInWorkspace(
   endpoint: string,
 ): boolean {
   if (mode !== 'workspace') return true;
+  // Customer list is used by Sales (buyer picker) and Finance.
+  if (endpoint === 'clients') {
+    return (
+      canAccessPage(mode, role, permissions, 'finance') ||
+      canAccessPage(mode, role, permissions, 'sales')
+    );
+  }
   const pageKey = endpointToWorkspacePage(endpoint);
   if (!pageKey) return true;
   return canAccessPage(mode, role, permissions, pageKey);

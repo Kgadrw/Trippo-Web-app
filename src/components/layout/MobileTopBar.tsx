@@ -7,12 +7,15 @@ type MobileTopBarProps = {
   onMenuOpen: () => void;
   onHeightChange?: (height: number) => void;
   onNotificationClick?: () => void;
+  /** Keep bar inside the visual viewport when the mobile keyboard opens (messages). */
+  topOffset?: number;
 };
 
 export function MobileTopBar({
   onMenuOpen,
   onHeightChange,
   onNotificationClick,
+  topOffset = 0,
 }: MobileTopBarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +34,8 @@ export function MobileTopBar({
   return (
     <div
       ref={rootRef}
-      className="fixed top-0 left-0 right-0 z-50 flex flex-col border-b border-white/30 bg-white/45 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden"
+      className="fixed left-0 right-0 z-50 flex flex-col border-b border-white/30 bg-white/45 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 lg:hidden"
+      style={{ top: topOffset }}
     >
       <HeaderPlanBanner />
       <MobileHeader onMenuOpen={onMenuOpen} onNotificationClick={onNotificationClick} />

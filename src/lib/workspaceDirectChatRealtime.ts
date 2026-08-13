@@ -26,6 +26,14 @@ export interface DirectChatAttachment {
   size?: number;
 }
 
+export interface DirectChatReplyTo {
+  messageId: string;
+  senderUserId?: string | null;
+  senderName?: string;
+  body?: string;
+  deletedAt?: string | null;
+}
+
 export interface DirectChatMessage {
   _id: string;
   conversationId: string;
@@ -34,6 +42,7 @@ export interface DirectChatMessage {
   senderName: string;
   senderProfilePictureUrl?: string | null;
   body: string;
+  replyTo?: DirectChatReplyTo | null;
   attachments?: DirectChatAttachment[];
   createdAt: string;
   editedAt?: string | null;
@@ -75,12 +84,42 @@ export function mergeDirectMessages(
   prev: DirectChatMessage[],
   incoming: DirectChatMessage,
 ): DirectChatMessage[] {
-  const id = directMessageId(incoming);
+  const incomingReply = incoming.replyTo?.messageId
+    ? {
+        messageId: String(incoming.replyTo.messageId),
+        senderUserId: incoming.replyTo.senderUserId
+          ? String(incoming.replyTo.senderUserId)
+          : null,
+        senderName: incoming.replyTo.senderName || "User",
+        body: incoming.replyTo.body || "",
+        deletedAt: incoming.replyTo.deletedAt || null,
+      }
+    : null;
+
+  const normalized: DirectChatMessage = {
+    ...incoming,
+    _id: String(incoming._id),
+    conversationId: String(incoming.conversationId),
+    workspaceId: String(incoming.workspaceId),
+    senderUserId: String(incoming.senderUserId),
+    replyTo: incomingReply,
+  };
+  const id = directMessageId(normalized);
   const index = prev.findIndex((row) => directMessageId(row) === id);
   if (index === -1) {
-    return [...prev, incoming];
+    return [...prev, normalized];
   }
+  const existing = prev[index];
   const next = [...prev];
-  next[index] = { ...next[index], ...incoming };
+  next[index] = {
+    ...existing,
+    ...normalized,
+    // Never drop an existing quote if the incoming payload omitted it.
+    replyTo: normalized.replyTo?.messageId
+      ? normalized.replyTo
+      : existing.replyTo?.messageId
+        ? existing.replyTo
+        : normalized.replyTo || null,
+  };
   return next;
 }

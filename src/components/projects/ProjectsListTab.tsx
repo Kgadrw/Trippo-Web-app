@@ -100,9 +100,14 @@ export function ProjectsListTab() {
   }, [loadProjects]);
 
   useEffect(() => {
-    void teamMemberApi.getAll({ status: "active" }).then((res) => {
-      setTeamMembers((res.data as TeamMemberRecord[]) || []);
-    });
+    void (async () => {
+      try {
+        const res = await teamMemberApi.getAll({ status: "active" });
+        setTeamMembers((res.data as TeamMemberRecord[]) || []);
+      } catch {
+        setTeamMembers([]);
+      }
+    })();
   }, []);
 
   const filtered = useMemo(

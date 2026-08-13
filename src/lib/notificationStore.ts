@@ -6,7 +6,7 @@ import { notificationApi } from './api';
 export interface StoredNotification {
   id: string;
   _id?: string; // MongoDB id from backend
-  type: 'new_user' | 'low_stock' | 'schedule' | 'new_sale' | 'new_product' | 'general' | 'workspace_invite' | 'workspace_message' | 'task_completed' | 'task_assigned';
+  type: 'new_user' | 'low_stock' | 'schedule' | 'new_sale' | 'new_product' | 'general' | 'workspace_invite' | 'workspace_message' | 'task_completed' | 'task_assigned' | 'leave_request';
   title: string;
   body: string;
   icon?: string;

@@ -20,6 +20,10 @@ import { clearAppSession, logoutAndGoHome } from "@/lib/session";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import type { WorkspacePageKey } from "@/lib/workspace";
 import { workspaceApi } from "@/lib/api";
+import {
+  MESSAGES_UNREAD_BUMP_EVENT,
+  MESSAGES_UNREAD_REFRESH_EVENT,
+} from "@/lib/messagesUnreadEvents";
 
 type SidebarMenuItem = {
   label: string;
@@ -183,15 +187,26 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
 
     const onFocus = () => void refreshMessagesUnread();
     const onNotifications = () => void refreshMessagesUnread();
+    const onBump = (event: Event) => {
+      const delta = Number((event as CustomEvent<{ delta?: number }>).detail?.delta || 0);
+      if (!delta) return;
+      setMessagesUnread((count) => Math.max(0, count + delta));
+    };
+    const onUnreadRefresh = () => void refreshMessagesUnread();
+
     window.addEventListener("focus", onFocus);
     window.addEventListener("notifications-updated", onNotifications);
     window.addEventListener("notifications-should-refresh", onNotifications);
+    window.addEventListener(MESSAGES_UNREAD_BUMP_EVENT, onBump);
+    window.addEventListener(MESSAGES_UNREAD_REFRESH_EVENT, onUnreadRefresh);
 
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("notifications-updated", onNotifications);
       window.removeEventListener("notifications-should-refresh", onNotifications);
+      window.removeEventListener(MESSAGES_UNREAD_BUMP_EVENT, onBump);
+      window.removeEventListener(MESSAGES_UNREAD_REFRESH_EVENT, onUnreadRefresh);
     };
   }, [mode, activeWorkspace?.id, refreshMessagesUnread, location.pathname]);
 
@@ -383,7 +398,7 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
           )}
           style={{
             top: desktopHeaderHeight,
-            height: `calc(100vh - ${desktopHeaderHeight}px)`,
+            bottom: 0,
           }}
         >
           {navContent}

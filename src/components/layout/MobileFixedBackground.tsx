@@ -1,5 +1,5 @@
 /**
- * Full-viewport fixed background — solid white on mobile and desktop app shell.
+ * Full-viewport fixed background — solid white on mobile app shell.
  */
 export function MobileFixedBackground() {
   return (

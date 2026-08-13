@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   MoreVertical,
   Pencil,
+  Reply,
   Trash2,
 } from "lucide-react";
 import { workspaceApi } from "@/lib/api";
@@ -27,6 +28,14 @@ import { useToast } from "@/hooks/use-toast";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { WorkspaceProfileAvatar } from "@/components/workspace/WorkspaceProfileAvatar";
 import {
+  ChatReplyComposerBar,
+  ChatReplyQuote,
+  normalizeReplyTo,
+  scrollChatToMessage,
+  type ChatReplyTo,
+} from "@/components/workspace/ChatReplyQuote";
+import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatEmojiPicker";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -35,6 +44,7 @@ import {
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import {
   mergeChatMessages,
   WORKSPACE_CHAT_TYPING_EVENT,
@@ -357,6 +367,7 @@ export function WorkspaceGroupChatPane({
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<ChatReplyTo | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<WorkspaceChatMessage | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [mentionMenu, setMentionMenu] = useState<{
@@ -451,6 +462,18 @@ export function WorkspaceGroupChatPane({
     setShowScrollDown(false);
   }, []);
 
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [active, workspaceId]);
+
   const handleListScroll = useCallback(() => {
     const el = listRef.current;
     if (!el) return;
@@ -520,13 +543,15 @@ export function WorkspaceGroupChatPane({
             return next;
           });
         }
+        clearUnread();
+        refreshMessagesUnreadBadge();
       } catch {
         pending.forEach((id) => markedReadIdsRef.current.delete(id));
       } finally {
         markingReadRef.current = false;
       }
     },
-    [workspaceId],
+    [workspaceId, clearUnread],
   );
 
   useEffect(() => {
@@ -687,6 +712,7 @@ export function WorkspaceGroupChatPane({
           setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
         }
         setEditingMessageId(null);
+        setReplyTo(null);
         setText("");
         setMentionMenu(null);
       } catch {
@@ -699,6 +725,7 @@ export function WorkspaceGroupChatPane({
 
     const { mentionAll, mentions } = buildMentionsFromBody(trimmed, mentionMembers);
     const optimisticId = `pending-${Date.now()}`;
+    const optimisticReply = replyTo;
     const optimisticMessage: WorkspaceChatMessage = {
       _id: optimisticId,
       workspaceId,
@@ -706,6 +733,7 @@ export function WorkspaceGroupChatPane({
       senderName: currentUser?.name || "You",
       senderProfilePictureUrl: currentUser?.profilePictureUrl || null,
       body: trimmed,
+      replyTo: optimisticReply,
       mentionAll,
       mentions,
       createdAt: new Date().toISOString(),
@@ -716,6 +744,7 @@ export function WorkspaceGroupChatPane({
     setMessages((prev) => [...prev, optimisticMessage]);
     pendingSendIdsRef.current.add(optimisticId);
     setText("");
+    setReplyTo(null);
     setMentionMenu(null);
     requestAnimationFrame(() => scrollToBottom("smooth"));
 
@@ -724,13 +753,19 @@ export function WorkspaceGroupChatPane({
       const res = await workspaceApi.sendMessage(workspaceId, trimmed, {
         mentionAll,
         mentions,
+        replyToMessageId: optimisticReply?.messageId || null,
+        replyTo: optimisticReply,
       });
       const message = res.data as WorkspaceChatMessage;
       if (message) {
         pendingSendIdsRef.current.delete(optimisticId);
+        const withReply: WorkspaceChatMessage = {
+          ...message,
+          replyTo: message.replyTo?.messageId ? message.replyTo : optimisticReply,
+        };
         setMessages((prev) => {
           const withoutPending = prev.filter((row) => String(row._id) !== optimisticId);
-          return mergeChatMessages(withoutPending, enrichMessageProfiles(message));
+          return mergeChatMessages(withoutPending, enrichMessageProfiles(withReply));
         });
         requestAnimationFrame(() => scrollToBottom("smooth"));
       }
@@ -738,6 +773,7 @@ export function WorkspaceGroupChatPane({
       pendingSendIdsRef.current.delete(optimisticId);
       setMessages((prev) => prev.filter((row) => String(row._id) !== optimisticId));
       setText(trimmed);
+      if (optimisticReply) setReplyTo(optimisticReply);
       toast({ title: t("workspaceChatSendFailed"), variant: "destructive" });
     } finally {
       setSending(false);
@@ -746,9 +782,18 @@ export function WorkspaceGroupChatPane({
   };
 
   const startEdit = (message: WorkspaceChatMessage) => {
+    setReplyTo(null);
     setEditingMessageId(String(message._id));
     setText(message.body || "");
     setMentionMenu(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const startReply = (message: WorkspaceChatMessage) => {
+    if (isMessageDeleted(message)) return;
+    setEditingMessageId(null);
+    setMentionMenu(null);
+    setReplyTo(normalizeReplyTo(message));
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
@@ -757,6 +802,14 @@ export function WorkspaceGroupChatPane({
     setText("");
     setMentionMenu(null);
   };
+
+  const cancelReply = () => {
+    setReplyTo(null);
+  };
+
+  const jumpToMessage = useCallback((messageId: string) => {
+    scrollChatToMessage(listRef.current, messageId);
+  }, []);
 
   const confirmDeleteMessage = async () => {
     if (!messageToDelete || !workspaceId || deletingMessageId) return;
@@ -772,6 +825,9 @@ export function WorkspaceGroupChatPane({
       if (editingMessageId === messageId) {
         setEditingMessageId(null);
         setText("");
+      }
+      if (replyTo?.messageId === messageId) {
+        setReplyTo(null);
       }
       setMessageToDelete(null);
     } catch {
@@ -837,7 +893,12 @@ export function WorkspaceGroupChatPane({
 
   return (
     <>
-    <div className={cn("flex h-full min-h-0 flex-col bg-white", className)}>
+    <div
+      className={cn(
+        "relative flex h-full min-h-0 flex-col bg-white",
+        className,
+      )}
+    >
           {/* Header */}
           <div className={cn("shrink-0", variant === "panel" ? "p-3" : "border-b border-sky-100 px-4 py-3")}>
             <div
@@ -913,7 +974,10 @@ export function WorkspaceGroupChatPane({
               <div
                 ref={listRef}
                 onScroll={handleListScroll}
-                className="relative z-10 h-full min-h-0 overflow-y-auto px-4 py-5 scroll-smooth"
+                className={cn(
+                  "relative z-10 h-full min-h-0 overflow-y-auto px-4 pt-5 scroll-smooth",
+                  variant === "page" ? "pb-32" : "pb-5",
+                )}
               >
               {loading && messages.length === 0 ? (
                 <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 text-gray-500">
@@ -961,7 +1025,11 @@ export function WorkspaceGroupChatPane({
                     );
 
                     return (
-                      <div key={message._id}>
+                      <div
+                        key={message._id}
+                        data-chat-message-id={String(message._id)}
+                        className="rounded-xl transition-shadow"
+                      >
                         {showDate ? (
                           <div className="my-4 flex justify-center">
                             <span className="text-[11px] font-medium text-gray-400">
@@ -1005,32 +1073,38 @@ export function WorkspaceGroupChatPane({
                             ) : null}
 
                             <div className={cn("flex items-end gap-1", own && "flex-row-reverse")}>
-                              {own && canModify ? (
+                              {!deleted ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button
                                       type="button"
                                       className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 opacity-70 transition-opacity hover:bg-gray-100 hover:text-gray-600 hover:opacity-100"
-                                      aria-label={t("directChatEdit")}
+                                      aria-label={t("chatReply")}
                                     >
                                       <MoreVertical size={16} />
                                     </button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    {canEdit ? (
+                                  <DropdownMenuContent align={own ? "end" : "start"}>
+                                    <DropdownMenuItem onClick={() => startReply(message)}>
+                                      <Reply size={14} className="mr-2" />
+                                      {t("chatReply")}
+                                    </DropdownMenuItem>
+                                    {own && canEdit ? (
                                       <DropdownMenuItem onClick={() => startEdit(message)}>
                                         <Pencil size={14} className="mr-2" />
                                         {t("directChatEdit")}
                                       </DropdownMenuItem>
                                     ) : null}
-                                    <DropdownMenuItem
-                                      className="text-red-600"
-                                      disabled={deletingMessageId === String(message._id)}
-                                      onClick={() => setMessageToDelete(message)}
-                                    >
-                                      <Trash2 size={14} className="mr-2" />
-                                      {t("directChatDelete")}
-                                    </DropdownMenuItem>
+                                    {own && canModify ? (
+                                      <DropdownMenuItem
+                                        className="text-red-600"
+                                        disabled={deletingMessageId === String(message._id)}
+                                        onClick={() => setMessageToDelete(message)}
+                                      >
+                                        <Trash2 size={14} className="mr-2" />
+                                        {t("directChatDelete")}
+                                      </DropdownMenuItem>
+                                    ) : null}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               ) : null}
@@ -1048,6 +1122,20 @@ export function WorkspaceGroupChatPane({
                                 )}
                                 style={own && !deleted ? { backgroundColor: CHAT_PURPLE } : undefined}
                               >
+                                {!deleted && message.replyTo?.messageId ? (
+                                  <ChatReplyQuote
+                                    replyTo={{
+                                      messageId: String(message.replyTo.messageId),
+                                      senderUserId: message.replyTo.senderUserId,
+                                      senderName: message.replyTo.senderName,
+                                      body: message.replyTo.body,
+                                      deletedAt: message.replyTo.deletedAt,
+                                    }}
+                                    own={own}
+                                    deletedLabel={t("directChatMessageDeleted")}
+                                    onJump={jumpToMessage}
+                                  />
+                                ) : null}
                                 {deleted ? (
                                   <p className="italic">{t("directChatMessageDeleted")}</p>
                                 ) : (
@@ -1121,10 +1209,12 @@ export function WorkspaceGroupChatPane({
             {/* Composer */}
             <div
               className={cn(
-                "relative shrink-0 bg-white",
-                variant === "panel" ? "border-t-2 border-sky-300 px-4 py-3" : "border-t border-sky-100 px-3 py-3",
+                variant === "panel"
+                  ? "relative shrink-0 border-t-2 border-sky-300 bg-white px-4 py-3"
+                  : "pointer-events-none absolute inset-x-0 bottom-0 z-20 px-2 pb-[max(2.25rem,calc(2rem+env(safe-area-inset-bottom)))] pt-1",
               )}
             >
+              <div className={cn(variant === "page" && "pointer-events-auto mx-auto w-full max-w-3xl")}>
               {mentionMenu && mentionOptions.length > 0 && !editingMessageId ? (
                 <WorkspaceChatMentionMenu
                   options={mentionOptions}
@@ -1137,12 +1227,23 @@ export function WorkspaceGroupChatPane({
                 />
               ) : null}
               {typingLabel ? (
-                <p className="mb-2 px-1 text-xs italic text-gray-500" aria-live="polite">
+                <p
+                  className={cn(
+                    "mb-1.5 px-2 text-xs italic text-gray-500",
+                    variant === "panel" && "mb-2 px-1",
+                  )}
+                  aria-live="polite"
+                >
                   {typingLabel}
                 </p>
               ) : null}
               {editingMessageId ? (
-                <div className="mb-2 flex items-center justify-between rounded-xl bg-sky-50 px-3 py-2 text-sm text-gray-700">
+                <div
+                  className={cn(
+                    "mb-1.5 flex items-center justify-between rounded-2xl px-3 py-2 text-sm text-gray-700",
+                    variant === "panel" ? "mb-2 rounded-xl bg-sky-50" : "bg-white/95 shadow-sm",
+                  )}
+                >
                   <span>{t("directChatEditing")}</span>
                   <button
                     type="button"
@@ -1152,16 +1253,45 @@ export function WorkspaceGroupChatPane({
                     {t("directChatCancelEdit")}
                   </button>
                 </div>
+              ) : replyTo ? (
+                <div
+                  className={cn(
+                    variant === "page" && "mb-1.5 overflow-hidden rounded-2xl bg-white/95 shadow-sm",
+                  )}
+                >
+                  <ChatReplyComposerBar
+                    replyTo={replyTo}
+                    title={t("chatReplyingTo")}
+                    deletedLabel={t("directChatMessageDeleted")}
+                    cancelLabel={t("chatCancelReply")}
+                    onCancel={cancelReply}
+                  />
+                </div>
               ) : null}
               <div
                 className={cn(
-                  "flex items-end gap-1 bg-sky-50/50 py-1 transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100",
-                  variant === "panel"
-                    ? "border-2 border-sky-300 pl-4 pr-1 focus-within:border-sky-500"
-                    : "rounded-[1.75rem] border border-sky-100 px-3 py-2 sm:px-4 focus-within:border-sky-200",
-                  variant === "panel" && (inputExpanded ? "rounded-2xl" : "rounded-full"),
-                )}
-              >
+                  "flex items-center gap-1 py-1 transition-colors",
+                    variant === "panel"
+                      ? "border-2 border-sky-300 bg-sky-50/50 pl-2 pr-1 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100"
+                      : "rounded-full border border-gray-300 bg-white px-3 py-2.5 shadow-[0_0_6px_rgba(0,0,0,0.12)] sm:gap-2 sm:px-4",
+                    variant === "panel" && (inputExpanded ? "rounded-2xl" : "rounded-full"),
+                  )}
+                >
+                <ChatEmojiPicker
+                  label={t("chatEmoji")}
+                  onSelect={(emoji) => {
+                    const el = inputRef.current;
+                    const start = el?.selectionStart ?? text.length;
+                    const end = el?.selectionEnd ?? text.length;
+                    const { next, caret } = insertEmojiInText(text, emoji, start, end);
+                    handleTextChange(next, caret);
+                    requestAnimationFrame(() => {
+                      if (!inputRef.current) return;
+                      inputRef.current.focus();
+                      inputRef.current.setSelectionRange(caret, caret);
+                    });
+                  }}
+                />
                 <textarea
                   ref={inputRef}
                   value={text}
@@ -1180,10 +1310,19 @@ export function WorkspaceGroupChatPane({
                       e.currentTarget.selectionStart ?? e.currentTarget.value.length,
                     )
                   }
+                  onFocus={() => {
+                    window.scrollTo(0, 0);
+                    requestAnimationFrame(() => scrollToBottom("auto"));
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder={t("workspaceChatSend")}
                   rows={1}
-                  className="max-h-[100px] min-h-[2.5rem] flex-1 resize-none bg-transparent py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                  className={cn(
+                    "flex-1 resize-none bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none",
+                    variant === "panel"
+                      ? "max-h-[100px] min-h-[2.5rem] py-2 text-sm max-lg:min-h-[1.75rem] max-lg:py-1"
+                      : "max-h-[140px] min-h-[40px] py-2 text-[15px] leading-5",
+                  )}
                 />
                 <button
                   type="button"
@@ -1191,7 +1330,8 @@ export function WorkspaceGroupChatPane({
                   disabled={!text.trim() || sending}
                   onClick={() => void handleSend()}
                   className={cn(
-                    "mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-0 transition-all",
+                    "flex shrink-0 items-center justify-center rounded-full p-0 transition-all",
+                    variant === "page" ? "h-10 w-10" : "h-9 w-9",
                     text.trim()
                       ? "bg-sky-400 text-white hover:bg-sky-500"
                       : "cursor-not-allowed bg-sky-200/80 text-sky-400",
@@ -1201,9 +1341,10 @@ export function WorkspaceGroupChatPane({
                   {sending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send size={15} className={text.trim() ? "translate-x-px" : undefined} />
+                    <Send size={variant === "page" ? 16 : 15} className={text.trim() ? "translate-x-px" : undefined} />
                   )}
                 </button>
+              </div>
               </div>
             </div>
     </div>

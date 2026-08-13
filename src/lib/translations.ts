@@ -189,6 +189,8 @@ export interface Translations {
   customerName: string;
   customer: string;
   selectCustomer: string;
+  buyerName: string;
+  buyerNameOptionalHint: string;
   customerCreated: string;
   customerCreatedDesc: string;
   customerUpdated: string;
@@ -1406,6 +1408,10 @@ export interface Translations {
   directChatMessageDeleted: string;
   directChatDeleteConfirm: string;
   directChatEdited: string;
+  chatReply: string;
+  chatReplyingTo: string;
+  chatCancelReply: string;
+  chatEmoji: string;
   validationErrorTitle: string;
   invalidEmailTitle: string;
   invalidEmailDescMsg: string;
@@ -1657,6 +1663,11 @@ export interface Translations {
   teamCompletionNotifyHint: string;
   teamDepartment: string;
   teamMonth: string;
+  teamLinkProject: string;
+  teamLinkProjectOptional: string;
+  teamLinkProjectHint: string;
+  teamNoProjectLink: string;
+  teamLinkedProject: string;
   teamSelectMember: string;
   teamStatusTodo: string;
   teamStatusInProgress: string;
@@ -1854,6 +1865,14 @@ export interface Translations {
   projectMilestoneCompleted: string;
   projectNoDueDate: string;
   projectAddTask: string;
+  projectAddTaskCreatesTeamTask: string;
+  projectTasksFromTeamHint: string;
+  projectTeamFromTasksHint: string;
+  projectNoMembersFromTasks: string;
+  projectMemberTaskSummary: string;
+  projectMilestoneTaskProgress: string;
+  projectMilestoneNoTasks: string;
+  projectMilestonesBoardHint: string;
   projectNoTasks: string;
   projectUnassignedTasks: string;
   projectUnassigned: string;
@@ -1874,6 +1893,22 @@ export interface Translations {
   projectTimeNote: string;
   helpProjectOverview: string;
   helpProjectList: string;
+  projectTaskStatusTitle: string;
+  projectTaskStatusSubtitle: string;
+  projectTaskStatusEmpty: string;
+  projectRemindersTitle: string;
+  projectRemindersSubtitle: string;
+  projectRemindersEmpty: string;
+  projectReminderOverdueTask: string;
+  projectReminderDueSoonTask: string;
+  projectReminderOverdueMilestone: string;
+  projectAchievementsTitle: string;
+  projectAchievementsSubtitle: string;
+  projectAchievementsEmpty: string;
+  projectAchievementTasksWeek: string;
+  projectAchievementMilestonesWeek: string;
+  projectAchievementMilestoneDone: string;
+  projectAchievementProjectDone: string;
 
   notes: string;
 
@@ -2293,6 +2328,8 @@ export const translations: Record<Language, Partial<Translations>> = {
     customerName: "Customer Name",
     customer: "Customer",
     selectCustomer: "Select customer",
+    buyerName: "Buyer name",
+    buyerNameOptionalHint: "Optional — pick a customer or type a name",
     customerCreated: "Customer Added",
     customerCreatedDesc: "Customer profile saved.",
     customerUpdated: "Customer Updated",
@@ -2436,7 +2473,7 @@ export const translations: Record<Language, Partial<Translations>> = {
     helpHrOverview:
       "See every employee’s workload, current tasks, leave, and recent activity so HR knows what people are working on.",
     helpProjectOverview:
-      "Portfolio snapshot with velocity charts — tasks completed and hours logged over the last four weeks.",
+      "Portfolio snapshot with linked team task status, reminders, achievements, and contribution activity.",
     helpProjectList:
       "Create projects, map milestones, assign cross-functional teams, and track deliverables from planning through completion.",
     loadStatementsFailed: "Failed to load financial statements",

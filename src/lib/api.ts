@@ -1357,6 +1357,8 @@ export interface TeamTaskRecord {
   completedAt?: string;
   createdAt?: string;
   workspaceId?: string | null;
+  projectId?: { _id: string; name?: string; status?: string } | string | null;
+  milestoneId?: { _id: string; title?: string; status?: string; dueDate?: string } | string | null;
 }
 
 export const teamMemberApi = {
@@ -1406,12 +1408,14 @@ export const teamTaskApi = {
     department?: string;
     assigneeId?: string;
     monthKey?: string;
+    projectId?: string;
   }): Promise<ApiResponse> {
     const queryParams = new URLSearchParams();
     if (params?.status) queryParams.append("status", params.status);
     if (params?.department) queryParams.append("department", params.department);
     if (params?.assigneeId) queryParams.append("assigneeId", params.assigneeId);
     if (params?.monthKey) queryParams.append("monthKey", params.monthKey);
+    if (params?.projectId) queryParams.append("projectId", params.projectId);
     const queryString = queryParams.toString();
     const url = queryString ? `/team-tasks?${queryString}` : "/team-tasks";
     return request(url, { method: "GET" });
@@ -2399,7 +2403,18 @@ export const workspaceApi = {
   async sendMessage(
     workspaceId: string,
     body: string,
-    options?: { mentionAll?: boolean; mentions?: Array<{ userId: string; userName: string }> },
+    options?: {
+      mentionAll?: boolean;
+      mentions?: Array<{ userId: string; userName: string }>;
+      replyToMessageId?: string | null;
+      replyTo?: {
+        messageId: string;
+        senderUserId?: string | null;
+        senderName?: string;
+        body?: string;
+        deletedAt?: string | null;
+      } | null;
+    },
   ): Promise<ApiResponse> {
     return request(`/workspaces/${encodeURIComponent(workspaceId)}/messages`, {
       method: 'POST',
@@ -2407,6 +2422,8 @@ export const workspaceApi = {
         body,
         mentionAll: options?.mentionAll,
         mentions: options?.mentions,
+        replyToMessageId: options?.replyToMessageId || undefined,
+        replyTo: options?.replyTo || undefined,
       }),
     });
   },
@@ -2476,6 +2493,16 @@ export const workspaceApi = {
     conversationId: string,
     body: string,
     attachments?: Array<{ url: string; fileName: string; mimeType: string; size?: number }>,
+    options?: {
+      replyToMessageId?: string | null;
+      replyTo?: {
+        messageId: string;
+        senderUserId?: string | null;
+        senderName?: string;
+        body?: string;
+        deletedAt?: string | null;
+      } | null;
+    },
   ): Promise<ApiResponse> {
     return request(
       `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages`,
@@ -2484,6 +2511,8 @@ export const workspaceApi = {
         body: JSON.stringify({
           body,
           attachments,
+          replyToMessageId: options?.replyToMessageId || undefined,
+          replyTo: options?.replyTo || undefined,
         }),
       },
     );
