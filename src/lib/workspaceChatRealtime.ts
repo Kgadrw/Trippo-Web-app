@@ -17,8 +17,11 @@ export interface WorkspaceChatTypingPayload {
 
 export interface WorkspaceActiveUser {
   userId: string;
-  userName: string;
+  userName?: string;
+  name?: string;
   profilePictureUrl?: string | null;
+  /** Epoch ms when last seen in presence (while online). */
+  lastSeen?: number;
 }
 
 export interface WorkspaceChatReceipt {

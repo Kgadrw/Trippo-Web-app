@@ -62,7 +62,6 @@ export const WORKSPACE_ONLY_PAGE_KEYS: ReadonlySet<WorkspacePageKey> = new Set([
   'team',
   'hr',
   'projects',
-  'chat',
 ]);
 
 /** Sub-routes that are workspace-only (not top-level page keys). */

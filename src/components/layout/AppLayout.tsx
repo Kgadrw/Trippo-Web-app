@@ -33,8 +33,12 @@ function AppLayoutInner(_props?: AppLayoutProps) {
   const { loading: subLoading, isLocked } = useSubscriptionAccess();
   const isBillingRoute = location.pathname.startsWith("/billing");
   const isMessagesRoute = location.pathname.startsWith("/messages");
+  // Immersive WhatsApp-style thread: hide app chrome when a conversation is open.
+  const isMessagesConversationOpen =
+    isMessagesRoute && location.pathname !== "/messages" && location.pathname !== "/messages/";
   const [isMobile, setIsMobile] = useState(false);
   const mobileMessagesShell = isMobile && isMessagesRoute;
+  const immersiveMobileChat = mobileMessagesShell && isMessagesConversationOpen;
   const viewport = useVisualViewportFrame(mobileMessagesShell);
 
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -124,8 +128,9 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     // Only handle horizontal swipes
     if (isVerticalSwipe) return;
 
-    // Swipe from left edge (within 30px) to right to open
-    if (isRightSwipe && touchStart.x < 30 && !mobileMenuOpen) {
+    // Swipe from left edge to open nav — skip when a chat thread is open
+    // so the conversation can use edge-swipe-back instead.
+    if (isRightSwipe && touchStart.x < 30 && !mobileMenuOpen && !isMessagesConversationOpen) {
       setMobileMenuOpen(true);
     }
 
@@ -135,10 +140,8 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     }
   };
 
-  const messagesContentHeight = Math.max(
-    0,
-    viewport.height - mobileTopHeight,
-  );
+  const effectiveMobileTopHeight = immersiveMobileChat ? 0 : mobileTopHeight;
+  const messagesContentHeight = Math.max(0, viewport.height - effectiveMobileTopHeight);
 
   return (
     <div
@@ -155,11 +158,13 @@ function AppLayoutInner(_props?: AppLayoutProps) {
       }
     >
       <MobileFixedBackground />
-      <MobileTopBar
-        onMenuOpen={() => setMobileMenuOpen(true)}
-        onHeightChange={setMobileTopHeight}
-        topOffset={mobileMessagesShell ? viewport.offsetTop : 0}
-      />
+      {immersiveMobileChat ? null : (
+        <MobileTopBar
+          onMenuOpen={() => setMobileMenuOpen(true)}
+          onHeightChange={setMobileTopHeight}
+          topOffset={mobileMessagesShell ? viewport.offsetTop : 0}
+        />
+      )}
 
       {/* Desktop header */}
       <DesktopHeader
@@ -193,13 +198,15 @@ function AppLayoutInner(_props?: AppLayoutProps) {
         onTouchEnd={onTouchEnd}
         style={{
           touchAction: "pan-y",
-          ["--app-header-height" as string]: `${isMobile ? mobileTopHeight : desktopTopHeight}px`,
+          ["--app-header-height" as string]: `${isMobile ? effectiveMobileTopHeight : desktopTopHeight}px`,
           ["--keyboard-open" as string]: viewport.keyboardOpen ? "1" : "0",
           ...(mobileMessagesShell
             ? {
-                top: viewport.offsetTop + mobileTopHeight,
-                // Pin to the screen bottom when the keyboard is closed so the
-                // chat list/sidebar has no gap; shrink only while typing.
+                top: viewport.offsetTop + effectiveMobileTopHeight,
+                paddingTop: 0,
+                paddingBottom: 0,
+                // Keyboard open: shrink to visual viewport (input sits just above it).
+                // Keyboard closed: pin to screen bottom (no white strip).
                 ...(viewport.keyboardOpen
                   ? {
                       height: messagesContentHeight,
@@ -209,15 +216,13 @@ function AppLayoutInner(_props?: AppLayoutProps) {
                       bottom: 0,
                       height: "auto" as const,
                     }),
-                paddingTop: 0,
-                paddingBottom: 0,
               }
             : isMobile
               ? isMessagesRoute
                 ? {
                     // border-box height includes paddingTop — use full 100dvh so
                     // the chat list reaches the viewport bottom (no white strip).
-                    paddingTop: mobileTopHeight,
+                    paddingTop: effectiveMobileTopHeight,
                     height: "100dvh",
                     paddingBottom: 0,
                   }

@@ -4,10 +4,12 @@ import { cn } from "@/lib/utils";
 import type { DirectChatAttachment } from "@/lib/workspaceDirectChatRealtime";
 import {
   getChatAttachmentImageSrc,
+  isChatAudioAttachment,
   isChatImageAttachment,
   openChatAttachment,
 } from "@/lib/chatUpload";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ChatVoicePlayer } from "@/components/workspace/ChatVoiceNote";
 
 function ChatAttachmentImage({
   attachment,
@@ -129,7 +131,13 @@ export function DirectChatMessageAttachments({
     <>
       <div className={cn("space-y-2", own ? "text-white" : "text-gray-800")}>
         {attachments.map((attachment) =>
-          isChatImageAttachment(attachment.mimeType, attachment.fileName) ? (
+          isChatAudioAttachment(attachment.mimeType, attachment.fileName) ? (
+            <ChatVoicePlayer
+              key={`${attachment.url}-${attachment.fileName}`}
+              attachment={attachment}
+              own={own}
+            />
+          ) : isChatImageAttachment(attachment.mimeType, attachment.fileName) ? (
             <ChatAttachmentImage
               key={`${attachment.url}-${attachment.fileName}`}
               attachment={attachment}

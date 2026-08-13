@@ -153,10 +153,11 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const subdomain = useSubdomain();
-  const { mode, activeWorkspace, canAccessPage } = useWorkspace();
+  const { mode, activeWorkspace, workspaces, canAccessPage } = useWorkspace();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [messagesUnread, setMessagesUnread] = useState(0);
+  const hasJoinedOrgs = workspaces.length > 0;
 
   const visibleMenuItems = menuItems.filter((item) => {
     if (!item.pageKey) return true;
@@ -164,22 +165,22 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
   });
 
   const refreshMessagesUnread = useCallback(async () => {
-    if (mode !== "workspace" || !activeWorkspace?.id) {
+    if (!hasJoinedOrgs) {
       setMessagesUnread(0);
       return;
     }
     try {
-      const res = await workspaceApi.getChatUnreadSummary(activeWorkspace.id);
+      const res = await workspaceApi.getAllChatUnreadSummary();
       const total = Number((res.data as { total?: number } | undefined)?.total || 0);
       setMessagesUnread(Number.isFinite(total) ? total : 0);
     } catch {
       // Keep last known count if the summary request fails.
     }
-  }, [mode, activeWorkspace?.id]);
+  }, [hasJoinedOrgs]);
 
   useEffect(() => {
     void refreshMessagesUnread();
-    if (mode !== "workspace" || !activeWorkspace?.id) return undefined;
+    if (!hasJoinedOrgs) return undefined;
 
     const intervalId = window.setInterval(() => {
       void refreshMessagesUnread();
@@ -208,7 +209,7 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
       window.removeEventListener(MESSAGES_UNREAD_BUMP_EVENT, onBump);
       window.removeEventListener(MESSAGES_UNREAD_REFRESH_EVENT, onUnreadRefresh);
     };
-  }, [mode, activeWorkspace?.id, refreshMessagesUnread, location.pathname]);
+  }, [hasJoinedOrgs, refreshMessagesUnread, location.pathname]);
 
   useEffect(() => {
     if (location.pathname.startsWith("/finance")) {

@@ -14,8 +14,8 @@ import {
   ChevronDown,
   Check,
   CheckCheck,
+  ChevronLeft,
   MoreHorizontal,
-  MoreVertical,
   Pencil,
   Reply,
   Trash2,
@@ -35,6 +35,8 @@ import {
   type ChatReplyTo,
 } from "@/components/workspace/ChatReplyQuote";
 import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatEmojiPicker";
+import { ChatInteractiveBubble } from "@/components/workspace/ChatInteractiveBubble";
+import { ChatTypingBubble } from "@/components/workspace/ChatTypingBubble";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +53,7 @@ import {
   type WorkspaceChatMessage,
   type WorkspaceChatReceipt,
 } from "@/lib/workspaceChatRealtime";
-import { formatTypingLabel, useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
+import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
 import { useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
 import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
 import { useWorkspacePresence } from "@/hooks/useWorkspacePresence";
@@ -318,7 +320,6 @@ export function WorkspaceGroupChatPane({
     scopeKey: workspaceId,
     matches: (payload) => String(payload.workspaceId || "") === String(workspaceId),
   });
-  const typingLabel = formatTypingLabel(typingUsers, t);
 
   const memberPictureByUserId = useMemo(() => {
     const map = new Map<string, string | null | undefined>();
@@ -461,6 +462,11 @@ export function WorkspaceGroupChatPane({
     stickToBottomRef.current = true;
     setShowScrollDown(false);
   }, []);
+
+  useEffect(() => {
+    if (!typingUsers.length || !stickToBottomRef.current) return;
+    requestAnimationFrame(() => scrollToBottom("smooth"));
+  }, [typingUsers.length, scrollToBottom]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -900,20 +906,21 @@ export function WorkspaceGroupChatPane({
       )}
     >
           {/* Header */}
-          <div className={cn("shrink-0", variant === "panel" ? "p-3" : "border-b border-sky-100 px-4 py-3")}>
+          <div className={cn("shrink-0", variant === "panel" ? "p-3" : "border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 lg:py-3")}>
             <div
               className={cn(
-                "flex items-center gap-3",
+                "flex items-center gap-2 sm:gap-3",
                 variant === "panel" && "rounded-2xl border border-sky-200 bg-sky-100 px-3 py-3",
               )}
             >
               {onBack ? (
                 <button
                   type="button"
-                  className="rounded-full px-2 py-1 text-sm text-sky-600 hover:bg-sky-50 lg:hidden"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sky-600 active:bg-sky-50 lg:hidden"
                   onClick={onBack}
+                  aria-label={t("chatBack")}
                 >
-                  ←
+                  <ChevronLeft size={26} strokeWidth={2.25} />
                 </button>
               ) : null}
               <div className="relative shrink-0">
@@ -975,8 +982,8 @@ export function WorkspaceGroupChatPane({
                 ref={listRef}
                 onScroll={handleListScroll}
                 className={cn(
-                  "relative z-10 h-full min-h-0 overflow-y-auto px-4 pt-5 scroll-smooth",
-                  variant === "page" ? "pb-32" : "pb-5",
+                  "relative z-10 h-full min-h-0 w-full overflow-y-auto overscroll-contain px-3 pt-4 scroll-smooth sm:px-4",
+                  variant === "page" ? "pb-28 max-lg:pb-24 lg:pb-36" : "pb-5",
                 )}
               >
               {loading && messages.length === 0 ? (
@@ -1040,29 +1047,23 @@ export function WorkspaceGroupChatPane({
 
                         <div
                           className={cn(
-                            "flex gap-2.5",
-                            own ? "flex-row-reverse" : "flex-row",
+                            "flex w-full gap-2.5",
+                            own ? "justify-end" : "justify-start",
                             grouped ? "mt-1" : "mt-4",
                           )}
                         >
-                          {grouped ? (
-                            <div className="w-8 shrink-0" aria-hidden />
-                          ) : (
+                          {!own ? (
                             <UserProfileAvatar
-                              name={own ? currentUser?.name || message.senderName : message.senderName}
+                              name={message.senderName}
                               profilePictureUrl={senderAvatar}
                               className="mt-0.5 h-8 w-8 shrink-0"
-                              fallbackClassName={
-                                own
-                                  ? "bg-violet-100 text-[9px] font-semibold text-violet-700"
-                                  : "bg-[#F4F4F5] text-[9px] font-semibold text-gray-600"
-                              }
+                              fallbackClassName="bg-[#F4F4F5] text-[9px] font-semibold text-gray-600"
                             />
-                          )}
+                          ) : null}
 
                           <div
                             className={cn(
-                              "flex max-w-[82%] flex-col",
+                              "flex min-w-0 max-w-[85%] flex-col",
                               own ? "items-end" : "items-start",
                             )}
                           >
@@ -1072,46 +1073,46 @@ export function WorkspaceGroupChatPane({
                               </p>
                             ) : null}
 
-                            <div className={cn("flex items-end gap-1", own && "flex-row-reverse")}>
-                              {!deleted ? (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 opacity-70 transition-opacity hover:bg-gray-100 hover:text-gray-600 hover:opacity-100"
-                                      aria-label={t("chatReply")}
-                                    >
-                                      <MoreVertical size={16} />
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align={own ? "end" : "start"}>
-                                    <DropdownMenuItem onClick={() => startReply(message)}>
-                                      <Reply size={14} className="mr-2" />
-                                      {t("chatReply")}
-                                    </DropdownMenuItem>
-                                    {own && canEdit ? (
-                                      <DropdownMenuItem onClick={() => startEdit(message)}>
-                                        <Pencil size={14} className="mr-2" />
-                                        {t("directChatEdit")}
-                                      </DropdownMenuItem>
-                                    ) : null}
-                                    {own && canModify ? (
-                                      <DropdownMenuItem
-                                        className="text-red-600"
-                                        disabled={deletingMessageId === String(message._id)}
-                                        onClick={() => setMessageToDelete(message)}
-                                      >
-                                        <Trash2 size={14} className="mr-2" />
-                                        {t("directChatDelete")}
-                                      </DropdownMenuItem>
-                                    ) : null}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              ) : null}
-
+                            <ChatInteractiveBubble
+                              own={own}
+                              disabled={deleted}
+                              actionsTitle={t("chatMessageActions")}
+                              onReply={() => startReply(message)}
+                              className="w-full max-w-full"
+                              actions={[
+                                {
+                                  id: "reply",
+                                  label: t("chatReply"),
+                                  icon: <Reply size={16} />,
+                                  onSelect: () => startReply(message),
+                                },
+                                ...(own && canEdit
+                                  ? [
+                                      {
+                                        id: "edit",
+                                        label: t("directChatEdit"),
+                                        icon: <Pencil size={16} />,
+                                        onSelect: () => startEdit(message),
+                                      },
+                                    ]
+                                  : []),
+                                ...(own && canModify
+                                  ? [
+                                      {
+                                        id: "delete",
+                                        label: t("directChatDelete"),
+                                        icon: <Trash2 size={16} />,
+                                        destructive: true,
+                                        disabled: deletingMessageId === String(message._id),
+                                        onSelect: () => setMessageToDelete(message),
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                            >
                               <div
                                 className={cn(
-                                  "px-4 py-2.5 text-sm leading-relaxed",
+                                  "px-3.5 py-2.5 text-[15px] leading-relaxed sm:px-4 sm:text-sm",
                                   deleted
                                     ? own
                                       ? "rounded-[1.25rem] bg-gray-200 text-gray-500"
@@ -1148,7 +1149,7 @@ export function WorkspaceGroupChatPane({
                                   />
                                 )}
                               </div>
-                            </div>
+                            </ChatInteractiveBubble>
 
                             {own ? (
                               <div className="mt-1 flex flex-wrap items-center justify-end gap-1.5 px-1">
@@ -1190,6 +1191,18 @@ export function WorkspaceGroupChatPane({
                   })}
                 </div>
               )}
+              {!loading && typingUsers.length > 0 ? (
+                <div className="pb-1">
+                  {typingUsers.map((user) => (
+                    <ChatTypingBubble
+                      key={user.userId}
+                      name={user.userName}
+                      profilePictureUrl={memberPictureByUserId.get(user.userId)}
+                      label={t("chatTypingBubble")}
+                    />
+                  ))}
+                </div>
+              ) : null}
 
               {showScrollDown ? (
                 <div className="sticky bottom-0 flex justify-center pt-2">
@@ -1211,10 +1224,10 @@ export function WorkspaceGroupChatPane({
               className={cn(
                 variant === "panel"
                   ? "relative shrink-0 border-t-2 border-sky-300 bg-white px-4 py-3"
-                  : "pointer-events-none absolute inset-x-0 bottom-0 z-20 px-2 pb-[max(2.25rem,calc(2rem+env(safe-area-inset-bottom)))] pt-1",
+                  : "pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-white via-white/95 to-transparent px-2 pb-[max(6px,env(safe-area-inset-bottom,0px))] pt-6 max-lg:pt-4 lg:bg-[#f0f2f5] lg:bg-none lg:px-3 lg:pb-4 lg:pt-3",
               )}
             >
-              <div className={cn(variant === "page" && "pointer-events-auto mx-auto w-full max-w-3xl")}>
+              <div className={cn(variant === "page" && "pointer-events-auto w-full")}>
               {mentionMenu && mentionOptions.length > 0 && !editingMessageId ? (
                 <WorkspaceChatMentionMenu
                   options={mentionOptions}
@@ -1225,17 +1238,6 @@ export function WorkspaceGroupChatPane({
                   }
                   onSelect={handleMentionSelect}
                 />
-              ) : null}
-              {typingLabel ? (
-                <p
-                  className={cn(
-                    "mb-1.5 px-2 text-xs italic text-gray-500",
-                    variant === "panel" && "mb-2 px-1",
-                  )}
-                  aria-live="polite"
-                >
-                  {typingLabel}
-                </p>
               ) : null}
               {editingMessageId ? (
                 <div
@@ -1273,7 +1275,7 @@ export function WorkspaceGroupChatPane({
                   "flex items-center gap-1 py-1 transition-colors",
                     variant === "panel"
                       ? "border-2 border-sky-300 bg-sky-50/50 pl-2 pr-1 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100"
-                      : "rounded-full border border-gray-300 bg-white px-3 py-2.5 shadow-[0_0_6px_rgba(0,0,0,0.12)] sm:gap-2 sm:px-4",
+                      : "flex items-end gap-1.5 rounded-[1.75rem] border border-gray-300 bg-white px-2.5 py-1.5 shadow-[0_0_6px_rgba(0,0,0,0.12)] sm:gap-2 sm:px-4 max-lg:min-h-[3rem]",
                     variant === "panel" && (inputExpanded ? "rounded-2xl" : "rounded-full"),
                   )}
                 >
@@ -1312,7 +1314,16 @@ export function WorkspaceGroupChatPane({
                   }
                   onFocus={() => {
                     window.scrollTo(0, 0);
-                    requestAnimationFrame(() => scrollToBottom("auto"));
+                    stickToBottomRef.current = true;
+                    const run = () => {
+                      const el = listRef.current;
+                      if (el) el.scrollTop = el.scrollHeight;
+                    };
+                    run();
+                    requestAnimationFrame(run);
+                    window.setTimeout(run, 50);
+                    window.setTimeout(run, 150);
+                    window.setTimeout(run, 320);
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder={t("workspaceChatSend")}
@@ -1321,7 +1332,7 @@ export function WorkspaceGroupChatPane({
                     "flex-1 resize-none bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none",
                     variant === "panel"
                       ? "max-h-[100px] min-h-[2.5rem] py-2 text-sm max-lg:min-h-[1.75rem] max-lg:py-1"
-                      : "max-h-[140px] min-h-[40px] py-2 text-[15px] leading-5",
+                      : "max-h-[140px] min-h-[44px] py-2.5 text-[16px] leading-5 lg:min-h-[40px] lg:text-[15px]",
                   )}
                 />
                 <button
@@ -1330,8 +1341,8 @@ export function WorkspaceGroupChatPane({
                   disabled={!text.trim() || sending}
                   onClick={() => void handleSend()}
                   className={cn(
-                    "flex shrink-0 items-center justify-center rounded-full p-0 transition-all",
-                    variant === "page" ? "h-10 w-10" : "h-9 w-9",
+                    "mb-0.5 flex shrink-0 items-center justify-center rounded-full p-0 transition-all",
+                    variant === "page" ? "h-11 w-11 lg:h-10 lg:w-10" : "h-9 w-9",
                     text.trim()
                       ? "bg-sky-400 text-white hover:bg-sky-500"
                       : "cursor-not-allowed bg-sky-200/80 text-sky-400",

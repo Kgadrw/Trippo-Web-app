@@ -7,11 +7,16 @@ export type ChatAttachmentMeta = {
   fileName: string;
   mimeType: string;
   size: number;
+  /** Voice-note length in seconds. */
+  duration?: number;
+  /** Normalized 0–1 peak heights for waveform UI. */
+  waveform?: number[];
   /** Local blob URL for unsent previews (not persisted). */
   localPreviewUrl?: string;
 };
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const AUDIO_EXTENSIONS = new Set(["webm", "ogg", "mp3", "m4a", "aac", "wav", "mp4"]);
 
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",
@@ -22,6 +27,13 @@ const MIME_BY_EXT: Record<string, string> = {
   pdf: "application/pdf",
   txt: "text/plain",
   csv: "text/csv",
+  webm: "audio/webm",
+  ogg: "audio/ogg",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+  wav: "audio/wav",
+  mp4: "audio/mp4",
 };
 
 function extensionFromFileName(fileName?: string) {
@@ -46,6 +58,32 @@ export function isChatImageAttachment(mimeType?: string, fileName?: string) {
   const resolved = inferChatAttachmentMimeType(fileName, mimeType);
   if (resolved.startsWith("image/")) return true;
   return IMAGE_EXTENSIONS.has(extensionFromFileName(fileName));
+}
+
+export function isChatAudioAttachment(mimeType?: string, fileName?: string) {
+  const resolved = inferChatAttachmentMimeType(fileName, mimeType);
+  if (resolved.startsWith("audio/")) return true;
+  // Some browsers record voice as video/webm; treat chat voice filenames as audio.
+  if (resolved === "video/webm" && /voice|audio/i.test(fileName || "")) return true;
+  return AUDIO_EXTENSIONS.has(extensionFromFileName(fileName));
+}
+
+/** Pick a MediaRecorder mime + file extension that this browser supports. */
+export function pickVoiceRecordingFormat(): { mimeType: string; extension: string } {
+  if (typeof MediaRecorder === "undefined") {
+    return { mimeType: "audio/webm", extension: "webm" };
+  }
+  const candidates: Array<{ mimeType: string; extension: string }> = [
+    { mimeType: "audio/webm;codecs=opus", extension: "webm" },
+    { mimeType: "audio/webm", extension: "webm" },
+    { mimeType: "audio/mp4", extension: "m4a" },
+    { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
+    { mimeType: "audio/ogg", extension: "ogg" },
+  ];
+  for (const candidate of candidates) {
+    if (MediaRecorder.isTypeSupported(candidate.mimeType)) return candidate;
+  }
+  return { mimeType: "", extension: "webm" };
 }
 
 export async function uploadDirectChatAttachment(

@@ -24,6 +24,10 @@ export interface DirectChatAttachment {
   fileName: string;
   mimeType: string;
   size?: number;
+  /** Voice-note length in seconds. */
+  duration?: number;
+  /** Normalized 0–1 peak heights for waveform UI. */
+  waveform?: number[];
 }
 
 export interface DirectChatReplyTo {
@@ -55,10 +59,14 @@ export interface DirectChatPeer {
   name: string;
   email: string;
   profilePictureUrl?: string | null;
+  /** ISO timestamp of last app presence. */
+  lastSeenAt?: string | null;
 }
 
 export interface DirectChatThread {
   conversationId: string | null;
+  workspaceId: string;
+  workspaceName?: string;
   otherUser: DirectChatPeer;
   lastMessageAt: string | null;
   lastMessageBody: string | null;

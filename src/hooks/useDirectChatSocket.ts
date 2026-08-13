@@ -15,39 +15,53 @@ type DirectChatSocketHandlers = {
   onDelete?: (message: DirectChatMessage) => void;
 };
 
+function messageWorkspaceId(message: DirectChatMessage) {
+  const raw = message?.workspaceId as unknown;
+  if (raw && typeof raw === "object") {
+    return String((raw as { _id?: string })._id || raw || "");
+  }
+  return String(raw || "");
+}
+
+/**
+ * @param workspaceId - When set, only events for that workspace are forwarded.
+ *   Pass empty string / null to accept DMs from every organisation.
+ */
 export function useDirectChatSocket(
-  workspaceId: string,
+  workspaceId: string | null | undefined,
   enabled: boolean,
   handlers: DirectChatSocketHandlers,
 ) {
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
+  const filterId = workspaceId ? String(workspaceId) : "";
 
   useEffect(() => {
-    if (!enabled || !workspaceId) return;
+    if (!enabled) return;
+
+    const matchesWorkspace = (message: DirectChatMessage) => {
+      if (!filterId) return true;
+      const rawWorkspace = messageWorkspaceId(message);
+      return !rawWorkspace || rawWorkspace === filterId;
+    };
 
     const onMessage = (message: DirectChatMessage) => {
-      if (!message) return;
-      const rawWorkspace =
-        typeof message.workspaceId === "object" && message.workspaceId
-          ? String((message.workspaceId as { _id?: string })._id || message.workspaceId)
-          : String(message.workspaceId || "");
-      if (rawWorkspace && rawWorkspace !== String(workspaceId)) return;
+      if (!message || !matchesWorkspace(message)) return;
       handlersRef.current.onMessage?.(message);
     };
 
     const onRead = (message: DirectChatMessage) => {
-      if (!message || String(message.workspaceId) !== String(workspaceId)) return;
+      if (!message || !matchesWorkspace(message)) return;
       handlersRef.current.onRead?.(message);
     };
 
     const onEdit = (message: DirectChatMessage) => {
-      if (!message || String(message.workspaceId) !== String(workspaceId)) return;
+      if (!message || !matchesWorkspace(message)) return;
       handlersRef.current.onEdit?.(message);
     };
 
     const onDelete = (message: DirectChatMessage) => {
-      if (!message || String(message.workspaceId) !== String(workspaceId)) return;
+      if (!message || !matchesWorkspace(message)) return;
       handlersRef.current.onDelete?.(message);
     };
 
@@ -62,5 +76,5 @@ export function useDirectChatSocket(
       unsubEdit();
       unsubDelete();
     };
-  }, [enabled, workspaceId]);
+  }, [enabled, filterId]);
 }

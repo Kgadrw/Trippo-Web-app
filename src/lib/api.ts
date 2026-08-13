@@ -2441,6 +2441,17 @@ export const workspaceApi = {
     });
   },
 
+  async getAllChatUnreadSummary(): Promise<ApiResponse> {
+    return request('/workspaces/inbox/chat-unread-summary', {
+      method: 'GET',
+    });
+  },
+
+  async getAllDirectChatThreads(): Promise<ApiResponse> {
+    return request('/workspaces/inbox/direct-chats', {
+      method: 'GET',
+    });
+  },
   async editMessage(workspaceId: string, messageId: string, body: string): Promise<ApiResponse> {
     return request(
       `/workspaces/${encodeURIComponent(workspaceId)}/messages/${encodeURIComponent(messageId)}`,
@@ -2492,7 +2503,14 @@ export const workspaceApi = {
     workspaceId: string,
     conversationId: string,
     body: string,
-    attachments?: Array<{ url: string; fileName: string; mimeType: string; size?: number }>,
+    attachments?: Array<{
+      url: string;
+      fileName: string;
+      mimeType: string;
+      size?: number;
+      duration?: number;
+      waveform?: number[];
+    }>,
     options?: {
       replyToMessageId?: string | null;
       replyTo?: {

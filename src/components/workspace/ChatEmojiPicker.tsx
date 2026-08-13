@@ -72,7 +72,7 @@ export function ChatEmojiPicker({
         <button
           type="button"
           className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-sky-100 hover:text-sky-700",
+            "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-sky-100 hover:text-sky-700 active:bg-sky-100 lg:h-9 lg:w-9",
             buttonClassName,
           )}
           aria-label={label}

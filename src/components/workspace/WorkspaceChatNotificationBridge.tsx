@@ -165,14 +165,20 @@ export function WorkspaceChatNotificationBridge() {
     },
   });
 
-  useDirectChatSocket(workspaceId, mode === "workspace" && Boolean(workspaceId), {
+  useDirectChatSocket(null, Boolean(currentUserId), {
     onMessage: (message) => {
       if (isOwnDirectMessage(message, currentUserId)) return;
 
       const path = pathnameRef.current;
       const senderId = String(message.senderUserId);
-      const href = `/messages/${senderId}`;
-      const viewingThisChat = path === href;
+      const messageWorkspaceId = String(message.workspaceId || workspaceId || "");
+      const href = messageWorkspaceId
+        ? `/messages/${senderId}?w=${encodeURIComponent(messageWorkspaceId)}`
+        : `/messages/${senderId}`;
+      const viewingThisChat =
+        path === href ||
+        (path.startsWith(`/messages/${senderId}`) &&
+          (!messageWorkspaceId || path.includes(`w=${encodeURIComponent(messageWorkspaceId)}`) || path.includes(`w=${messageWorkspaceId}`)));
       const tabHidden = typeof document !== "undefined" && document.hidden;
 
       if (!viewingThisChat) {
@@ -186,7 +192,7 @@ export function WorkspaceChatNotificationBridge() {
         senderName: message.senderName || "Someone",
         body: message.body || "",
         iconUrl: message.senderProfilePictureUrl,
-        workspaceId,
+        workspaceId: messageWorkspaceId || workspaceId,
         workspaceName: activeWorkspace?.name,
         href,
         action: "open_direct_chat",
