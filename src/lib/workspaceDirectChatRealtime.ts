@@ -3,6 +3,7 @@ export const WORKSPACE_DM_READ_EVENT = "workspace-dm:read";
 export const WORKSPACE_DM_EDIT_EVENT = "workspace-dm:edit";
 export const WORKSPACE_DM_DELETE_EVENT = "workspace-dm:delete";
 export const WORKSPACE_DM_TYPING_EVENT = "workspace-dm:typing";
+export const WORKSPACE_DM_SETTINGS_EVENT = "workspace-dm:settings";
 
 export interface DirectChatTypingPayload {
   workspaceId: string;
@@ -51,6 +52,9 @@ export interface DirectChatMessage {
   createdAt: string;
   editedAt?: string | null;
   deletedAt?: string | null;
+  expiresAt?: string | null;
+  systemType?: "disappearing" | string | null;
+  systemPayload?: { durationSec?: number } | null;
   readBy?: DirectChatReceipt[];
 }
 
@@ -61,6 +65,8 @@ export interface DirectChatPeer {
   profilePictureUrl?: string | null;
   /** ISO timestamp of last app presence. */
   lastSeenAt?: string | null;
+  nickname?: string | null;
+  displayName?: string | null;
 }
 
 export interface DirectChatThread {
@@ -72,6 +78,7 @@ export interface DirectChatThread {
   lastMessageBody: string | null;
   lastSenderUserId: string | null;
   unreadCount: number;
+  disappearingDurationSec?: number;
 }
 
 export function isDirectMessageDeleted(message: DirectChatMessage) {

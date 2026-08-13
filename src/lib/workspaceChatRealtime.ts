@@ -3,6 +3,7 @@ export const WORKSPACE_CHAT_READ_EVENT = "workspace-chat:read";
 export const WORKSPACE_CHAT_EDIT_EVENT = "workspace-chat:edit";
 export const WORKSPACE_CHAT_DELETE_EVENT = "workspace-chat:delete";
 export const WORKSPACE_CHAT_TYPING_EVENT = "workspace-chat:typing";
+export const WORKSPACE_CHAT_SETTINGS_EVENT = "workspace-chat:settings";
 export const WORKSPACE_PRESENCE_UPDATE_EVENT = "workspace:presence:update";
 export const WORKSPACE_PRESENCE_JOIN_EVENT = "workspace:presence:join";
 export const WORKSPACE_PRESENCE_HEARTBEAT_EVENT = "workspace:presence:heartbeat";
@@ -44,6 +45,15 @@ export interface WorkspaceChatReplyTo {
   deletedAt?: string | null;
 }
 
+export type WorkspaceChatAttachment = {
+  url: string;
+  fileName: string;
+  mimeType: string;
+  size?: number;
+  duration?: number;
+  waveform?: number[];
+};
+
 export interface WorkspaceChatMessage {
   _id: string;
   workspaceId: string;
@@ -51,12 +61,14 @@ export interface WorkspaceChatMessage {
   senderName: string;
   senderProfilePictureUrl?: string | null;
   body: string;
+  attachments?: WorkspaceChatAttachment[];
   replyTo?: WorkspaceChatReplyTo | null;
   mentionAll?: boolean;
   mentions?: WorkspaceChatMention[];
   createdAt: string;
   editedAt?: string | null;
   deletedAt?: string | null;
+  expiresAt?: string | null;
   deliveredTo?: WorkspaceChatReceipt[];
   readBy?: WorkspaceChatReceipt[];
 }

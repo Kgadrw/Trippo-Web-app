@@ -998,6 +998,8 @@ export interface Translations {
   recordFailed: string;
   recordFailedDesc: string;
   expenseNameAmountRequired: string;
+  expenseOccurredDate: string;
+  expenseOccurredDateHint: string;
   expenseRecorded: string;
   expenseRecordedDesc: string;
   saveFailed: string;
@@ -1380,6 +1382,31 @@ export interface Translations {
   chatTypingTwo: string;
   chatTypingMany: string;
   chatTypingBubble: string;
+  chatInfo: string;
+  chatDisappearingMessages: string;
+  chatDisappearOff: string;
+  chatDisappear24h: string;
+  chatDisappear7w: string;
+  chatDisappearCustom: string;
+  chatDisappearHint: string;
+  chatDisappearUpdated: string;
+  chatDisappearUpdateFailed: string;
+  chatDisappearActive: string;
+  chatDisappearSystemOn: string;
+  chatDisappearSystemOff: string;
+  chatNickname: string;
+  chatNicknameNone: string;
+  chatNicknamePlaceholder: string;
+  chatNicknameUpdated: string;
+  chatNicknameUpdateFailed: string;
+  chatViewContact: string;
+  chatViewContactHint: string;
+  chatNoContactDetails: string;
+  chatGroupsInCommon: string;
+  chatGroupsInCommonCount: string;
+  chatGroupsInCommonNone: string;
+  chatGroupMembers: string;
+  chatGroupMembersCount: string;
   directChatTitle: string;
   directChatSearchPeople: string;
   directChatNoPeople: string;
@@ -3087,6 +3114,8 @@ export const translations: Record<Language, Partial<Translations>> = {
     recordFailed: "Record Failed",
     recordFailedDesc: "Failed to record sale. Please check your connection and try again.",
     expenseNameAmountRequired: "Please provide expense name and valid amount.",
+    expenseOccurredDate: "Date of expenditure",
+    expenseOccurredDateHint: "Choose when the spend happened — you can pick yesterday or any past date even if you are recording it today.",
     expenseRecorded: "Expense Recorded",
     expenseRecordedDesc: "Expense saved successfully.",
     saveFailed: "Save Failed",

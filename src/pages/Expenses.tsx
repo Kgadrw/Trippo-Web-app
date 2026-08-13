@@ -90,6 +90,8 @@ interface Expense {
 
   amount: number;
 
+  quantity?: number;
+
   category?: string;
 
   date: string;
@@ -113,6 +115,7 @@ type AddMode = "single" | "bulk";
 interface BulkExpenseRow {
   title: string;
   amount: string;
+  quantity: string;
   category: string;
   date: string;
   note: string;
@@ -121,10 +124,17 @@ interface BulkExpenseRow {
 const emptyBulkExpenseRow = (): BulkExpenseRow => ({
   title: "",
   amount: "",
+  quantity: "1",
   category: "general",
   date: new Date().toISOString().split("T")[0],
   note: "",
 });
+
+const parseExpenseQuantity = (value: string | number | undefined | null): number | null => {
+  const parsed = typeof value === "number" ? value : parseFloat(String(value ?? "").trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+};
 
 function compareExpenses(a: Expense, b: Expense, sort: ExpenseSort): number {
   if (sort === "default") return 0;
@@ -181,6 +191,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
   const [title, setTitle] = useState("");
 
   const [amount, setAmount] = useState("");
+
+  const [quantity, setQuantity] = useState("1");
 
   const [category, setCategory] = useState("general");
 
@@ -356,6 +368,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
     setAmount("");
 
+    setQuantity("1");
+
     setCategory("general");
 
     setDate(new Date().toISOString().split("T")[0]);
@@ -396,6 +410,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
     setTitle(expense.title || "");
 
     setAmount(String(expense.amount ?? ""));
+
+    setQuantity(String(parseExpenseQuantity(expense.quantity) ?? 1));
 
     setCategory(expense.category || "general");
 
@@ -479,6 +495,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
     expenseAmount: number,
 
+    expenseQuantity: number,
+
     expenseCategory: string,
 
     expenseDate: string,
@@ -492,6 +510,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
       ...extras,
       title: expenseTitle.trim(),
       amount: expenseAmount,
+      quantity: expenseQuantity,
       category: expenseCategory.trim() || "general",
       date: buildExpenseDate(expenseDate),
       note: expenseNote?.trim() || undefined,
@@ -514,6 +533,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
     if (editing) {
 
       const parsedAmount = parseFloat(amount);
+      const parsedQuantity = parseExpenseQuantity(quantity);
 
       if (!title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
 
@@ -531,13 +551,22 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
       }
 
+      if (parsedQuantity === null) {
+        toast({
+          title: t("missingInformation"),
+          description: t("invalidQuantityDesc"),
+          variant: "destructive",
+        });
+        return;
+      }
+
       setIsSaving(true);
 
       try {
         const receipt = await resolveReceipt();
         const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId, creditedAccountId);
         await update(
-          buildExpensePayload(title, parsedAmount, category, date, note, editing, {
+          buildExpensePayload(title, parsedAmount, parsedQuantity, category, date, note, editing, {
             ...payment,
             receiptUrl: receipt.receiptUrl,
             receiptFileName: receipt.receiptFileName || undefined,
@@ -578,10 +607,11 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
         .map((row) => {
 
           const parsedAmount = parseFloat(row.amount);
+          const parsedQuantity = parseExpenseQuantity(row.quantity);
 
-          if (!row.title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) return null;
+          if (!row.title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0 || parsedQuantity === null) return null;
 
-          return buildExpensePayload(row.title, parsedAmount, row.category, row.date, row.note, {}, payment);
+          return buildExpensePayload(row.title, parsedAmount, parsedQuantity, row.category, row.date, row.note, {}, payment);
 
         })
 
@@ -650,6 +680,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
 
     const parsedAmount = parseFloat(amount);
+    const parsedQuantity = parseExpenseQuantity(quantity);
 
     if (!title.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
 
@@ -667,6 +698,15 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
     }
 
+    if (parsedQuantity === null) {
+      toast({
+        title: t("missingInformation"),
+        description: t("invalidQuantityDesc"),
+        variant: "destructive",
+      });
+      return;
+    }
+
 
 
     setIsSaving(true);
@@ -675,7 +715,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
       const receipt = await resolveReceipt();
       const payment = buildFinancePaymentPayload(paymentMethod, bankAccountName, bankAccountNumber, accountId, creditedAccountId);
       await add(
-        buildExpensePayload(title, parsedAmount, category, date, note, {}, {
+        buildExpensePayload(title, parsedAmount, parsedQuantity, category, date, note, {}, {
           ...payment,
           receiptUrl: receipt.receiptUrl,
           receiptFileName: receipt.receiptFileName || undefined,
@@ -748,7 +788,8 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
   const titleLabel = t("expenseTitle");
   const categoryLabel = t("category");
   const amountLabel = t("amount");
-  const dateLabel = t("date");
+  const quantityLabel = t("quantity");
+  const dateLabel = t("expenseOccurredDate");
   const noteLabel = t("note");
   const actionsLabel = t("actions");
 
@@ -910,6 +951,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
             <th className={thClass}>{titleLabel}</th>
             <th className={thClass}>{categoryLabel}</th>
             <th className={thClass}>{amountLabel}</th>
+            <th className={thClass}>{quantityLabel}</th>
             <th className={thClass}>{dateLabel}</th>
             <th className={cn(thClass, compact ? "" : "hidden xl:table-cell")}>{noteLabel}</th>
             <th className={cn(thClass, "hidden lg:table-cell")}>{t("receipt")}</th>
@@ -946,6 +988,11 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                       <div className={cn("inline-flex items-center gap-1 text-rose-600 tabular-nums font-semibold", compact ? "text-xs" : "text-sm")}>
                         <ArrowDown size={14} className="shrink-0" aria-hidden />
                         {Number(expense.amount).toLocaleString()} Rwf
+                      </div>
+                    </td>
+                    <td className={tdClass}>
+                      <div className={cn("text-gray-700 tabular-nums", compact ? "text-xs" : "text-sm")}>
+                        {parseExpenseQuantity(expense.quantity) ?? 1}
                       </div>
                     </td>
                     <td className={tdClass}>
@@ -1003,7 +1050,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                 );
               })}
               <tr className="border-t border-gray-200 bg-blue-50/70">
-                <td colSpan={3} className={cn(tdClass, "text-sm font-semibold text-gray-800")}>
+                <td colSpan={2} className={cn(tdClass, "text-sm font-semibold text-gray-800")}>
                   {t("total")}
                 </td>
                 <td className={cn(tdClass, "text-sm font-semibold text-rose-600 tabular-nums")}>
@@ -1012,12 +1059,12 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                     {total.toLocaleString()} Rwf
                   </span>
                 </td>
-                <td colSpan={compact ? 2 : 3} />
+                <td colSpan={compact ? 4 : 5} />
               </tr>
             </>
           ) : (
             <tr>
-              <td colSpan={6} className={cn(tdClass, "py-12 text-center")}>
+              <td colSpan={8} className={cn(tdClass, "py-12 text-center")}>
                 <div className="flex flex-col items-center justify-center text-gray-400">
                   <Receipt size={48} className="mb-4 opacity-50" />
                   <p className="text-base font-medium">{t("noExpensesYet")}</p>
@@ -1052,6 +1099,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
               <th className={FINANCE_TH_CLASS}>{`${t("expenditure")} #`}</th>
               <th className={FINANCE_TH_CLASS}>{titleLabel}</th>
               <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>{t("paymentMethod")}</th>
+              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("quantity")}</th>
               <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("amount")}</th>
               <th className={cn(FINANCE_TH_CLASS, "w-10 pr-4")} />
             </tr>
@@ -1098,6 +1146,9 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>
                     {formatPaymentMode(expense.paymentMethod, t)}
+                  </td>
+                  <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums text-gray-700")}>
+                    {parseExpenseQuantity(expense.quantity) ?? 1}
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right font-medium tabular-nums text-rose-600")}>
                     <span className="inline-flex items-center justify-end gap-1">
@@ -1297,7 +1348,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                     className="h-9 sm:h-10 text-sm sm:text-base"
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                   <div className="space-y-1">
                     <Label className="text-[11px] sm:text-xs">{t("amount")} (Rwf)</Label>
                     <Input
@@ -1306,6 +1357,19 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder={t("amount")}
+                      disabled={isSaving}
+                      className="h-9 sm:h-10 text-sm sm:text-base"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] sm:text-xs">{t("quantity")}</Label>
+                    <Input
+                      type="number"
+                      min="0.0001"
+                      step="any"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      placeholder={t("enterQuantity")}
                       disabled={isSaving}
                       className="h-9 sm:h-10 text-sm sm:text-base"
                     />
@@ -1323,7 +1387,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[11px] sm:text-xs">{t("date")}</Label>
+                    <Label className="text-[11px] sm:text-xs">{t("expenseOccurredDate")}</Label>
                     <Input
                       type="date"
                       value={date}
@@ -1331,6 +1395,9 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                       disabled={isSaving}
                       className="h-9 sm:h-10 text-sm sm:text-base"
                     />
+                    <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-snug">
+                      {t("expenseOccurredDateHint")}
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px] sm:text-xs">{t("noteOptional")}</Label>
@@ -1440,6 +1507,15 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                         disabled={isSaving}
                       />
                       <Input
+                        type="number"
+                        min="0.0001"
+                        step="any"
+                        value={row.quantity}
+                        onChange={(e) => updateBulkRow(index, "quantity", e.target.value)}
+                        placeholder={t("quantity")}
+                        disabled={isSaving}
+                      />
+                      <Input
                         value={row.category}
                         onChange={(e) => updateBulkRow(index, "category", e.target.value)}
                         placeholder={t("expenseCategoryPlaceholder")}
@@ -1450,6 +1526,7 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                         value={row.date}
                         onChange={(e) => updateBulkRow(index, "date", e.target.value)}
                         disabled={isSaving}
+                        title={t("expenseOccurredDate")}
                       />
                     </div>
                     <Input

@@ -200,28 +200,20 @@ function AppLayoutInner(_props?: AppLayoutProps) {
           touchAction: "pan-y",
           ["--app-header-height" as string]: `${isMobile ? effectiveMobileTopHeight : desktopTopHeight}px`,
           ["--keyboard-open" as string]: viewport.keyboardOpen ? "1" : "0",
+          ["--keyboard-inset" as string]: `${viewport.keyboardInset}px`,
           ...(mobileMessagesShell
             ? {
+                // Always pin to the visual viewport so the native keyboard
+                // position is known and the composer sits just above it.
                 top: viewport.offsetTop + effectiveMobileTopHeight,
+                height: messagesContentHeight,
+                bottom: "auto" as const,
                 paddingTop: 0,
                 paddingBottom: 0,
-                // Keyboard open: shrink to visual viewport (input sits just above it).
-                // Keyboard closed: pin to screen bottom (no white strip).
-                ...(viewport.keyboardOpen
-                  ? {
-                      height: messagesContentHeight,
-                      bottom: "auto" as const,
-                    }
-                  : {
-                      bottom: 0,
-                      height: "auto" as const,
-                    }),
               }
             : isMobile
               ? isMessagesRoute
                 ? {
-                    // border-box height includes paddingTop — use full 100dvh so
-                    // the chat list reaches the viewport bottom (no white strip).
                     paddingTop: effectiveMobileTopHeight,
                     height: "100dvh",
                     paddingBottom: 0,
@@ -232,7 +224,8 @@ function AppLayoutInner(_props?: AppLayoutProps) {
                     paddingTop: desktopTopHeight,
                     height: "100dvh",
                     minHeight: "100dvh",
-                    paddingBottom: 0,
+                    // Keep chat composer clear of Windows taskbar / window chrome
+                    paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
                   }
                 : { paddingTop: desktopTopHeight }),
           ...(!isMobile &&

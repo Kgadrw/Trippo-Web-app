@@ -2414,6 +2414,14 @@ export const workspaceApi = {
         body?: string;
         deletedAt?: string | null;
       } | null;
+      attachments?: Array<{
+        url: string;
+        fileName: string;
+        mimeType: string;
+        size?: number;
+        duration?: number;
+        waveform?: number[];
+      }>;
     },
   ): Promise<ApiResponse> {
     return request(`/workspaces/${encodeURIComponent(workspaceId)}/messages`, {
@@ -2424,6 +2432,7 @@ export const workspaceApi = {
         mentions: options?.mentions,
         replyToMessageId: options?.replyToMessageId || undefined,
         replyTo: options?.replyTo || undefined,
+        attachments: options?.attachments || undefined,
       }),
     });
   },
@@ -2573,6 +2582,56 @@ export const workspaceApi = {
     return request(
       `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
       { method: 'DELETE' },
+    );
+  },
+
+  async getDirectChatInfo(
+    workspaceId: string,
+    conversationId: string,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/info`,
+      { method: 'GET' },
+    );
+  },
+
+  async updateDirectChatDisappearing(
+    workspaceId: string,
+    conversationId: string,
+    disappearingDurationSec: number,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/disappearing`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ disappearingDurationSec }),
+      },
+    );
+  },
+
+  async updateChatNickname(peerUserId: string, nickname: string): Promise<ApiResponse> {
+    return request(`/workspaces/chat-nicknames/${encodeURIComponent(peerUserId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ nickname }),
+    });
+  },
+
+  async getGroupChatSettings(workspaceId: string): Promise<ApiResponse> {
+    return request(`/workspaces/${encodeURIComponent(workspaceId)}/group-chat/settings`, {
+      method: 'GET',
+    });
+  },
+
+  async updateGroupChatDisappearing(
+    workspaceId: string,
+    disappearingDurationSec: number,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/group-chat/disappearing`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ disappearingDurationSec }),
+      },
     );
   },
 

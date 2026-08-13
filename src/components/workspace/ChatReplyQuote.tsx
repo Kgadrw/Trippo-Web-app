@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { ChatEmojiText } from "@/components/workspace/ChatEmojiText";
 
 export type ChatReplyTo = {
   messageId: string;
@@ -57,7 +58,7 @@ export function ChatReplyQuote({
           own ? "text-white/85" : "text-gray-600",
         )}
       >
-        {preview}
+        {deleted ? preview : <ChatEmojiText text={preview} size={14} />}
       </p>
     </button>
   );
@@ -88,7 +89,9 @@ export function ChatReplyComposerBar({
           {title}
           {replyTo.senderName ? ` · ${replyTo.senderName}` : ""}
         </p>
-        <p className={cn("truncate text-xs text-gray-600", deleted && "italic")}>{preview}</p>
+        <p className={cn("truncate text-xs text-gray-600", deleted && "italic")}>
+          {deleted ? preview : <ChatEmojiText text={preview} size={14} />}
+        </p>
       </div>
       <button
         type="button"

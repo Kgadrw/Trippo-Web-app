@@ -34,8 +34,15 @@ import {
   type ChatReplyTo,
 } from "@/components/workspace/ChatReplyQuote";
 import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatEmojiPicker";
+import { ChatEmojiText } from "@/components/workspace/ChatEmojiText";
 import { ChatTypingBubble } from "@/components/workspace/ChatTypingBubble";
+import {
+  ChatInfoButton,
+  ChatInfoSheet,
+  DisappearingBanner,
+} from "@/components/workspace/ChatInfoSheet";
 import { DirectChatMessageAttachments } from "@/components/workspace/DirectChatMessageAttachments";
+import { formatDisappearingLabel, formatDisappearingSystemNotice } from "@/lib/disappearingMessages";
 import {
   ChatVoiceRecorderButton,
   type VoiceNoteSendPayload,
@@ -55,11 +62,13 @@ import {
   canModifyDirectMessage,
   isDirectMessageDeleted,
   WORKSPACE_DM_TYPING_EVENT,
+  WORKSPACE_DM_SETTINGS_EVENT,
   type DirectChatMessage,
   type DirectChatThread,
 } from "@/lib/workspaceDirectChatRealtime";
 import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
 import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
+import { websocketManager } from "@/lib/websocketManager";
 
 const CHAT_PURPLE = "#5B2EFF";
 const CHAT_BG_IMAGE = "/mobile.jpg";
@@ -328,6 +337,8 @@ export function MessagesPage() {
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<DirectChatMessage | null>(null);
   const [voiceRecording, setVoiceRecording] = useState(false);
+  const [chatInfoOpen, setChatInfoOpen] = useState(false);
+  const [disappearingDurationSec, setDisappearingDurationSec] = useState(0);
   const [groupPreview, setGroupPreview] = useState<{
     messageId: string | null;
     body: string;
@@ -617,9 +628,30 @@ export function MessagesPage() {
       setOpeningChat(true);
       try {
         const res = await workspaceApi.openDirectChat(forWorkspaceId, otherUserId);
-        const data = res.data as { conversationId: string };
+        const data = res.data as {
+          conversationId: string;
+          disappearingDurationSec?: number;
+          otherUser?: DirectChatThread["otherUser"];
+        };
         const id = data?.conversationId || null;
         setConversationId(id);
+        if (typeof data?.disappearingDurationSec === "number") {
+          setDisappearingDurationSec(data.disappearingDurationSec);
+        }
+        if (data?.otherUser) {
+          setThreads((prev) =>
+            prev.map((thread) =>
+              thread.otherUser.userId === otherUserId && thread.workspaceId === forWorkspaceId
+                ? {
+                    ...thread,
+                    conversationId: id,
+                    disappearingDurationSec: data.disappearingDurationSec || 0,
+                    otherUser: { ...thread.otherUser, ...data.otherUser },
+                  }
+                : thread,
+            ),
+          );
+        }
         return id;
       } catch {
         toast({ title: t("directChatOpenFailed"), variant: "destructive" });
@@ -639,7 +671,12 @@ export function MessagesPage() {
         const res = await workspaceApi.getDirectChatMessages(forWorkspaceId, activeConversationId, {
           limit: 50,
         });
-        setMessages((res.data as DirectChatMessage[]) || []);
+        setMessages(
+          ((res.data as DirectChatMessage[]) || []).filter((message) => {
+            if (!message.expiresAt) return true;
+            return new Date(message.expiresAt).getTime() > Date.now();
+          }),
+        );
         markedReadIdsRef.current = new Set();
       } catch {
         toast({ title: t("directChatLoadFailed"), variant: "destructive" });
@@ -775,6 +812,8 @@ export function MessagesPage() {
       setEditingMessageId(null);
       setReplyTo(null);
       setMessageToDelete(null);
+      setChatInfoOpen(false);
+      setDisappearingDurationSec(0);
       return;
     }
 
@@ -800,6 +839,7 @@ export function MessagesPage() {
       loadedSelectionRef.current = selectionKey;
       if (existing?.conversationId) {
         setConversationId(existing.conversationId);
+        setDisappearingDurationSec(Number(existing.disappearingDurationSec) || 0);
         await loadMessages(existing.conversationId, forWorkspaceId);
         return;
       }
@@ -825,6 +865,65 @@ export function MessagesPage() {
     loadMessages,
     loadThreads,
   ]);
+
+  useEffect(() => {
+    if (!hasJoinedOrgs) return;
+    const unsub = websocketManager.subscribe(
+      WORKSPACE_DM_SETTINGS_EVENT,
+      (payload: {
+        conversationId?: string;
+        workspaceId?: string;
+        disappearingDurationSec?: number;
+      }) => {
+        if (typeof payload.disappearingDurationSec !== "number") return;
+        const conversationKey = payload.conversationId
+          ? String(payload.conversationId)
+          : "";
+        const workspaceKey = payload.workspaceId ? String(payload.workspaceId) : "";
+
+        setThreads((prev) =>
+          prev.map((thread) => {
+            const matchesConversation =
+              conversationKey &&
+              thread.conversationId != null &&
+              String(thread.conversationId) === conversationKey;
+            const matchesWorkspacePeer =
+              !conversationKey &&
+              workspaceKey &&
+              String(thread.workspaceId) === workspaceKey;
+            if (!matchesConversation && !matchesWorkspacePeer) return thread;
+            return {
+              ...thread,
+              disappearingDurationSec: payload.disappearingDurationSec,
+            };
+          }),
+        );
+
+        if (
+          conversationId &&
+          conversationKey &&
+          String(conversationId) === conversationKey
+        ) {
+          setDisappearingDurationSec(payload.disappearingDurationSec);
+        }
+      },
+    );
+    return unsub;
+  }, [hasJoinedOrgs, conversationId]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setMessages((prev) => {
+        const next = prev.filter((message) => {
+          if (!message.expiresAt) return true;
+          return new Date(message.expiresAt).getTime() > now;
+        });
+        return next.length === prev.length ? prev : next;
+      });
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [conversationId]);
 
   useEffect(() => {
     if (!conversationId || messagesLoading) return;
@@ -1185,8 +1284,31 @@ export function MessagesPage() {
     if (isDirectMessageDeleted(message)) return;
     setEditingMessageId(null);
     setReplyTo(normalizeReplyTo(message));
-    requestAnimationFrame(() => inputRef.current?.focus());
   };
+
+  useEffect(() => {
+    if (!replyTo) return;
+    const focusComposer = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus({ preventScroll: true });
+      const len = el.value.length;
+      try {
+        el.setSelectionRange(len, len);
+      } catch {
+        // ignore for unsupported input types
+      }
+    };
+    focusComposer();
+    const t1 = window.setTimeout(focusComposer, 50);
+    const t2 = window.setTimeout(focusComposer, 180);
+    const t3 = window.setTimeout(focusComposer, 320);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [replyTo]);
 
   const cancelEdit = () => {
     setEditingMessageId(null);
@@ -1328,8 +1450,10 @@ export function MessagesPage() {
                     type="button"
                     onClick={() => navigate(WORKSPACE_GROUP_CHAT_PATH)}
                     className={cn(
-                      "flex w-full items-center gap-3 border-b border-gray-200/60 px-4 py-3.5 text-left transition-colors active:bg-white hover:bg-white/70 max-lg:min-h-[4.25rem]",
-                      showGroupChat && "bg-white",
+                      "mx-2 my-0.5 flex w-[calc(100%-1rem)] items-center gap-3 px-3 py-3.5 text-left transition-colors max-lg:min-h-[4.25rem] rounded-xl",
+                      showGroupChat
+                        ? "bg-sky-100 text-gray-900 hover:bg-sky-100"
+                        : "hover:bg-white/70 active:bg-white",
                     )}
                   >
                     <WorkspaceProfileAvatar
@@ -1345,13 +1469,23 @@ export function MessagesPage() {
                           {activeWorkspace.name}
                         </p>
                         {groupPreview.at ? (
-                          <span className="shrink-0 text-[10px] text-gray-400">
+                          <span
+                            className={cn(
+                              "shrink-0 text-[10px]",
+                              showGroupChat ? "text-sky-700/70" : "text-gray-400",
+                            )}
+                          >
                             {formatThreadTime(groupPreview.at)}
                           </span>
                         ) : null}
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-xs text-gray-500">
+                        <p
+                          className={cn(
+                            "truncate text-xs",
+                            showGroupChat ? "text-sky-800/70" : "text-gray-500",
+                          )}
+                        >
                           {groupPreview.body
                             ? `${
                                 groupPreview.senderUserId === currentUserId
@@ -1409,8 +1543,10 @@ export function MessagesPage() {
                     );
                   }}
                   className={cn(
-                    "flex w-full items-center gap-3 border-b border-gray-200/60 px-4 py-3.5 text-left transition-colors active:bg-white hover:bg-white/70 max-lg:min-h-[4.25rem]",
-                    active && "bg-white",
+                    "mx-2 my-0.5 flex w-[calc(100%-1rem)] items-center gap-3 px-3 py-3.5 text-left transition-colors max-lg:min-h-[4.25rem] rounded-xl",
+                    active
+                      ? "bg-sky-100 text-gray-900 hover:bg-sky-100"
+                      : "hover:bg-white/70 active:bg-white",
                     thread.unreadCount > 0 && !active && "bg-[#5B2EFF]/[0.04]",
                   )}
                 >
@@ -1420,22 +1556,35 @@ export function MessagesPage() {
                     className="h-11 w-11 shrink-0"
                     fallbackClassName="bg-sky-400 text-xs font-bold text-white"
                     online={isOnline(thread.otherUser.userId)}
-                    ringClassName="ring-gray-50"
+                    disappearing={Number(thread.disappearingDurationSec) > 0}
+                    ringClassName={active ? "ring-sky-100" : "ring-gray-50"}
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-gray-900">
-                        {thread.otherUser.name}
+                        {thread.otherUser.nickname ||
+                          thread.otherUser.displayName ||
+                          thread.otherUser.name}
                       </p>
                         {thread.workspaceName ? (
-                          <p className="truncate text-[10px] font-medium text-sky-600">
+                          <p
+                            className={cn(
+                              "truncate text-[10px] font-medium",
+                              active ? "text-sky-700" : "text-sky-600",
+                            )}
+                          >
                             {thread.workspaceName}
                           </p>
                         ) : null}
                       </div>
                       {thread.lastMessageAt ? (
-                        <span className="shrink-0 text-[10px] text-gray-400">
+                        <span
+                          className={cn(
+                            "shrink-0 text-[10px]",
+                            active ? "text-sky-700/70" : "text-gray-400",
+                          )}
+                        >
                           {formatThreadTime(thread.lastMessageAt)}
                         </span>
                       ) : null}
@@ -1444,15 +1593,17 @@ export function MessagesPage() {
                       <p
                         className={cn(
                           "truncate text-xs",
-                          thread.unreadCount > 0
-                            ? "font-semibold text-gray-800"
-                            : "text-gray-500",
+                          active
+                            ? "text-sky-800/70"
+                            : thread.unreadCount > 0
+                              ? "font-semibold text-gray-800"
+                              : "text-gray-500",
                         )}
                       >
                         {previewPrefix}
                         {preview}
                       </p>
-                      {thread.unreadCount > 0 ? (
+                      {thread.unreadCount > 0 && !active ? (
                         <span className="flex shrink-0 items-center gap-1">
                           <span className="rounded bg-[#5B2EFF]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#5B2EFF]">
                             New
@@ -1521,7 +1672,9 @@ export function MessagesPage() {
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-semibold text-gray-900">
-                  {selectedThread.otherUser.name}
+                  {selectedThread.otherUser.nickname ||
+                    selectedThread.otherUser.displayName ||
+                    selectedThread.otherUser.name}
                 </p>
                 <p
                   className={cn(
@@ -1532,6 +1685,12 @@ export function MessagesPage() {
                   {selectedPeerPresence}
                 </p>
               </div>
+              {conversationId ? (
+                <ChatInfoButton
+                  label={t("chatInfo")}
+                  onClick={() => setChatInfoOpen(true)}
+                />
+              ) : null}
             </div>
 
             <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -1543,8 +1702,15 @@ export function MessagesPage() {
               <div
                 ref={listRef}
                 onScroll={handleListScroll}
-                className="relative z-10 h-full w-full overflow-y-auto overscroll-contain px-3 pb-28 pt-4 scroll-smooth max-lg:pb-24 sm:px-4 lg:pb-36"
+                className="relative z-10 h-full w-full overflow-y-auto overscroll-contain px-3 pb-28 pt-4 scroll-smooth max-lg:pb-24 sm:px-4 lg:pb-44"
               >
+                <DisappearingBanner
+                  durationSec={disappearingDurationSec}
+                  label={t("chatDisappearActive").replace(
+                    "{duration}",
+                    formatDisappearingLabel(disappearingDurationSec, t),
+                  )}
+                />
                 {messagesLoading || openingChat ? (
                   <div className="flex h-full min-h-[12rem] items-center justify-center text-gray-500">
                     <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
@@ -1556,6 +1722,33 @@ export function MessagesPage() {
                   </div>
                 ) : (
                   messages.map((message, index) => {
+                    const systemNotice =
+                      message.systemType === "disappearing"
+                        ? formatDisappearingSystemNotice(message, t)
+                        : "";
+                    if (systemNotice) {
+                      return (
+                        <div
+                          key={String(message._id)}
+                          data-chat-message-id={String(message._id)}
+                          className="rounded-xl transition-shadow"
+                        >
+                          {shouldShowDateDivider(messages, index) ? (
+                            <div className="my-4 flex justify-center">
+                              <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-500 shadow-sm">
+                                {formatDateDivider(message.createdAt)}
+                              </span>
+                            </div>
+                          ) : null}
+                          <div className="my-4 flex justify-center">
+                            <span className="max-w-[min(100%,22rem)] rounded-full bg-white/90 px-3 py-1 text-center text-[11px] font-medium leading-snug text-gray-500 shadow-sm">
+                              {systemNotice}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const own = isOwnMessage(message, currentUserId);
                     const grouped = shouldGroupWithPrevious(messages, index, currentUserId);
                     const deleted = isDirectMessageDeleted(message);
@@ -1632,7 +1825,7 @@ export function MessagesPage() {
                           >
                           <div
                             className={cn(
-                                "rounded-[1.15rem] px-3.5 py-2 text-[15px] leading-relaxed shadow-sm lg:px-4 lg:py-2.5 lg:text-[15.5px] lg:leading-6",
+                                "rounded-[1.15rem] px-3 py-1.5 text-sm leading-snug shadow-sm",
                               deleted
                                 ? own
                                   ? "rounded-br-md bg-gray-200 text-gray-500"
@@ -1670,7 +1863,9 @@ export function MessagesPage() {
                                     </div>
                                   ) : null}
                                   {message.body ? (
-                              <p className="whitespace-pre-wrap break-words">{message.body}</p>
+                              <p className="whitespace-pre-wrap break-words">
+                                <ChatEmojiText text={message.body} />
+                              </p>
                             ) : null}
                                 </>
                               )}
@@ -1717,21 +1912,22 @@ export function MessagesPage() {
                 <button
                   type="button"
                   onClick={() => scrollToBottom("smooth")}
-                  className="absolute bottom-32 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md ring-1 ring-sky-100 max-lg:bottom-28 lg:bottom-36 lg:h-10 lg:w-10"
+                  className="absolute bottom-32 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-md ring-1 ring-sky-100 max-lg:bottom-28 lg:bottom-44 lg:h-10 lg:w-10"
                   aria-label={t("directChatScrollDown")}
                 >
                   <ChevronDown size={18} />
                 </button>
               ) : null}
 
-              {/* Floating composer — Web WhatsApp-style footer strip on desktop */}
+              {/* Floating composer — sits above native soft keyboard via visualViewport shell */}
               <div
+                data-chat-composer
                 className={cn(
                   "pointer-events-none absolute inset-x-0 bottom-0 z-20",
                   "bg-gradient-to-t from-white via-white/95 to-transparent",
                   "px-2 pt-6 max-lg:pt-4",
-                  "pb-[max(6px,env(safe-area-inset-bottom,0px))]",
-                  "lg:bg-[#f0f2f5] lg:bg-none lg:px-3 lg:pb-4 lg:pt-3",
+                  "chat-composer-pad",
+                  "lg:bg-[#f0f2f5] lg:bg-none lg:px-3 lg:pb-0 lg:pt-4",
                 )}
               >
                 <div className="pointer-events-auto w-full">
@@ -1797,7 +1993,12 @@ export function MessagesPage() {
                         }}
                   onKeyDown={handleKeyDown}
                   rows={1}
+                        inputMode="text"
                         enterKeyHint="send"
+                        autoComplete="off"
+                        autoCorrect="on"
+                        autoCapitalize="sentences"
+                        spellCheck
                   placeholder={t("workspaceChatSend")}
                         className="max-h-[180px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[16px] leading-5 outline-none placeholder:text-gray-400 lg:min-h-[44px] lg:py-2.5 lg:text-[15px]"
                       />
@@ -1834,15 +2035,52 @@ export function MessagesPage() {
                 </button>
                     ) : null}
                   </div>
-                  <p className="mt-1.5 hidden text-center text-[11px] text-gray-400 lg:block">
-                    Enter to send · Shift+Enter for new line · Esc to cancel · Double-click a message to reply
-                  </p>
                 </div>
               </div>
             </div>
           </>
         )}
       </section>
+
+      {selectedThread && conversationId && chatWorkspaceId ? (
+        <ChatInfoSheet
+          mode="direct"
+          open={chatInfoOpen}
+          onOpenChange={setChatInfoOpen}
+          workspaceId={chatWorkspaceId}
+          conversationId={conversationId}
+          peer={selectedThread.otherUser}
+          disappearingDurationSec={disappearingDurationSec}
+          onDisappearingChange={(durationSec) => {
+            setDisappearingDurationSec(durationSec);
+            if (!conversationId) return;
+            setThreads((prev) =>
+              prev.map((thread) =>
+                String(thread.conversationId) === String(conversationId)
+                  ? { ...thread, disappearingDurationSec: durationSec }
+                  : thread,
+              ),
+            );
+          }}
+          onNicknameChange={(nickname) => {
+            setThreads((prev) =>
+              prev.map((thread) =>
+                thread.otherUser.userId === selectedThread.otherUser.userId &&
+                String(thread.workspaceId) === String(selectedThread.workspaceId)
+                  ? {
+                      ...thread,
+                      otherUser: {
+                        ...thread.otherUser,
+                        nickname,
+                        displayName: nickname || thread.otherUser.name,
+                      },
+                    }
+                  : thread,
+              ),
+            );
+          }}
+        />
+      ) : null}
 
       <DeleteConfirmDialog
         open={Boolean(messageToDelete)}

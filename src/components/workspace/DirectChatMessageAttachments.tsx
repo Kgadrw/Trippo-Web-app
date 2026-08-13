@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FileText, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DirectChatAttachment } from "@/lib/workspaceDirectChatRealtime";
+import type { WorkspaceChatAttachment } from "@/lib/workspaceChatRealtime";
 import {
   getChatAttachmentImageSrc,
   isChatAudioAttachment,
@@ -11,14 +12,16 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ChatVoicePlayer } from "@/components/workspace/ChatVoiceNote";
 
+type ChatAttachment = DirectChatAttachment | WorkspaceChatAttachment;
+
 function ChatAttachmentImage({
   attachment,
   className,
   onOpenPreview,
 }: {
-  attachment: DirectChatAttachment;
+  attachment: ChatAttachment;
   className?: string;
-  onOpenPreview: (src: string, attachment: DirectChatAttachment) => void;
+  onOpenPreview: (src: string, attachment: ChatAttachment) => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,15 +108,15 @@ export function DirectChatMessageAttachments({
   attachments,
   own,
 }: {
-  attachments: DirectChatAttachment[];
+  attachments: ChatAttachment[];
   own?: boolean;
 }) {
-  const [preview, setPreview] = useState<{ src: string; attachment: DirectChatAttachment } | null>(
+  const [preview, setPreview] = useState<{ src: string; attachment: ChatAttachment } | null>(
     null,
   );
   const [openingUrl, setOpeningUrl] = useState<string | null>(null);
 
-  const handleOpenDocument = async (attachment: DirectChatAttachment) => {
+  const handleOpenDocument = async (attachment: ChatAttachment) => {
     if (openingUrl) return;
     setOpeningUrl(attachment.url);
     try {
@@ -211,7 +214,7 @@ export function DirectChatPendingAttachmentPreview({
   attachment,
   onRemove,
 }: {
-  attachment: DirectChatAttachment & { localPreviewUrl?: string };
+  attachment: ChatAttachment & { localPreviewUrl?: string };
   onRemove: () => void;
 }) {
   const previewUrl = attachment.localPreviewUrl || attachment.url;

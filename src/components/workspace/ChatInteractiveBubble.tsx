@@ -287,7 +287,8 @@ export function ChatInteractiveBubble({
                 disabled={action.disabled}
                 onClick={() => {
                   setSheetOpen(false);
-                  action.onSelect();
+                  // Defer so Sheet focus restore doesn't steal the composer cursor.
+                  window.setTimeout(() => action.onSelect(), 80);
                 }}
                 className={cn(
                   "flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium transition-colors active:bg-sky-50 disabled:opacity-40",

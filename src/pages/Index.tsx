@@ -28,6 +28,7 @@ interface Expense {
   _id?: string;
   title: string;
   amount: number;
+  quantity?: number;
   date: string;
   category?: string;
   note?: string;
@@ -126,6 +127,7 @@ const Dashboard = () => {
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseQuantity, setExpenseQuantity] = useState("1");
   const [expenseCategory, setExpenseCategory] = useState("general");
   const [expenseDate, setExpenseDate] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
@@ -336,10 +338,19 @@ const Dashboard = () => {
     if (isSavingExpense) return;
 
     const amount = parseFloat(expenseAmount);
+    const quantity = parseFloat(expenseQuantity);
     if (!expenseTitle.trim() || isNaN(amount) || amount <= 0) {
       toast({
         title: "Missing information",
         description: "Please enter an expense name and a valid amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isNaN(quantity) || quantity <= 0) {
+      toast({
+        title: "Missing information",
+        description: "Please enter a valid quantity greater than 0.",
         variant: "destructive",
       });
       return;
@@ -353,6 +364,7 @@ const Dashboard = () => {
       await addExpense({
         title: expenseTitle.trim(),
         amount,
+        quantity,
         category: expenseCategory.trim() || "general",
         date: savedDate.toISOString(),
         note: expenseNote.trim() || undefined,
@@ -369,6 +381,7 @@ const Dashboard = () => {
       setExpenseModalOpen(false);
       setExpenseTitle("");
       setExpenseAmount("");
+      setExpenseQuantity("1");
       setExpenseCategory("general");
       setExpenseDate(getTodayDate());
       setExpenseNote("");
@@ -507,17 +520,32 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            <div className="space-y-1 min-w-0">
-              <Label className="text-[11px] sm:text-xs">Amount (Rwf)</Label>
-              <Input
-                type="number"
-                min="0"
-                inputMode="numeric"
-                value={expenseAmount}
-                onChange={(e) => setExpenseAmount(e.target.value)}
-                placeholder="0"
-                className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 min-w-0">
+              <div className="space-y-1 min-w-0">
+                <Label className="text-[11px] sm:text-xs">Amount (Rwf)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value)}
+                  placeholder="0"
+                  className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
+                />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-[11px] sm:text-xs">Quantity</Label>
+                <Input
+                  type="number"
+                  min="0.0001"
+                  step="any"
+                  inputMode="decimal"
+                  value={expenseQuantity}
+                  onChange={(e) => setExpenseQuantity(e.target.value)}
+                  placeholder="1"
+                  className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 min-w-0">
               <div className="space-y-1 min-w-0">
@@ -530,13 +558,16 @@ const Dashboard = () => {
                 />
               </div>
               <div className="space-y-1 min-w-0">
-                <Label className="text-[11px] sm:text-xs">Date</Label>
+                <Label className="text-[11px] sm:text-xs">Date of expenditure</Label>
                 <Input
                   type="date"
                   value={expenseDate}
                   onChange={(e) => setExpenseDate(e.target.value)}
                   className="h-9 sm:h-10 text-sm sm:text-base w-full min-w-0 max-w-full"
                 />
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-snug">
+                  Choose when the spend happened — you can pick yesterday even if recording today.
+                </p>
               </div>
             </div>
             <div className="space-y-1 min-w-0">

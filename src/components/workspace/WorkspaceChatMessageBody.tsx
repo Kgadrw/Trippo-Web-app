@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { splitMessageBodyParts, type WorkspaceChatMention } from "@/lib/workspaceChatMentions";
+import { ChatEmojiText, resolveChatEmojiSize } from "@/components/workspace/ChatEmojiText";
 
 type WorkspaceChatMessageBodyProps = {
   body: string;
@@ -22,11 +23,17 @@ export function WorkspaceChatMessageBody({
     [body, mentions, mentionAll],
   );
 
+  const hasMentions = parts.some((part) => part.type === "mention");
+  const emojiSize = useMemo(
+    () => (hasMentions ? 20 : resolveChatEmojiSize(body)),
+    [body, hasMentions],
+  );
+
   return (
     <p className="whitespace-pre-wrap break-words">
       {parts.map((part, index) => {
         if (part.type === "text") {
-          return <span key={index}>{part.text}</span>;
+          return <ChatEmojiText key={index} text={part.text} size={emojiSize} />;
         }
 
         const isSelfMention =

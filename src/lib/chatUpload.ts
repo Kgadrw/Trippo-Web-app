@@ -116,6 +116,35 @@ export async function uploadDirectChatAttachment(
   return json.data as ChatAttachmentMeta;
 }
 
+export async function uploadWorkspaceChatAttachment(
+  workspaceId: string,
+  file: File,
+): Promise<ChatAttachmentMeta> {
+  const userId = localStorage.getItem("profit-pilot-user-id");
+  if (!userId) {
+    throw new Error("Not authenticated");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(
+    `${PUBLIC_API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/messages/attachments`,
+    {
+      method: "POST",
+      headers: { "X-User-Id": userId },
+      body: formData,
+    },
+  );
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json.error || "Failed to upload attachment");
+  }
+
+  return json.data as ChatAttachmentMeta;
+}
+
 function normalizeBlob(blob: Blob, mimeType?: string, fileName?: string): Blob {
   const resolvedType = inferChatAttachmentMimeType(fileName, mimeType || blob.type || undefined);
   if (blob.type === resolvedType) return blob;

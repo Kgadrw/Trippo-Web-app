@@ -366,7 +366,7 @@
   }
 
   /* Modal form fields — clear contrast on white dialog backgrounds */
-  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not(.epr-search),
   [role="dialog"] textarea,
   [role="dialog"] button[role="combobox"] {
     background-color: #ffffff !important;
@@ -374,6 +374,16 @@
     border: 1px solid rgb(209 213 219);
     border-radius: 0 !important;
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  /* Emoji picker search must stay pill-shaped even inside dialogs/popovers */
+  [role="dialog"] .trippo-emoji-picker .epr-search-container input,
+  [role="dialog"] .EmojiPickerReact .epr-search-container input,
+  .trippo-emoji-picker .epr-search-container input,
+  .EmojiPickerReact .epr-search-container input,
+  aside.EmojiPickerReact input[type="text"] {
+    border-radius: 9999px !important;
+    -webkit-border-radius: 9999px !important;
   }
 
   [role="dialog"] button[role="combobox"].plain-select-trigger,
@@ -634,4 +644,92 @@
   h3.text-gray-800,
   h4.text-gray-800 {
     color: rgb(75 85 99);
+  }
+
+  /* Emoji picker: rounder search + skin-tone menu */
+  .trippo-emoji-picker.EmojiPickerReact {
+    --epr-search-input-border-radius: 9999px !important;
+    --epr-picker-border-radius: 16px;
+    --epr-skin-tone-size: 28px !important;
+    --epr-search-input-height: 40px;
+  }
+
+  aside.trippo-emoji-picker .epr-search-container input,
+  .trippo-emoji-picker .epr-search-container input,
+  .EmojiPickerReact.trippo-emoji-picker .epr-search-container > input,
+  .trippo-emoji-picker input[aria-label="Type to search for an emoji"],
+  aside.EmojiPickerReact input[type="text"] {
+    border-radius: 9999px !important;
+    -webkit-border-radius: 9999px !important;
+  }
+
+  .trippo-emoji-picker .epr-skin-tones {
+    --epr-skin-tone-size: 28px !important;
+    padding: 0 !important;
+    margin-left: 10px !important;
+  }
+
+  .trippo-emoji-picker .epr-skin-tones.epr-vertical {
+    border-radius: 9999px !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .trippo-emoji-picker .epr-skin-tone-select,
+  .trippo-emoji-picker .epr-tone {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 9999px !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .trippo-emoji-picker .epr-tone:hover,
+  .trippo-emoji-picker .epr-tone:focus,
+  .trippo-emoji-picker .epr-tone.epr-active,
+  .trippo-emoji-picker .epr-skin-tones .epr-active {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  /* Active category: color only, no circular border */
+  .trippo-emoji-picker .epr-cat-btn:focus::before,
+  .trippo-emoji-picker .epr-cat-btn:focus-visible::before,
+  .trippo-emoji-picker .epr-cat-btn.epr-active::before,
+  .trippo-emoji-picker .epr-cat-btn::before {
+    content: none !important;
+    border: none !important;
+    display: none !important;
+  }
+
+  .trippo-emoji-picker .epr-cat-btn:focus,
+  .trippo-emoji-picker .epr-cat-btn:focus-visible,
+  .trippo-emoji-picker .epr-cat-btn.epr-active {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Mobile chat composer: above home indicator when keyboard closed;
+     drop safe-area gap when native keyboard is open (--keyboard-open=1). */
+  .chat-composer-pad {
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (max-width: 1023px) {
+    .workspace-chat .chat-composer-pad {
+      padding-bottom: max(
+        6px,
+        calc(env(safe-area-inset-bottom, 0px) * (1 - var(--keyboard-open, 0)))
+      );
+    }
+  }
+
+  /* Desktop: clear OS taskbar / window chrome so the input is never clipped */
+  @media (min-width: 1024px) {
+    .workspace-chat .chat-composer-pad {
+      padding-bottom: max(1.75rem, env(safe-area-inset-bottom, 0px)) !important;
+    }
   }
