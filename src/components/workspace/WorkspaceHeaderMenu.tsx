@@ -78,7 +78,7 @@ type PendingInvite = {
 };
 
 const headerButtonClass =
-  'flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900';
+  'flex h-9 items-center gap-1.5 rounded-full border-0 bg-transparent px-2.5 text-sm text-gray-700 transition-colors hover:bg-transparent hover:text-gray-900';
 
 const MAX_PROFILE_PICTURE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
@@ -166,14 +166,17 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
                 name={activeWorkspace.name}
                 profilePictureUrl={activeWorkspace.profilePictureUrl}
                 pictureRevision={activeWorkspace.profilePictureRevision}
-                className="h-6 w-6 border border-gray-200"
+                ringClassName="bg-gray-200"
+                className="h-6 w-6"
                 fallbackClassName="bg-blue-600 text-[10px] text-white"
               />
             ) : (
               <UserProfileAvatar
                 name={currentUser?.name || 'Personal'}
                 profilePictureUrl={currentUser?.profilePictureUrl}
-                className="h-6 w-6 border border-gray-200"
+                enablePreview={false}
+                ringClassName="bg-sky-300"
+                className="h-6 w-6"
                 fallbackClassName="bg-sky-100 text-[10px] font-semibold text-sky-700"
               />
             )}
@@ -187,7 +190,9 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
             <UserProfileAvatar
               name={currentUser?.name || 'Personal'}
               profilePictureUrl={currentUser?.profilePictureUrl}
-              className="h-8 w-8 shrink-0 border border-gray-200 pointer-events-none"
+              enablePreview={false}
+              ringClassName="bg-sky-300"
+              className="h-8 w-8 shrink-0 pointer-events-none"
               fallbackClassName="bg-sky-100 text-[11px] font-semibold text-sky-700"
             />
             <span className="flex-1 truncate">{personalWorkspaceLabel}</span>
@@ -215,7 +220,8 @@ export function WorkspaceHeaderMenu({ className }: { className?: string }) {
                       name={ws.name}
                       profilePictureUrl={ws.profilePictureUrl}
                       pictureRevision={ws.profilePictureRevision}
-                      className="h-8 w-8 shrink-0 border border-gray-200 pointer-events-none"
+                      ringClassName="bg-gray-200"
+                      className="h-8 w-8 shrink-0 pointer-events-none"
                       fallbackClassName="bg-blue-600 text-[11px] text-white"
                     />
                     <span className="flex-1 truncate font-medium">{ws.name}</span>
@@ -585,7 +591,8 @@ function ManageWorkspaceDialog({
                 profilePictureUrl={profilePictureUrl}
                 previewUrl={previewUrl}
                 pictureRevision={pictureRevision}
-                className="h-16 w-16 border-2 border-blue-500"
+                ringClassName="bg-blue-500"
+                className="h-16 w-16"
                 fallbackClassName="bg-blue-600 text-base text-white"
               />
               <div className="flex flex-wrap items-center gap-2">

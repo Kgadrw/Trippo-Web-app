@@ -19,6 +19,7 @@ import {
   Pencil,
   Reply,
   Trash2,
+  BarChart3,
 } from "lucide-react";
 import { workspaceApi } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -36,6 +37,7 @@ import {
 } from "@/components/workspace/ChatReplyQuote";
 import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatEmojiPicker";
 import { ChatInteractiveBubble } from "@/components/workspace/ChatInteractiveBubble";
+import { ChatMessageReactions } from "@/components/workspace/ChatMessageReactions";
 import { ChatTypingBubble } from "@/components/workspace/ChatTypingBubble";
 import {
   ChatInfoButton,
@@ -46,6 +48,14 @@ import {
   ChatVoiceRecorderButton,
   type VoiceNoteSendPayload,
 } from "@/components/workspace/ChatVoiceNote";
+import {
+  ChatAttachButton,
+  ChatPendingAttachments,
+  filesToPendingAttachments,
+  revokePendingAttachments,
+  validateChatAttachmentFiles,
+  type PendingChatAttachment,
+} from "@/components/workspace/ChatComposerAttach";
 import { uploadWorkspaceChatAttachment } from "@/lib/chatUpload";
 import {
   DropdownMenu,
@@ -53,6 +63,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -64,6 +81,7 @@ import {
   WORKSPACE_CHAT_TYPING_EVENT,
   type WorkspaceChatMessage,
   type WorkspaceChatReceipt,
+  type ChatPollInput,
 } from "@/lib/workspaceChatRealtime";
 import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
 import { useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
@@ -73,6 +91,8 @@ import { useWorkspaceChatSocket } from "@/hooks/useWorkspaceChatSocket";
 import { WorkspaceActiveUsersRow } from "@/components/workspace/WorkspaceActiveUsersRow";
 import { WorkspaceChatMentionMenu } from "@/components/workspace/WorkspaceChatMentionMenu";
 import { WorkspaceChatMessageBody } from "@/components/workspace/WorkspaceChatMessageBody";
+import { ChatPoll } from "@/components/workspace/ChatPoll";
+import { ChatPollCreateDialog } from "@/components/workspace/ChatPollCreateDialog";
 import {
   buildMentionsFromBody,
   filterMentionOptions,
@@ -392,6 +412,10 @@ export function WorkspaceGroupChatPane({
   const [inputExpanded, setInputExpanded] = useState(false);
   const [chatInfoOpen, setChatInfoOpen] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState(false);
+  const [pollDialogOpen, setPollDialogOpen] = useState(false);
+  const [votingMessageId, setVotingMessageId] = useState<string | null>(null);
+  const [reactingMessageId, setReactingMessageId] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
 
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -406,6 +430,7 @@ export function WorkspaceGroupChatPane({
     editingMessageId,
     voiceRecording,
     text,
+    pendingAttachments.length,
     variant,
   ]);
   const mentionMembers = useMemo(
@@ -477,6 +502,7 @@ export function WorkspaceGroupChatPane({
 
   const stickToBottomRef = useRef(true);
   const pendingSendIdsRef = useRef<Set<string>>(new Set());
+  const sendLockRef = useRef(false);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = listRef.current;
@@ -484,6 +510,25 @@ export function WorkspaceGroupChatPane({
     el.scrollTo({ top: el.scrollHeight, behavior });
     stickToBottomRef.current = true;
     setShowScrollDown(false);
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    stickToBottomRef.current = true;
+    setShowScrollDown(false);
+    const timers: number[] = [];
+    const run = () => {
+      const el = listRef.current;
+      if (!el) return;
+      el.scrollTop = el.scrollHeight;
+    };
+    run();
+    requestAnimationFrame(run);
+    timers.push(window.setTimeout(run, 50));
+    timers.push(window.setTimeout(run, 180));
+    timers.push(window.setTimeout(run, 400));
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+    };
   }, []);
 
   useEffect(() => {
@@ -542,6 +587,7 @@ export function WorkspaceGroupChatPane({
           });
         setMessages(loaded);
         loadedWorkspaceRef.current = workspaceId;
+        if (active) stickToBottomRef.current = true;
 
         if (!active && trackUnreadWhenInactive) {
           const unreadFromServer = loaded.filter(
@@ -631,21 +677,7 @@ export function WorkspaceGroupChatPane({
         clearTypingUser(String(message.senderUserId));
       }
 
-      setMessages((prev) => {
-        let base = prev;
-        if (fromSelf && pendingSendIdsRef.current.size > 0) {
-          base = prev.filter((row) => {
-            const id = String(row._id);
-            if (!id.startsWith("pending-")) return true;
-            if (pendingSendIdsRef.current.has(id)) {
-              pendingSendIdsRef.current.delete(id);
-              return false;
-            }
-            return true;
-          });
-        }
-        return mergeChatMessages(base, enrichMessageProfiles(message));
-      });
+      setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
 
       if (!active && !fromSelf) {
         return;
@@ -674,6 +706,9 @@ export function WorkspaceGroupChatPane({
         setText("");
       }
     },
+    onReaction: (message) => {
+      setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
+    },
   });
 
   useEffect(() => {
@@ -693,12 +728,21 @@ export function WorkspaceGroupChatPane({
     if (!active) return;
 
     clearUnread();
-    requestAnimationFrame(() => scrollToBottom("auto"));
+    stickToBottomRef.current = true;
+    const cancelJump = jumpToLatest();
     const timer = window.setTimeout(() => inputRef.current?.focus(), 120);
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelJump();
+      window.clearTimeout(timer);
+    };
     // Intentionally only when the pane opens / workspace changes — not when loadMessages identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, workspaceId]);
+
+  useEffect(() => {
+    if (!active || loading) return;
+    return jumpToLatest();
+  }, [active, loading, workspaceId, jumpToLatest]);
 
   useEffect(() => {
     if (!active || !workspaceId) return;
@@ -746,13 +790,24 @@ export function WorkspaceGroupChatPane({
     setInputExpanded(el.scrollHeight > 52 || text.includes("\n"));
   }, [text]);
 
+  useEffect(() => {
+    setPendingAttachments((prev) => {
+      if (!prev.length) return prev;
+      revokePendingAttachments(prev);
+      return [];
+    });
+  }, [workspaceId]);
+
   const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || !workspaceId || sending) return;
+    const staged = pendingAttachments;
+    if ((!trimmed && !staged.length) || !workspaceId || sending || sendLockRef.current) return;
 
     stopTyping();
 
     if (editingMessageId) {
+      if (!trimmed) return;
+      sendLockRef.current = true;
       setSending(true);
       try {
         const res = await workspaceApi.editMessage(workspaceId, editingMessageId, trimmed);
@@ -768,13 +823,23 @@ export function WorkspaceGroupChatPane({
         toast({ title: t("directChatEditFailed"), variant: "destructive" });
       } finally {
         setSending(false);
+        sendLockRef.current = false;
       }
       return;
     }
 
+    sendLockRef.current = true;
+    setSending(true);
+
     const { mentionAll, mentions } = buildMentionsFromBody(trimmed, mentionMembers);
     const optimisticId = `pending-${Date.now()}`;
     const optimisticReply = replyTo;
+    const optimisticAttachments = staged.map((item) => ({
+      url: item.previewUrl || "",
+      fileName: item.file.name,
+      mimeType: item.file.type || "application/octet-stream",
+      size: item.file.size,
+    }));
     const optimisticMessage: WorkspaceChatMessage = {
       _id: optimisticId,
       workspaceId,
@@ -783,6 +848,7 @@ export function WorkspaceGroupChatPane({
       senderProfilePictureUrl: currentUser?.profilePictureUrl || null,
       body: trimmed,
       replyTo: optimisticReply,
+      attachments: optimisticAttachments,
       mentionAll,
       mentions,
       createdAt: new Date().toISOString(),
@@ -795,11 +861,18 @@ export function WorkspaceGroupChatPane({
     setText("");
     setReplyTo(null);
     setMentionMenu(null);
+    setPendingAttachments([]);
     requestAnimationFrame(() => scrollToBottom("smooth"));
 
-    setSending(true);
     try {
+      const uploaded =
+        staged.length > 0
+          ? await Promise.all(
+              staged.map((item) => uploadWorkspaceChatAttachment(workspaceId, item.file)),
+            )
+          : [];
       const res = await workspaceApi.sendMessage(workspaceId, trimmed, {
+        attachments: uploaded,
         mentionAll,
         mentions,
         replyToMessageId: optimisticReply?.messageId || null,
@@ -818,16 +891,45 @@ export function WorkspaceGroupChatPane({
         });
         requestAnimationFrame(() => scrollToBottom("smooth"));
       }
+      revokePendingAttachments(staged);
     } catch {
       pendingSendIdsRef.current.delete(optimisticId);
       setMessages((prev) => prev.filter((row) => String(row._id) !== optimisticId));
       setText(trimmed);
       if (optimisticReply) setReplyTo(optimisticReply);
-      toast({ title: t("workspaceChatSendFailed"), variant: "destructive" });
+      setPendingAttachments(staged);
+      toast({
+        title: t("workspaceChatSendFailed"),
+        description: staged.length ? "Failed to send attachment" : undefined,
+        variant: "destructive",
+      });
     } finally {
       setSending(false);
+      sendLockRef.current = false;
       requestAnimationFrame(() => inputRef.current?.focus());
     }
+  };
+
+  const queuePendingAttachments = (files: File[]) => {
+    const validation = validateChatAttachmentFiles(files);
+    if (!validation.ok) {
+      toast({
+        title: "Attachment is too large",
+        description: validation.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    setPendingAttachments((prev) => [...prev, ...filesToPendingAttachments(files)]);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const removePendingAttachment = (id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target) revokePendingAttachments([target]);
+      return prev.filter((item) => item.id !== id);
+    });
   };
 
   const handleSendVoice = async ({ file, duration, waveform }: VoiceNoteSendPayload) => {
@@ -892,6 +994,50 @@ export function WorkspaceGroupChatPane({
     } finally {
       setSending(false);
       URL.revokeObjectURL(localUrl);
+    }
+  };
+
+  const handleCreatePoll = async (poll: ChatPollInput) => {
+    if (!workspaceId || sending || editingMessageId) return;
+    setSending(true);
+    try {
+      const res = await workspaceApi.sendMessage(workspaceId, "", { poll });
+      const message = res.data as WorkspaceChatMessage;
+      if (message) setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
+      requestAnimationFrame(() => scrollToBottom("smooth"));
+    } catch {
+      toast({ title: "Couldn't create poll", variant: "destructive" });
+      throw new Error("Poll creation failed");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVotePoll = async (messageId: string, optionIndex: number) => {
+    if (!workspaceId || votingMessageId) return;
+    setVotingMessageId(messageId);
+    try {
+      const res = await workspaceApi.voteMessagePoll(workspaceId, messageId, optionIndex);
+      const message = res.data as WorkspaceChatMessage;
+      if (message) setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
+    } catch {
+      toast({ title: "Couldn't record vote", variant: "destructive" });
+    } finally {
+      setVotingMessageId(null);
+    }
+  };
+
+  const handleReact = async (messageId: string, emoji: string) => {
+    if (!workspaceId || reactingMessageId) return;
+    setReactingMessageId(messageId);
+    try {
+      const res = await workspaceApi.toggleMessageReaction(workspaceId, messageId, emoji);
+      const message = res.data as WorkspaceChatMessage;
+      if (message) setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
+    } catch {
+      toast({ title: "Couldn't add reaction", variant: "destructive" });
+    } finally {
+      setReactingMessageId(null);
     }
   };
 
@@ -1113,15 +1259,17 @@ export function WorkspaceGroupChatPane({
                 />
                 <div className="absolute inset-0 bg-white/96" />
               </div>
-              <div
-                ref={listRef}
-                onScroll={handleListScroll}
-                className={cn(
-                  "relative z-10 h-full min-h-0 w-full overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-3 pt-4 scroll-smooth sm:px-4",
-                  variant !== "page" && "pb-5",
-                )}
-                style={variant === "page" ? { paddingBottom: composerPad } : undefined}
-              >
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div
+                    ref={listRef}
+                    onScroll={handleListScroll}
+                    className={cn(
+                      "relative z-10 h-full min-h-0 w-full overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-3 pt-4 scroll-smooth sm:px-4",
+                      variant !== "page" && "pb-5",
+                    )}
+                    style={variant === "page" ? { paddingBottom: composerPad } : undefined}
+                  >
               {loading && messages.length === 0 ? (
                 <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 text-gray-500">
                   <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
@@ -1209,12 +1357,13 @@ export function WorkspaceGroupChatPane({
                               </p>
                             ) : null}
 
+                            <div className="flex max-w-full items-end gap-1.5">
                             <ChatInteractiveBubble
                               own={own}
                               disabled={deleted}
                               actionsTitle={t("chatMessageActions")}
                               onReply={() => startReply(message)}
-                              className="w-full max-w-full"
+                              className="min-w-0 max-w-full ml-0 mr-0"
                               actions={[
                                 {
                                   id: "reply",
@@ -1285,6 +1434,15 @@ export function WorkspaceGroupChatPane({
                                         />
                                       </div>
                                     ) : null}
+                                  {message.poll ? (
+                                    <ChatPoll
+                                      poll={message.poll}
+                                      currentUserId={currentUserId}
+                                      own={own}
+                                      pending={votingMessageId === String(message._id)}
+                                      onVote={(optionIndex) => void handleVotePoll(String(message._id), optionIndex)}
+                                    />
+                                  ) : null}
                                     {message.body?.trim() ? (
                                       <WorkspaceChatMessageBody
                                         body={message.body}
@@ -1298,6 +1456,16 @@ export function WorkspaceGroupChatPane({
                                 )}
                               </div>
                             </ChatInteractiveBubble>
+                            {!deleted ? (
+                              <ChatMessageReactions
+                                reactions={message.reactions}
+                                currentUserId={currentUserId}
+                                own={own}
+                                disabled={reactingMessageId === String(message._id)}
+                                onReact={(emoji) => void handleReact(String(message._id), emoji)}
+                              />
+                            ) : null}
+                            </div>
 
                             {own ? (
                               <div className="mt-1 flex flex-wrap items-center justify-end gap-1.5 px-1">
@@ -1357,14 +1525,50 @@ export function WorkspaceGroupChatPane({
                   <button
                     type="button"
                     onClick={() => scrollToBottom("smooth")}
-                    className="flex items-center gap-1 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm hover:bg-sky-50"
+                    className="flex items-center gap-1 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-sky-50"
                   >
                     <ChevronDown size={14} />
                     New messages
                   </button>
                 </div>
               ) : null}
-              </div>
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="min-w-[11rem] rounded-xl border border-gray-600 bg-white/95 p-1.5 text-gray-500 shadow-none">
+                  <ContextMenuItem
+                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
+                    onSelect={() => setChatInfoOpen(true)}
+                  >
+                    Chat info
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
+                    onSelect={() => void loadMessages()}
+                  >
+                    Refresh messages
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-gray-100" />
+                  <ContextMenuItem
+                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
+                    onSelect={() => {
+                      setMessages([]);
+                      setReplyTo(null);
+                      setEditingMessageId(null);
+                      toast({ title: "Chat cleared from this view" });
+                    }}
+                  >
+                    Clear chat
+                  </ContextMenuItem>
+                  {onClose ? (
+                    <ContextMenuItem
+                      className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
+                      onSelect={onClose}
+                    >
+                      Close chat
+                    </ContextMenuItem>
+                  ) : null}
+                </ContextMenuContent>
+              </ContextMenu>
             </div>
 
             {/* Composer — sits above native soft keyboard via visualViewport shell */}
@@ -1375,6 +1579,7 @@ export function WorkspaceGroupChatPane({
                 variant === "panel"
                   ? "relative shrink-0 border-t-2 border-sky-300 bg-white px-4 py-3"
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-white via-white/95 to-transparent px-2 chat-composer-pad pt-6 max-lg:pt-4 lg:bg-[#f0f2f5] lg:bg-none lg:px-3 lg:pb-0 lg:pt-4",
+                variant === "page" && voiceRecording && "z-30 overflow-visible pt-3 max-lg:pt-3",
               )}
             >
               <div className={cn(variant === "page" && "pointer-events-auto w-full")}>
@@ -1389,11 +1594,11 @@ export function WorkspaceGroupChatPane({
                   onSelect={handleMentionSelect}
                 />
               ) : null}
-              {editingMessageId ? (
+              {editingMessageId && !voiceRecording ? (
                 <div
                   className={cn(
                     "mb-1.5 flex items-center justify-between rounded-2xl px-3 py-2 text-sm text-gray-700",
-                    variant === "panel" ? "mb-2 rounded-xl bg-sky-50" : "bg-white/95 shadow-sm",
+                    variant === "panel" ? "mb-2 rounded-xl bg-sky-50" : "bg-white/95",
                   )}
                 >
                   <span>{t("directChatEditing")}</span>
@@ -1405,33 +1610,50 @@ export function WorkspaceGroupChatPane({
                     {t("directChatCancelEdit")}
                   </button>
                 </div>
-              ) : replyTo ? (
-                <div
-                  className={cn(
-                    variant === "page" && "mb-1.5 overflow-hidden rounded-2xl bg-white/95 shadow-sm",
-                  )}
-                >
-                  <ChatReplyComposerBar
-                    replyTo={replyTo}
-                    title={t("chatReplyingTo")}
-                    deletedLabel={t("directChatMessageDeleted")}
-                    cancelLabel={t("chatCancelReply")}
-                    onCancel={cancelReply}
-                  />
-                </div>
+              ) : replyTo && !voiceRecording ? (
+                <ChatReplyComposerBar
+                  replyTo={replyTo}
+                  title={t("chatReplyingTo")}
+                  deletedLabel={t("directChatMessageDeleted")}
+                  cancelLabel={t("chatCancelReply")}
+                  onCancel={cancelReply}
+                />
+              ) : null}
+              <ChatPollCreateDialog
+                open={pollDialogOpen}
+                onOpenChange={setPollDialogOpen}
+                onCreate={handleCreatePoll}
+              />
+              {!voiceRecording ? (
+                <ChatPendingAttachments
+                  items={pendingAttachments}
+                  onRemove={removePendingAttachment}
+                />
               ) : null}
               <div
                 className={cn(
                   "flex items-center gap-1 py-1 transition-colors",
                     variant === "panel"
                       ? "border-2 border-sky-300 bg-sky-50/50 pl-2 pr-1 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100"
-                      : "flex items-end gap-1.5 rounded-[1.75rem] border border-gray-300 bg-white px-2.5 py-1.5 shadow-[0_0_6px_rgba(0,0,0,0.12)] sm:gap-2 sm:px-4 max-lg:min-h-[3rem]",
+                      : "flex items-end gap-1.5 rounded-[1.75rem] border border-gray-300 bg-white px-2.5 py-1.5 shadow-none sm:gap-2 sm:px-4 max-lg:min-h-[3rem]",
                     variant === "panel" && (inputExpanded ? "rounded-2xl" : "rounded-full"),
                     variant === "page" &&
                       voiceRecording &&
                       "border-transparent bg-transparent p-0 shadow-none ring-0",
                   )}
                 >
+                {!voiceRecording ? (
+                  <button
+                    type="button"
+                    onClick={() => setPollDialogOpen(true)}
+                    disabled={sending || Boolean(editingMessageId)}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40"
+                    aria-label="Create poll"
+                    title="Create poll"
+                  >
+                    <BarChart3 size={18} />
+                  </button>
+                ) : null}
                 {!voiceRecording ? (
                 <ChatEmojiPicker
                   label={t("chatEmoji")}
@@ -1478,6 +1700,8 @@ export function WorkspaceGroupChatPane({
                     run();
                     requestAnimationFrame(run);
                     window.setTimeout(run, 120);
+                    window.setTimeout(run, 320);
+                    window.setTimeout(run, 520);
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder={t("workspaceChatSend")}
@@ -1496,7 +1720,16 @@ export function WorkspaceGroupChatPane({
                   )}
                 />
                 ) : null}
-                {!text.trim() && !editingMessageId ? (
+                {!voiceRecording ? (
+                  <ChatAttachButton
+                    className={variant === "page" ? "h-11 w-11" : "h-9 w-9"}
+                    iconSize={18}
+                    disabled={sending || Boolean(editingMessageId)}
+                    onFilesSelected={queuePendingAttachments}
+                  />
+                ) : null}
+                {(!text.trim() && !pendingAttachments.length && !editingMessageId) ||
+                voiceRecording ? (
                   <ChatVoiceRecorderButton
                     className={cn(
                       voiceRecording ? "w-full" : undefined,
@@ -1513,7 +1746,22 @@ export function WorkspaceGroupChatPane({
                     slideCancelLabel={t("chatVoiceSlideCancel")}
                     lockedLabel={t("chatVoiceLocked")}
                     releaseToSendLabel={t("chatVoiceReleaseToSend")}
-                    onRecordingChange={setVoiceRecording}
+                    onRecordingChange={(next) => {
+                      setVoiceRecording(next);
+                      if (!next) return;
+                      const active = document.activeElement as HTMLElement | null;
+                      active?.blur?.();
+                      window.scrollTo(0, 0);
+                      stickToBottomRef.current = true;
+                      const run = () => {
+                        const el = listRef.current;
+                        if (el) el.scrollTop = el.scrollHeight;
+                      };
+                      run();
+                      window.setTimeout(run, 120);
+                      window.setTimeout(run, 320);
+                      window.setTimeout(run, 520);
+                    }}
                     onError={(message) =>
                       toast({
                         title: t("chatVoiceSendFailed"),
@@ -1527,12 +1775,12 @@ export function WorkspaceGroupChatPane({
                 <button
                   type="button"
                   data-chat-send
-                  disabled={!text.trim() || sending}
+                  disabled={(!text.trim() && !pendingAttachments.length) || sending}
                   onClick={() => void handleSend()}
                   className={cn(
                     "mb-0.5 flex shrink-0 items-center justify-center rounded-full p-0 transition-all",
                     variant === "page" ? "h-11 w-11 lg:h-10 lg:w-10" : "h-9 w-9",
-                    text.trim()
+                    text.trim() || pendingAttachments.length
                       ? "bg-sky-400 text-white hover:bg-sky-500"
                       : "cursor-not-allowed bg-sky-200/80 text-sky-400",
                   )}
@@ -1541,7 +1789,12 @@ export function WorkspaceGroupChatPane({
                   {sending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send size={variant === "page" ? 16 : 15} className={text.trim() ? "translate-x-px" : undefined} />
+                    <Send
+                      size={variant === "page" ? 16 : 15}
+                      className={
+                        text.trim() || pendingAttachments.length ? "translate-x-px" : undefined
+                      }
+                    />
                   )}
                 </button>
                 ) : null}
@@ -1573,7 +1826,7 @@ export function WorkspaceGroupChatPane({
         deletingLabel={t("deleting")}
         onConfirm={confirmDeleteMessage}
         isDeleting={Boolean(deletingMessageId)}
-        contentClassName="top-1/2 max-w-sm -translate-y-1/2 rounded-2xl border border-gray-200 shadow-xl data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-top-0"
+        contentClassName="top-1/2 max-w-sm -translate-y-1/2 rounded-2xl border-0 text-gray-500 shadow-none data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-top-0"
         cancelClassName="rounded-full"
         confirmClassName="rounded-full"
       />

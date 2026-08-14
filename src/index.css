@@ -372,7 +372,7 @@
     background-color: #ffffff !important;
     color: rgb(17 24 39) !important;
     border: 1px solid rgb(209 213 219);
-    border-radius: 0 !important;
+    border-radius: 0.25rem !important; /* soft corners, matches buttons */
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   }
 
@@ -401,7 +401,6 @@
     background-color: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    border-radius: 0 !important;
   }
 
   [role="dialog"] input[type="date"]:focus-visible,
@@ -410,12 +409,6 @@
   [role="dialog"] input[type="time"]:focus-visible {
     border: none !important;
     box-shadow: none !important;
-  }
-
-  [role="dialog"] input[type="date"],
-  [role="dialog"] input[type="month"],
-  [role="dialog"] input[type="time"] {
-    border-radius: 0 !important;
   }
 
   [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"])::placeholder,
@@ -559,12 +552,33 @@
     }
   }
 
-  /* Square corners on all buttons app-wide */
+  /* Soft corners on all buttons app-wide (very slight round) */
   button,
   input[type="button"],
   input[type="submit"],
   input[type="reset"] {
-    border-radius: 0 !important;
+    border-radius: 0.25rem !important; /* 4px */
+  }
+
+  /* Soft corners on text fields app-wide (matches buttons) */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+  textarea,
+  select {
+    border-radius: 0.25rem;
+  }
+
+  /* Mobile: keep dense tables usable; prevent page-level horizontal bleed */
+  @media (max-width: 767px) {
+    .overflow-x-auto {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    main,
+    .page-content,
+    [data-page-content] {
+      min-width: 0;
+      max-width: 100%;
+    }
   }
 
   .homepage button,
@@ -578,10 +592,27 @@
     border-radius: 9999px !important;
   }
 
-  /* Keep header icons + profile avatars circular */
-  header button.rounded-full,
+  /* Round border only for profile images (not header icon buttons) */
   .profile-avatar,
   button.profile-avatar {
+    border-radius: 9999px !important;
+    overflow: hidden !important;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+    isolation: isolate;
+    box-sizing: border-box !important;
+  }
+
+  .profile-avatar .profile-avatar-img,
+  .profile-avatar > img,
+  button.profile-avatar > img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    object-fit: cover !important;
+    object-position: center center !important;
     border-radius: 9999px !important;
   }
 

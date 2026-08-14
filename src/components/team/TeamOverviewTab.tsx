@@ -18,9 +18,14 @@ import { cn } from "@/lib/utils";
 import { websocketManager } from "@/lib/websocketManager";
 import { matchesRealtimeRecord } from "@/lib/workspaceRealtime";
 import { TEAM_TASK_EVENTS } from "@/lib/teamTaskRealtime";
+import { UpcomingRemindersCard } from "@/components/reminders/UpcomingRemindersCard";
+import type { UpcomingReminderItem } from "@/lib/workReminders";
+import { assigneeKey, getAssigneeCardColor } from "@/components/team/TeamTaskBoard";
 
 const COLUMN_LIMIT = 12;
 const RECENTLY_ADDED_MS = 7 * 24 * 60 * 60 * 1000;
+/** Completed tasks stay in overview for one month, then drop off. */
+const COMPLETED_VISIBLE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function assigneeName(task: TeamTaskRecord, fallback: string) {
   if (typeof task.assigneeId === "object" && task.assigneeId?.name) {
@@ -29,7 +34,10 @@ function assigneeName(task: TeamTaskRecord, fallback: string) {
   return fallback;
 }
 
-function taskTime(task: TeamTaskRecord, field: "createdAt" | "completedAt" | "dueDate") {
+function taskTime(
+  task: TeamTaskRecord,
+  field: "createdAt" | "completedAt" | "dueDate",
+) {
   const value = task[field];
   if (!value) return 0;
   return new Date(value).getTime() || 0;
@@ -39,6 +47,12 @@ function isRecentlyAdded(task: TeamTaskRecord) {
   const created = taskTime(task, "createdAt");
   if (!created) return false;
   return Date.now() - created <= RECENTLY_ADDED_MS;
+}
+
+function isCompletedWithinLastMonth(task: TeamTaskRecord) {
+  const completed = taskTime(task, "completedAt") || taskTime(task, "createdAt");
+  if (!completed) return false;
+  return Date.now() - completed <= COMPLETED_VISIBLE_MS;
 }
 
 function formatShortDate(value?: string) {
@@ -55,21 +69,28 @@ type BoardColumn = {
   tasks: TeamTaskRecord[];
   accent: string;
   header: string;
+  badge: string;
 };
 
 export function TeamOverviewTab() {
   const { t } = useTranslation();
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [tasks, setTasks] = useState<TeamTaskRecord[]>([]);
+  const [recentDoneTasks, setRecentDoneTasks] = useState<TeamTaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await teamTaskApi.getAll({ monthKey });
-      setTasks(Array.isArray(res.data) ? (res.data as TeamTaskRecord[]) : []);
+      const [monthRes, doneRes] = await Promise.all([
+        teamTaskApi.getAll({ monthKey }),
+        teamTaskApi.getAll({ status: "done" }),
+      ]);
+      setTasks(Array.isArray(monthRes.data) ? (monthRes.data as TeamTaskRecord[]) : []);
+      setRecentDoneTasks(Array.isArray(doneRes.data) ? (doneRes.data as TeamTaskRecord[]) : []);
     } catch {
       setTasks([]);
+      setRecentDoneTasks([]);
     } finally {
       setLoading(false);
     }
@@ -81,8 +102,12 @@ export function TeamOverviewTab() {
 
   const refreshTasks = useCallback(async () => {
     try {
-      const res = await teamTaskApi.getAll({ monthKey });
-      setTasks(Array.isArray(res.data) ? (res.data as TeamTaskRecord[]) : []);
+      const [monthRes, doneRes] = await Promise.all([
+        teamTaskApi.getAll({ monthKey }),
+        teamTaskApi.getAll({ status: "done" }),
+      ]);
+      setTasks(Array.isArray(monthRes.data) ? (monthRes.data as TeamTaskRecord[]) : []);
+      setRecentDoneTasks(Array.isArray(doneRes.data) ? (doneRes.data as TeamTaskRecord[]) : []);
     } catch {
       // Keep existing tasks on background refresh failure
     }
@@ -115,6 +140,28 @@ export function TeamOverviewTab() {
     return options;
   }, []);
 
+  const upcomingReminders = useMemo<UpcomingReminderItem[]>(() => {
+    const now = Date.now();
+    const horizon = now + 7 * 24 * 60 * 60 * 1000;
+    return tasks
+      .filter((task) => task.status !== "done" && task.dueDate)
+      .filter((task) => {
+        const due = new Date(task.dueDate!).getTime();
+        return Number.isFinite(due) && due >= now && due <= horizon;
+      })
+      .sort((a, b) => taskTime(a, "dueDate") - taskTime(b, "dueDate"))
+      .slice(0, 6)
+      .map((task) => ({
+        id: `task-${task._id}`,
+        kind: "deadline" as const,
+        title: task.title,
+        at: task.dueDate!,
+        href: "/team/tasks",
+        subtitle: assigneeName(task, t("teamUnknownMember")),
+        reminderOffsets: (task.reminders || []).map((item) => item.offsetMinutes),
+      }));
+  }, [t, tasks]);
+
   const columns = useMemo<BoardColumn[]>(() => {
     const todo = tasks
       .filter((task) => (task.status || "todo") === "todo")
@@ -130,8 +177,8 @@ export function TeamOverviewTab() {
       })
       .slice(0, COLUMN_LIMIT);
 
-    const recentCompleted = tasks
-      .filter((task) => task.status === "done")
+    const recentCompleted = recentDoneTasks
+      .filter((task) => task.status === "done" && isCompletedWithinLastMonth(task))
       .sort((a, b) => taskTime(b, "completedAt") - taskTime(a, "completedAt"))
       .slice(0, COLUMN_LIMIT);
 
@@ -141,27 +188,30 @@ export function TeamOverviewTab() {
         title: t("teamStatusTodo"),
         empty: t("teamNoTasks"),
         tasks: todo,
-        accent: "border-slate-200",
+        accent: "border-slate-200 bg-slate-50/80",
         header: "text-slate-700",
+        badge: "bg-slate-100 text-slate-700 ring-slate-200",
       },
       {
         key: "in_progress",
         title: t("teamStatusInProgress"),
         empty: t("teamNoOngoingTasks"),
         tasks: inProgress,
-        accent: "border-sky-200",
+        accent: "border-sky-200 bg-sky-50/80",
         header: "text-sky-700",
+        badge: "bg-sky-100 text-sky-700 ring-sky-200",
       },
       {
         key: "done",
         title: t("teamRecentCompletions"),
         empty: t("teamNoRecentCompletions"),
         tasks: recentCompleted,
-        accent: "border-emerald-200",
+        accent: "border-emerald-200 bg-emerald-50/80",
         header: "text-emerald-700",
+        badge: "bg-emerald-100 text-emerald-700 ring-emerald-200",
       },
     ];
-  }, [t, tasks]);
+  }, [recentDoneTasks, t, tasks]);
 
   if (loading) {
     return (
@@ -210,15 +260,26 @@ export function TeamOverviewTab() {
         </div>
       </div>
 
+      <UpcomingRemindersCard
+        items={upcomingReminders}
+        title="Team deadlines & reminders"
+        className="rounded-none border-0 bg-transparent p-0 shadow-none"
+      />
+
       <div className="grid gap-4 lg:grid-cols-3">
         {columns.map((column) => (
           <section
             key={column.key}
-            className={cn("flex min-h-[320px] flex-col rounded-lg border bg-gray-50/70", column.accent)}
+            className={cn("flex min-h-[320px] flex-col rounded-lg border", column.accent)}
           >
-            <div className="flex items-center justify-between gap-2 border-b border-gray-200/80 px-4 py-3">
+            <div className="flex items-center justify-between gap-2 border-b border-black/5 px-4 py-3">
               <h3 className={cn("text-sm font-semibold", column.header)}>{column.title}</h3>
-              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-200">
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-xs font-medium ring-1",
+                  column.badge,
+                )}
+              >
                 {column.tasks.length}
               </span>
             </div>
@@ -233,25 +294,35 @@ export function TeamOverviewTab() {
                   const due = formatShortDate(task.dueDate);
                   const completed = formatShortDate(task.completedAt);
                   const showRecentBadge = column.key === "todo" && isRecentlyAdded(task);
+                  const cardColor = getAssigneeCardColor(assigneeKey(task));
+                  const isDone = column.key === "done";
 
                   return (
                     <li
                       key={task._id}
-                      className="rounded-md border border-gray-200 bg-white p-3 shadow-none"
+                      className="rounded border p-3 shadow-none"
+                      style={{ borderColor: cardColor, backgroundColor: cardColor }}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                        <p
+                          className={cn(
+                            "text-sm font-medium text-gray-900",
+                            isDone && "line-through text-gray-500",
+                          )}
+                        >
+                          {task.title}
+                        </p>
                         {showRecentBadge ? (
                           <span className="shrink-0 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
                             {t("teamRecentlyAdded")}
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className={cn("mt-1 text-xs text-gray-500", isDone && "line-through")}>
                         {assigneeName(task, t("teamUnknownMember"))}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
-                        {column.key === "done" && completed ? (
+                        {isDone && completed ? (
                           <span>{completed}</span>
                         ) : due ? (
                           <span>

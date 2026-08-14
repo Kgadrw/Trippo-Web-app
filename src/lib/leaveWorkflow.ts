@@ -1,5 +1,5 @@
 export type LeaveType = "annual" | "sick" | "unpaid" | "personal" | "other";
-export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled" | "changes_requested";
 
 export type LeaveRequestRecord = {
   id?: string;
@@ -42,6 +42,7 @@ export function leaveStatusLabel(status: LeaveStatus | string | undefined) {
     approved: "Approved",
     rejected: "Rejected",
     cancelled: "Cancelled",
+    changes_requested: "Changes requested",
   };
   return map[status || "pending"] || status || "Pending";
 }
@@ -54,9 +55,15 @@ export function leaveStatusClass(status: LeaveStatus | string | undefined) {
       return "bg-red-50 text-red-700 border-red-200";
     case "cancelled":
       return "bg-gray-50 text-gray-600 border-gray-200";
+    case "changes_requested":
+      return "bg-orange-50 text-orange-700 border-orange-200";
     default:
       return "bg-amber-50 text-amber-700 border-amber-200";
   }
+}
+
+export function canEditLeaveRequest(status: LeaveStatus | string | undefined) {
+  return status === "changes_requested" || status === "rejected";
 }
 
 export function formatLeaveRange(startDate: string, endDate: string, dayCount?: number) {

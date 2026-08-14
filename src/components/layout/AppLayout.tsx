@@ -46,18 +46,48 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     return saved !== "true";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [messagesSidebarPeek, setMessagesSidebarPeek] = useState(false);
+  const sidebarPrefBeforeMessagesRef = useRef<boolean | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const touchEndRef = useRef<{ x: number; y: number } | null>(null);
   const minSwipeDistance = 50;
   const [mobileTopHeight, setMobileTopHeight] = useState(64);
   const [desktopTopHeight, setDesktopTopHeight] = useState(56);
 
-  // Save sidebar open state to localStorage whenever it changes (only on desktop)
+  // On Messages (desktop): auto-hide platform sidebar like the hamburger collapse.
+  // When leaving Messages, always reopen it so navigation feels intentional.
   useEffect(() => {
-    if (!isMobile) {
+    if (isMobile) {
+      setMessagesSidebarPeek(false);
+      return;
+    }
+    if (isMessagesRoute) {
+      if (sidebarPrefBeforeMessagesRef.current === null) {
+        sidebarPrefBeforeMessagesRef.current = sidebarOpen;
+      }
+      setSidebarOpen(false);
+      setMessagesSidebarPeek(false);
+      return;
+    }
+    if (sidebarPrefBeforeMessagesRef.current !== null) {
+      setSidebarOpen(true);
+      localStorage.setItem("profit-pilot-sidebar-collapsed", "false");
+      sidebarPrefBeforeMessagesRef.current = null;
+      setMessagesSidebarPeek(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to route/mobile; capture open once on enter
+  }, [isMessagesRoute, isMobile]);
+
+  const platformSidebarOpen =
+    !isMobile && isMessagesRoute ? sidebarOpen || messagesSidebarPeek : sidebarOpen;
+
+  // Save sidebar open state to localStorage whenever it changes (only on desktop).
+  // Skip while on Messages so auto-hide does not overwrite the user's preference.
+  useEffect(() => {
+    if (!isMobile && !isMessagesRoute) {
       localStorage.setItem("profit-pilot-sidebar-collapsed", String(!sidebarOpen));
     }
-  }, [sidebarOpen, isMobile]);
+  }, [sidebarOpen, isMobile, isMessagesRoute]);
 
   // React Router does not reset scroll on navigation; without this, opening Dashboard
   // can land mid-page (e.g. at Record New Sale) from a preserved scroll position.
@@ -73,11 +103,15 @@ function AppLayoutInner(_props?: AppLayoutProps) {
       if (mobile) {
         setSidebarOpen(false);
         setMobileMenuOpen(false);
-      } else {
+        setMessagesSidebarPeek(false);
+      } else if (!location.pathname.startsWith("/messages")) {
         const saved = localStorage.getItem("profit-pilot-sidebar-collapsed");
         if (saved !== null) {
           setSidebarOpen(saved !== "true");
         }
+      } else {
+        setSidebarOpen(false);
+        setMessagesSidebarPeek(false);
       }
     };
 
@@ -85,7 +119,7 @@ function AppLayoutInner(_props?: AppLayoutProps) {
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [location.pathname]);
 
   // Nav drawer swipe — refs only (no setState on touchmove) so chat stays fixed while scrolling.
   const onTouchStart = (e: React.TouchEvent) => {
@@ -166,17 +200,35 @@ function AppLayoutInner(_props?: AppLayoutProps) {
 
       {/* Desktop header */}
       <DesktopHeader
-        sidebarOpen={sidebarOpen}
-        onSidebarToggle={() => setSidebarOpen((open) => !open)}
+        sidebarOpen={platformSidebarOpen}
+        onSidebarToggle={() => {
+          setMessagesSidebarPeek(false);
+          setSidebarOpen((open) => !open);
+        }}
         onHeightChange={setDesktopTopHeight}
       />
 
+      {/* Left-edge hover to peek platform sidebar while on Messages */}
+      {!isMobile && isMessagesRoute && !platformSidebarOpen ? (
+        <div
+          className="pointer-events-auto fixed inset-y-0 left-0 z-40 hidden w-3 lg:block"
+          style={{ top: desktopTopHeight }}
+          onMouseEnter={() => setMessagesSidebarPeek(true)}
+          aria-hidden
+        />
+      ) : null}
+
       {/* Sidebar navigation */}
       <Sidebar
-        open={sidebarOpen}
+        open={platformSidebarOpen}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
         desktopHeaderHeight={desktopTopHeight}
+        onDesktopMouseLeave={() => {
+          if (isMessagesRoute && !sidebarOpen) {
+            setMessagesSidebarPeek(false);
+          }
+        }}
       />
 
       {/* Main content */}
@@ -186,7 +238,7 @@ function AppLayoutInner(_props?: AppLayoutProps) {
           isMobile
             ? cn("ml-0", !isMessagesRoute && "pb-6")
             : cn(
-                sidebarOpen ? "lg:ml-52" : "lg:ml-0",
+                platformSidebarOpen ? "lg:ml-52" : "lg:ml-0",
                 isMessagesRoute && "overflow-hidden pb-0",
               ),
           mobileMessagesShell && "fixed left-0 right-0 overflow-hidden",
@@ -228,7 +280,7 @@ function AppLayoutInner(_props?: AppLayoutProps) {
                 : { paddingTop: desktopTopHeight }),
           ...(!isMobile &&
             !isMessagesRoute && {
-              ["--content-left" as string]: sidebarOpen
+              ["--content-left" as string]: platformSidebarOpen
                 ? "calc(0.5rem + 13rem + 0.75rem)"
                 : "0.5rem",
             }),
@@ -236,7 +288,9 @@ function AppLayoutInner(_props?: AppLayoutProps) {
       >
         <main
           className={cn(
-            isMessagesRoute ? "flex h-full min-h-0 flex-col overflow-hidden p-0" : "p-4 pt-4 lg:p-6 lg:pt-4",
+            isMessagesRoute
+              ? "flex h-full min-h-0 flex-col overflow-hidden p-0"
+              : "min-w-0 max-w-full overflow-x-hidden p-4 pt-4 lg:overflow-x-visible lg:p-6 lg:pt-4",
           )}
         >
           {!subLoading && isLocked && !isBillingRoute ? (

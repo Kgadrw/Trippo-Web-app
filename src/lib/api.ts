@@ -3,6 +3,7 @@ import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
 import { normalizeStoredFileUrl } from './storedFileUrl';
+import type { ChatPollInput } from './workspaceChatRealtime';
 
 // API URL Configuration
 const getApiBaseUrl = (): string => {
@@ -1264,6 +1265,16 @@ export const corporateCalendarApi = {
     return request(`/corporate-calendar/feed?${query}`, { method: "GET" });
   },
 
+  async getReminders(params?: { days?: number; limit?: number }): Promise<ApiResponse> {
+    const query = new URLSearchParams();
+    if (params?.days) query.append("days", String(params.days));
+    if (params?.limit) query.append("limit", String(params.limit));
+    const qs = query.toString();
+    return request(qs ? `/corporate-calendar/reminders?${qs}` : "/corporate-calendar/reminders", {
+      method: "GET",
+    });
+  },
+
   async getAnnouncements(params?: { status?: string }): Promise<ApiResponse> {
     const query = new URLSearchParams();
     if (params?.status) query.append("status", params.status);
@@ -1358,6 +1369,7 @@ export interface TeamTaskRecord {
   status?: "todo" | "in_progress" | "done";
   priority?: "low" | "medium" | "high";
   dueDate?: string;
+  reminders?: Array<{ offsetMinutes: number; sentAt?: string | null }>;
   monthKey?: string;
   completionNote?: string;
   completedAt?: string;
@@ -1495,6 +1507,24 @@ export const leaveRequestApi = {
       method: "POST",
       body: JSON.stringify(data || {}),
     });
+  },
+
+  async requestChanges(id: string, data: { note: string }): Promise<ApiResponse> {
+    return request(`/leave-requests/${id}/request-changes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/leave-requests/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async resubmit(id: string): Promise<ApiResponse> {
+    return request(`/leave-requests/${id}/resubmit`, { method: "POST" });
   },
 
   async cancel(id: string): Promise<ApiResponse> {
@@ -2090,6 +2120,13 @@ export const approvalApi = {
     });
   },
 
+  async requestChanges(entityType: string, id: string, data: { note: string }): Promise<ApiResponse> {
+    return request(`/approvals/${entityType}/${id}/request-changes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   async resubmit(entityType: string, id: string): Promise<ApiResponse> {
     return request(`/approvals/${entityType}/${id}/resubmit`, { method: "POST" });
   },
@@ -2428,6 +2465,7 @@ export const workspaceApi = {
         duration?: number;
         waveform?: number[];
       }>;
+      poll?: ChatPollInput;
     },
   ): Promise<ApiResponse> {
     return request(`/workspaces/${encodeURIComponent(workspaceId)}/messages`, {
@@ -2439,6 +2477,7 @@ export const workspaceApi = {
         replyToMessageId: options?.replyToMessageId || undefined,
         replyTo: options?.replyTo || undefined,
         attachments: options?.attachments || undefined,
+        poll: options?.poll,
       }),
     });
   },
@@ -2481,6 +2520,24 @@ export const workspaceApi = {
     return request(
       `/workspaces/${encodeURIComponent(workspaceId)}/messages/${encodeURIComponent(messageId)}`,
       { method: 'DELETE' },
+    );
+  },
+
+  async voteMessagePoll(workspaceId: string, messageId: string, optionIndex: number): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/messages/${encodeURIComponent(messageId)}/poll/vote`,
+      { method: 'POST', body: JSON.stringify({ optionIndex }) },
+    );
+  },
+
+  async toggleMessageReaction(
+    workspaceId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/messages/${encodeURIComponent(messageId)}/reactions`,
+      { method: 'POST', body: JSON.stringify({ emoji }) },
     );
   },
 
@@ -2535,6 +2592,7 @@ export const workspaceApi = {
         body?: string;
         deletedAt?: string | null;
       } | null;
+      poll?: ChatPollInput;
     },
   ): Promise<ApiResponse> {
     return request(
@@ -2546,6 +2604,7 @@ export const workspaceApi = {
           attachments,
           replyToMessageId: options?.replyToMessageId || undefined,
           replyTo: options?.replyTo || undefined,
+          poll: options?.poll,
         }),
       },
     );
@@ -2588,6 +2647,30 @@ export const workspaceApi = {
     return request(
       `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
       { method: 'DELETE' },
+    );
+  },
+
+  async voteDirectChatMessagePoll(
+    workspaceId: string,
+    conversationId: string,
+    messageId: string,
+    optionIndex: number,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/poll/vote`,
+      { method: 'POST', body: JSON.stringify({ optionIndex }) },
+    );
+  },
+
+  async toggleDirectChatMessageReaction(
+    workspaceId: string,
+    conversationId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<ApiResponse> {
+    return request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reactions`,
+      { method: 'POST', body: JSON.stringify({ emoji }) },
     );
   },
 

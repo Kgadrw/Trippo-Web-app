@@ -10,7 +10,7 @@ export type ChatIncomingPopupItem = {
 type Listener = (items: ChatIncomingPopupItem[]) => void;
 
 const MAX_VISIBLE = 3;
-const AUTO_DISMISS_MS = 8000;
+const AUTO_DISMISS_MS = 10000;
 
 let items: ChatIncomingPopupItem[] = [];
 const listeners = new Set<Listener>();

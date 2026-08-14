@@ -36,6 +36,9 @@ import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -346,7 +349,8 @@ export function AccountsTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[800px] border-collapse">
           <thead>
             <tr>
@@ -419,7 +423,51 @@ export function AccountsTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleAccounts.map((entry, index) => {
+            const id = accountId(entry);
+            const bal = Number(entry.balance ?? entry.openingBalance ?? 0);
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={entry.name}
+                subtitle={TYPE_LABELS[entry.type] || entry.type}
+                meta={entry.accountNumber || entry.institution || "—"}
+                amount={formatCurrency(bal)}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleSelectRow(id)}
+                selectLabel={`Select ${entry.name}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical size={16} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(entry)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        {t("edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openTopUp(entry)}>
+                        <Wallet className="mr-2 h-4 w-4" />
+                        {t("topUpBalance")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-red-600" onClick={() => requestDelete(entry)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

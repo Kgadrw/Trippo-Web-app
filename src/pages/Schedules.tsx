@@ -64,7 +64,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { scheduleApi, clientApi } from "@/lib/api";
-import { FINANCE_TD_CLASS, FINANCE_TH_CLASS } from "@/components/finance/financeTable";
+import { FINANCE_TD_CLASS, FINANCE_TH_CLASS, DesktopDataTable, MobileDataList, MobileListCard } from "@/components/finance/financeTable";
 import {
   AUTOMATION_TYPE_LABEL_KEYS,
   AUTOMATION_TYPE_TITLE_PH_KEYS,
@@ -1291,7 +1291,7 @@ const Schedules = () => {
 
         {/* Automation Table */}
         <div className="overflow-hidden bg-white border border-gray-200">
-          <div className="overflow-x-auto">
+          <DesktopDataTable>
             <table className="w-full min-w-[980px] border-collapse">
               <thead>
                 <tr>
@@ -1491,7 +1491,125 @@ const Schedules = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </DesktopDataTable>
+
+          {filteredSchedules.length > 0 ? (
+            <MobileDataList>
+              {filteredSchedules.map((schedule, index) => {
+                const scheduleId = (schedule as any)._id || schedule.id;
+                const overdue = isOverdue(schedule.dueDate) && schedule.status === "pending";
+                const daysUntil = getDaysUntilDue(schedule.dueDate);
+                const isToday = daysUntil === 0;
+                const clientName = getClientName(schedule.clientId);
+                const automationType = normalizeAutomationType((schedule as Schedule).automationType);
+                const statusLabel = overdue
+                  ? t("statusOverdue")
+                  : schedule.status === "pending"
+                    ? t("statusActive")
+                    : schedule.status === "completed"
+                      ? t("statusCompleted")
+                      : t("statusCancelled");
+                const dueLabel = overdue
+                  ? t("daysOverdue").replace("{days}", String(Math.abs(daysUntil)))
+                  : isToday
+                    ? t("dueToday")
+                    : daysUntil === 1
+                      ? t("dueTomorrow")
+                      : schedule.status === "completed"
+                        ? new Date(schedule.dueDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : t("daysRemaining").replace("{days}", String(daysUntil));
+
+                return (
+                  <MobileListCard
+                    key={scheduleId}
+                    index={index}
+                    className={cn(overdue && "bg-red-50/40", schedule.status === "completed" && "opacity-80")}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="font-semibold text-gray-900 truncate">{schedule.title}</div>
+                          {schedule.description ? (
+                            <div className="text-xs text-gray-500 truncate">{schedule.description}</div>
+                          ) : null}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700">
+                              {t(AUTOMATION_TYPE_LABEL_KEYS[automationType])}
+                            </span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                                schedule.status === "completed" && "bg-green-100 text-green-700",
+                                schedule.status === "pending" && !overdue && "bg-blue-100 text-blue-700",
+                                schedule.status === "cancelled" && "bg-gray-100 text-gray-600",
+                                overdue && "bg-red-100 text-red-700",
+                              )}
+                            >
+                              {statusLabel}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-600 truncate">{clientName}</div>
+                          <div className={cn("text-xs font-medium tabular-nums", overdue ? "text-red-600" : isToday ? "text-blue-600" : "text-gray-700")}>
+                            {dueLabel}
+                          </div>
+                        </div>
+                        {schedule.amount ? (
+                          <div className="shrink-0 text-sm font-semibold text-green-700 tabular-nums">
+                            <CurrencyAmount amount={schedule.amount} codeFirst codeClassName="text-green-700/70" />
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center justify-end gap-0.5">
+                        {schedule.status === "pending" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleCompleteClick(schedule)}
+                            className="p-1.5 text-green-600 rounded-lg hover:bg-green-50"
+                            title={t("completeAction")}
+                          >
+                            <CheckCircle2 size={15} />
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(schedule)}
+                          className="p-1.5 text-gray-500 rounded-lg hover:bg-gray-100"
+                          title={t("editAction")}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClick(schedule)}
+                          className="p-1.5 text-gray-400 rounded-lg hover:bg-red-50 hover:text-red-600"
+                          title={t("deleteAction")}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </MobileListCard>
+                );
+              })}
+            </MobileDataList>
+          ) : (
+            <div className="md:hidden px-4 py-16 text-center border-t border-gray-200">
+              <p className="text-base font-semibold text-gray-700 mb-1">
+                {hasActiveFilters ? t("noAutomationsFound") : t("noAutomationsYet")}
+              </p>
+              <p className="text-sm text-gray-500 mb-5 max-w-xs mx-auto">
+                {hasActiveFilters ? t("tryAdjustFilters") : t("createFirstAutomationHint")}
+              </p>
+              {!hasActiveFilters ? (
+                <Button onClick={openAddModal} className="bg-sky-400 text-white hover:bg-sky-500 border border-sky-400 gap-2">
+                  <Plus size={16} /> {t("createAutomation")}
+                </Button>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
 

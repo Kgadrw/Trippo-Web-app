@@ -483,8 +483,8 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
           {milestones.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-500">{t("projectNoMilestones")}</p>
           ) : (
-            <div className="overflow-x-auto border border-gray-200">
-              <div className="grid min-w-[900px] grid-cols-3">
+            <div className="border border-gray-200">
+              <div className="grid grid-cols-1 divide-y divide-gray-200 md:min-w-0 md:grid-cols-3 md:divide-x md:divide-y-0">
                 {MILESTONE_STATUSES.map((statusKey) => {
                   const columnMilestones = milestones.filter(
                     (row) => (row.status || "pending") === statusKey,

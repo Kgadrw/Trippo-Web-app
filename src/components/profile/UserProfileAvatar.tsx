@@ -13,6 +13,11 @@ type UserProfileAvatarProps = {
   fallbackClassName?: string;
   /** When true (default), clicking a real photo opens a full-size viewer. */
   enablePreview?: boolean;
+  /**
+   * Colored ring around the avatar (e.g. "bg-yellow-400", "bg-sky-400").
+   * Photo is inset so it stays inside the ring, same as workspace member stack.
+   */
+  ringClassName?: string;
 };
 
 function getInitials(name?: string): string {
@@ -33,6 +38,7 @@ export function UserProfileAvatar({
   className,
   fallbackClassName,
   enablePreview = true,
+  ringClassName,
 }: UserProfileAvatarProps) {
   const initials = useMemo(() => getInitials(name), [name]);
   const imageSrc = useProfilePictureSrc(profilePictureUrl, previewUrl, pictureRevision);
@@ -46,11 +52,17 @@ export function UserProfileAvatar({
   const showImage = Boolean(imageSrc) && !imgFailed;
   const canPreview = enablePreview && showImage && Boolean(imageSrc);
 
+  const shellClass = cn(
+    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full",
+    ringClassName ? "h-full w-full border-0" : "h-10 w-10",
+    !ringClassName && className,
+  );
+
   const avatarBody = (
     <>
       <span
         className={cn(
-          "absolute inset-0 flex items-center justify-center rounded-full bg-primary text-sm font-bold text-white",
+          "absolute inset-0 z-0 flex items-center justify-center rounded-full bg-primary text-sm font-bold text-white",
           fallbackClassName,
         )}
         aria-hidden={showImage}
@@ -63,7 +75,7 @@ export function UserProfileAvatar({
           src={imageSrc}
           alt={name || "Profile"}
           className={cn(
-            "absolute inset-0 h-full w-full rounded-full object-cover",
+            "profile-avatar-img absolute inset-0 z-[1] block h-full w-full max-w-none rounded-full object-cover object-center",
             showImage ? "opacity-100" : "opacity-0",
           )}
           onLoad={() => setImgFailed(false)}
@@ -74,33 +86,41 @@ export function UserProfileAvatar({
     </>
   );
 
+  const avatarNode = canPreview ? (
+    <button
+      type="button"
+      className={cn(
+        shellClass,
+        "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
+      )}
+      aria-label={`View ${name || "profile"} photo`}
+      onClick={(e) => {
+        e.stopPropagation();
+        setPreviewOpen(true);
+      }}
+    >
+      {avatarBody}
+    </button>
+  ) : (
+    <div className={shellClass} aria-label={name || "Profile"}>
+      {avatarBody}
+    </div>
+  );
+
   return (
     <>
-      {canPreview ? (
-        <button
-          type="button"
-          className={cn(
-            "profile-avatar relative h-10 w-10 shrink-0 overflow-hidden rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
-            className,
-          )}
-          aria-label={`View ${name || "profile"} photo`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setPreviewOpen(true);
-          }}
-        >
-          {avatarBody}
-        </button>
-      ) : (
+      {ringClassName ? (
         <div
           className={cn(
-            "profile-avatar relative h-10 w-10 shrink-0 overflow-hidden rounded-full",
+            "box-border shrink-0 overflow-hidden rounded-full p-[2px]",
+            ringClassName,
             className,
           )}
-          aria-label={name || "Profile"}
         >
-          {avatarBody}
+          {avatarNode}
         </div>
+      ) : (
+        avatarNode
       )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

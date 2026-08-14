@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /** Stronger field visibility inside modals (white bg, readable text; borders stay on the field components). */
 export const modalFieldStyles =
-  "[&_label]:text-gray-700 [&_label]:font-medium [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:!bg-white [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:!text-gray-900 [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:placeholder:text-gray-500 [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:!rounded-none [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:shadow-sm [&_input[type=date]]:!rounded-none [&_input[type=month]]:!rounded-none [&_input[type=time]]:!rounded-none [&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_textarea]:placeholder:text-gray-500 [&_textarea]:!rounded-none [&_textarea]:shadow-sm [&_button[role=combobox]]:!bg-white [&_button[role=combobox]]:!text-gray-900 [&_button[role=combobox]]:!rounded-none [&_button[role=combobox]]:shadow-sm";
+  "[&_label]:text-gray-700 [&_label]:font-medium [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:!bg-white [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:!text-gray-900 [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:placeholder:text-gray-500 [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:!rounded [&_input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])]:shadow-sm [&_input[type=date]]:!rounded [&_input[type=month]]:!rounded [&_input[type=time]]:!rounded [&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_textarea]:placeholder:text-gray-500 [&_textarea]:!rounded [&_textarea]:shadow-sm [&_button[role=combobox]]:!bg-white [&_button[role=combobox]]:!text-gray-900 [&_button[role=combobox]]:!rounded [&_button[role=combobox]]:shadow-sm";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -23,7 +23,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -40,14 +40,15 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-0 z-50 grid w-full max-w-lg -translate-x-1/2 translate-y-0 gap-4 rounded-none border border-gray-200 border-t-0 bg-white p-6 text-gray-900 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-gray-200/90 bg-white p-6 text-gray-900 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.28)] duration-200",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         modalFieldStyles,
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-accent data-[state=open]:text-muted-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+      <DialogPrimitive.Close className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md text-gray-400 opacity-80 ring-offset-background transition-colors hover:bg-gray-100 hover:text-gray-700 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -72,7 +73,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-bold leading-none tracking-tight text-gray-600", className)}
+    className={cn("text-lg font-semibold leading-none tracking-tight text-gray-900", className)}
     {...props}
   />
 ));

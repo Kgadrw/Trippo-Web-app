@@ -5,6 +5,7 @@ import {
   WORKSPACE_DM_READ_EVENT,
   WORKSPACE_DM_EDIT_EVENT,
   WORKSPACE_DM_DELETE_EVENT,
+  WORKSPACE_DM_REACTION_EVENT,
   type DirectChatMessage,
 } from "@/lib/workspaceDirectChatRealtime";
 
@@ -13,6 +14,7 @@ type DirectChatSocketHandlers = {
   onRead?: (message: DirectChatMessage) => void;
   onEdit?: (message: DirectChatMessage) => void;
   onDelete?: (message: DirectChatMessage) => void;
+  onReaction?: (message: DirectChatMessage) => void;
 };
 
 function messageWorkspaceId(message: DirectChatMessage) {
@@ -64,17 +66,23 @@ export function useDirectChatSocket(
       if (!message || !matchesWorkspace(message)) return;
       handlersRef.current.onDelete?.(message);
     };
+    const onReaction = (message: DirectChatMessage) => {
+      if (!message || !matchesWorkspace(message)) return;
+      handlersRef.current.onReaction?.(message);
+    };
 
     const unsubMessage = websocketManager.subscribe(WORKSPACE_DM_MESSAGE_EVENT, onMessage);
     const unsubRead = websocketManager.subscribe(WORKSPACE_DM_READ_EVENT, onRead);
     const unsubEdit = websocketManager.subscribe(WORKSPACE_DM_EDIT_EVENT, onEdit);
     const unsubDelete = websocketManager.subscribe(WORKSPACE_DM_DELETE_EVENT, onDelete);
+    const unsubReaction = websocketManager.subscribe(WORKSPACE_DM_REACTION_EVENT, onReaction);
 
     return () => {
       unsubMessage();
       unsubRead();
       unsubEdit();
       unsubDelete();
+      unsubReaction();
     };
   }, [enabled, filterId]);
 }

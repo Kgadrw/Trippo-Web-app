@@ -32,12 +32,17 @@ import { cn } from "@/lib/utils";
 import { ReceiptUploadField } from "@/components/finance/ReceiptUploadField";
 import { PaymentDetailsFields, buildFinancePaymentPayload } from "@/components/finance/PaymentDetailsFields";
 import { uploadReceipt, openReceiptInNewTab } from "@/lib/financeUpload";
-import { FinanceDocumentRefCell, FinanceTableCheckbox } from "@/components/finance/financeTable";
+import { FinanceDocumentRefCell, FinanceTableCheckbox, FinanceMobileRow, DesktopDataTable, MobileDataList } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
 import { HelpTip } from "@/components/ui/help-tip";
+import {
+  RecurrenceBadge,
+  RecurrenceFields,
+  type RecurrenceFrequency,
+} from "@/components/finance/RecurrenceFields";
 
 export interface IncomeEntry {
   id?: number;
@@ -48,6 +53,8 @@ export interface IncomeEntry {
   source?: string;
   date: string;
   note?: string;
+  isRecurring?: boolean;
+  recurrenceFrequency?: RecurrenceFrequency | "";
   paymentMethod?: string;
   bankAccountName?: string;
   bankAccountNumber?: string;
@@ -122,6 +129,8 @@ export function IncomeTab() {
   const [source, setSource] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency | "">("monthly");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [bankAccountName, setBankAccountName] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
@@ -197,6 +206,8 @@ export function IncomeTab() {
     setSource("");
     setDate(new Date().toISOString().split("T")[0]);
     setNote("");
+    setIsRecurring(false);
+    setRecurrenceFrequency("monthly");
     setPaymentMethod("cash");
     setBankAccountName("");
     setBankAccountNumber("");
@@ -220,6 +231,12 @@ export function IncomeTab() {
     setSource(entry.source || "");
     setDate(String(entry.date || "").slice(0, 10) || new Date().toISOString().split("T")[0]);
     setNote(entry.note || "");
+    setIsRecurring(Boolean(entry.isRecurring));
+    setRecurrenceFrequency(
+      entry.isRecurring && entry.recurrenceFrequency
+        ? (entry.recurrenceFrequency as RecurrenceFrequency)
+        : "monthly",
+    );
     setPaymentMethod(entry.paymentMethod || "cash");
     setBankAccountName(entry.bankAccountName || "");
     setBankAccountNumber(entry.bankAccountNumber || "");
@@ -263,6 +280,8 @@ export function IncomeTab() {
         source: source.trim() || category.trim() || "general",
         date: buildIncomeDate(date),
         note: note.trim() || undefined,
+        isRecurring,
+        recurrenceFrequency: isRecurring ? recurrenceFrequency || "monthly" : "",
         ...payment,
         receiptUrl: receipt.receiptUrl,
         receiptFileName: receipt.receiptFileName || undefined,
@@ -343,122 +362,179 @@ export function IncomeTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse">
-          <thead>
-            <tr>
-              <th className={cn(thClass, "w-10 pl-4")}>
-                <FinanceTableCheckbox
-                  checked={allSelected}
-                  onCheckedChange={toggleSelectAll}
-                  ariaLabel="Select all"
-                />
-              </th>
-              <th className={thClass}>{t("date")}</th>
-              <th className={thClass}>{t("incomeSource")}</th>
-              <th className={thClass}>{`${t("income")} #`}</th>
-              <th className={cn(thClass, "hidden md:table-cell")}>{t("category")}</th>
-              <th className={thClass}>{t("incomeTitle")}</th>
-              <th className={cn(thClass, "hidden sm:table-cell")}>{t("paymentMethod")}</th>
-              <th className={cn(thClass, "text-right")}>{t("amount")}</th>
-              <th className={cn(thClass, "w-10 pr-4")} />
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {visibleIncomes.map((entry, index) => {
-              const id = incomeId(entry);
-              const isSelected = selectedIds.has(id);
-              return (
-                <tr
-                  key={id}
-                  className={cn(
-                    "transition-colors hover:bg-gray-50/80",
-                    isSelected && "bg-blue-50/40",
-                  )}
-                >
-                  <td className={cn(tdClass, "pl-4")}>
-                    <FinanceTableCheckbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleSelectRow(id)}
-                      ariaLabel={`Select ${entry.title}`}
-                    />
-                  </td>
-                  <td className={cn(tdClass, "text-gray-700 tabular-nums")}>
-                    {formatIncomeTableDate(entry.date)}
-                  </td>
-                  <td className={cn(tdClass, "text-gray-600")}>
-                    {entry.source || entry.category || "—"}
-                  </td>
-                  <td className={tdClass}>
-                    <FinanceDocumentRefCell
-                      entry={entry}
-                      fallbackPrefix="income"
-                      id={id}
-                      index={index}
-                      onEdit={() => openEdit(entry)}
-                    />
-                  </td>
-                  <td className={cn(tdClass, "hidden md:table-cell text-gray-600")}>
-                    {entry.category || "—"}
-                  </td>
-                  <td className={cn(tdClass, "font-semibold text-gray-900 max-w-[180px] truncate")}>
-                    {entry.title}
-                  </td>
-                  <td className={cn(tdClass, "hidden sm:table-cell text-gray-600")}>
-                    {formatPaymentMode(entry.paymentMethod, t)}
-                  </td>
-                  <td className={cn(tdClass, "text-right font-medium tabular-nums text-gray-900")}>
-                    {Number(entry.amount).toLocaleString()} Rwf
-                  </td>
-                  <td className={cn(tdClass, "pr-4 text-right")}>
-                    <div className="flex items-center justify-end gap-1">
-                      {entry.receiptUrl ? (
-                        <button
-                          type="button"
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                          onClick={() => void openReceiptInNewTab(entry.receiptUrl!).catch(() => undefined)}
-                          aria-label={t("viewReceipt")}
-                        >
-                          <Paperclip size={15} />
-                        </button>
-                      ) : null}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-gray-400 hover:text-gray-700"
-                            disabled={deletingId === id}
+      <>
+        <DesktopDataTable>
+          <table className="w-full min-w-[900px] border-collapse">
+            <thead>
+              <tr>
+                <th className={cn(thClass, "w-10 pl-4")}>
+                  <FinanceTableCheckbox
+                    checked={allSelected}
+                    onCheckedChange={toggleSelectAll}
+                    ariaLabel="Select all"
+                  />
+                </th>
+                <th className={thClass}>{t("date")}</th>
+                <th className={thClass}>{t("incomeSource")}</th>
+                <th className={thClass}>{`${t("income")} #`}</th>
+                <th className={cn(thClass, "hidden md:table-cell")}>{t("category")}</th>
+                <th className={thClass}>{t("incomeTitle")}</th>
+                <th className={cn(thClass, "hidden sm:table-cell")}>{t("paymentMethod")}</th>
+                <th className={cn(thClass, "text-right")}>{t("amount")}</th>
+                <th className={cn(thClass, "w-10 pr-4")} />
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {visibleIncomes.map((entry, index) => {
+                const id = incomeId(entry);
+                const isSelected = selectedIds.has(id);
+                return (
+                  <tr
+                    key={id}
+                    className={cn(
+                      "transition-colors hover:bg-gray-50/80",
+                      isSelected && "bg-blue-50/40",
+                    )}
+                  >
+                    <td className={cn(tdClass, "pl-4")}>
+                      <FinanceTableCheckbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectRow(id)}
+                        ariaLabel={`Select ${entry.title}`}
+                      />
+                    </td>
+                    <td className={cn(tdClass, "text-gray-700 tabular-nums")}>
+                      {formatIncomeTableDate(entry.date)}
+                    </td>
+                    <td className={cn(tdClass, "text-gray-600")}>
+                      {entry.source || entry.category || "—"}
+                    </td>
+                    <td className={tdClass}>
+                      <FinanceDocumentRefCell
+                        entry={entry}
+                        fallbackPrefix="income"
+                        id={id}
+                        index={index}
+                        onEdit={() => openEdit(entry)}
+                      />
+                    </td>
+                    <td className={cn(tdClass, "hidden md:table-cell text-gray-600")}>
+                      {entry.category || "—"}
+                    </td>
+                    <td className={cn(tdClass, "font-semibold text-gray-900 max-w-[180px] truncate")}>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate">{entry.title}</span>
+                        <RecurrenceBadge
+                          isRecurring={entry.isRecurring}
+                          frequency={entry.recurrenceFrequency}
+                        />
+                      </div>
+                    </td>
+                    <td className={cn(tdClass, "hidden sm:table-cell text-gray-600")}>
+                      {formatPaymentMode(entry.paymentMethod, t)}
+                    </td>
+                    <td className={cn(tdClass, "text-right font-medium tabular-nums text-gray-900")}>
+                      {Number(entry.amount).toLocaleString()} Rwf
+                    </td>
+                    <td className={cn(tdClass, "pr-4 text-right")}>
+                      <div className="flex items-center justify-end gap-1">
+                        {entry.receiptUrl ? (
+                          <button
+                            type="button"
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            onClick={() => void openReceiptInNewTab(entry.receiptUrl!).catch(() => undefined)}
+                            aria-label={t("viewReceipt")}
                           >
-                            {deletingId === id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(entry)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            {t("edit")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => requestDelete(entry)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t("delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                            <Paperclip size={15} />
+                          </button>
+                        ) : null}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-gray-400 hover:text-gray-700"
+                              disabled={deletingId === id}
+                            >
+                              {deletingId === id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(entry)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {t("edit")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => requestDelete(entry)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {t("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleIncomes.map((entry, index) => {
+            const id = incomeId(entry);
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={
+                  <div className="flex items-center gap-2">
+                    <span className="truncate">{entry.title}</span>
+                    <RecurrenceBadge
+                      isRecurring={entry.isRecurring}
+                      frequency={entry.recurrenceFrequency}
+                    />
+                  </div>
+                }
+                subtitle={entry.source || entry.category || "—"}
+                meta={formatIncomeTableDate(entry.date)}
+                amount={`${Number(entry.amount).toLocaleString()} Rwf`}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleSelectRow(id)}
+                selectLabel={`Select ${entry.title}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(entry)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        {t("edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => requestDelete(entry)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 
@@ -556,6 +632,16 @@ export function IncomeTab() {
               onBankAccountNumberChange={setBankAccountNumber}
               accountId={accountId}
               onAccountIdChange={setAccountId}
+              disabled={isSaving}
+            />
+            <RecurrenceFields
+              isRecurring={isRecurring}
+              frequency={recurrenceFrequency}
+              onIsRecurringChange={(value) => {
+                setIsRecurring(value);
+                if (value && !recurrenceFrequency) setRecurrenceFrequency("monthly");
+              }}
+              onFrequencyChange={setRecurrenceFrequency}
               disabled={isSaving}
             />
             <div className="space-y-1">

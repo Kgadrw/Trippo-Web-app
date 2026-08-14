@@ -9,6 +9,8 @@ type WorkspaceProfileAvatarProps = {
   pictureRevision?: number;
   className?: string;
   fallbackClassName?: string;
+  /** Colored ring; photo stays inset inside it (same as user/workspace member avatars). */
+  ringClassName?: string;
 };
 
 function getInitials(name?: string): string {
@@ -28,6 +30,7 @@ export function WorkspaceProfileAvatar({
   pictureRevision,
   className,
   fallbackClassName,
+  ringClassName,
 }: WorkspaceProfileAvatarProps) {
   const initials = useMemo(() => getInitials(name), [name]);
   const imageSrc = useWorkspacePictureSrc(
@@ -43,17 +46,17 @@ export function WorkspaceProfileAvatar({
 
   const showImage = Boolean(imageSrc) && !imgFailed;
 
-  return (
-    <div
-      className={cn(
-        "relative h-10 w-10 shrink-0 overflow-hidden rounded-full",
-        className,
-      )}
-      aria-label={name || "Workspace"}
-    >
+  const shellClass = cn(
+    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full",
+    ringClassName ? "h-full w-full border-0" : "h-10 w-10",
+    !ringClassName && className,
+  );
+
+  const avatarNode = (
+    <div className={shellClass} aria-label={name || "Workspace"}>
       <span
         className={cn(
-          "absolute inset-0 flex items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white",
+          "absolute inset-0 z-0 flex items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white",
           fallbackClassName,
         )}
         aria-hidden={showImage}
@@ -66,7 +69,7 @@ export function WorkspaceProfileAvatar({
           src={imageSrc}
           alt={name || "Workspace"}
           className={cn(
-            "absolute inset-0 h-full w-full object-cover",
+            "profile-avatar-img absolute inset-0 z-[1] block h-full w-full max-w-none rounded-full object-cover object-center",
             showImage ? "opacity-100" : "opacity-0",
           )}
           onLoad={() => setImgFailed(false)}
@@ -76,4 +79,20 @@ export function WorkspaceProfileAvatar({
       ) : null}
     </div>
   );
+
+  if (ringClassName) {
+    return (
+      <div
+        className={cn(
+          "box-border shrink-0 overflow-hidden rounded-full p-[2px]",
+          ringClassName,
+          className,
+        )}
+      >
+        {avatarNode}
+      </div>
+    );
+  }
+
+  return avatarNode;
 }

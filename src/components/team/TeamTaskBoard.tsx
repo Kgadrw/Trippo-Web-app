@@ -424,8 +424,8 @@ export function TeamTaskKanbanBoard({
   }
 
   return (
-    <div className="overflow-x-auto border border-gray-200">
-      <div className="grid min-w-[720px] grid-cols-3">
+    <div className="border border-gray-200">
+      <div className="grid grid-cols-1 divide-y divide-gray-200 md:min-w-0 md:grid-cols-3 md:divide-x md:divide-y-0">
         {TEAM_TASK_SECTION_ORDER.map((statusKey) => (
           <TaskBoardColumn
             key={statusKey}

@@ -32,7 +32,26 @@ function isOwnDirectMessage(message: DirectChatMessage, currentUserId: string | 
 }
 
 function alertForIncoming(viewingThisChat: boolean, tabHidden: boolean) {
+  // Show whenever this exact thread is not open (any other page / Messages list),
+  // or when the browser tab is in the background.
   return !viewingThisChat || tabHidden;
+}
+
+function isViewingDirectChat(
+  pathname: string,
+  search: string,
+  senderId: string,
+  messageWorkspaceId: string,
+) {
+  if (!senderId || senderId === "group") return false;
+  const pathOnly = pathname.split("?")[0];
+  if (pathOnly === "/messages" || pathOnly === "/messages/") return false;
+  if (pathOnly !== `/messages/${senderId}`) return false;
+
+  if (!messageWorkspaceId) return true;
+  const w = new URLSearchParams(search).get("w");
+  if (!w) return true;
+  return String(w) === String(messageWorkspaceId);
 }
 
 /**
@@ -48,10 +67,12 @@ export function WorkspaceChatNotificationBridge() {
   const currentUserId = localStorage.getItem("profit-pilot-user-id");
   const viewingGroupOnMessages = isWorkspaceGroupChatPath(location.pathname);
   const pathnameRef = useRef(location.pathname);
+  const searchRef = useRef(location.search);
   const openRef = useRef(viewingGroupOnMessages);
   const baseTitleRef = useRef(typeof document !== "undefined" ? document.title : "Trippo");
 
   pathnameRef.current = location.pathname;
+  searchRef.current = location.search;
   openRef.current = viewingGroupOnMessages;
 
   useEffect(() => {
@@ -199,10 +220,12 @@ export function WorkspaceChatNotificationBridge() {
       const href = messageWorkspaceId
         ? `/messages/${senderId}?w=${encodeURIComponent(messageWorkspaceId)}`
         : `/messages/${senderId}`;
-      const viewingThisChat =
-        path === href ||
-        (path.startsWith(`/messages/${senderId}`) &&
-          (!messageWorkspaceId || path.includes(`w=${encodeURIComponent(messageWorkspaceId)}`) || path.includes(`w=${messageWorkspaceId}`)));
+      const viewingThisChat = isViewingDirectChat(
+        path,
+        searchRef.current,
+        senderId,
+        messageWorkspaceId,
+      );
       const tabHidden = typeof document !== "undefined" && document.hidden;
 
       if (!viewingThisChat) {

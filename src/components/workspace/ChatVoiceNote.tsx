@@ -812,86 +812,97 @@ export function ChatVoiceRecorderButton({
     return (
       <div
         className={cn(
-          "relative flex w-full items-center gap-2 rounded-full border px-3 py-2",
-          cancelArmed
-            ? "border-red-300 bg-red-100"
-            : holding
-              ? "border-red-200 bg-red-50"
-              : "border-sky-200 bg-sky-50",
+          "relative z-30 flex w-full min-w-0 flex-col gap-1.5",
           className,
         )}
+        data-chat-voice-recording="true"
+        aria-live="polite"
       >
         {holding ? (
-          <div className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-gray-900/90 px-3 py-1 text-[11px] font-medium text-white shadow-md">
-            {cancelArmed
-              ? slideCancelLabel
-              : lockHint
-                ? slideUpLockLabel
-                : releaseToSendLabel}
-          </div>
-        ) : null}
-
-        {holding ? (
-          <div className="pointer-events-none absolute -top-16 left-1/2 flex -translate-x-1/2 flex-col items-center text-sky-600">
-            <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">
-              {slideUpLockLabel}
-            </span>
-            <span className="text-lg leading-none">↑</span>
-          </div>
-        ) : null}
-
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <VoiceWaveform peaks={livePeaks} live />
-          <p
-            className={cn(
-              "mt-0.5 text-[11px] tabular-nums",
-              cancelArmed ? "text-red-700" : holding ? "text-red-600" : "text-sky-700",
-            )}
-          >
-            {holding
-              ? `${recordingLabel} · ${formatDuration(elapsed)}`
-              : `${lockedLabel} · ${formatDuration(elapsed)}`}
-          </p>
-        </div>
-
-        {holding ? (
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow"
-            aria-hidden
-          >
-            <Mic size={18} />
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => finishRecording("cancel")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-100"
-              aria-label={cancelLabel}
-              title={cancelLabel}
-            >
-              <Trash2 size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => finishRecording("send")}
-              disabled={busy || elapsed < 1}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
-              aria-label={sendLabel}
-              title={sendLabel}
-            >
-              {busy ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Send size={15} className="translate-x-px" />
+          <div className="flex items-center justify-center gap-3 px-1 text-[11px] font-medium">
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-1",
+                cancelArmed ? "bg-red-600 text-white" : "bg-gray-900/90 text-white",
               )}
-            </button>
-          </>
-        )}
+            >
+              {cancelArmed
+                ? slideCancelLabel
+                : lockHint
+                  ? slideUpLockLabel
+                  : releaseToSendLabel}
+            </span>
+            {!cancelArmed ? (
+              <span className="text-sky-600">
+                ↑ <span className="uppercase tracking-wide">{slideUpLockLabel}</span>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div
+          className={cn(
+            "flex w-full items-center gap-2 rounded-full border px-3 py-2.5 shadow-none",
+            cancelArmed
+              ? "border-red-300 bg-red-100"
+              : holding
+                ? "border-red-200 bg-red-50"
+                : "border-sky-200 bg-sky-50",
+          )}
+        >
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <VoiceWaveform peaks={livePeaks} live />
+            <p
+              className={cn(
+                "mt-0.5 text-xs font-semibold tabular-nums",
+                cancelArmed ? "text-red-700" : holding ? "text-red-600" : "text-sky-700",
+              )}
+            >
+              {holding
+                ? `${recordingLabel} · ${formatDuration(elapsed)}`
+                : `${lockedLabel} · ${formatDuration(elapsed)}`}
+            </p>
+          </div>
+
+          {holding ? (
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow"
+              aria-hidden
+            >
+              <Mic size={18} />
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => finishRecording("cancel")}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-100"
+                aria-label={cancelLabel}
+                title={cancelLabel}
+              >
+                <Trash2 size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => finishRecording("send")}
+                disabled={busy || elapsed < 1}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
+                aria-label={sendLabel}
+                title={sendLabel}
+              >
+                {busy ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Send size={15} className="translate-x-px" />
+                )}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   }

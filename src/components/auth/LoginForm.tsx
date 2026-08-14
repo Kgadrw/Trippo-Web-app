@@ -108,10 +108,10 @@ function fieldInputClass(pillStyle: boolean, hasError?: boolean, compact?: boole
   return cn(
     pillStyle &&
       cn(
-        "!rounded-none border-gray-200 !bg-gray-100 !shadow-none text-sm focus-visible:!border-gray-300 focus-visible:!bg-gray-50 focus-visible:!shadow-none focus-visible:!ring-0",
-        compact ? "!h-9 px-3.5 text-sm" : "!h-9 px-3 sm:!h-11 sm:px-4",
+        "!rounded-xl border-gray-200/90 !bg-slate-50 !shadow-none text-sm transition-colors focus-visible:!border-sky-300 focus-visible:!bg-white focus-visible:!shadow-none focus-visible:!ring-2 focus-visible:!ring-sky-100",
+        compact ? "!h-10 px-3.5 text-sm" : "!h-9 px-3 sm:!h-11 sm:px-4",
       ),
-    hasError && "border-red-500",
+    hasError && "!border-red-400 focus-visible:!ring-red-100",
   );
 }
 
@@ -121,20 +121,20 @@ function inlineActionInputClass(pillStyle: boolean, hasError?: boolean, compact?
 
 function inlineActionButtonClass(pillStyle: boolean, compact?: boolean) {
   return cn(
-    "absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center !rounded-full font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+    "absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center !rounded-lg font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60",
     pillStyle
       ? cn(
-          "bg-sky-400 hover:bg-sky-500",
-          compact ? "h-7 min-w-[4.5rem] px-2.5 text-[11px]" : "h-8 min-w-[5rem] px-3 text-xs",
+          "bg-sky-500 hover:bg-sky-600",
+          compact ? "h-8 min-w-[4.75rem] px-2.5 text-[11px]" : "h-8 min-w-[5rem] px-3 text-xs",
         )
-      : "h-8 bg-sky-400 px-3 text-xs hover:bg-sky-500",
+      : "h-8 bg-sky-500 px-3 text-xs hover:bg-sky-600",
   );
 }
 
 const pillPrimaryButtonClass =
-  "w-full !rounded-full border border-sky-400 bg-sky-400 text-white hover:bg-sky-500 hover:text-white";
+  "w-full !rounded-xl border border-sky-500 bg-sky-500 text-white shadow-sm hover:bg-sky-600 hover:text-white";
 const pillSuccessButtonClass =
-  "w-full !rounded-full bg-green-600 text-white hover:bg-green-700";
+  "w-full !rounded-xl bg-emerald-600 text-white hover:bg-emerald-700";
 
 function actionButtonClass(
   pillStyle: boolean,
@@ -142,15 +142,15 @@ function actionButtonClass(
   compact?: boolean,
 ) {
   const sizeClass = compact
-    ? "!h-9 text-sm"
+    ? "!h-10 text-sm font-medium"
     : pillStyle
       ? "!h-9 text-sm sm:!h-11 sm:text-base"
       : "";
   if (!pillStyle) {
     return variant === "success"
-      ? cn("w-full !rounded-full bg-green-600 text-white hover:bg-green-700", sizeClass)
+      ? cn("w-full !rounded-xl bg-emerald-600 text-white hover:bg-emerald-700", sizeClass)
       : cn(
-          "w-full !rounded-full border border-sky-400 bg-sky-400 text-white hover:bg-sky-500 hover:text-white",
+          "w-full !rounded-xl border border-sky-500 bg-sky-500 text-white hover:bg-sky-600 hover:text-white",
           sizeClass,
         );
   }
@@ -158,11 +158,11 @@ function actionButtonClass(
 }
 
 function pillTabListClass(compact?: boolean) {
-  return cn("rounded-full bg-gray-100", compact ? "h-9 p-0.5" : "h-9 p-0.5 sm:h-12 sm:p-1");
+  return cn("rounded-xl bg-slate-100", compact ? "h-10 p-1" : "h-9 p-0.5 sm:h-12 sm:p-1");
 }
 
 const pillTabTriggerClass =
-  "h-full w-full rounded-full font-medium transition-all data-[state=active]:!rounded-full data-[state=active]:!bg-white data-[state=active]:!text-gray-900 data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground";
+  "h-full w-full rounded-lg font-medium transition-all data-[state=active]:!rounded-lg data-[state=active]:!bg-white data-[state=active]:!text-slate-900 data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-500";
 
 function pillTabTriggerClassFor(compact?: boolean) {
   return cn(
@@ -173,7 +173,7 @@ function pillTabTriggerClassFor(compact?: boolean) {
 
 function pillRememberCheckboxClassFor(compact?: boolean) {
   return cn(
-    "!rounded-full border-gray-300 !bg-gray-100 !shadow-none hover:border-gray-400 focus-visible:!ring-0 focus-visible:!ring-offset-0 data-[state=checked]:!border-sky-400 data-[state=checked]:!bg-sky-400 data-[state=checked]:text-white",
+    "!rounded border-gray-300 !bg-slate-50 !shadow-none hover:border-gray-400 focus-visible:!ring-0 focus-visible:!ring-offset-0 data-[state=checked]:!border-sky-500 data-[state=checked]:!bg-sky-500 data-[state=checked]:text-white",
     compact ? "!h-4 !w-4" : "!h-4 !w-4 sm:!h-5 sm:!w-5",
   );
 }
@@ -721,26 +721,6 @@ export function LoginForm({
           </TabsTrigger>
         </TabsList>
 
-        {!showForgotPassword ? (
-          <div className={cn(compact ? "mt-3 space-y-3" : "mt-4 space-y-4")}>
-            <GoogleSignInSection
-              onSuccess={handleGoogleSuccess}
-              disabled={isLoading}
-              compact={compact || pillStyle}
-              loginHint={googleLoginHint}
-              hideDivider
-            />
-            <div className={cn("relative", compact ? "py-0.5" : "py-1")}>
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">or use email</span>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         <TabsContent value="login" className={tabsContentClass(pillStyle, compact)}>
           {!showForgotPassword ? (
             <>
@@ -808,6 +788,12 @@ export function LoginForm({
               >
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
+              <GoogleSignInSection
+                onSuccess={handleGoogleSuccess}
+                disabled={isLoading}
+                compact={compact || pillStyle}
+                loginHint={googleLoginHint}
+              />
               <div className="text-center">
                 <button
                   type="button"
@@ -815,7 +801,7 @@ export function LoginForm({
                     setShowForgotPassword(true);
                     setResetEmail(loginEmail);
                   }}
-                  className="text-sm text-blue-600 underline hover:text-blue-700"
+                  className="text-sm font-medium text-sky-600 hover:text-sky-700"
                 >
                   Forgot password?
                 </button>
@@ -1165,6 +1151,12 @@ export function LoginForm({
           >
             {isLoading ? t("creatingAccount") : t("createAccount")}
           </Button>
+          <GoogleSignInSection
+            onSuccess={handleGoogleSuccess}
+            disabled={isLoading}
+            compact={compact || pillStyle}
+            loginHint={googleLoginHint}
+          />
         </TabsContent>
       </Tabs>
     </div>

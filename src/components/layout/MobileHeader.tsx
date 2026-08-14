@@ -59,7 +59,6 @@ export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderPr
         <HeaderNotificationBell
           onNotificationClick={onNotificationClick}
           iconSize={22}
-          buttonClassName="rounded-full hover:bg-muted"
         />
         <HeaderSettingsIconButton className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/60" />
         <HeaderPlusIcon className="mr-0.5" />
@@ -69,7 +68,7 @@ export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderPr
             className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/60"
             aria-label={t("profileSectionTitle")}
           >
-            <HeaderAccountAvatar className="h-9 w-9 border-blue-600 ring-blue-100" />
+            <HeaderAccountAvatar className="h-9 w-9" ringClassName="bg-blue-600" />
           </button>
         </HeaderSettingsMenu>
       </div>

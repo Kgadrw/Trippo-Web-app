@@ -4,6 +4,7 @@ export const WORKSPACE_DM_EDIT_EVENT = "workspace-dm:edit";
 export const WORKSPACE_DM_DELETE_EVENT = "workspace-dm:delete";
 export const WORKSPACE_DM_TYPING_EVENT = "workspace-dm:typing";
 export const WORKSPACE_DM_SETTINGS_EVENT = "workspace-dm:settings";
+export const WORKSPACE_DM_REACTION_EVENT = "workspace-dm:reaction";
 
 export interface DirectChatTypingPayload {
   workspaceId: string;
@@ -31,6 +32,22 @@ export interface DirectChatAttachment {
   waveform?: number[];
 }
 
+export interface DirectChatPollOption {
+  text: string;
+  voteCount: number;
+  voterIds: string[];
+}
+
+export interface DirectChatPoll {
+  question: string;
+  options: DirectChatPollOption[];
+}
+
+export interface DirectChatReaction {
+  emoji: string;
+  userIds: string[];
+}
+
 export interface DirectChatReplyTo {
   messageId: string;
   senderUserId?: string | null;
@@ -49,6 +66,8 @@ export interface DirectChatMessage {
   body: string;
   replyTo?: DirectChatReplyTo | null;
   attachments?: DirectChatAttachment[];
+  poll?: DirectChatPoll | null;
+  reactions?: DirectChatReaction[];
   createdAt: string;
   editedAt?: string | null;
   deletedAt?: string | null;
@@ -95,6 +114,24 @@ export function directMessageId(message: DirectChatMessage) {
   return String(message._id);
 }
 
+function isPendingMessageId(id: string) {
+  return id.startsWith("pending-");
+}
+
+function pendingMatchesIncoming(
+  pending: DirectChatMessage,
+  incoming: DirectChatMessage,
+): boolean {
+  if (String(pending.senderUserId) !== String(incoming.senderUserId)) return false;
+  const pendingBody = (pending.body || "").trim();
+  const incomingBody = (incoming.body || "").trim();
+  if (pendingBody || incomingBody) return pendingBody === incomingBody;
+  const pendingAttachments = pending.attachments?.length || 0;
+  const incomingAttachments = incoming.attachments?.length || 0;
+  if (pendingAttachments > 0 && incomingAttachments > 0) return true;
+  return Boolean(pending.poll && incoming.poll);
+}
+
 export function mergeDirectMessages(
   prev: DirectChatMessage[],
   incoming: DirectChatMessage,
@@ -118,10 +155,40 @@ export function mergeDirectMessages(
     workspaceId: String(incoming.workspaceId),
     senderUserId: String(incoming.senderUserId),
     replyTo: incomingReply,
+    reactions: (incoming.reactions || []).map((reaction) => ({
+      emoji: String(reaction.emoji),
+      userIds: (reaction.userIds || []).map(String),
+    })),
   };
   const id = directMessageId(normalized);
   const index = prev.findIndex((row) => directMessageId(row) === id);
   if (index === -1) {
+    // Replace optimistic bubble instead of appending (avoids WS echo duplicates).
+    if (!isPendingMessageId(id)) {
+      const pendingIndex = prev.findIndex(
+        (row) =>
+          isPendingMessageId(directMessageId(row)) && pendingMatchesIncoming(row, normalized),
+      );
+      if (pendingIndex !== -1) {
+        const existing = prev[pendingIndex];
+        const next = [...prev];
+        next[pendingIndex] = {
+          ...existing,
+          ...normalized,
+          replyTo: normalized.replyTo?.messageId
+            ? normalized.replyTo
+            : existing.replyTo?.messageId
+              ? existing.replyTo
+              : normalized.replyTo || null,
+          // Keep local blob URL until upload UI swaps if needed
+          attachments:
+            normalized.attachments?.length
+              ? normalized.attachments
+              : existing.attachments || [],
+        };
+        return next;
+      }
+    }
     return [...prev, normalized];
   }
   const existing = prev[index];

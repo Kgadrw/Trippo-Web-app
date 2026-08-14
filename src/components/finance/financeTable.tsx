@@ -15,10 +15,78 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { openReceiptInNewTab } from "@/lib/financeUpload";
+import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 
 export const FINANCE_TH_CLASS =
   "px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-gray-400 whitespace-nowrap bg-sidebar";
 export const FINANCE_TD_CLASS = "px-3 py-2.5 text-sm text-gray-800 align-middle";
+
+/** Desktop table wrapper — scrolls only when needed on larger screens. */
+export function FinanceDesktopTable({
+  children,
+  minWidthClass = "md:min-w-[720px]",
+}: {
+  children: ReactNode;
+  minWidthClass?: string;
+}) {
+  return (
+    <DesktopDataTable breakpoint="md">
+      <table className={cn("w-full border-collapse", minWidthClass)}>{children}</table>
+    </DesktopDataTable>
+  );
+}
+
+export { DesktopDataTable, MobileDataList, MobileListCard };
+
+export function FinanceMobileRow({
+  title,
+  subtitle,
+  meta,
+  amount,
+  selected,
+  onToggleSelect,
+  selectLabel,
+  actions,
+  index,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  meta?: ReactNode;
+  amount?: ReactNode;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+  selectLabel?: string;
+  actions?: ReactNode;
+  index?: number;
+}) {
+  return (
+    <MobileListCard index={index}>
+      <div className="flex items-start gap-3">
+        {onToggleSelect ? (
+          <FinanceTableCheckbox
+            checked={Boolean(selected)}
+            onCheckedChange={onToggleSelect}
+            ariaLabel={selectLabel || "Select row"}
+            className="mt-0.5"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-0.5">
+              <div className="text-sm font-semibold text-gray-900">{title}</div>
+              {subtitle ? <div className="text-xs text-gray-500">{subtitle}</div> : null}
+              {meta ? <div className="text-[11px] text-gray-500">{meta}</div> : null}
+            </div>
+            <div className="shrink-0 text-right">
+              {amount ? <div className="text-sm font-semibold tabular-nums text-gray-900">{amount}</div> : null}
+              {actions ? <div className="mt-1 flex justify-end">{actions}</div> : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </MobileListCard>
+  );
+}
 
 export function formatFinanceTableDate(dateStr: string) {
   const d = new Date(dateStr);

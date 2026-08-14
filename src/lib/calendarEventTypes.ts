@@ -52,6 +52,7 @@ export interface CalendarEventRecord {
   color?: string;
   status?: CalendarEventStatus;
   reminderMinutes?: number;
+  reminders?: Array<{ offsetMinutes: number; sentAt?: string | null }>;
 }
 
 export function getEventColor(event: { eventType?: CalendarEventType; color?: string }) {

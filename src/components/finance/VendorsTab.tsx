@@ -31,6 +31,9 @@ import {
   FINANCE_TD_CLASS,
   formatFinanceTableDate,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -252,7 +255,8 @@ export function VendorsTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[800px] border-collapse">
           <thead>
             <tr>
@@ -317,7 +321,51 @@ export function VendorsTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleVendors.map((entry, index) => {
+            const id = vendorId(entry);
+            const outstanding = outstandingByVendor.get(id) || 0;
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={entry.name}
+                subtitle={entry.email || "—"}
+                meta={entry.phone || "—"}
+                amount={formatCurrency(outstanding)}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleSelectRow(id)}
+                selectLabel={`Select ${entry.name}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical size={16} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => void openActivity(entry)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        {t("viewStatement")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEdit(entry)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        {t("edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-red-600" onClick={() => requestDelete(entry)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

@@ -4,6 +4,11 @@ import { fetchAuthenticatedFileBlob, invalidateAuthenticatedFileCache } from "./
 import { invalidatePictureDisplayCache, resolvePictureDisplayUrl } from "./pictureDisplay";
 
 export function profilePictureFetchUrl(profilePictureUrl: string): string {
+  // Google serves small avatar thumbnails by default (commonly `=s96-c`).
+  // Ask for a larger square image while preserving Google crop/format flags.
+  if (/^https:\/\/(?:lh[3-6]|[a-z0-9-]+)\.googleusercontent\.com\//i.test(profilePictureUrl)) {
+    return profilePictureUrl.replace(/=s\d+(?:-[a-z0-9-]+)?(?=([?#]|$))/i, "=s512-c");
+  }
   return profilePictureUrl;
 }
 
@@ -11,7 +16,7 @@ export async function getProfilePictureDisplayUrl(
   profilePictureUrl: string,
   options?: { revision?: number; force?: boolean },
 ): Promise<string | null> {
-  return resolvePictureDisplayUrl(profilePictureUrl, options);
+  return resolvePictureDisplayUrl(profilePictureFetchUrl(profilePictureUrl), options);
 }
 
 export async function fetchProfilePictureBlob(profilePictureUrl: string): Promise<Blob> {

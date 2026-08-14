@@ -48,6 +48,9 @@ import {
   FINANCE_TD_CLASS,
   formatFinanceTableDate,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -422,7 +425,8 @@ export function InvoicesTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[1100px] border-collapse">
           <thead>
             <tr>
@@ -527,7 +531,82 @@ export function InvoicesTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleInvoices.map((entry, index) => {
+            const id = invoiceId(entry);
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={entry.invoiceNumber || entry.title}
+                subtitle={entry.clientName || "—"}
+                meta={`${formatFinanceTableDate(entry.dueDate)} · ${t(`invoiceStatus_${entry.status || "draft"}`)}`}
+                amount={formatCurrency(Number(entry.amount) || 0)}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  });
+                }}
+                selectLabel={`Select ${entry.invoiceNumber}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical size={16} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleDownloadPdf(entry)}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {t("downloadPdf")}
+                      </DropdownMenuItem>
+                      {entry.status === "draft" ? (
+                        <DropdownMenuItem onClick={() => void handleMarkSent(entry)}>
+                          <Send className="mr-2 h-4 w-4" />
+                          {t("markAsSent")}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {entry.status !== "paid" && entry.status !== "draft" ? (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setPaying(entry);
+                            setPayOpen(true);
+                          }}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {t("markAsPaid")}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {entry.status !== "paid" ? (
+                        <>
+                          <DropdownMenuItem onClick={() => openEdit(entry)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => requestDelete(entry)}
+                            disabled={deletingId === id}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("delete")}
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

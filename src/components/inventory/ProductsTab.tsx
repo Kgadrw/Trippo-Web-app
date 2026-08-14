@@ -32,6 +32,9 @@ import {
   FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -246,7 +249,8 @@ export function ProductsTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+      <DesktopDataTable>
         <table className="w-full min-w-[900px] border-collapse">
           <thead>
             <tr>
@@ -339,7 +343,62 @@ export function ProductsTab() {
             })}
           </tbody>
         </table>
-      </div>
+      </DesktopDataTable>
+
+      <MobileDataList>
+        {visibleProducts.map((entry, index) => {
+          const id = productId(entry);
+          const status = stockStatus(entry, t);
+          return (
+            <FinanceMobileRow
+              key={id}
+              index={index}
+              title={entry.name}
+              subtitle={entry.category || "—"}
+              meta={
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  {!isService(entry) ? (
+                    <span>{t("stock")}: {formatStockDisplay(entry)}</span>
+                  ) : null}
+                  <span className={cn("inline-block px-2 py-0.5 text-xs font-medium rounded", status.tone)}>
+                    {status.label}
+                  </span>
+                </span>
+              }
+              amount={formatCurrency(entry.sellingPrice)}
+              selected={selectedIds.has(id)}
+              onToggleSelect={() => toggleSelectRow(id)}
+              selectLabel={`Select ${entry.name}`}
+              actions={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {!isService(entry) ? (
+                      <DropdownMenuItem onClick={() => openStockUpdate(entry)}>
+                        <Package className="mr-2 h-4 w-4" />
+                        {t("updateStock")}
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem onClick={() => openEdit(entry)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      {t("edit")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-600" onClick={() => requestDelete(entry)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t("delete")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
+            />
+          );
+        })}
+      </MobileDataList>
+      </>
     );
   };
 

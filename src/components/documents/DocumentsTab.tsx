@@ -42,6 +42,9 @@ import {
   FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -338,7 +341,8 @@ export function DocumentsTab() {
             {t("docDocumentsEmpty")}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <DesktopDataTable>
             <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 <tr>
@@ -467,7 +471,82 @@ export function DocumentsTab() {
                 })}
               </tbody>
             </table>
-          </div>
+          </DesktopDataTable>
+
+          <MobileDataList>
+            {visibleDocuments.map((entry, index) => {
+              const id = documentId(entry);
+              const isSelected = selectedIds.has(id);
+              const categoryLabel = entry.registryType
+                ? registryTypeLabel(entry.registryType, t)
+                : entry.category
+                  ? registryTypeLabel(entry.category, t)
+                  : "—";
+              return (
+                <FinanceMobileRow
+                  key={id}
+                  index={index}
+                  title={
+                    <Link to={`/documents/${id}`} className="text-sky-700 hover:underline truncate">
+                      {entry.title}
+                    </Link>
+                  }
+                  subtitle={categoryLabel}
+                  meta={`${formatFinanceTableDate(entry.date)} · ${formatFileSize(entry.fileSize)}`}
+                  selected={isSelected}
+                  onToggleSelect={() => toggleSelectRow(id)}
+                  selectLabel={`Select ${entry.title}`}
+                  actions={
+                    <div className="flex items-center gap-1">
+                      {entry.fileUrl ? (
+                        <button
+                          type="button"
+                          className="p-1 text-gray-400 hover:text-gray-600"
+                          onClick={() =>
+                            void documentApi.openFile(id).catch(() =>
+                              void openCompanyDocumentInNewTab(entry.fileUrl).catch(() =>
+                                toast({ title: t("docOpenFailed"), variant: "destructive" }),
+                              ),
+                            )
+                          }
+                          aria-label="View file"
+                        >
+                          <Paperclip size={15} />
+                        </button>
+                      ) : null}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400"
+                            disabled={deletingId === id}
+                          >
+                            {deletingId === id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MoreVertical className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(entry)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600" onClick={() => requestDelete(entry)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  }
+                />
+              );
+            })}
+          </MobileDataList>
+          </>
         )}
       </FinanceTableShell>
 

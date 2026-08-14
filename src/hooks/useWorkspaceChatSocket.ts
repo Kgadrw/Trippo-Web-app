@@ -5,6 +5,7 @@ import {
   WORKSPACE_CHAT_EDIT_EVENT,
   WORKSPACE_CHAT_EVENT,
   WORKSPACE_CHAT_READ_EVENT,
+  WORKSPACE_CHAT_REACTION_EVENT,
   type WorkspaceChatMessage,
 } from "@/lib/workspaceChatRealtime";
 
@@ -13,6 +14,7 @@ type WorkspaceChatSocketHandlers = {
   onRead?: (message: WorkspaceChatMessage) => void;
   onEdit?: (message: WorkspaceChatMessage) => void;
   onDelete?: (message: WorkspaceChatMessage) => void;
+  onReaction?: (message: WorkspaceChatMessage) => void;
 };
 
 /** Stable workspace chat websocket subscriptions (no resubscribe on handler changes). */
@@ -49,17 +51,23 @@ export function useWorkspaceChatSocket(
       if (!matchesWorkspace(message)) return;
       handlersRef.current.onDelete?.(message);
     };
+    const onReaction = (message: WorkspaceChatMessage) => {
+      if (!matchesWorkspace(message)) return;
+      handlersRef.current.onReaction?.(message);
+    };
 
     const unsubMessage = websocketManager.subscribe(WORKSPACE_CHAT_EVENT, onMessage);
     const unsubRead = websocketManager.subscribe(WORKSPACE_CHAT_READ_EVENT, onRead);
     const unsubEdit = websocketManager.subscribe(WORKSPACE_CHAT_EDIT_EVENT, onEdit);
     const unsubDelete = websocketManager.subscribe(WORKSPACE_CHAT_DELETE_EVENT, onDelete);
+    const unsubReaction = websocketManager.subscribe(WORKSPACE_CHAT_REACTION_EVENT, onReaction);
 
     return () => {
       unsubMessage();
       unsubRead();
       unsubEdit();
       unsubDelete();
+      unsubReaction();
     };
   }, [enabled, workspaceId]);
 }

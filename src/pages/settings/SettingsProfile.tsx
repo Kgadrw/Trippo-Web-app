@@ -12,6 +12,7 @@ import { authApi } from "@/lib/api";
 import { removeProfilePicture, uploadProfilePicture } from "@/lib/profilePicture";
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
+import { ProfilePictureCropDialog } from "@/components/profile/ProfilePictureCropDialog";
 
 const MAX_PROFILE_PICTURE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
@@ -28,6 +29,8 @@ export default function SettingsProfile({ embedded = false }: { embedded?: boole
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [removingPicture, setRemovingPicture] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -133,6 +136,13 @@ export default function SettingsProfile({ embedded = false }: { embedded?: boole
       return;
     }
 
+    setCropFile(file);
+    setCropOpen(true);
+  };
+
+  const handleCropConfirm = async (file: File) => {
+    setCropOpen(false);
+    setCropFile(null);
     const nextPreview = URL.createObjectURL(file);
     setPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -224,7 +234,9 @@ export default function SettingsProfile({ embedded = false }: { embedded?: boole
                 profilePictureUrl={user?.profilePictureUrl}
                 previewUrl={previewUrl}
                 pictureRevision={user?.profilePictureRevision}
-                className="h-16 w-16 border-2 border-sky-400"
+                enablePreview={false}
+                ringClassName="bg-sky-400"
+                className="h-16 w-16"
                 fallbackClassName="bg-sky-400 text-base text-white"
               />
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors group-hover:bg-black/35">
@@ -309,6 +321,15 @@ export default function SettingsProfile({ embedded = false }: { embedded?: boole
           </Button>
         </div>
       </div>
+      <ProfilePictureCropDialog
+        file={cropFile}
+        open={cropOpen}
+        onOpenChange={(open) => {
+          setCropOpen(open);
+          if (!open) setCropFile(null);
+        }}
+        onConfirm={(file) => void handleCropConfirm(file)}
+      />
     </div>
   );
 }

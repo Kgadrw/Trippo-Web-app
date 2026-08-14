@@ -10,6 +10,9 @@ import {
   FINANCE_TD_CLASS,
   FINANCE_TH_CLASS,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
   formatFinanceTableDate,
@@ -159,7 +162,8 @@ export function TransactionsTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[900px] border-collapse">
           <thead>
             <tr>
@@ -258,7 +262,62 @@ export function TransactionsTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleTransactions.map((tx, index) => {
+            const rowId = transactionRowId(tx);
+            const isIncome = tx.type === "income";
+            const isExpense = tx.type === "expense";
+            const isDeposit = tx.type === "deposit";
+            const amountColor = isIncome
+              ? "text-emerald-600"
+              : isExpense
+                ? "text-rose-600"
+                : isDeposit
+                  ? "text-sky-600"
+                  : "text-violet-600";
+            const metaText = [tx.meta, tx.status === "pending" ? t("pending") : ""]
+              .filter(Boolean)
+              .join(" · ");
+
+            return (
+              <FinanceMobileRow
+                key={rowId}
+                index={index}
+                title={tx.title}
+                subtitle={typeLabel(tx.type)}
+                meta={[formatFinanceTableDate(tx.date), metaText].filter(Boolean).join(" · ")}
+                amount={
+                  <span className={cn("inline-flex items-center justify-end gap-1", amountColor)}>
+                    {isIncome || isDeposit ? (
+                      <ArrowUp size={14} className="shrink-0" aria-hidden />
+                    ) : (
+                      <ArrowDown size={14} className="shrink-0" aria-hidden />
+                    )}
+                    {Number(tx.amount).toLocaleString()} Rwf
+                  </span>
+                }
+                selected={selectedIds.has(rowId)}
+                onToggleSelect={() => toggleSelectRow(rowId)}
+                selectLabel={`Select ${tx.title}`}
+                actions={
+                  tx.receiptUrl ? (
+                    <button
+                      type="button"
+                      className="p-1 text-gray-400 hover:text-gray-600"
+                      onClick={() => void openReceiptInNewTab(tx.receiptUrl!).catch(() => undefined)}
+                      aria-label={t("viewReceipt")}
+                    >
+                      <Paperclip size={15} />
+                    </button>
+                  ) : undefined
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

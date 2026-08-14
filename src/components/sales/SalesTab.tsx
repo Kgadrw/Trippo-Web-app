@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
 import { useApi } from "@/hooks/useApi";
@@ -20,10 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
+import { EditDeleteActionsDialog } from "@/components/ui/edit-delete-actions-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Loader2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, CurrencyAmount } from "@/lib/currency";
 import type { ProductEntry } from "@/components/inventory/ProductsTab";
@@ -36,13 +37,10 @@ import {
   FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
 } from "@/components/finance/financeTable";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { playSaleBeep, playErrorBeep } from "@/lib/sound";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { WorkspaceRecordBy } from "@/components/workspace/WorkspaceRecordBy";
@@ -63,6 +61,7 @@ interface SaleEntry {
   saleType?: string;
   clientId?: string | null;
   buyerName?: string;
+  clientRequestId?: string;
   createdByName?: string;
 }
 
@@ -70,11 +69,24 @@ function saleId(s: SaleEntry): string {
   return String(s._id ?? s.id ?? "");
 }
 
+/** Snap near-zero float noise so cost === selling → profit 0. */
+function moneyDiff(revenue: number, cost: number): number {
+  const profit = (Number(revenue) || 0) - (Number(cost) || 0);
+  if (!Number.isFinite(profit) || Math.abs(profit) < 0.005) return 0;
+  return Math.round(profit * 100) / 100;
+}
+
 function saleProfit(s: SaleEntry): number {
-  if (typeof s.profit === "number" && Number.isFinite(s.profit)) return s.profit;
   const revenue = Number(s.revenue) || 0;
   const cost = Number(s.cost) || 0;
-  return revenue - cost;
+  // Always derive from revenue/cost when available so equal prices show 0
+  if (s.revenue != null || s.cost != null) {
+    return moneyDiff(revenue, cost);
+  }
+  if (typeof s.profit === "number" && Number.isFinite(s.profit)) {
+    return Math.abs(s.profit) < 0.005 ? 0 : s.profit;
+  }
+  return 0;
 }
 
 function productOptionId(p: ProductEntry): string {
@@ -143,8 +155,12 @@ export function SalesTab() {
   const [clientId, setClientId] = useState("");
   const [buyerName, setBuyerName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  // State updates are asynchronous; this closes the small double-tap window
+  // before the Save button has visually disabled.
+  const saveLockRef = useRef(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [actionsSale, setActionsSale] = useState<SaleEntry | null>(null);
   const deleteConfirm = useDeleteConfirm<SaleEntry>();
 
   const sellableProducts = useMemo(() => {
@@ -228,6 +244,7 @@ export function SalesTab() {
   };
 
   const handleSave = async () => {
+    if (saveLockRef.current) return;
     if (!selectedProduct || qty <= 0) {
       toast({ title: t("saveFailed"), description: t("saleRequiredFields"), variant: "destructive" });
       return;
@@ -252,21 +269,30 @@ export function SalesTab() {
       return;
     }
 
+    saveLockRef.current = true;
     setIsSaving(true);
     try {
       const cost = (selectedProduct.costPrice ?? 0) * qty;
       const revenue = lineTotal;
+      const profit = moneyDiff(revenue, cost);
       const selectedCustomer = customers.find((c) => customerOptionId(c) === clientId);
       const resolvedBuyerName =
         buyerName.trim() || selectedCustomer?.name || "";
 
       const payload = {
+        // Persists through offline sync/retries so the server treats the same
+        // user action as one sale rather than creating another record.
+        clientRequestId:
+          editing?.clientRequestId ||
+          (typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `sale-${Date.now()}-${Math.random().toString(36).slice(2)}`),
         product: selectedProduct.name,
         productId: productOptionId(selectedProduct),
         quantity: qty,
         revenue,
         cost,
-        profit: revenue - cost,
+        profit,
         date: dateInputToIso(saleDate),
         paymentMethod,
         saleType: "product",
@@ -289,7 +315,8 @@ export function SalesTab() {
       }
       setOpen(false);
       resetForm();
-      void refresh(true);
+      // useApi already applies create/update locally before syncing. Refreshing
+      // immediately can race the server write and briefly reintroduce stale rows.
     } catch (error: unknown) {
       playErrorBeep();
       const message = error instanceof Error ? error.message : t("saveSaleFailed");
@@ -300,6 +327,7 @@ export function SalesTab() {
       });
     } finally {
       setIsSaving(false);
+      saveLockRef.current = false;
     }
   };
 
@@ -383,95 +411,124 @@ export function SalesTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[800px] border-collapse">
-          <thead>
-            <tr>
-              {canManageSales ? (
-                <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
-                  <FinanceTableCheckbox
-                    checked={allSelected}
-                    onCheckedChange={toggleSelectAll}
-                    ariaLabel="Select all"
-                  />
-                </th>
-              ) : null}
-              <th className={FINANCE_TH_CLASS}>{t("productName")}</th>
-              <th className={FINANCE_TH_CLASS}>{t("buyerName")}</th>
-              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("quantity")}</th>
-              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("totalRevenue")}</th>
-              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("profit")}</th>
-              <th className={FINANCE_TH_CLASS}>{t("saleDate")}</th>
-              {mode === "workspace" ? <th className={FINANCE_TH_CLASS}>Added by</th> : null}
-              {canManageSales ? <th className={cn(FINANCE_TH_CLASS, "w-12")} /> : null}
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {visibleSales.slice(0, 50).map((entry) => {
-              const id = saleId(entry);
-              const profit = saleProfit(entry);
-              return (
-                <tr key={id} className="border-t border-gray-100 hover:bg-gray-50/80">
-                  {canManageSales ? (
-                    <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
-                      <FinanceTableCheckbox
-                        checked={selectedIds.has(id)}
-                        onCheckedChange={() => toggleSelectRow(id)}
-                        ariaLabel={`Select ${entry.product}`}
-                      />
+      <>
+        <DesktopDataTable>
+          <table className="w-full min-w-[800px] border-collapse">
+            <thead>
+              <tr>
+                {canManageSales ? (
+                  <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
+                    <FinanceTableCheckbox
+                      checked={allSelected}
+                      onCheckedChange={toggleSelectAll}
+                      ariaLabel="Select all"
+                    />
+                  </th>
+                ) : null}
+                <th className={FINANCE_TH_CLASS}>{t("productName")}</th>
+                <th className={FINANCE_TH_CLASS}>{t("buyerName")}</th>
+                <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("quantity")}</th>
+                <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("totalRevenue")}</th>
+                <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("profit")}</th>
+                <th className={FINANCE_TH_CLASS}>{t("saleDate")}</th>
+                {mode === "workspace" ? <th className={FINANCE_TH_CLASS}>Added by</th> : null}
+                {canManageSales ? <th className={cn(FINANCE_TH_CLASS, "w-12")} /> : null}
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {visibleSales.slice(0, 50).map((entry) => {
+                const id = saleId(entry);
+                const profit = saleProfit(entry);
+                return (
+                  <tr key={id} className="border-t border-gray-100 hover:bg-gray-50/80">
+                    {canManageSales ? (
+                      <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
+                        <FinanceTableCheckbox
+                          checked={selectedIds.has(id)}
+                          onCheckedChange={() => toggleSelectRow(id)}
+                          ariaLabel={`Select ${entry.product}`}
+                        />
+                      </td>
+                    ) : null}
+                    <td className={cn(FINANCE_TD_CLASS, "font-medium")}>{entry.product}</td>
+                    <td className={FINANCE_TD_CLASS}>{entry.buyerName?.trim() || "—"}</td>
+                    <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums")}>{entry.quantity}</td>
+                    <td className={cn(FINANCE_TD_CLASS, "text-right font-semibold tabular-nums text-emerald-700")}>
+                      {formatCurrency(entry.revenue)}
                     </td>
-                  ) : null}
-                  <td className={cn(FINANCE_TD_CLASS, "font-medium")}>{entry.product}</td>
-                  <td className={FINANCE_TD_CLASS}>{entry.buyerName?.trim() || "—"}</td>
-                  <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums")}>{entry.quantity}</td>
-                  <td className={cn(FINANCE_TD_CLASS, "text-right font-semibold tabular-nums text-emerald-700")}>
-                    {formatCurrency(entry.revenue)}
-                  </td>
-                  <td
-                    className={cn(
-                      FINANCE_TD_CLASS,
-                      "text-right font-semibold tabular-nums",
-                      profit >= 0 ? "text-sky-700" : "text-red-600",
-                    )}
-                  >
-                    {formatCurrency(profit)}
-                  </td>
-                  <td className={FINANCE_TD_CLASS}>{formatFinanceTableDate(entry.date)}</td>
-                  {mode === "workspace" ? (
-                    <td className={FINANCE_TD_CLASS}>
-                      <WorkspaceRecordBy name={entry.createdByName} />
+                    <td
+                      className={cn(
+                        FINANCE_TD_CLASS,
+                        "text-right font-semibold tabular-nums",
+                        profit >= 0 ? "text-sky-700" : "text-red-600",
+                      )}
+                    >
+                      {formatCurrency(profit)}
                     </td>
-                  ) : null}
-                  {canManageSales ? (
-                    <td className={FINANCE_TD_CLASS}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(entry)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            {t("edit")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600"
-                            onClick={() => deleteConfirm.requestDelete(entry)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t("delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  ) : null}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    <td className={FINANCE_TD_CLASS}>{formatFinanceTableDate(entry.date)}</td>
+                    {mode === "workspace" ? (
+                      <td className={FINANCE_TD_CLASS}>
+                        <WorkspaceRecordBy name={entry.createdByName} />
+                      </td>
+                    ) : null}
+                    {canManageSales ? (
+                      <td className={FINANCE_TD_CLASS}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setActionsSale(entry)}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleSales.slice(0, 50).map((entry, index) => {
+            const id = saleId(entry);
+            const profit = saleProfit(entry);
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={entry.product}
+                subtitle={entry.buyerName?.trim() || t("buyerName")}
+                meta={`${formatFinanceTableDate(entry.date)} · Qty ${entry.quantity}`}
+                amount={
+                  <div className="space-y-0.5">
+                    <div className="text-emerald-700">{formatCurrency(entry.revenue)}</div>
+                    <div className={profit >= 0 ? "text-sky-700" : "text-red-600"}>
+                      {formatCurrency(profit)}
+                    </div>
+                  </div>
+                }
+                selected={canManageSales ? selectedIds.has(id) : undefined}
+                onToggleSelect={canManageSales ? () => toggleSelectRow(id) : undefined}
+                selectLabel={`Select ${entry.product}`}
+                actions={
+                  canManageSales ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setActionsSale(entry)}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  ) : null
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 
@@ -497,7 +554,7 @@ export function SalesTab() {
           if (!next) resetForm();
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? t("editSale") : t("recordSale")}</DialogTitle>
           </DialogHeader>
@@ -608,6 +665,21 @@ export function SalesTab() {
                     <CurrencyAmount amount={lineTotal} codeFirst codeClassName="text-emerald-700/70" />
                   </span>
                 </p>
+                <p className="mt-1">
+                  {t("profit")}:{" "}
+                  <span
+                    className={cn(
+                      "font-semibold tabular-nums",
+                      moneyDiff(lineTotal, (selectedProduct.costPrice ?? 0) * qty) >= 0
+                        ? "text-sky-700"
+                        : "text-red-600",
+                    )}
+                  >
+                    {formatCurrency(
+                      moneyDiff(lineTotal, (selectedProduct.costPrice ?? 0) * qty),
+                    )}
+                  </span>
+                </p>
               </div>
             ) : null}
           </div>
@@ -627,6 +699,25 @@ export function SalesTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EditDeleteActionsDialog
+        open={Boolean(actionsSale)}
+        onOpenChange={(next) => {
+          if (!next) setActionsSale(null);
+        }}
+        title={t("actions")}
+        description={actionsSale?.product}
+        editLabel={t("edit")}
+        deleteLabel={t("delete")}
+        onEdit={() => {
+          if (actionsSale) openEdit(actionsSale);
+          setActionsSale(null);
+        }}
+        onDelete={() => {
+          if (actionsSale) deleteConfirm.requestDelete(actionsSale);
+          setActionsSale(null);
+        }}
+      />
 
       <DeleteConfirmDialog
         open={deleteConfirm.open}

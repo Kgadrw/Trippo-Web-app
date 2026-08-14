@@ -4,6 +4,7 @@ export const WORKSPACE_CHAT_EDIT_EVENT = "workspace-chat:edit";
 export const WORKSPACE_CHAT_DELETE_EVENT = "workspace-chat:delete";
 export const WORKSPACE_CHAT_TYPING_EVENT = "workspace-chat:typing";
 export const WORKSPACE_CHAT_SETTINGS_EVENT = "workspace-chat:settings";
+export const WORKSPACE_CHAT_REACTION_EVENT = "workspace-chat:reaction";
 export const WORKSPACE_PRESENCE_UPDATE_EVENT = "workspace:presence:update";
 export const WORKSPACE_PRESENCE_JOIN_EVENT = "workspace:presence:join";
 export const WORKSPACE_PRESENCE_HEARTBEAT_EVENT = "workspace:presence:heartbeat";
@@ -54,6 +55,27 @@ export type WorkspaceChatAttachment = {
   waveform?: number[];
 };
 
+export type ChatPollOption = {
+  text: string;
+  voteCount: number;
+  voterIds: string[];
+};
+
+export type ChatPoll = {
+  question: string;
+  options: ChatPollOption[];
+};
+
+export type ChatPollInput = {
+  question: string;
+  options: string[];
+};
+
+export type ChatReaction = {
+  emoji: string;
+  userIds: string[];
+};
+
 export interface WorkspaceChatMessage {
   _id: string;
   workspaceId: string;
@@ -62,6 +84,8 @@ export interface WorkspaceChatMessage {
   senderProfilePictureUrl?: string | null;
   body: string;
   attachments?: WorkspaceChatAttachment[];
+  poll?: ChatPoll | null;
+  reactions?: ChatReaction[];
   replyTo?: WorkspaceChatReplyTo | null;
   mentionAll?: boolean;
   mentions?: WorkspaceChatMention[];
@@ -75,6 +99,24 @@ export interface WorkspaceChatMessage {
 
 export function chatMessageId(message: WorkspaceChatMessage) {
   return String(message._id);
+}
+
+function isPendingChatMessageId(id: string) {
+  return id.startsWith("pending-");
+}
+
+function pendingChatMatchesIncoming(
+  pending: WorkspaceChatMessage,
+  incoming: WorkspaceChatMessage,
+): boolean {
+  if (String(pending.senderUserId) !== String(incoming.senderUserId)) return false;
+  const pendingBody = (pending.body || "").trim();
+  const incomingBody = (incoming.body || "").trim();
+  if (pendingBody || incomingBody) return pendingBody === incomingBody;
+  const pendingAttachments = pending.attachments?.length || 0;
+  const incomingAttachments = incoming.attachments?.length || 0;
+  if (pendingAttachments > 0 && incomingAttachments > 0) return true;
+  return Boolean(pending.poll && incoming.poll);
 }
 
 export function mergeChatMessages(
@@ -99,10 +141,40 @@ export function mergeChatMessages(
     workspaceId: String(incoming.workspaceId),
     senderUserId: String(incoming.senderUserId),
     replyTo: incomingReply,
+    reactions: (incoming.reactions || []).map((reaction) => ({
+      emoji: String(reaction.emoji),
+      userIds: (reaction.userIds || []).map(String),
+    })),
   };
   const id = chatMessageId(normalized);
   const index = prev.findIndex((row) => chatMessageId(row) === id);
   if (index === -1) {
+    // Replace optimistic bubble instead of appending (avoids WS echo duplicates).
+    if (!isPendingChatMessageId(id)) {
+      const pendingIndex = prev.findIndex(
+        (row) =>
+          isPendingChatMessageId(chatMessageId(row)) &&
+          pendingChatMatchesIncoming(row, normalized),
+      );
+      if (pendingIndex !== -1) {
+        const existing = prev[pendingIndex];
+        const next = [...prev];
+        next[pendingIndex] = {
+          ...existing,
+          ...normalized,
+          replyTo: normalized.replyTo?.messageId
+            ? normalized.replyTo
+            : existing.replyTo?.messageId
+              ? existing.replyTo
+              : normalized.replyTo || null,
+          attachments:
+            normalized.attachments?.length
+              ? normalized.attachments
+              : existing.attachments || [],
+        };
+        return next;
+      }
+    }
     return [...prev, normalized];
   }
   const existing = prev[index];

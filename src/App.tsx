@@ -183,7 +183,7 @@ const SubdomainRouter = () => {
           path="/finance"
           element={<FinanceLayout />}
         >
-          <Route index element={<Navigate to="/finance/income" replace />} />
+          <Route index element={<Navigate to="/finance/customers" replace />} />
           <Route path="income" element={<FinanceIncome />} />
           <Route path="customers" element={<FinanceCustomers />} />
           <Route path="invoices" element={<FinanceInvoices />} />

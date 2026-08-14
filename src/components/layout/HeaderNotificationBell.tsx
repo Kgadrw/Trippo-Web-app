@@ -146,7 +146,7 @@ export function HeaderNotificationBell({
         type="button"
         onClick={handleNotificationBellClick}
         className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 hover:text-gray-900",
+          "relative flex h-9 w-9 items-center justify-center rounded-none border-0 bg-transparent p-0 text-gray-600 shadow-none",
           buttonClassName,
           !notificationService.isAllowed() && "text-gray-400",
         )}

@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
@@ -499,118 +500,178 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
             )}
           >
             <div className="space-y-4">
-              {/* Summary */}
-              <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-1">
-                <h1 className="text-lg font-semibold text-foreground">{t("billingSummary")}</h1>
-                <p className="text-sm text-muted-foreground pb-4">{t("billingSummarySubtitle")}</p>
+              {/* Summary — only when not on an active paid plan */}
+              {!isPaidActive ? (
+                <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-1">
+                  <h1 className="text-lg font-semibold text-foreground">{t("billingSummary")}</h1>
+                  <p className="text-sm text-muted-foreground pb-4">{t("billingSummarySubtitle")}</p>
 
-                <div className="divide-y divide-border/60">
-                  <SummaryRow label={`${t("billingPackage")}:`} value={packageName} />
-                  <SummaryRow
-                    label={`${t("price")}:`}
-                    value={`${amount.toLocaleString()} ${currencyLabel}`}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
-                  <span className="text-sm font-semibold text-foreground">{t("total")}:</span>
-                  <span className="text-lg font-bold text-foreground tabular-nums">
-                    {amount.toLocaleString()} {currencyLabel}
-                  </span>
-                </div>
-
-                {isCancelled ? (
-                  <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1">
-                    <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
-                    {plan?.hasPlus && plan.nextDueDate ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate)}.
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        {t("billingNotBilledMonthly")}
-                      </p>
-                    )}
-                  </div>
-                ) : canCancelPlan ? (
-                  <div className="mt-4 pt-2">
-                    <Button
-                      type="button"
-                      className={cn(
-                        "w-full border border-destructive bg-background text-destructive",
-                        "hover:bg-destructive hover:text-white hover:border-destructive",
-                      )}
-                      onClick={() => setCancelDialogOpen(true)}
-                      disabled={paying || polling || cancelling}
-                    >
-                      {t("billingCancelPlan")}
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-
-              {isPaidActive ? (
-                <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden lg:bg-white lg:rounded-lg">
-                  <div className="p-4 sm:p-5">
-                    <div className="flex items-start gap-4">
-                      <div className="shrink-0">
-                        <img
-                          src="/paid.png"
-                          alt=""
-                          aria-hidden
-                          className="h-14 w-14 sm:h-16 sm:w-16 object-contain"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-green-900">
-                          {t("billingPaymentSuccess")}
-                        </p>
-
-                        <div className="mt-2 space-y-1">
-                          <p className="text-xs text-green-800">
-                            {t("billingPlusActiveUntil")} {formatBillingDate(plan.nextDueDate)}.
-                          </p>
-                          {plan.lastPaidAt ? (
-                            <p className="text-xs text-green-800">
-                              {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt)}
-                            </p>
-                          ) : null}
-                          {phone.trim() ? (
-                            <p className="text-xs text-green-800">
-                              {t("billingPhone")}: {phone.trim()}
-                            </p>
-                          ) : null}
-                          <p className="text-xs text-green-800">
-                            {t("billingPackage")}: {packageName}
-                          </p>
-                          <p className="text-xs text-green-800">
-                            {t("price")}: {amount.toLocaleString()} {currencyLabel}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {daysRemaining != null ? (
-                      <div className="mt-4 rounded-xl border border-green-200/70 bg-white/60 p-3">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-green-900/80">{t("daysRemaining")}</span>
-                          <span className="font-semibold tabular-nums text-green-900">
-                            {daysRemaining.toLocaleString()} day{daysRemaining === 1 ? "" : "s"}
-                          </span>
-                        </div>
-                        <div className="mt-2 h-2 rounded-full bg-green-100 overflow-hidden">
-                          <div
-                            className="h-full bg-green-500"
-                            style={{ width: `${usedPct ?? 0}%` }}
-                          />
-                        </div>
-                        <div className="mt-1 text-[10px] text-green-900/70 tabular-nums text-right">
-                          {formatBillingDate(periodStart)} → {formatBillingDate(periodEnd)}
-                        </div>
+                  <div className="divide-y divide-border/60">
+                    <SummaryRow label={`${t("billingPackage")}:`} value={packageName} />
+                    <SummaryRow
+                      label={`${t("price")}:`}
+                      value={`${amount.toLocaleString()} ${currencyLabel}`}
+                    />
+                    {plan?.status ? (
+                      <div className="flex items-center justify-between gap-4 py-3">
+                        <span className="text-sm text-muted-foreground">Status:</span>
+                        <Badge
+                          className={cn(
+                            "border-0 capitalize",
+                            plan.status === "past_due"
+                              ? "bg-red-100 text-red-800 hover:bg-red-100"
+                              : plan.status === "active"
+                                ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-100",
+                          )}
+                        >
+                          {plan.status}
+                        </Badge>
                       </div>
                     ) : null}
                   </div>
+
+                  <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
+                    <span className="text-sm font-semibold text-foreground">{t("total")}:</span>
+                    <span className="text-lg font-bold text-foreground tabular-nums">
+                      {amount.toLocaleString()} {currencyLabel}
+                    </span>
+                  </div>
+
+                  {isCancelled ? (
+                    <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1">
+                      <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
+                      {plan?.hasPlus && plan.nextDueDate ? (
+                        <p className="text-xs text-muted-foreground">
+                          {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate)}.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          {t("billingNotBilledMonthly")}
+                        </p>
+                      )}
+                    </div>
+                  ) : canCancelPlan ? (
+                    <div className="mt-4 pt-2">
+                      <Button
+                        type="button"
+                        className={cn(
+                          "w-full border border-destructive bg-background text-destructive",
+                          "hover:bg-destructive hover:text-white hover:border-destructive",
+                        )}
+                        onClick={() => setCancelDialogOpen(true)}
+                        disabled={paying || polling || cancelling}
+                      >
+                        {t("billingCancelPlan")}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
+              ) : null}
+
+              {isPaidActive ? (
+                <>
+                  <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden lg:bg-white lg:rounded-lg">
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="shrink-0">
+                          <img
+                            src="/paid.png"
+                            alt=""
+                            aria-hidden
+                            className="h-14 w-14 sm:h-16 sm:w-16 object-contain"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-green-900">
+                              {t("billingPaymentSuccess")}
+                            </p>
+                            <Badge className="border-0 bg-green-100 capitalize text-green-800 hover:bg-green-100">
+                              {plan?.status === "past_due" || plan?.status === "cancelled"
+                                ? plan.status
+                                : "active"}
+                            </Badge>
+                          </div>
+
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-green-800">
+                              {t("billingPlusActiveUntil")} {formatBillingDate(plan.nextDueDate)}.
+                            </p>
+                            {plan.lastPaidAt ? (
+                              <p className="text-xs text-green-800">
+                                {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt)}
+                              </p>
+                            ) : null}
+                            {phone.trim() ? (
+                              <p className="text-xs text-green-800">
+                                {t("billingPhone")}: {phone.trim()}
+                              </p>
+                            ) : null}
+                            <p className="text-xs text-green-800">
+                              {t("billingPackage")}: {packageName}
+                            </p>
+                            <p className="text-xs text-green-800">
+                              {t("price")}: {amount.toLocaleString()} {currencyLabel}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {daysRemaining != null ? (
+                        <div className="mt-4 rounded-xl border border-green-200/70 bg-white/60 p-3">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-green-900/80">
+                              {t("daysRemaining").replace("{days}", String(daysRemaining))}
+                            </span>
+                            <span className="font-semibold tabular-nums text-green-900">
+                              {daysRemaining.toLocaleString()}{" "}
+                              {daysRemaining === 1 ? "day" : "days"}
+                            </span>
+                          </div>
+                          <div className="mt-2 h-2 rounded-full bg-green-100 overflow-hidden">
+                            <div
+                              className="h-full bg-green-500"
+                              style={{ width: `${usedPct ?? 0}%` }}
+                            />
+                          </div>
+                          <div className="mt-1 text-[10px] text-green-900/70 tabular-nums text-right">
+                            {formatBillingDate(periodStart)} → {formatBillingDate(periodEnd)}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {isCancelled ? (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1 lg:bg-white">
+                      <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
+                      {plan?.hasPlus && plan.nextDueDate ? (
+                        <p className="text-xs text-muted-foreground">
+                          {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate)}.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          {t("billingNotBilledMonthly")}
+                        </p>
+                      )}
+                    </div>
+                  ) : canCancelPlan ? (
+                    <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5">
+                      <Button
+                        type="button"
+                        className={cn(
+                          "w-full border border-destructive bg-background text-destructive",
+                          "hover:bg-destructive hover:text-white hover:border-destructive",
+                        )}
+                        onClick={() => setCancelDialogOpen(true)}
+                        disabled={paying || polling || cancelling}
+                      >
+                        {t("billingCancelPlan")}
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
             </div>
 

@@ -106,7 +106,7 @@ export function DesktopHeader({
               )}
               aria-label={t("profileSectionTitle")}
             >
-              <HeaderAccountAvatar className="h-8 w-8" />
+              <HeaderAccountAvatar className="h-8 w-8" ringClassName="bg-sky-300" />
               <span className="hidden max-w-[120px] truncate text-sm font-medium xl:inline">
                 {firstName}
               </span>

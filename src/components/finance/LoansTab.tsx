@@ -49,6 +49,9 @@ import {
   FINANCE_TD_CLASS,
   formatFinanceTableDate,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -532,7 +535,8 @@ export function LoansTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[1200px] border-collapse">
           <thead>
             <tr>
@@ -636,7 +640,66 @@ export function LoansTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleLoans.map((entry, index) => {
+            const id = loanId(entry);
+            const status = loanStatusLabel(entry, t);
+            const paymentsCount = entry.payments?.length || 0;
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={entry.title}
+                subtitle={entry.lender}
+                meta={`${formatFinanceTableDate(entry.nextDueDate)} · ${status.label}`}
+                amount={formatCurrency(Number(entry.remainingBalance) || 0)}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleSelectRow(id)}
+                selectLabel={`Select ${entry.title}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical size={16} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {entry.status !== "paid_off" ? (
+                        <DropdownMenuItem onClick={() => openPay(entry)}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {t("recordLoanPayment")}
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuItem onClick={() => openHistory(entry)}>
+                        <History className="mr-2 h-4 w-4" />
+                        {t("paymentHistory")} ({paymentsCount})
+                      </DropdownMenuItem>
+                      {entry.status !== "paid_off" ? (
+                        <>
+                          <DropdownMenuItem onClick={() => openEdit(entry)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDeleteRequest(entry)}
+                            disabled={deletingId === id}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("delete")}
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

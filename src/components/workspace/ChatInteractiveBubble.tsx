@@ -193,7 +193,7 @@ export function ChatInteractiveBubble({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {!disabled && actions.length > 0 ? (
+        {!disabled && (onReply || (own && actions.length > 0)) ? (
           <div
             className={cn(
               "pointer-events-none absolute top-1/2 z-20 hidden -translate-y-1/2 items-center gap-0.5 lg:flex",
@@ -211,45 +211,53 @@ export function ChatInteractiveBubble({
                   event.stopPropagation();
                   onReply();
                 }}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-black/5 hover:bg-sky-50 hover:text-sky-700"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-600 shadow-none ring-1 ring-black/[0.04] hover:bg-sky-50 hover:text-sky-700"
                 aria-label="Reply"
                 title="Reply"
               >
                 <Reply size={15} />
               </button>
             ) : null}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-md ring-1 ring-black/5 hover:bg-sky-50 hover:text-sky-700"
-                  aria-label={actionsTitle}
-                  title={actionsTitle}
-                >
-                  <MoreVertical size={15} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align={own ? "end" : "start"} className="min-w-[10rem]">
-                {actions.map((action) => (
-                  <DropdownMenuItem
-                    key={action.id}
-                    disabled={action.disabled}
-                    className={action.destructive ? "text-red-600" : undefined}
-                    onClick={action.onSelect}
+            {own && actions.length > 0 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-500 shadow-none ring-1 ring-black/[0.04] hover:bg-sky-50 hover:text-sky-700"
+                    aria-label={actionsTitle}
+                    title={actionsTitle}
                   >
-                    {action.icon ? <span className="mr-2 inline-flex">{action.icon}</span> : null}
-                    {action.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <MoreVertical size={15} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="min-w-[10rem] border-0 bg-white/95 text-gray-500 shadow-none"
+                >
+                  {actions.map((action) => (
+                    <DropdownMenuItem
+                      key={action.id}
+                      disabled={action.disabled}
+                      className={cn(
+                        "font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700",
+                        action.destructive && "text-red-400 focus:text-red-500",
+                      )}
+                      onClick={action.onSelect}
+                    >
+                      {action.icon ? <span className="mr-2 inline-flex">{action.icon}</span> : null}
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
         ) : null}
 
         <div className="relative max-w-full overflow-x-clip">
           <div
             className={cn(
-              "pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-opacity lg:hidden",
+              "pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-sky-500 text-white shadow-none transition-opacity lg:hidden",
               own ? "right-full mr-2" : "left-full ml-2",
             )}
             style={{ opacity: replyHintOpacity }}
@@ -293,12 +301,12 @@ export function ChatInteractiveBubble({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl border-sky-100 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 lg:hidden"
+          className="gap-4 rounded-t-2xl border-0 bg-white px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-none lg:hidden"
         >
-          <SheetHeader className="pb-2 text-left">
-            <SheetTitle className="text-base">{actionsTitle}</SheetTitle>
+          <SheetHeader className="pb-1 text-left">
+            <SheetTitle className="text-base font-normal text-gray-500">{actionsTitle}</SheetTitle>
           </SheetHeader>
-          <div className="grid gap-1">
+          <div className="grid gap-2">
             {actions.map((action) => (
               <button
                 key={action.id}
@@ -309,11 +317,20 @@ export function ChatInteractiveBubble({
                   window.setTimeout(() => action.onSelect(), 80);
                 }}
                 className={cn(
-                  "flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium transition-colors active:bg-sky-50 disabled:opacity-40",
-                  action.destructive ? "text-red-600" : "text-gray-900",
+                  "flex min-h-12 items-center gap-3 rounded-xl border-0 px-3 text-left text-[15px] font-normal shadow-none transition-colors active:scale-[0.99] disabled:opacity-40",
+                  action.destructive
+                    ? "text-red-400 hover:bg-red-50"
+                    : "text-gray-500 hover:bg-sky-50",
                 )}
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                <span
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-xl",
+                    action.destructive
+                      ? "bg-red-50 text-red-400"
+                      : "bg-sky-50 text-sky-500",
+                  )}
+                >
                   {action.icon}
                 </span>
                 {action.label}

@@ -44,13 +44,12 @@ export default function DashboardLogin() {
   };
 
   return (
-    <div className="relative min-h-dvh w-full overflow-hidden font-sans">
-      {/* Full-screen background image */}
+    <div className="relative min-h-dvh w-full overflow-hidden">
       <div className="absolute inset-0">
         <img
           src="/4.jpg"
           alt=""
-          className="h-full w-full object-cover object-center"
+          className="h-full w-full scale-105 object-cover object-center animate-[login-bg-drift_28s_ease-in-out_infinite_alternate]"
           onError={(e) => {
             const img = e.currentTarget;
             if (img.src.endsWith("/4.jpg")) {
@@ -58,25 +57,33 @@ export default function DashboardLogin() {
             }
           }}
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/55 via-slate-900/45 to-slate-950/70" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(15,23,42,0.35)_70%,rgba(15,23,42,0.55)_100%)]" />
       </div>
 
-      {/* Centered login card */}
-      <div className="relative z-10 flex min-h-dvh w-full items-start justify-center px-3 pb-8 pt-0 sm:px-6">
-        <div className="w-full max-w-[26rem] max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain border border-gray-200/80 bg-white p-4 shadow-[0_-2px_16px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.12)] sm:max-w-md sm:p-5">
-          <div className="mb-3 flex items-center justify-center">
-            <img src="/logo.png" alt="Trippo" className="h-8 w-8 object-contain" />
+      <div className="relative z-10 flex min-h-dvh w-full items-center justify-center px-4 py-8 sm:px-6">
+        <div className="w-full max-w-[30rem] animate-[login-card-rise_520ms_cubic-bezier(0.22,1,0.36,1)_both]">
+          <div className="rounded-2xl border border-white/50 bg-white/95 p-6 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)] backdrop-blur-md sm:p-8">
+            <LoginForm
+              defaultTab={defaultTab}
+              showTitle={false}
+              pillStyle
+              onSuccess={handleLoginSuccess}
+            />
           </div>
-
-          <LoginForm
-            defaultTab={defaultTab}
-            showTitle={false}
-            pillStyle
-            compact
-            onSuccess={handleLoginSuccess}
-          />
         </div>
       </div>
+
+      <style>{`
+        @keyframes login-card-rise {
+          from { opacity: 0; transform: translateY(18px) scale(0.985); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes login-bg-drift {
+          from { transform: scale(1.05) translate3d(0, 0, 0); }
+          to { transform: scale(1.1) translate3d(-1.5%, -1%, 0); }
+        }
+      `}</style>
     </div>
   );
 }

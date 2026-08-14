@@ -102,7 +102,8 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
               profilePictureUrl={user?.profilePictureUrl}
               pictureRevision={user?.profilePictureRevision}
               enablePreview={false}
-              className="h-10 w-10 border border-blue-700 cursor-pointer rounded-full"
+              ringClassName={isAdmin ? "bg-purple-500" : "bg-blue-700"}
+              className="h-10 w-10 cursor-pointer"
               fallbackClassName={isAdmin ? "bg-purple-500 text-white font-bold" : "bg-blue-700 text-white font-bold"}
             />
           </button>
@@ -131,7 +132,8 @@ export function Header({ title, onMenuClick, showMenuButton, sidebarCollapsed = 
                 name={user?.name}
                 profilePictureUrl={user?.profilePictureUrl}
                 pictureRevision={user?.profilePictureRevision}
-                className={cn("h-20 w-20 rounded-full border-2", isAdmin ? "border-purple-500" : "border-gray-500")}
+                ringClassName={isAdmin ? "bg-purple-500" : "bg-gray-500"}
+                className="h-20 w-20"
                 fallbackClassName={cn("text-white font-bold text-2xl", isAdmin ? "bg-purple-500" : "bg-gray-500")}
               />
             </div>

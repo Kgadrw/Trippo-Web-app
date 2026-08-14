@@ -42,19 +42,19 @@ export type WorkspacePageMeta = {
 
 export const WORKSPACE_PAGES: WorkspacePageMeta[] = [
   { key: 'dashboard', label: 'Overview', path: '/' },
+  { key: 'chat', label: 'Messages', path: '/messages' },
+  { key: 'calendar', label: 'Calendar', path: '/calendar' },
+  { key: 'schedules', label: 'Automations', path: '/calendar/schedules' },
   { key: 'products', label: 'Products', path: '/products' },
   { key: 'sales', label: 'Sales', path: '/sales' },
-  { key: 'schedules', label: 'Automations', path: '/calendar/schedules' },
-  { key: 'calendar', label: 'Calendar', path: '/calendar' },
-  { key: 'team', label: 'Team', path: '/team' },
-  { key: 'hr', label: 'HR', path: '/hr' },
-  { key: 'projects', label: 'Projects', path: '/projects' },
-  { key: 'finance', label: 'Finance', path: '/finance/income' },
-  { key: 'reports', label: 'Reports', path: '/reports' },
-  { key: 'documents', label: 'Documents', path: '/documents' },
-  { key: 'assets', label: 'Assets', path: '/assets' },
+  { key: 'finance', label: 'Finance', path: '/finance/customers' },
   { key: 'approvals', label: 'Approvals', path: '/approvals' },
-  { key: 'chat', label: 'Messages', path: '/messages' },
+  { key: 'team', label: 'Team', path: '/team' },
+  { key: 'projects', label: 'Projects', path: '/projects' },
+  { key: 'hr', label: 'HR', path: '/hr' },
+  { key: 'assets', label: 'Assets', path: '/assets' },
+  { key: 'documents', label: 'Documents', path: '/documents' },
+  { key: 'reports', label: 'Reports', path: '/reports' },
 ];
 
 /** Pages available only in a shared workspace (hidden in personal mode). */

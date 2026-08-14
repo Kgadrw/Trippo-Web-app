@@ -45,23 +45,15 @@ export function WorkspaceMemberAvatarStack({
             <Tooltip key={member.id}>
               <TooltipTrigger asChild>
                 <div
-                  className={cn(
-                    "relative cursor-default rounded-full",
-                    index > 0 && "-ml-2.5",
-                    isCurrentUser ? "ring-2 ring-yellow-400" : "ring-2 ring-white",
-                  )}
+                  className={cn("relative", index > 0 && "-ml-2.5")}
                   style={{ zIndex: index + 1 }}
                 >
                   <UserProfileAvatar
                     name={member.name}
                     profilePictureUrl={member.profilePictureUrl || undefined}
-                    className={cn(
-                      "h-8 w-8 bg-white",
-                      isCurrentUser
-                        ? "border-2 border-yellow-400"
-                        : "border border-gray-200",
-                      avatarClassName,
-                    )}
+                    enablePreview={false}
+                    ringClassName={isCurrentUser ? "bg-sky-300" : "bg-white ring-1 ring-gray-200"}
+                    className={cn("h-8 w-8 bg-white", avatarClassName)}
                     fallbackClassName="bg-sky-100 text-[10px] font-semibold text-sky-700"
                   />
                 </div>

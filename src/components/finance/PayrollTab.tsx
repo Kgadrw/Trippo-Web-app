@@ -25,14 +25,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { Plus, Loader2, MoreVertical, Pencil, Trash2, Paperclip } from "lucide-react";
+import { Plus, Loader2, MoreVertical, Pencil, Trash2, Paperclip, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReceiptUploadField } from "@/components/finance/ReceiptUploadField";
 import { PaymentDetailsFields, buildFinancePaymentPayload } from "@/components/finance/PaymentDetailsFields";
 import { uploadReceipt, openReceiptInNewTab } from "@/lib/financeUpload";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
-import { teamMemberApi, type TeamMemberRecord } from "@/lib/api";
+import { teamMemberApi, approvalApi, type TeamMemberRecord } from "@/lib/api";
 import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
@@ -40,12 +40,16 @@ import {
   formatPaymentMode,
   FinanceDocumentRefCell,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { ApprovalStatusBadge } from "@/components/approvals/ApprovalStatusBadge";
+import { canRequesterEditApproval, canResubmitApproval } from "@/lib/approvalWorkflow";
 
 export interface PayrollEntry {
   id?: number;
@@ -223,6 +227,21 @@ export function PayrollTab() {
     setOpen(true);
   };
 
+  const handleResubmit = async (entry: PayrollEntry) => {
+    const id = payrollId(entry);
+    if (!id) return;
+    try {
+      await approvalApi.resubmit("payroll", id);
+      toast({ title: "Resubmitted", description: "Payroll sent back for approval." });
+      window.dispatchEvent(new CustomEvent("approvals-should-refresh"));
+      window.dispatchEvent(new CustomEvent("finance-should-refresh"));
+      await refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not resubmit payroll.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    }
+  };
+
   const resolveReceipt = async () => {
     if (receiptFile) {
       return uploadReceipt(receiptFile);
@@ -325,7 +344,8 @@ export function PayrollTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[900px] border-collapse">
           <thead>
             <tr>
@@ -381,6 +401,16 @@ export function PayrollTab() {
                   <td className={cn(FINANCE_TD_CLASS, "font-semibold text-gray-900 max-w-[180px] truncate")}>
                     <div className="truncate">{entry.employeeName}</div>
                     <ApprovalStatusBadge status={entry.approvalStatus} className="mt-1" />
+                    {entry.rejectionNote && canRequesterEditApproval(entry.approvalStatus) ? (
+                      <div
+                        className={cn(
+                          "mt-1 text-[11px] line-clamp-2",
+                          entry.approvalStatus === "changes_requested" ? "text-orange-700" : "text-red-600",
+                        )}
+                      >
+                        {entry.rejectionNote}
+                      </div>
+                    ) : null}
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell")}>
                     <span
@@ -428,10 +458,18 @@ export function PayrollTab() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(entry)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            {t("edit")}
-                          </DropdownMenuItem>
+                          {entry.approvalStatus !== "pending_approval" ? (
+                            <DropdownMenuItem onClick={() => openEdit(entry)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {t("edit")}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {canResubmitApproval(entry.approvalStatus) ? (
+                            <DropdownMenuItem onClick={() => void handleResubmit(entry)}>
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                              Resubmit for approval
+                            </DropdownMenuItem>
+                          ) : null}
                           <DropdownMenuItem
                             className="text-red-600"
                             onClick={() => requestDelete(entry)}
@@ -448,7 +486,82 @@ export function PayrollTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visiblePayrolls.map((entry, index) => {
+            const id = payrollId(entry);
+            const statusLabel = entry.status === "pending" ? t("pending") : t("paid");
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={
+                  <div>
+                    <div className="truncate">{entry.employeeName}</div>
+                    <ApprovalStatusBadge status={entry.approvalStatus} className="mt-1" />
+                    {entry.rejectionNote && canRequesterEditApproval(entry.approvalStatus) ? (
+                      <div
+                        className={cn(
+                          "mt-1 text-[11px] line-clamp-2",
+                          entry.approvalStatus === "changes_requested" ? "text-orange-700" : "text-red-600",
+                        )}
+                      >
+                        {entry.rejectionNote}
+                      </div>
+                    ) : null}
+                  </div>
+                }
+                subtitle={entry.period || "—"}
+                meta={`${formatFinanceTableDate(entry.paymentDate)} · ${statusLabel}`}
+                amount={`-${Number(entry.amount).toLocaleString()} Rwf`}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleSelectRow(id)}
+                selectLabel={`Select ${entry.employeeName}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400"
+                        disabled={deletingId === id}
+                      >
+                        {deletingId === id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MoreVertical className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {entry.approvalStatus !== "pending_approval" ? (
+                        <DropdownMenuItem onClick={() => openEdit(entry)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          {t("edit")}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canResubmitApproval(entry.approvalStatus) ? (
+                        <DropdownMenuItem onClick={() => void handleResubmit(entry)}>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Resubmit for approval
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => requestDelete(entry)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

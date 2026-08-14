@@ -30,6 +30,9 @@ import {
   FINANCE_TD_CLASS,
   FinanceTableLoading,
   FinanceTableShell,
+  DesktopDataTable,
+  MobileDataList,
+  FinanceMobileRow,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -191,7 +194,8 @@ export function CategoryBudgetsTab() {
             <p className="text-sm mt-1">{t("budgetsEmptyHint")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <DesktopDataTable>
             <table className="w-full min-w-[700px] border-collapse">
               <thead>
                 <tr>
@@ -216,7 +220,24 @@ export function CategoryBudgetsTab() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </DesktopDataTable>
+
+          <MobileDataList>
+            {summaryRows.map((row, index) => (
+              <FinanceMobileRow
+                key={row.category}
+                index={index}
+                title={<span className="capitalize">{row.category}</span>}
+                subtitle={`${t("budget")}: ${formatCurrency(row.budget)} · ${t("actual")}: ${formatCurrency(row.actual)}`}
+                amount={
+                  <span className={row.remaining < 0 ? "text-red-600" : "text-emerald-700"}>
+                    {formatCurrency(row.remaining)}
+                  </span>
+                }
+              />
+            ))}
+          </MobileDataList>
+          </>
         )}
       </FinanceTableShell>
 

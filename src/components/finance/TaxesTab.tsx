@@ -51,6 +51,9 @@ import {
   formatFinanceTableDate,
   FinanceDocumentRefCell,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -464,7 +467,8 @@ export function TaxesTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[1000px] border-collapse">
           <thead>
             <tr>
@@ -614,7 +618,74 @@ export function TaxesTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleTaxes.map((entry, index) => {
+            const id = taxId(entry);
+            const pending = (entry.status || "pending") === "pending";
+            const overdue = pending && isOverdue(entry.dueDate, entry.status);
+            const statusLabel = pending ? (overdue ? t("overdue") : t("pending")) : t("paid");
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={entry.title}
+                subtitle={entry.taxType}
+                meta={`${formatFinanceTableDate(entry.dueDate)} · ${statusLabel}`}
+                amount={`${Number(entry.amount).toLocaleString()} Rwf`}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleSelectRow(id)}
+                selectLabel={`Select ${entry.title}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400"
+                        disabled={deletingId === id}
+                      >
+                        {deletingId === id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MoreVertical className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {pending ? (
+                        <>
+                          <DropdownMenuItem onClick={() => openPay(entry)}>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            {t("markAsPaid")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(entry)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDeleteRequest(entry)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("delete")}
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <DropdownMenuItem onClick={() => openEdit(entry)} disabled>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          {t("paid")}
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

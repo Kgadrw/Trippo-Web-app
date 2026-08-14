@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useApi } from "@/hooks/useApi";
-import { billApi } from "@/lib/api";
+import { billApi, approvalApi } from "@/lib/api";
 import { CurrencyAmount } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,13 +42,19 @@ import {
   getFinanceDocumentRef,
   FinanceDocumentRefCell,
   FinanceTableCheckbox,
+  DesktopDataTable,
   FinanceTableLoading,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { HelpTip } from "@/components/ui/help-tip";
 import { ApprovalStatusBadge } from "@/components/approvals/ApprovalStatusBadge";
-import { isApprovedForReporting } from "@/lib/approvalWorkflow";
+import { isApprovedForReporting, canRequesterEditApproval, canResubmitApproval } from "@/lib/approvalWorkflow";
+import {
+  RecurrenceBadge,
+  RecurrenceFields,
+  type RecurrenceFrequency,
+} from "@/components/finance/RecurrenceFields";
 
 export interface BillEntry {
   id?: number;
@@ -63,6 +69,8 @@ export interface BillEntry {
   paidAt?: string;
   expenseId?: string;
   note?: string;
+  isRecurring?: boolean;
+  recurrenceFrequency?: RecurrenceFrequency | "";
   paymentMethod?: string;
   bankAccountName?: string;
   bankAccountNumber?: string;
@@ -135,6 +143,8 @@ export function BillsTab() {
   const [category, setCategory] = useState("bills");
   const [dueDate, setDueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency | "">("monthly");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | undefined>();
   const [existingReceiptName, setExistingReceiptName] = useState<string | undefined>();
@@ -256,6 +266,8 @@ export function BillsTab() {
     setCategory("bills");
     setDueDate(new Date().toISOString().split("T")[0]);
     setNote("");
+    setIsRecurring(false);
+    setRecurrenceFrequency("monthly");
     setBillPaymentMethod("cash");
     setBillBankAccountName("");
     setBillBankAccountNumber("");
@@ -287,6 +299,12 @@ export function BillsTab() {
     setCategory(entry.category || "bills");
     setDueDate(String(entry.dueDate || "").slice(0, 10) || new Date().toISOString().split("T")[0]);
     setNote(entry.note || "");
+    setIsRecurring(Boolean(entry.isRecurring));
+    setRecurrenceFrequency(
+      entry.isRecurring && entry.recurrenceFrequency
+        ? (entry.recurrenceFrequency as RecurrenceFrequency)
+        : "monthly",
+    );
     setBillPaymentMethod(entry.paymentMethod || "cash");
     setBillBankAccountName(entry.bankAccountName || "");
     setBillBankAccountNumber(entry.bankAccountNumber || "");
@@ -312,6 +330,27 @@ export function BillsTab() {
     setPaymentDate(new Date().toISOString().split("T")[0]);
     setPayReceiptFile(null);
     setPayOpen(true);
+  };
+
+  const handleResubmit = async (entry: BillEntry) => {
+    const id = billId(entry);
+    if (!id) return;
+    setDeletingId(id);
+    try {
+      await approvalApi.resubmit("bill", id);
+      toast({
+        title: "Resubmitted",
+        description: "Bill sent back for approval.",
+      });
+      window.dispatchEvent(new CustomEvent("approvals-should-refresh"));
+      window.dispatchEvent(new CustomEvent("finance-should-refresh"));
+      await refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not resubmit bill.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const resolveReceipt = async () => {
@@ -344,6 +383,8 @@ export function BillsTab() {
         category: category.trim() || "bills",
         dueDate: buildDueDate(dueDate),
         note: note.trim() || undefined,
+        isRecurring,
+        recurrenceFrequency: isRecurring ? recurrenceFrequency || "monthly" : "",
         ...payment,
         receiptUrl: receipt.receiptUrl,
         receiptFileName: receipt.receiptFileName || undefined,
@@ -455,7 +496,7 @@ export function BillsTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <DesktopDataTable>
         <table className="w-full min-w-[1100px] border-collapse">
           <thead>
             <tr className="border-b border-gray-200">
@@ -485,6 +526,8 @@ export function BillsTab() {
               const overdue = pending && isOverdue(entry.dueDate);
               const status = billStatus(entry);
               const due = balanceDue(entry);
+              const canEdit = pending && entry.approvalStatus !== "pending_approval";
+              const canResubmit = pending && canResubmitApproval(entry.approvalStatus);
               return (
                 <tr
                   key={id}
@@ -513,6 +556,10 @@ export function BillsTab() {
                         onEdit={pending ? () => openEdit(entry) : undefined}
                         readOnly={!pending && !entry.receiptUrl}
                       />
+                      <RecurrenceBadge
+                        isRecurring={entry.isRecurring}
+                        frequency={entry.recurrenceFrequency}
+                      />
                       {overdue ? (
                         <AlertTriangle size={14} className="shrink-0 text-amber-500" aria-label="Overdue" />
                       ) : null}
@@ -530,6 +577,16 @@ export function BillsTab() {
                         {status.label}
                       </span>
                       <ApprovalStatusBadge status={entry.approvalStatus} />
+                      {entry.rejectionNote && canRequesterEditApproval(entry.approvalStatus) ? (
+                        <div
+                          className={cn(
+                            "text-[11px] line-clamp-2 max-w-[180px]",
+                            entry.approvalStatus === "changes_requested" ? "text-orange-700" : "text-red-600",
+                          )}
+                        >
+                          {entry.rejectionNote}
+                        </div>
+                      ) : null}
                     </div>
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "text-gray-700 tabular-nums whitespace-nowrap")}>
@@ -564,10 +621,16 @@ export function BillsTab() {
                             {t("markAsPaid")}
                           </DropdownMenuItem>
                         )}
-                        {pending && (
+                        {canEdit && (
                           <DropdownMenuItem onClick={() => openEdit(entry)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             {t("edit")}
+                          </DropdownMenuItem>
+                        )}
+                        {canResubmit && (
+                          <DropdownMenuItem onClick={() => void handleResubmit(entry)}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Resubmit for approval
                           </DropdownMenuItem>
                         )}
                         {entry.receiptUrl && (
@@ -590,7 +653,7 @@ export function BillsTab() {
             })}
           </tbody>
         </table>
-      </div>
+      </DesktopDataTable>
     );
   };
 
@@ -636,7 +699,13 @@ export function BillsTab() {
                 </span>
               </div>
               <p className="mt-2 text-sm font-semibold text-gray-900 truncate">{entry.vendor || "—"}</p>
-              <p className="mt-1 text-xs text-gray-500 truncate">{entry.title}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <p className="truncate text-xs text-gray-500">{entry.title}</p>
+                <RecurrenceBadge
+                  isRecurring={entry.isRecurring}
+                  frequency={entry.recurrenceFrequency}
+                />
+              </div>
               <div className="mt-4 flex items-end justify-between gap-2">
                 <div>
                   <p className="text-[10px] uppercase text-gray-400">Due</p>
@@ -756,7 +825,14 @@ export function BillsTab() {
           </div>
         </div>
 
-        {viewMode === "list" ? renderListTable() : renderGrid()}
+        {viewMode === "list" ? (
+          <>
+            <div className="hidden md:block">{renderListTable()}</div>
+            <div className="md:hidden">{renderGrid()}</div>
+          </>
+        ) : (
+          renderGrid()
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={(next) => { if (!isSaving) { setOpen(next); if (!next) resetForm(); } }}>
@@ -806,6 +882,16 @@ export function BillsTab() {
               <Label>{t("noteOptional")}</Label>
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("expenseNotePlaceholder")} disabled={isSaving} />
             </div>
+            <RecurrenceFields
+              isRecurring={isRecurring}
+              frequency={recurrenceFrequency}
+              onIsRecurringChange={(value) => {
+                setIsRecurring(value);
+                if (value && !recurrenceFrequency) setRecurrenceFrequency("monthly");
+              }}
+              onFrequencyChange={setRecurrenceFrequency}
+              disabled={isSaving}
+            />
             <PaymentDetailsFields
               paymentMethod={billPaymentMethod}
               onPaymentMethodChange={setBillPaymentMethod}

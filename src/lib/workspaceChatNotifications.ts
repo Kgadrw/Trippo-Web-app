@@ -112,7 +112,7 @@ export type IncomingChatAlertInput = {
 
 /**
  * Incoming chat alert (WhatsApp-style):
- * - Visible tab: in-app popup
+ * - Visible tab (any page, including when Messages tab is closed): in-app popup
  * - Background / locked phone: sticky OS notification that stays until the chat is read
  * - App fully closed: server web-push (same conversation tag)
  */
@@ -156,7 +156,7 @@ export async function notifyIncomingChatAlert(input: IncomingChatAlertInput): Pr
     tag,
   };
 
-  // Foreground: in-app banner (also replace by conversation tag).
+  // Foreground: always push in-app banner (any route except when caller suppressed).
   if (!tabHidden) {
     pushChatIncomingPopup({
       id: tag,

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatEmojiText } from "@/components/workspace/ChatEmojiText";
 
@@ -36,10 +37,10 @@ export function ChatReplyQuote({
         if (messageId && onJump) onJump(messageId);
       }}
       className={cn(
-        "mb-1.5 w-full rounded-lg border-l-[3px] px-2.5 py-1.5 text-left transition-colors",
+        "mb-1.5 w-full rounded-md border-l-[3px] px-2.5 py-1.5 text-left shadow-none transition-colors",
         own
-          ? "border-white/70 bg-white/15 text-white/95 hover:bg-white/20"
-          : "border-sky-400 bg-white/80 text-gray-700 hover:bg-white",
+          ? "border-white/50 bg-black/10 text-white/95 hover:bg-black/15"
+          : "border-sky-300 bg-black/[0.03] text-gray-700 hover:bg-black/[0.05]",
         className,
       )}
     >
@@ -83,11 +84,10 @@ export function ChatReplyComposerBar({
   const preview = deleted ? deletedLabel : (replyTo.body || "").trim() || "…";
 
   return (
-    <div className="mb-2 flex items-start justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
-      <div className="min-w-0 border-l-[3px] border-sky-400 pl-2.5">
-        <p className="text-xs font-semibold text-sky-700">
-          {title}
-          {replyTo.senderName ? ` · ${replyTo.senderName}` : ""}
+    <div className="mb-1.5 flex items-start justify-between gap-2 rounded-t-xl border-b border-sky-100/80 bg-sky-50/80 px-3 py-2 shadow-none">
+      <div className="min-w-0 border-l-[3px] border-sky-300 pl-2.5">
+        <p className="text-[11px] font-medium text-sky-700">
+          {title}{replyTo.senderName ? ` · ${replyTo.senderName}` : ""}
         </p>
         <p className={cn("truncate text-xs text-gray-600", deleted && "italic")}>
           {deleted ? preview : <ChatEmojiText text={preview} size={14} />}
@@ -96,9 +96,11 @@ export function ChatReplyComposerBar({
       <button
         type="button"
         onClick={onCancel}
-        className="shrink-0 text-xs font-medium text-sky-600 hover:text-sky-700"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sky-600 hover:bg-sky-100 hover:text-sky-700"
+        aria-label={cancelLabel}
+        title={cancelLabel}
       >
-        {cancelLabel}
+        <X size={16} />
       </button>
     </div>
   );
@@ -132,8 +134,8 @@ export function scrollChatToMessage(
   ) as HTMLElement | null;
   if (!target) return;
   target.scrollIntoView({ behavior: "smooth", block: "center" });
-  target.classList.add("ring-2", "ring-sky-300", "ring-offset-1");
+  target.classList.add("ring-1", "ring-sky-200");
   window.setTimeout(() => {
-    target.classList.remove("ring-2", "ring-sky-300", "ring-offset-1");
+    target.classList.remove("ring-1", "ring-sky-200");
   }, 1200);
 }

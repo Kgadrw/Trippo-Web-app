@@ -35,20 +35,23 @@ type SidebarMenuItem = {
 };
 
 const financeChildren = [
-  { label: "Income", to: "/finance/income" },
+  // Money in
   { label: "Customers", to: "/finance/customers" },
   { label: "Invoices", to: "/finance/invoices" },
+  { label: "Income", to: "/finance/income" },
+  // Money out
   { label: "Vendors", to: "/finance/vendors" },
-  { label: "Bank Deposits", to: "/finance/deposits" },
-  { label: "Accounts", to: "/finance/accounts" },
-  { label: "Financial Statements", to: "/finance/statements" },
-  { label: "Bank Reconciliation", to: "/finance/reconciliation" },
-  { label: "Budgets", to: "/finance/budgets" },
-  { label: "Loans", to: "/finance/loans" },
   { label: "Bills", to: "/finance/bills" },
-  { label: "Tax", to: "/finance/taxes" },
   { label: "Expenditure", to: "/finance/expenditure" },
   { label: "Payroll", to: "/finance/payroll" },
+  { label: "Tax", to: "/finance/taxes" },
+  { label: "Loans", to: "/finance/loans" },
+  // Banking & books
+  { label: "Accounts", to: "/finance/accounts" },
+  { label: "Bank Deposits", to: "/finance/deposits" },
+  { label: "Bank Reconciliation", to: "/finance/reconciliation" },
+  { label: "Budgets", to: "/finance/budgets" },
+  { label: "Financial Statements", to: "/finance/statements" },
   { label: "Transactions", to: "/finance/transactions" },
 ];
 
@@ -75,9 +78,9 @@ const calendarChildren = [
 ];
 
 const menuItems: SidebarMenuItem[] = [
+  // Start of day
   { label: "Overview", path: "/", pageKey: "dashboard" },
-  { label: "Products", path: "/products", pageKey: "products" },
-  { label: "Sales", path: "/sales", pageKey: "sales" },
+  { label: "Messages", path: "/messages", pageKey: "chat" },
   {
     label: "Calendar",
     path: "/calendar",
@@ -86,6 +89,20 @@ const menuItems: SidebarMenuItem[] = [
     pageKey: "calendar",
     children: calendarChildren,
   },
+  // Sell
+  { label: "Products", path: "/products", pageKey: "products" },
+  { label: "Sales", path: "/sales", pageKey: "sales" },
+  // Money
+  {
+    label: "Finance",
+    path: "/finance/customers",
+    matchPrefix: "/finance",
+    sectionKey: "finance",
+    pageKey: "finance",
+    children: financeChildren,
+  },
+  { label: "Approvals", path: "/approvals", pageKey: "approvals" },
+  // People & work
   {
     label: "Team",
     path: "/team",
@@ -93,14 +110,6 @@ const menuItems: SidebarMenuItem[] = [
     sectionKey: "team",
     pageKey: "team",
     children: teamChildren,
-  },
-  {
-    label: "HR",
-    path: "/hr",
-    matchPrefix: "/hr",
-    sectionKey: "hr",
-    pageKey: "hr",
-    children: hrChildren,
   },
   {
     label: "Projects",
@@ -111,18 +120,17 @@ const menuItems: SidebarMenuItem[] = [
     children: projectChildren,
   },
   {
-    label: "Finance",
-    path: "/finance/income",
-    matchPrefix: "/finance",
-    sectionKey: "finance",
-    pageKey: "finance",
-    children: financeChildren,
+    label: "HR",
+    path: "/hr",
+    matchPrefix: "/hr",
+    sectionKey: "hr",
+    pageKey: "hr",
+    children: hrChildren,
   },
-  { label: "Reports", path: "/reports", pageKey: "reports" },
-  { label: "Documents", path: "/documents", matchPrefix: "/documents", pageKey: "documents" },
+  // Records & insight
   { label: "Assets", path: "/assets", pageKey: "assets" },
-  { label: "Approvals", path: "/approvals", pageKey: "approvals" },
-  { label: "Messages", path: "/messages", pageKey: "chat" },
+  { label: "Documents", path: "/documents", matchPrefix: "/documents", pageKey: "documents" },
+  { label: "Reports", path: "/reports", pageKey: "reports" },
 ];
 
 interface SidebarProps {
@@ -130,6 +138,7 @@ interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
   desktopHeaderHeight?: number;
+  onDesktopMouseLeave?: () => void;
 }
 
 function FilledTriangleDown({ className }: { className?: string }) {
@@ -148,7 +157,13 @@ function FilledTriangleUp({ className }: { className?: string }) {
   );
 }
 
-export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeaderHeight = 56 }: SidebarProps) {
+export function Sidebar({
+  open,
+  mobileOpen = false,
+  onMobileClose,
+  desktopHeaderHeight = 56,
+  onDesktopMouseLeave,
+}: SidebarProps) {
   const location = useLocation();
   const { clearAuth } = usePinAuth();
   const { toast } = useToast();
@@ -401,6 +416,7 @@ export function Sidebar({ open, mobileOpen = false, onMobileClose, desktopHeader
             top: desktopHeaderHeight,
             bottom: 0,
           }}
+          onMouseLeave={onDesktopMouseLeave}
         >
           {navContent}
           {logoutButton}

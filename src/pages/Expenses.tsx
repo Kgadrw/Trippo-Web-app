@@ -49,7 +49,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 
-import { Trash2, Plus, Loader2, MoreVertical, Pencil, Search, ArrowUpDown, ArrowDown, X, Receipt, FileText, Paperclip } from "lucide-react";
+import { Trash2, Plus, Loader2, MoreVertical, Pencil, Search, ArrowUpDown, ArrowDown, X, Receipt, FileText, Paperclip, RefreshCw } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -68,11 +68,15 @@ import {
   FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { ApprovalStatusBadge } from "@/components/approvals/ApprovalStatusBadge";
-import { isApprovedForReporting } from "@/lib/approvalWorkflow";
+import { isApprovedForReporting, canRequesterEditApproval, canResubmitApproval } from "@/lib/approvalWorkflow";
+import { approvalApi } from "@/lib/api";
 
 function expenseId(e: Expense): string {
   return String(e._id ?? e.id ?? "");
@@ -442,6 +446,24 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
 
     setOpen(true);
 
+  };
+
+  const handleResubmit = async (expense: Expense) => {
+    const id = expenseId(expense);
+    if (!id) return;
+    try {
+      await approvalApi.resubmit("expense", id);
+      toast({
+        title: "Resubmitted",
+        description: "Expense sent back for approval.",
+      });
+      window.dispatchEvent(new CustomEvent("approvals-should-refresh"));
+      window.dispatchEvent(new CustomEvent("expenses-should-refresh"));
+      await refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not resubmit expense.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    }
   };
 
 
@@ -1004,6 +1026,16 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                         {expense.title}
                       </div>
                       <ApprovalStatusBadge status={expense.approvalStatus} className="mt-1" />
+                      {expense.rejectionNote && canRequesterEditApproval(expense.approvalStatus) ? (
+                        <div
+                          className={cn(
+                            "mt-1 text-[11px] line-clamp-2",
+                            expense.approvalStatus === "changes_requested" ? "text-orange-700" : "text-red-600",
+                          )}
+                        >
+                          {expense.rejectionNote}
+                        </div>
+                      ) : null}
                     </td>
                     <td className={tdClass}>
                       <div className={cn("text-gray-700", compact ? "text-xs" : "text-sm")}>
@@ -1057,10 +1089,18 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(expense)}>
-                            <Pencil size={14} className="mr-2" />
-                            {t("edit")}
-                          </DropdownMenuItem>
+                          {expense.approvalStatus !== "pending_approval" ? (
+                            <DropdownMenuItem onClick={() => openEdit(expense)}>
+                              <Pencil size={14} className="mr-2" />
+                              {t("edit")}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {canResubmitApproval(expense.approvalStatus) ? (
+                            <DropdownMenuItem onClick={() => void handleResubmit(expense)}>
+                              <RefreshCw size={14} className="mr-2" />
+                              Resubmit for approval
+                            </DropdownMenuItem>
+                          ) : null}
                           <DropdownMenuItem
                             onClick={() => requestDelete(expense)}
                             disabled={isDeletingThis}
@@ -1109,128 +1149,197 @@ export default function Expenses({ embedded = false }: { embedded?: boolean }) {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse">
-          <thead>
-            <tr>
-              <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
-                <FinanceTableCheckbox
-                  checked={allEmbeddedSelected}
-                  onCheckedChange={toggleEmbeddedSelectAll}
-                  ariaLabel="Select all"
-                />
-              </th>
-              <th className={FINANCE_TH_CLASS}>{t("date")}</th>
-              <th className={FINANCE_TH_CLASS}>{t("category")}</th>
-              <th className={FINANCE_TH_CLASS}>{`${t("expenditure")} #`}</th>
-              <th className={FINANCE_TH_CLASS}>{titleLabel}</th>
-              <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>{t("paymentMethod")}</th>
-              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("quantity")}</th>
-              <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("amount")}</th>
-              <th className={cn(FINANCE_TH_CLASS, "w-10 pr-4")} />
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {sortedExpensesEmbedded.map((expense, index) => {
-              const id = expenseId(expense);
-              const isSelected = selectedIds.has(id);
-              const isDeletingThis = deletingId !== null && id === deletingId;
+      <>
+        <DesktopDataTable>
+          <table className="w-full min-w-[900px] border-collapse">
+            <thead>
+              <tr>
+                <th className={cn(FINANCE_TH_CLASS, "w-10 pl-4")}>
+                  <FinanceTableCheckbox
+                    checked={allEmbeddedSelected}
+                    onCheckedChange={toggleEmbeddedSelectAll}
+                    ariaLabel="Select all"
+                  />
+                </th>
+                <th className={FINANCE_TH_CLASS}>{t("date")}</th>
+                <th className={FINANCE_TH_CLASS}>{t("category")}</th>
+                <th className={FINANCE_TH_CLASS}>{`${t("expenditure")} #`}</th>
+                <th className={FINANCE_TH_CLASS}>{titleLabel}</th>
+                <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>{t("paymentMethod")}</th>
+                <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("quantity")}</th>
+                <th className={cn(FINANCE_TH_CLASS, "text-right")}>{t("amount")}</th>
+                <th className={cn(FINANCE_TH_CLASS, "w-10 pr-4")} />
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {sortedExpensesEmbedded.map((expense, index) => {
+                const id = expenseId(expense);
+                const isSelected = selectedIds.has(id);
+                const isDeletingThis = deletingId !== null && id === deletingId;
 
-              return (
-                <tr
-                  key={id || expense.title}
-                  className={cn(
-                    "transition-colors hover:bg-gray-50/80",
-                    isSelected && "bg-blue-50/40",
-                  )}
-                >
-                  <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
-                    <FinanceTableCheckbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleEmbeddedSelectRow(id)}
-                      ariaLabel={`Select ${expense.title}`}
-                    />
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "text-gray-700 tabular-nums")}>
-                    {formatFinanceTableDate(expense.date)}
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "text-gray-600")}>
-                    {expense.category || "general"}
-                  </td>
-                  <td className={FINANCE_TD_CLASS}>
-                    <FinanceDocumentRefCell
-                      entry={expense}
-                      fallbackPrefix="expense"
-                      id={id}
-                      index={index}
-                      readOnly
-                    />
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "font-semibold text-gray-900 max-w-[180px] truncate")}>
-                    <div className="truncate">{expense.title}</div>
-                    <ApprovalStatusBadge status={expense.approvalStatus} className="mt-1" />
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>
-                    {formatPaymentMode(expense.paymentMethod, t)}
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums text-gray-700")}>
-                    {parseExpenseQuantity(expense.quantity) ?? 1}
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "text-right font-medium tabular-nums text-rose-600")}>
-                    <span className="inline-flex items-center justify-end gap-1">
-                      <ArrowDown size={14} className="shrink-0" aria-hidden />
-                      {Number(expense.amount).toLocaleString()} Rwf
-                    </span>
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "pr-4 text-right")}>
-                    <div className="flex items-center justify-end gap-1">
-                      {expense.receiptUrl ? (
-                        <button
-                          type="button"
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                          onClick={() => void openReceiptInNewTab(expense.receiptUrl!).catch(() => undefined)}
-                          aria-label={t("viewReceipt")}
+                return (
+                  <tr
+                    key={id || expense.title}
+                    className={cn(
+                      "transition-colors hover:bg-gray-50/80",
+                      isSelected && "bg-blue-50/40",
+                    )}
+                  >
+                    <td className={cn(FINANCE_TD_CLASS, "pl-4")}>
+                      <FinanceTableCheckbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleEmbeddedSelectRow(id)}
+                        ariaLabel={`Select ${expense.title}`}
+                      />
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "text-gray-700 tabular-nums")}>
+                      {formatFinanceTableDate(expense.date)}
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "text-gray-600")}>
+                      {expense.category || "general"}
+                    </td>
+                    <td className={FINANCE_TD_CLASS}>
+                      <FinanceDocumentRefCell
+                        entry={expense}
+                        fallbackPrefix="expense"
+                        id={id}
+                        index={index}
+                        readOnly
+                      />
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "font-semibold text-gray-900 max-w-[180px] truncate")}>
+                      <div className="truncate">{expense.title}</div>
+                      <ApprovalStatusBadge status={expense.approvalStatus} className="mt-1" />
+                      {expense.rejectionNote && canRequesterEditApproval(expense.approvalStatus) ? (
+                        <div
+                          className={cn(
+                            "mt-1 text-[11px] line-clamp-2",
+                            expense.approvalStatus === "changes_requested" ? "text-orange-700" : "text-red-600",
+                          )}
                         >
-                          <Paperclip size={15} />
-                        </button>
+                          {expense.rejectionNote}
+                        </div>
                       ) : null}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-gray-400 hover:text-gray-700"
-                            disabled={isDeletingThis}
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-gray-600")}>
+                      {formatPaymentMode(expense.paymentMethod, t)}
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "text-right tabular-nums text-gray-700")}>
+                      {parseExpenseQuantity(expense.quantity) ?? 1}
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "text-right font-medium tabular-nums text-rose-600")}>
+                      <span className="inline-flex items-center justify-end gap-1">
+                        <ArrowDown size={14} className="shrink-0" aria-hidden />
+                        {Number(expense.amount).toLocaleString()} Rwf
+                      </span>
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "pr-4 text-right")}>
+                      <div className="flex items-center justify-end gap-1">
+                        {expense.receiptUrl ? (
+                          <button
+                            type="button"
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            onClick={() => void openReceiptInNewTab(expense.receiptUrl!).catch(() => undefined)}
+                            aria-label={t("viewReceipt")}
                           >
-                            {isDeletingThis ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(expense)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            {t("edit")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => requestDelete(expense)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t("delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                            <Paperclip size={15} />
+                          </button>
+                        ) : null}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-gray-400 hover:text-gray-700"
+                              disabled={isDeletingThis}
+                            >
+                              {isDeletingThis ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {expense.approvalStatus !== "pending_approval" ? (
+                              <DropdownMenuItem onClick={() => openEdit(expense)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                {t("edit")}
+                              </DropdownMenuItem>
+                            ) : null}
+                            {canResubmitApproval(expense.approvalStatus) ? (
+                              <DropdownMenuItem onClick={() => void handleResubmit(expense)}>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Resubmit for approval
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => requestDelete(expense)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {t("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {sortedExpensesEmbedded.map((expense, index) => {
+            const id = expenseId(expense);
+            return (
+              <FinanceMobileRow
+                key={id || expense.title}
+                index={index}
+                title={expense.title}
+                subtitle={expense.category || "general"}
+                meta={formatFinanceTableDate(expense.date)}
+                amount={`${Number(expense.amount).toLocaleString()} Rwf`}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleEmbeddedSelectRow(id)}
+                selectLabel={`Select ${expense.title}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {expense.approvalStatus !== "pending_approval" ? (
+                        <DropdownMenuItem onClick={() => openEdit(expense)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          {t("edit")}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canResubmitApproval(expense.approvalStatus) ? (
+                        <DropdownMenuItem onClick={() => void handleResubmit(expense)}>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Resubmit for approval
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => requestDelete(expense)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

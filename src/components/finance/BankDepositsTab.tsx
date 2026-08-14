@@ -49,6 +49,9 @@ import {
   formatFinanceTableDate,
   FinanceDocumentRefCell,
   FinanceTableCheckbox,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
   FinanceTableLoading,
   FinanceTableShell,
 } from "@/components/finance/financeTable";
@@ -420,7 +423,8 @@ export function BankDepositsTab() {
     }
 
     return (
-      <div className="overflow-x-auto">
+      <>
+        <DesktopDataTable>
         <table className="w-full min-w-[1000px] border-collapse">
           <thead>
             <tr>
@@ -518,7 +522,56 @@ export function BankDepositsTab() {
             })}
           </tbody>
         </table>
-      </div>
+        </DesktopDataTable>
+
+        <MobileDataList>
+          {visibleDeposits.map((entry, index) => {
+            const id = depositId(entry);
+            return (
+              <FinanceMobileRow
+                key={id}
+                index={index}
+                title={entry.title}
+                subtitle={entry.bankAccountName || "—"}
+                meta={formatFinanceTableDate(entry.depositDate)}
+                amount={formatCurrency(Number(entry.amount) || 0)}
+                selected={selectedIds.has(id)}
+                onToggleSelect={() => toggleSelectRow(id)}
+                selectLabel={`Select ${entry.title}`}
+                actions={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical size={16} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {entry.receiptUrl ? (
+                        <DropdownMenuItem onClick={() => openReceiptInNewTab(entry.receiptUrl!)}>
+                          <Paperclip className="mr-2 h-4 w-4" />
+                          {t("viewReceipt")}
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuItem onClick={() => openEdit(entry)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        {t("edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => requestDelete(entry)}
+                        disabled={deletingId === id}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              />
+            );
+          })}
+        </MobileDataList>
+      </>
     );
   };
 

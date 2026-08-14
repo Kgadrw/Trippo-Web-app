@@ -43,6 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 import { Loader2, MoreVertical, Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import { HelpTip } from "@/components/ui/help-tip";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
@@ -443,7 +444,8 @@ export function TeamMembersTab() {
       ) : members.length === 0 ? (
         <p className="text-sm text-gray-500 py-8">{t("teamNoMembers")}</p>
       ) : (
-        <div className="overflow-x-auto border border-gray-200">
+        <>
+        <DesktopDataTable className="border border-gray-200">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
@@ -505,7 +507,62 @@ export function TeamMembersTab() {
               ))}
             </tbody>
           </table>
-        </div>
+        </DesktopDataTable>
+
+        <MobileDataList className="border-x border-b border-gray-200">
+          {visibleMembers.map((member, index) => (
+            <MobileListCard key={member._id} index={index}>
+              <div className="flex items-start gap-3">
+                <UserProfileAvatar
+                  name={member.name}
+                  profilePictureUrl={resolveMemberPicture(member)}
+                  className="h-9 w-9 shrink-0 border border-gray-200"
+                  fallbackClassName="bg-gray-200 text-[10px] text-gray-700"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 space-y-0.5">
+                      <Link
+                        to={`/hr/people/${member._id}`}
+                        className="text-sm font-semibold text-sky-700 hover:underline truncate block"
+                      >
+                        {member.name}
+                      </Link>
+                      <div className="text-xs text-gray-600">{member.jobTitle || "—"}</div>
+                      <div className="text-[11px] text-gray-500">
+                        {deptLabel(member.department || "general")}
+                        {member.email ? ` · ${member.email}` : ""}
+                      </div>
+                      <div className="text-xs capitalize text-gray-600">{member.status || "active"}</div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                          <MoreVertical size={16} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(member)}>
+                          <Pencil size={14} className="mr-2" />
+                          {t("edit")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          disabled={deletingId === member._id}
+                          onClick={() => void handleDelete(member)}
+                        >
+                          <Trash2 size={14} className="mr-2" />
+                          {t("delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            </MobileListCard>
+          ))}
+        </MobileDataList>
+        </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>

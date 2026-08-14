@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   leaveRequestApi,
-  teamMemberApi,
   teamTaskApi,
   type TeamMemberRecord,
   type TeamTaskRecord,
@@ -15,26 +14,13 @@ import {
   type LeaveRequestRecord,
 } from "@/lib/leaveWorkflow";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useWorkspaceCategories } from "@/hooks/useWorkspaceCategories";
-import { formatCategoryLabel } from "@/lib/workspaceCategories";
 import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help-tip";
-import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
-import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { websocketManager } from "@/lib/websocketManager";
 import { matchesRealtimeRecord } from "@/lib/workspaceRealtime";
 import { TEAM_TASK_EVENTS } from "@/lib/teamTaskRealtime";
-
-type MemberWorkload = {
-  member: TeamMemberRecord;
-  todo: number;
-  inProgress: number;
-  done: number;
-  total: number;
-  currentTasks: TeamTaskRecord[];
-};
 
 type ActivityItem = {
   id: string;
@@ -87,67 +73,25 @@ function isOnLeaveNow(leave: LeaveRequestRecord, now = new Date()) {
 
 export function HrOverviewTab() {
   const { t } = useTranslation();
-  const { categories: departmentCategories } = useWorkspaceCategories("department");
-  const { members: workspaceMembers } = useWorkspaceMemberAvatars();
   const monthKey = getMonthKey();
 
   const [loading, setLoading] = useState(true);
-  const [employees, setEmployees] = useState<TeamMemberRecord[]>([]);
   const [tasks, setTasks] = useState<TeamTaskRecord[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestRecord[]>([]);
-  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
-
-  const avatarByUserId = useMemo(() => {
-    const map = new Map<string, string | undefined>();
-    for (const member of workspaceMembers) {
-      map.set(String(member.userId), member.profilePictureUrl || undefined);
-    }
-    return map;
-  }, [workspaceMembers]);
-
-  const avatarByEmail = useMemo(() => {
-    const map = new Map<string, string | undefined>();
-    for (const member of workspaceMembers) {
-      if (member.email) {
-        map.set(member.email.trim().toLowerCase(), member.profilePictureUrl || undefined);
-      }
-    }
-    return map;
-  }, [workspaceMembers]);
-
-  const resolvePicture = useCallback(
-    (member: TeamMemberRecord) => {
-      if (member.linkedUserId && avatarByUserId.has(String(member.linkedUserId))) {
-        return avatarByUserId.get(String(member.linkedUserId));
-      }
-      if (member.email) {
-        return avatarByEmail.get(member.email.trim().toLowerCase());
-      }
-      return undefined;
-    },
-    [avatarByEmail, avatarByUserId],
-  );
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      const [membersRes, tasksRes, leaveSummaryRes, leaveRes] = await Promise.all([
-        teamMemberApi.getAll({ status: "active" }),
+      const [tasksRes, leaveRes] = await Promise.all([
         teamTaskApi.getAll({ monthKey }),
-        leaveRequestApi.getSummary(),
         leaveRequestApi.getAll(),
       ]);
 
-      setEmployees(((membersRes.data as TeamMemberRecord[]) || []).filter((m) => m.status !== "inactive"));
       setTasks(Array.isArray(tasksRes.data) ? (tasksRes.data as TeamTaskRecord[]) : []);
       setLeaveRequests(Array.isArray(leaveRes.data) ? (leaveRes.data as LeaveRequestRecord[]) : []);
-      const leaveSummary = leaveSummaryRes.data as { pendingCount?: number };
-      setPendingLeaveCount(leaveSummary?.pendingCount ?? 0);
     } catch {
-      setEmployees([]);
       setTasks([]);
       setLeaveRequests([]);
-      setPendingLeaveCount(0);
     } finally {
       setLoading(false);
     }
@@ -159,17 +103,12 @@ export function HrOverviewTab() {
 
   const refreshQuietly = useCallback(async () => {
     try {
-      const [membersRes, tasksRes, leaveSummaryRes, leaveRes] = await Promise.all([
-        teamMemberApi.getAll({ status: "active" }),
+      const [tasksRes, leaveRes] = await Promise.all([
         teamTaskApi.getAll({ monthKey }),
-        leaveRequestApi.getSummary(),
         leaveRequestApi.getAll(),
       ]);
-      setEmployees(((membersRes.data as TeamMemberRecord[]) || []).filter((m) => m.status !== "inactive"));
       setTasks(Array.isArray(tasksRes.data) ? (tasksRes.data as TeamTaskRecord[]) : []);
       setLeaveRequests(Array.isArray(leaveRes.data) ? (leaveRes.data as LeaveRequestRecord[]) : []);
-      const leaveSummary = leaveSummaryRes.data as { pendingCount?: number };
-      setPendingLeaveCount(leaveSummary?.pendingCount ?? 0);
     } catch {
       // Keep current dashboard on background refresh failure
     }
@@ -194,48 +133,6 @@ export function HrOverviewTab() {
       window.removeEventListener("leave-requests-should-refresh", onLeaveRefresh);
     };
   }, [refreshQuietly]);
-
-  const workloads = useMemo<MemberWorkload[]>(() => {
-    const byMember = new Map<string, MemberWorkload>();
-
-    for (const member of employees) {
-      byMember.set(String(member._id), {
-        member,
-        todo: 0,
-        inProgress: 0,
-        done: 0,
-        total: 0,
-        currentTasks: [],
-      });
-    }
-
-    for (const task of tasks) {
-      const id = assigneeId(task);
-      const row = byMember.get(id);
-      if (!row) continue;
-      const status = task.status || "todo";
-      row.total += 1;
-      if (status === "done") row.done += 1;
-      else if (status === "in_progress") {
-        row.inProgress += 1;
-        row.currentTasks.push(task);
-      } else row.todo += 1;
-    }
-
-    for (const row of byMember.values()) {
-      row.currentTasks.sort((a, b) => {
-        const aDue = timeValue(a.dueDate) || Number.MAX_SAFE_INTEGER;
-        const bDue = timeValue(b.dueDate) || Number.MAX_SAFE_INTEGER;
-        return aDue - bDue;
-      });
-    }
-
-    return Array.from(byMember.values()).sort((a, b) => {
-      if (b.inProgress !== a.inProgress) return b.inProgress - a.inProgress;
-      if (b.total !== a.total) return b.total - a.total;
-      return a.member.name.localeCompare(b.member.name);
-    });
-  }, [employees, tasks]);
 
   const ongoingTasks = useMemo(
     () =>
@@ -302,23 +199,6 @@ export function HrOverviewTab() {
       .slice(0, 12);
   }, [leaveRequests, t, tasks]);
 
-  const stats = useMemo(() => {
-    const todo = tasks.filter((task) => (task.status || "todo") === "todo").length;
-    const inProgress = tasks.filter((task) => task.status === "in_progress").length;
-    const done = tasks.filter((task) => task.status === "done").length;
-    return {
-      employees: employees.length,
-      pendingLeave: pendingLeaveCount,
-      onLeave: onLeaveNow.length,
-      todo,
-      inProgress,
-      done,
-    };
-  }, [employees.length, onLeaveNow.length, pendingLeaveCount, tasks]);
-
-  const deptLabel = (dept?: string) =>
-    formatCategoryLabel(dept || "general", departmentCategories, t, "department");
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-500">
@@ -351,100 +231,6 @@ export function HrOverviewTab() {
           </Button>
         </div>
       </div>
-
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("hrActiveEmployees")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.employees}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("hrWorkingNow")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.inProgress}</p>
-          <p className="mt-1 text-xs text-gray-500">{t("hrWorkingNowHint")}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("hrPendingLeaveRequests")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.pendingLeave}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">{t("hrOnLeaveNow")}</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{stats.onLeave}</p>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-gray-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">{t("hrEmployeeWorkload")}</h3>
-            <p className="text-xs text-gray-500">{t("hrEmployeeWorkloadHint")}</p>
-          </div>
-          <Button asChild variant="link" className="h-auto p-0 text-sky-700">
-            <Link to="/hr/people">{t("hrViewPeople")}</Link>
-          </Button>
-        </div>
-
-        {workloads.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-gray-500">{t("hrNoEmployees")}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                  <th className="px-4 py-2.5">{t("name")}</th>
-                  <th className="px-4 py-2.5">{t("teamJobTitle")}</th>
-                  <th className="px-4 py-2.5">{t("teamDepartment")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("teamStatusTodo")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("teamStatusInProgress")}</th>
-                  <th className="px-4 py-2.5 text-center">{t("teamStatusDone")}</th>
-                  <th className="px-4 py-2.5">{t("hrCurrentFocus")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workloads.map((row) => {
-                  const focus = row.currentTasks[0];
-                  return (
-                    <tr key={row.member._id} className="border-b border-gray-50 align-top hover:bg-gray-50/70">
-                      <td className="px-4 py-3">
-                        <Link
-                          to={`/hr/people/${row.member._id}`}
-                          className="inline-flex items-center gap-2 text-sky-700 hover:underline"
-                        >
-                          <UserProfileAvatar
-                            name={row.member.name}
-                            profilePictureUrl={resolvePicture(row.member)}
-                            className="h-8 w-8 border border-gray-200"
-                            fallbackClassName="bg-gray-200 text-[10px] text-gray-700"
-                          />
-                          <span className="font-medium">{row.member.name}</span>
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">{row.member.jobTitle || "—"}</td>
-                      <td className="px-4 py-3 text-gray-700">{deptLabel(row.member.department)}</td>
-                      <td className="px-4 py-3 text-center tabular-nums text-slate-600">{row.todo}</td>
-                      <td className="px-4 py-3 text-center tabular-nums text-sky-700">{row.inProgress}</td>
-                      <td className="px-4 py-3 text-center tabular-nums text-emerald-700">{row.done}</td>
-                      <td className="px-4 py-3 text-gray-700">
-                        {focus ? (
-                          <div>
-                            <p className="font-medium text-gray-900">{focus.title}</p>
-                            {focus.dueDate ? (
-                              <p className="text-xs text-gray-500">
-                                {t("teamDueDate")}: {formatShortDate(focus.dueDate)}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">{t("hrNoCurrentTask")}</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-gray-200 bg-white">

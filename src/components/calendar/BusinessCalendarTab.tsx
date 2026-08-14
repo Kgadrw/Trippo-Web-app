@@ -89,6 +89,13 @@ import {
   PlatformRawData,
 } from "@/lib/calendarPlatformItems";
 import type { CorporateFeedItem } from "@/lib/calendarWorkflow";
+import { ReminderPresetPicker } from "@/components/reminders/ReminderPresetPicker";
+import {
+  detectReminderPreset,
+  offsetsFromPreset,
+  reminderOffsetsFromRecord,
+  type ReminderPreset,
+} from "@/lib/workReminders";
 
 function asRows(data: unknown): Record<string, unknown>[] {
   return Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
@@ -139,20 +146,22 @@ type EventFormState = {
   allDay: boolean;
   location: string;
   status: "scheduled" | "completed" | "cancelled";
-  reminderMinutes: string;
+  reminderPreset: ReminderPreset;
+  customReminderOffsets: number[];
 };
 
 const EMPTY_FORM: EventFormState = {
   title: "",
   description: "",
-  eventType: "event",
+  eventType: "meeting",
   date: toDateInputValue(new Date()),
   startTime: "09:00",
   endTime: "10:00",
   allDay: false,
   location: "",
   status: "scheduled",
-  reminderMinutes: "0",
+  reminderPreset: "default",
+  customReminderOffsets: [],
 };
 
 const GRID_TABLE_CLASS = "grid grid-cols-7 border-l border-t border-gray-300 bg-white";
@@ -497,6 +506,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
   const openEditModal = (event: CalendarEventRecord) => {
     const start = new Date(event.startDate);
     const end = event.endDate ? new Date(event.endDate) : null;
+    const offsets = reminderOffsetsFromRecord(event);
     setEditingEvent(event);
     setForm({
       title: event.title,
@@ -508,7 +518,8 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
       allDay: Boolean(event.allDay),
       location: event.location || "",
       status: event.status || "scheduled",
-      reminderMinutes: String(event.reminderMinutes ?? 0),
+      reminderPreset: detectReminderPreset(offsets),
+      customReminderOffsets: offsets,
     });
     setModalOpen(true);
   };
@@ -525,6 +536,8 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
       endDate = combineDateAndTime(form.date, form.endTime);
     }
 
+    const reminderOffsets = offsetsFromPreset(form.reminderPreset, form.customReminderOffsets);
+
     return {
       title: form.title.trim(),
       description: form.description.trim(),
@@ -534,7 +547,8 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
       allDay: form.allDay,
       location: form.location.trim(),
       status: form.status,
-      reminderMinutes: Number(form.reminderMinutes) || 0,
+      reminderMinutes: reminderOffsets[0] || 0,
+      reminders: reminderOffsets,
     };
   };
 
@@ -1205,23 +1219,25 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>{t("calReminder")}</Label>
-                <Select
-                  value={form.reminderMinutes}
-                  onValueChange={(v) => setForm((f) => ({ ...f, reminderMinutes: v }))}
-                >
-                  <SelectTrigger className={filterSelectClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">{t("calReminderNone")}</SelectItem>
-                    <SelectItem value="15">{t("calReminder15")}</SelectItem>
-                    <SelectItem value="60">{t("calReminder60")}</SelectItem>
-                    <SelectItem value="1440">{t("calReminderDay")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <ReminderPresetPicker
+                preset={form.reminderPreset}
+                customOffsets={form.customReminderOffsets}
+                onPresetChange={(preset) =>
+                  setForm((f) => ({
+                    ...f,
+                    reminderPreset: preset,
+                    customReminderOffsets:
+                      preset === "custom" ? f.customReminderOffsets : offsetsFromPreset(preset),
+                  }))
+                }
+                onCustomChange={(offsets) =>
+                  setForm((f) => ({
+                    ...f,
+                    reminderPreset: "custom",
+                    customReminderOffsets: offsets,
+                  }))
+                }
+              />
             </div>
           </div>
           <DialogFooter>

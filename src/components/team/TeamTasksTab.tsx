@@ -24,6 +24,13 @@ import { useToast } from "@/hooks/use-toast";
 import { AddEntryButton } from "@/components/ui/add-entry-button";
 import { filterSelectClass } from "@/lib/fieldStyles";
 import { HelpTip } from "@/components/ui/help-tip";
+import { ReminderPresetPicker } from "@/components/reminders/ReminderPresetPicker";
+import {
+  detectReminderPreset,
+  offsetsFromPreset,
+  reminderOffsetsFromRecord,
+  type ReminderPreset,
+} from "@/lib/workReminders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,6 +170,8 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [status, setStatus] = useState<(typeof TEAM_TASK_STATUSES)[number]>("todo");
   const [priority, setPriority] = useState<(typeof TEAM_PRIORITIES)[number]>("medium");
   const [dueDate, setDueDate] = useState("");
+  const [reminderPreset, setReminderPreset] = useState<ReminderPreset>("default");
+  const [customReminderOffsets, setCustomReminderOffsets] = useState<number[]>([]);
   const [taskMonthKey, setTaskMonthKey] = useState(getMonthKey());
   const [linkedProjectId, setLinkedProjectId] = useState("");
   const [completionNote, setCompletionNote] = useState("");
@@ -286,6 +295,8 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setStatus("todo");
     setPriority("medium");
     setDueDate("");
+    setReminderPreset("default");
+    setCustomReminderOffsets([]);
     setTaskMonthKey(monthKey);
     setLinkedProjectId("");
     setEditing(null);
@@ -308,6 +319,9 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setStatus(task.status || "todo");
     setPriority(task.priority || "medium");
     setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
+    const offsets = reminderOffsetsFromRecord(task);
+    setReminderPreset(task.dueDate ? detectReminderPreset(offsets) : "none");
+    setCustomReminderOffsets(offsets);
     setTaskMonthKey(task.monthKey || monthKey);
     setLinkedProjectId(linkedProjectIdValue(task));
     setOpen(true);
@@ -345,6 +359,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           department: taskDepartment,
           priority,
           dueDate: dueDate || undefined,
+          reminders: dueDate ? offsetsFromPreset(reminderPreset, customReminderOffsets) : [],
           monthKey: taskMonthKey,
           projectId: linkedProjectId || null,
         };
@@ -385,6 +400,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         status,
         priority,
         dueDate: dueDate || undefined,
+        reminders: dueDate ? offsetsFromPreset(reminderPreset, customReminderOffsets) : [],
         monthKey: taskMonthKey,
         projectId: linkedProjectId || null,
       };
@@ -532,7 +548,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className={cn(filterSelectClass, "min-w-[150px]")}>
+          <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[150px]")}>
             <SelectValue placeholder={t("teamFilterStatus")} />
           </SelectTrigger>
           <SelectContent>
@@ -546,7 +562,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         </Select>
 
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-          <SelectTrigger className={cn(filterSelectClass, "min-w-[180px]")}>
+          <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[180px]")}>
             <SelectValue placeholder={t("teamFilterMember")} />
           </SelectTrigger>
           <SelectContent>
@@ -671,6 +687,22 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                       onChange={(e) => setDueDate(e.target.value)}
                     />
                   </div>
+                  {dueDate ? (
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <ReminderPresetPicker
+                        preset={reminderPreset}
+                        customOffsets={customReminderOffsets}
+                        onPresetChange={(preset) => {
+                          setReminderPreset(preset);
+                          if (preset !== "custom") setCustomReminderOffsets(offsetsFromPreset(preset));
+                        }}
+                        onCustomChange={(offsets) => {
+                          setReminderPreset("custom");
+                          setCustomReminderOffsets(offsets);
+                        }}
+                      />
+                    </div>
+                  ) : null}
                   <div className="sm:col-span-2 lg:col-span-3">
                     <Label>{t("teamLinkProject")}</Label>
                     <Select
@@ -849,6 +881,20 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
+            {dueDate ? (
+              <ReminderPresetPicker
+                preset={reminderPreset}
+                customOffsets={customReminderOffsets}
+                onPresetChange={(preset) => {
+                  setReminderPreset(preset);
+                  if (preset !== "custom") setCustomReminderOffsets(offsetsFromPreset(preset));
+                }}
+                onCustomChange={(offsets) => {
+                  setReminderPreset("custom");
+                  setCustomReminderOffsets(offsets);
+                }}
+              />
+            ) : null}
             <div>
               <Label>{t("teamLinkProject")}</Label>
               <Select

@@ -52,6 +52,9 @@ import {
   FinanceTableCheckbox,
   FinanceTableLoading,
   FinanceTableShell,
+  FinanceMobileRow,
+  DesktopDataTable,
+  MobileDataList,
 } from "@/components/finance/financeTable";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -344,7 +347,8 @@ export function AssetsTab() {
             No assets registered yet. {t("helpAssets")}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <DesktopDataTable>
             <table className="w-full min-w-[1100px] border-collapse">
               <thead>
                 <tr>
@@ -462,7 +466,71 @@ export function AssetsTab() {
                 })}
               </tbody>
             </table>
-          </div>
+          </DesktopDataTable>
+
+          <MobileDataList>
+            {visibleAssets.map((entry, index) => {
+              const id = assetId(entry);
+              const isSelected = selectedIds.has(id);
+              const warrantySoon = isWarrantyExpiringSoon(entry.warrantyExpires);
+              return (
+                <FinanceMobileRow
+                  key={id}
+                  index={index}
+                  title={
+                    <Link to={`/assets/${id}`} className="text-sky-700 hover:underline truncate">
+                      {entry.title}
+                    </Link>
+                  }
+                  subtitle={`${formatAssetTag(entry.assetTag)} · ${assetTypeLabel(entry.assetType, t)}`}
+                  meta={
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      {formatFinanceTableDate(entry.purchaseDate)}
+                      <span className={assetStatusClass(entry.status)}>{assetStatusLabel(entry.status, t)}</span>
+                      {custodianName(entry) ? <span>· {custodianName(entry)}</span> : null}
+                      {warrantySoon ? <AlertTriangle className="h-3 w-3 text-amber-500" /> : null}
+                    </span>
+                  }
+                  amount={formatCurrency(Number(entry.currentValue) || 0)}
+                  selected={isSelected}
+                  onToggleSelect={() => toggleSelectRow(id)}
+                  selectLabel={`Select ${entry.title}`}
+                  actions={
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400"
+                          disabled={deletingId === id}
+                        >
+                          {deletingId === id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MoreVertical className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(entry)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          {t("edit")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to={`/assets/${id}`}>{t("assetViewDetails")}</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => requestDelete(entry)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {t("delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  }
+                />
+              );
+            })}
+          </MobileDataList>
+          </>
         )}
       </FinanceTableShell>
 

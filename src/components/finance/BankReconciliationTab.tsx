@@ -132,7 +132,7 @@ export function BankReconciliationTab() {
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-44 rounded-none"
+            className="w-44 rounded"
           />
         </div>
         <div className="space-y-1">
@@ -141,7 +141,7 @@ export function BankReconciliationTab() {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="w-44 rounded-none"
+            className="w-44 rounded"
           />
         </div>
         <Button onClick={loadReconciliation} disabled={loading || !accountId}>
