@@ -64,15 +64,15 @@ export function UpcomingRemindersCard({
       {items.length === 0 ? (
         <p className="rounded-lg bg-gray-50 px-3 py-6 text-center text-sm text-gray-500">{emptyText}</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
             const meta = kindMeta(item.kind);
             const Icon = meta.icon;
             return (
-              <li key={item.id}>
+              <li key={item.id} className="min-w-0">
                 <Link
                   to={item.href}
-                  className="flex items-start gap-3 rounded-lg border border-gray-100 px-3 py-2.5 transition-colors hover:border-sky-200 hover:bg-sky-50/60"
+                  className="flex h-full items-start gap-3 rounded-lg border border-gray-100 px-3 py-2.5 transition-colors hover:border-sky-200 hover:bg-sky-50/60"
                 >
                   <span
                     className={cn(

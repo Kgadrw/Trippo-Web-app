@@ -260,12 +260,6 @@ export function TeamOverviewTab() {
         </div>
       </div>
 
-      <UpcomingRemindersCard
-        items={upcomingReminders}
-        title="Team deadlines & reminders"
-        className="rounded-none border-0 bg-transparent p-0 shadow-none"
-      />
-
       <div className="grid gap-4 lg:grid-cols-3">
         {columns.map((column) => (
           <section
@@ -341,6 +335,12 @@ export function TeamOverviewTab() {
           </section>
         ))}
       </div>
+
+      <UpcomingRemindersCard
+        items={upcomingReminders}
+        title="Team deadlines & reminders"
+        className="rounded-none border-0 bg-transparent p-0 shadow-none"
+      />
     </div>
   );
 }
