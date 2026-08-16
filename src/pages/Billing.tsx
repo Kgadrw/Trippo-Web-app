@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -32,8 +32,8 @@ import {
   type PaymentStatusPayload,
 } from "@/lib/subscriptionPayment";
 import { usePlatformContact } from "@/hooks/usePlatformContact";
-import { PlatformContactCard } from "@/components/support/PlatformContactCard";
 import { TextWithUssdCodes, ussdToastDescription } from "@/components/billing/TextWithUssdCodes";
+import { useSettingsModal } from "@/components/settings/SettingsModalContext";
 
 type MobileNetwork = "mtn" | "airtel";
 
@@ -162,6 +162,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const { t } = useTranslation();
   const { contact } = usePlatformContact();
+  const { openSettings } = useSettingsModal();
 
   const {
     loading,
@@ -494,7 +495,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
 
   const billingBody = (
     <>
-      <div className="mx-auto w-full max-w-3xl space-y-4 pb-6">
+      <div className="flex w-full min-h-0 flex-col space-y-4 pb-4">
         {loading ? (
           <div className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-16 text-sm text-gray-500">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -780,7 +781,14 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                         {t("billingPayAmount").replace("{amount}", amount.toLocaleString())}
                       </Button>
 
-                      <PlatformContactCard contact={contact} compact title={t("callSupport")} />
+                      <button
+                        type="button"
+                        onClick={() => openSettings("help")}
+                        className="inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-800"
+                      >
+                        <span>Any help?</span>
+                        <HelpCircle className="h-3.5 w-3.5" aria-hidden />
+                      </button>
                     </div>
                   ) : !paymentReady ? (
                     <div className="space-y-3 text-sm text-gray-600">
