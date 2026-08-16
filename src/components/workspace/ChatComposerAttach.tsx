@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useId } from "react";
 import { FileText, Image as ImageIcon, Paperclip, X } from "lucide-react";
 import {
   DropdownMenu,
@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { isChatImageAttachment } from "@/lib/chatUpload";
+import { CHAT_ATTACHMENT_MAX_BYTES, isChatImageAttachment } from "@/lib/chatUpload";
 import { cn } from "@/lib/utils";
 
 export type PendingChatAttachment = {
@@ -16,7 +16,8 @@ export type PendingChatAttachment = {
 };
 
 const DOC_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,application/pdf";
-const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const IMAGE_ACCEPT =
+  "image/*,image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif";
 
 export function filesToPendingAttachments(files: File[]): PendingChatAttachment[] {
   return files.map((file) => ({
@@ -39,9 +40,9 @@ export function formatPendingFileSize(bytes: number) {
 }
 
 export function validateChatAttachmentFiles(files: File[]) {
-  const tooLarge = files.some((file) => file.size > MAX_ATTACHMENT_BYTES);
+  const tooLarge = files.some((file) => file.size > CHAT_ATTACHMENT_MAX_BYTES);
   return tooLarge
-    ? { ok: false as const, message: "Each file must be 20 MB or smaller." }
+    ? { ok: false as const, message: "Each file must be 10 MB or smaller." }
     : { ok: true as const };
 }
 
@@ -66,13 +67,13 @@ export function ChatPendingAttachments({ items, onRemove, className }: ChatPendi
         return (
           <div
             key={item.id}
-            className="relative flex h-[4.5rem] min-w-[4.5rem] max-w-[11rem] shrink-0 items-stretch overflow-hidden rounded-xl bg-white ring-1 ring-black/10"
+            className="relative flex h-16 min-w-16 max-w-[10rem] shrink-0 items-stretch overflow-hidden rounded-lg bg-white ring-1 ring-black/10 sm:h-[4.5rem] sm:min-w-[4.5rem] sm:max-w-[11rem] sm:rounded-xl"
           >
             {isImage ? (
               <img
                 src={item.previewUrl!}
                 alt={item.file.name}
-                className="h-full w-[4.5rem] object-cover"
+                className="h-full w-16 object-cover sm:w-[4.5rem]"
               />
             ) : (
               <div className="flex w-full items-center gap-2 px-2.5 py-2">
@@ -113,8 +114,9 @@ export function ChatAttachButton({
   className,
   iconSize = 19,
 }: ChatAttachButtonProps) {
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const documentInputRef = useRef<HTMLInputElement>(null);
+  const uid = useId();
+  const imageInputId = `${uid}-chat-attach-image`;
+  const documentInputId = `${uid}-chat-attach-document`;
 
   const pickFiles = (list: FileList | null) => {
     if (!list?.length) return;
@@ -124,22 +126,24 @@ export function ChatAttachButton({
   return (
     <>
       <input
-        ref={imageInputRef}
+        id={imageInputId}
         type="file"
-        className="hidden"
-        accept="image/*"
+        className="sr-only"
+        accept={IMAGE_ACCEPT}
         multiple
+        tabIndex={-1}
         onChange={(event) => {
           pickFiles(event.target.files);
           event.target.value = "";
         }}
       />
       <input
-        ref={documentInputRef}
+        id={documentInputId}
         type="file"
-        className="hidden"
+        className="sr-only"
         accept={DOC_ACCEPT}
         multiple
+        tabIndex={-1}
         onChange={(event) => {
           pickFiles(event.target.files);
           event.target.value = "";
@@ -161,23 +165,24 @@ export function ChatAttachButton({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" className="min-w-[10.5rem]">
-          <DropdownMenuItem
-            className="gap-2"
-            onSelect={() => {
-              window.setTimeout(() => imageInputRef.current?.click(), 0);
-            }}
-          >
-            <ImageIcon size={16} className="text-sky-600" />
-            Photo
+          {/*
+            Use <label htmlFor> so the tap is a real file-input activation.
+            Radix onSelect + input.click() breaks the user-gesture chain on iOS.
+          */}
+          <DropdownMenuItem asChild className="cursor-pointer gap-2">
+            <label htmlFor={imageInputId} className="flex w-full cursor-pointer items-center gap-2">
+              <ImageIcon size={16} className="text-sky-600" />
+              Photo
+            </label>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className="gap-2"
-            onSelect={() => {
-              window.setTimeout(() => documentInputRef.current?.click(), 0);
-            }}
-          >
-            <FileText size={16} className="text-sky-600" />
-            Document
+          <DropdownMenuItem asChild className="cursor-pointer gap-2">
+            <label
+              htmlFor={documentInputId}
+              className="flex w-full cursor-pointer items-center gap-2"
+            >
+              <FileText size={16} className="text-sky-600" />
+              Document
+            </label>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

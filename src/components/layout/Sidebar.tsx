@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { usePinAuth } from "@/hooks/usePinAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -16,7 +15,7 @@ import {
 import { useSubdomain } from "@/hooks/useSubdomain";
 import { getDashboardPath } from "@/lib/appRoutes";
 import { clearAllStores } from "@/lib/indexedDB";
-import { clearAppSession, logoutAndGoHome } from "@/lib/session";
+import { logoutAndGoHome } from "@/lib/session";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import type { WorkspacePageKey } from "@/lib/workspace";
 import { workspaceApi } from "@/lib/api";
@@ -165,7 +164,6 @@ export function Sidebar({
   onDesktopMouseLeave,
 }: SidebarProps) {
   const location = useLocation();
-  const { clearAuth } = usePinAuth();
   const { toast } = useToast();
   const subdomain = useSubdomain();
   const { mode, activeWorkspace, workspaces, canAccessPage } = useWorkspace();
@@ -346,8 +344,7 @@ export function Sidebar({
   };
 
   const handleLogoutConfirm = async () => {
-    clearAuth();
-    clearAppSession();
+    setLogoutDialogOpen(false);
 
     try {
       await clearAllStores();
@@ -355,13 +352,12 @@ export function Sidebar({
       console.error("Error clearing IndexedDB on logout:", error);
     }
 
-    setLogoutDialogOpen(false);
-
     toast({
       title: "Logged out",
       description: "You have been signed out successfully.",
     });
 
+    // Clears session + redirects in one step (do not clearAuth first — that bounces to /login).
     logoutAndGoHome();
   };
 
@@ -432,7 +428,9 @@ export function Sidebar({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-sky-200 bg-sky-100 text-sky-700 hover:bg-sky-200 hover:text-sky-800">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLogoutConfirm}
               className="bg-red-600 hover:bg-red-700 text-white"

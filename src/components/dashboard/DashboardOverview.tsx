@@ -4,6 +4,7 @@ import { ChevronDown, Plus, ArrowUp, ArrowDown, AlertTriangle } from "lucide-rea
 import { financeApi } from "@/lib/api";
 import { CurrencyAmount } from "@/lib/currency";
 import { DashboardHelpTip } from "@/components/dashboard/DashboardHelpTip";
+import { DashboardAiInsights } from "@/components/dashboard/DashboardAiInsights";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Button } from "@/components/ui/button";
 import {
@@ -1078,6 +1079,18 @@ export function DashboardOverview({
           )}
         </div>
       </div>
+
+      <DashboardAiInsights
+        incomes={incomes}
+        expenses={expenses}
+        bills={bills}
+        payrolls={payrolls}
+        taxes={taxes}
+        invoices={invoices}
+        sales={sales}
+        bankDeposits={bankDeposits}
+        loans={loans}
+      />
     </div>
   );
 }

@@ -500,6 +500,115 @@
       opacity: 1;
     }
   }
+
+  /* Header profile: Gemini-style flowing electric ring */
+  .header-avatar-orbit {
+    isolation: isolate;
+  }
+
+  .header-avatar-orbit-ring {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: 9999px;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask: radial-gradient(
+      circle closest-side,
+      transparent calc(100% - 2.6px),
+      #000 calc(100% - 2.2px)
+    );
+    mask: radial-gradient(
+      circle closest-side,
+      transparent calc(100% - 2.6px),
+      #000 calc(100% - 2.2px)
+    );
+  }
+
+  .header-avatar-orbit-wave {
+    position: absolute;
+    inset: -50%;
+    border-radius: 9999px;
+    will-change: transform;
+  }
+
+  .header-avatar-orbit-wave--base {
+    background: conic-gradient(
+      from 0deg,
+      #4285f4 0deg,
+      #9b72cb 55deg,
+      #d96570 115deg,
+      #f9ab00 175deg,
+      #34d399 235deg,
+      #22d3ee 300deg,
+      #4285f4 360deg
+    );
+    filter: blur(3px) saturate(1.35);
+    animation: header-avatar-orbit-spin 3.4s linear infinite;
+  }
+
+  .header-avatar-orbit-wave--surge {
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(34, 211, 238, 0.95) 38deg,
+      transparent 88deg,
+      transparent 148deg,
+      rgba(168, 85, 247, 0.95) 198deg,
+      transparent 254deg,
+      transparent 302deg,
+      rgba(59, 130, 246, 0.9) 338deg,
+      transparent 360deg
+    );
+    filter: blur(4px);
+    mix-blend-mode: screen;
+    animation: header-avatar-orbit-spin-reverse 2.2s linear infinite;
+  }
+
+  .header-avatar-orbit-wave--spark {
+    background: conic-gradient(
+      from 0deg,
+      rgba(255, 255, 255, 0) 0deg,
+      rgba(255, 255, 255, 0) 18deg,
+      rgba(255, 255, 255, 0.95) 30deg,
+      rgba(255, 255, 255, 0) 44deg,
+      rgba(255, 255, 255, 0) 360deg
+    );
+    filter: blur(1.5px);
+    mix-blend-mode: screen;
+    animation: header-avatar-orbit-spin 1.7s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+
+  .header-avatar-orbit-inner {
+    position: absolute;
+    inset: 3px;
+    z-index: 2;
+    border-radius: 9999px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  @keyframes header-avatar-orbit-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes header-avatar-orbit-spin-reverse {
+    to {
+      transform: rotate(-360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .header-avatar-orbit-wave {
+      animation: none;
+    }
+
+    .header-avatar-orbit-wave--spark {
+      display: none;
+    }
+  }
   
   /* Disable animations on initial load to prevent bounce */
   body:not(.loaded) * {

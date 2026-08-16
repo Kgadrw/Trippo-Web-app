@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSettingsModal } from "@/components/settings/settingsModalState";
 import { cn } from "@/lib/utils";
+import { greetingApi } from "@/lib/api";
 import { HeaderNotificationBell } from "./HeaderNotificationBell";
 import { HeaderSettingsMenu, HeaderSettingsIconButton } from "./HeaderSettingsMenu";
 import { HeaderAccountAvatar } from "./HeaderAccountAvatar";
@@ -11,6 +12,8 @@ import { PageSearchBar } from "./PageSearchBar";
 import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
 import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
 import { HeaderPlusIcon } from "./HeaderPlusIcon";
+import { HeaderWeather } from "./HeaderWeather";
+import { ChatEmojiText } from "@/components/workspace/ChatEmojiText";
 
 type DesktopHeaderProps = {
   sidebarOpen: boolean;
@@ -21,6 +24,8 @@ type DesktopHeaderProps = {
 const headerIconButtonClass =
   "flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 active:bg-gray-200 hover:text-gray-900";
 
+const GREETING_CACHE_KEY = "trippo-ai-greeting-v1";
+
 function HamburgerIcon({ className }: { className?: string }) {
   return (
     <span className={cn("flex h-4 w-4 flex-col justify-center gap-[3px]", className)} aria-hidden>
@@ -29,6 +34,44 @@ function HamburgerIcon({ className }: { className?: string }) {
       <span className="block h-[2px] w-full bg-current" />
     </span>
   );
+}
+
+function localFallbackGreeting(
+  t: (key: "goodMorning" | "goodAfternoon" | "goodEvening" | "goodNight" | "hello") => string,
+) {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return t("goodMorning");
+  if (hour >= 12 && hour < 17) return t("goodAfternoon");
+  if (hour >= 17 && hour < 21) return t("goodEvening");
+  return t("goodNight");
+}
+
+function readCachedGreeting(firstName: string): string | null {
+  try {
+    const raw = sessionStorage.getItem(GREETING_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { greeting?: string; firstName?: string; expiresAt?: number };
+    if (!parsed.greeting || parsed.firstName !== firstName) return null;
+    if (!parsed.expiresAt || parsed.expiresAt < Date.now()) return null;
+    return parsed.greeting;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedGreeting(firstName: string, greeting: string) {
+  try {
+    sessionStorage.setItem(
+      GREETING_CACHE_KEY,
+      JSON.stringify({
+        firstName,
+        greeting,
+        expiresAt: Date.now() + 50 * 60 * 1000,
+      }),
+    );
+  } catch {
+    /* ignore */
+  }
 }
 
 export function DesktopHeader({
@@ -43,8 +86,40 @@ export function DesktopHeader({
 
   const firstName = useMemo(() => {
     if (user?.name) return user.name.split(" ")[0];
-    return "User";
-  }, [user?.name]);
+    return t("greetingFallback");
+  }, [user?.name, t]);
+
+  const [aiGreeting, setAiGreeting] = useState<string | null>(() => readCachedGreeting(firstName));
+
+  useEffect(() => {
+    const cached = readCachedGreeting(firstName);
+    if (cached) {
+      setAiGreeting(cached);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await greetingApi.getMotivational(firstName);
+        const phrase = String(res.greeting || "").trim();
+        if (!phrase || cancelled) return;
+        setAiGreeting(phrase);
+        writeCachedGreeting(firstName, phrase);
+      } catch {
+        /* keep local fallback */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [firstName]);
+
+  const greetingLabel = useMemo(() => {
+    const phrase = aiGreeting || localFallbackGreeting(t);
+    return `${phrase}, ${firstName}`;
+  }, [aiGreeting, firstName, t]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -87,6 +162,7 @@ export function DesktopHeader({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
+          <HeaderWeather className="mr-1 hidden md:flex" />
           <WorkspaceMemberAvatarStack className="mr-1 hidden sm:flex" />
           <WorkspaceHeaderMenu />
           <HeaderNotificationBell iconSize={18} />
@@ -107,8 +183,8 @@ export function DesktopHeader({
               aria-label={t("profileSectionTitle")}
             >
               <HeaderAccountAvatar className="h-8 w-8" ringClassName="bg-sky-300" />
-              <span className="hidden max-w-[120px] truncate text-sm font-medium xl:inline">
-                {firstName}
+              <span className="hidden max-w-[260px] truncate text-sm font-medium xl:inline">
+                <ChatEmojiText text={greetingLabel} size={16} />
               </span>
             </button>
           </HeaderSettingsMenu>

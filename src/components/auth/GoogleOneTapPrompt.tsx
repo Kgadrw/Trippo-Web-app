@@ -4,7 +4,10 @@ type GoogleOneTapPromptProps = {
   onSuccess: (response: CredentialResponse) => void;
   onError?: () => void;
   disabled?: boolean;
-  /** When true, sign in automatically when Google detects a returning account. */
+  /**
+   * When true, sign in automatically when Google detects a returning account.
+   * Off by default: it silently re-authenticates users who just logged out.
+   */
   autoSelect?: boolean;
 };
 
@@ -15,7 +18,7 @@ export function GoogleOneTapPrompt({
   onSuccess,
   onError,
   disabled = false,
-  autoSelect = true,
+  autoSelect = false,
 }: GoogleOneTapPromptProps) {
   const hasClientId = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 

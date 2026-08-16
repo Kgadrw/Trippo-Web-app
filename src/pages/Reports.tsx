@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { playInfoBeep, initAudio } from "@/lib/sound";
 import { useApi } from "@/hooks/useApi";
 import { exportPlatformReportPdf } from "@/lib/reportPdf";
-import * as XLSX from "xlsx";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -743,7 +742,7 @@ const Reports = () => {
     });
   };
 
-  const handleExport = (format: string) => {
+  const handleExport = async (format: string) => {
     initAudio();
     playInfoBeep();
 
@@ -751,7 +750,7 @@ const Reports = () => {
       if (format === "pdf") {
         exportToPDF();
       } else if (format === "excel") {
-        exportToExcel();
+        await exportToExcel();
       } else {
         return;
       }
@@ -770,7 +769,8 @@ const Reports = () => {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import("xlsx");
     const workbook = XLSX.utils.book_new();
 
     const summaryData = [

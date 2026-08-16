@@ -18,7 +18,7 @@ import { initAudio } from "@/lib/sound";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { useSubdomain, getSubdomainUrl, getDashboardLoginUrl, redirectLegacyDashboardHost, redirectToBookfyWithSession } from "@/hooks/useSubdomain";
-import { applyLogoutQueryParamIfPresent } from "@/lib/session";
+import { applyLogoutQueryParamIfPresent, isFreshLogout } from "@/lib/session";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import Home from "./pages/Home";
 import DashboardLogin from "./pages/DashboardLogin";
@@ -27,6 +27,15 @@ import DashboardLogin from "./pages/DashboardLogin";
 // Only redirects if user is authenticated
 const SubdomainRedirect = ({ subdomain }: { subdomain: "admin" | "bookfy" }) => {
   useEffect(() => {
+    if (isFreshLogout()) {
+      window.location.replace(
+        subdomain === "admin"
+          ? getSubdomainUrl("admin", "/login")
+          : getDashboardLoginUrl("/login"),
+      );
+      return;
+    }
+
     const userId = localStorage.getItem("profit-pilot-user-id");
     const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
     const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
@@ -47,10 +56,7 @@ const SubdomainRedirect = ({ subdomain }: { subdomain: "admin" | "bookfy" }) => 
       return;
     }
 
-    const homeUrl = getSubdomainUrl(null);
-    if (window.location.hostname !== new URL(homeUrl).hostname) {
-      window.location.href = homeUrl;
-    }
+    window.location.replace(getDashboardLoginUrl("/login"));
   }, [subdomain]);
   return null;
 };
@@ -67,7 +73,7 @@ const BookfySubdomainRedirect = () => {
     const userId = localStorage.getItem("profit-pilot-user-id");
     const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
 
-    if (userId && authenticated) {
+    if (userId && authenticated && !isFreshLogout()) {
       redirectToBookfyWithSession(target);
       return;
     }
@@ -348,7 +354,7 @@ const App = () => {
 
   // Restore authentication from URL hash when arriving from main domain
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("logout") === "1") {
+    if (new URLSearchParams(window.location.search).get("logout") === "1" || isFreshLogout()) {
       return;
     }
 

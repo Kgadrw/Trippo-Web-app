@@ -1,5 +1,5 @@
 // Notification Manager Component
-// Handles notification permission checks and background notification setup
+// Handles notification permission checks, Web Push subscription, and background setup
 
 import { useState, useEffect, useRef } from 'react';
 import { notificationService } from '@/lib/notifications';
@@ -7,6 +7,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { backgroundSyncManager } from '@/lib/backgroundSync';
 import { notificationStore } from '@/lib/notificationStore';
+import { registerWebPushSubscription } from '@/lib/pushNotifications';
 
 export function NotificationManager() {
   const { user } = useCurrentUser();
@@ -34,6 +35,30 @@ export function NotificationManager() {
     
     lastUserIdRef.current = currentUserId;
   }, [user]);
+
+  // Keep Web Push subscription synced for chat alerts when the PWA is closed.
+  useEffect(() => {
+    if (!user || isAdmin) return;
+
+    const syncPush = async () => {
+      notificationService.checkPermission();
+      if (!notificationService.isAllowed()) return;
+      await registerWebPushSubscription();
+    };
+
+    void syncPush();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void syncPush();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [user, isAdmin]);
 
   // Ask for permission using the browser's system notification prompt
   useEffect(() => {
@@ -66,7 +91,7 @@ export function NotificationManager() {
     } else {
       setHasCheckedPermission(true);
     }
-  }, [user, hasCheckedPermission]);
+  }, [user, hasCheckedPermission, isAdmin]);
 
   // Set up background sync when permission is already granted
   useEffect(() => {

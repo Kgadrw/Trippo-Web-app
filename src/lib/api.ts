@@ -242,6 +242,8 @@ async function request<T>(
       endpoint.startsWith('/auth/me') ||
       endpoint.startsWith('/subscription') ||
       endpoint.startsWith('/content/') ||
+      endpoint.startsWith('/greetings/') ||
+      endpoint.startsWith('/ai/') ||
       (endpoint.startsWith('/workspaces') && endpoint !== '/workspaces');
     // Get userId for cache key (use the value from defaultHeaders if set, otherwise 'anonymous')
     const userIdForCache = defaultHeaders['X-User-Id'] || userId || 'anonymous';
@@ -333,7 +335,7 @@ async function executeRequest<T>(
         }
 
         // Handle 429 Too Many Requests with retry logic
-        if (response.status === 429 && retryCount < 3) {
+        if (response.status === 429 && retryCount < 3 && !endpoint.startsWith('/ai/')) {
           // Get retry-after from header or response data, default to exponential backoff
           const retryAfterHeader = response.headers.get('Retry-After');
           const retryAfter = retryAfterHeader || 
@@ -2332,6 +2334,97 @@ export const pushApi = {
       method: 'DELETE',
       body: JSON.stringify(endpoint ? { endpoint } : {}),
     });
+  },
+};
+
+export const greetingApi = {
+  async getMotivational(firstName?: string): Promise<{
+    greeting?: string;
+    slot?: string;
+    source?: string;
+    error?: string;
+  }> {
+    const query = firstName ? `?firstName=${encodeURIComponent(firstName)}` : '';
+    return request(`/greetings/motivational${query}`, { method: 'GET' });
+  },
+};
+
+export type OverviewInsightIdea = {
+  area: string;
+  title: string;
+  why: string;
+  actionPath: string;
+};
+
+export type OverviewInsightsResult = {
+  summary: string;
+  ideas: OverviewInsightIdea[];
+  source: 'gemini' | 'fallback';
+  fallback: boolean;
+  message?: string;
+};
+
+export const aiApi = {
+  async getRwandaHolidays(params?: {
+    from?: string;
+    to?: string;
+  }): Promise<{
+    holidays?: Array<{ date: string; name: string; type?: string }>;
+    source?: string;
+    fallback?: boolean;
+  } | null> {
+    try {
+      const query = new URLSearchParams();
+      if (params?.from) query.set('from', params.from);
+      if (params?.to) query.set('to', params.to);
+      const qs = query.toString();
+      return await request(`/ai/rwanda-holidays${qs ? `?${qs}` : ''}`, { method: 'GET' });
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Cross-module dashboard insights. Never throws — returns null on failure
+   * so the overview page stays usable without AI.
+   */
+  async getOverviewInsights(snapshot: Record<string, unknown>): Promise<OverviewInsightsResult | null> {
+    try {
+      const response = await request<{
+        summary?: string;
+        ideas?: OverviewInsightIdea[];
+        source?: string;
+        fallback?: boolean;
+        message?: string;
+      }>('/ai/overview-insights', {
+        method: 'POST',
+        body: JSON.stringify({ snapshot }),
+      });
+
+      if (!response || response.fallback) return null;
+      const summary = typeof response.summary === 'string' ? response.summary.trim() : '';
+      const ideas = Array.isArray(response.ideas) ? response.ideas : [];
+      if (!summary && ideas.length === 0) return null;
+
+      return {
+        summary,
+        ideas: ideas
+          .filter((idea) => idea && typeof idea.title === 'string')
+          .map((idea) => ({
+            area: String(idea.area || 'general'),
+            title: String(idea.title),
+            why: String(idea.why || ''),
+            actionPath: String(idea.actionPath || '/').startsWith('/')
+              ? String(idea.actionPath)
+              : '/',
+          })),
+        source: response.source === 'gemini' ? 'gemini' : 'fallback',
+        fallback: false,
+        message: typeof response.message === 'string' ? response.message : undefined,
+      };
+    } catch {
+      return null;
+    }
   },
 };
 

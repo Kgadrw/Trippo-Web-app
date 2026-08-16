@@ -1,4 +1,9 @@
+import {
+  ChatEmojiText,
+  nativeEmojiToUnified,
+} from "@/components/workspace/ChatEmojiText";
 import { ChatEmojiPicker } from "@/components/workspace/ChatEmojiPicker";
+import { Emoji, EmojiStyle } from "emoji-picker-react";
 import { cn } from "@/lib/utils";
 
 type ChatReaction = {
@@ -6,10 +11,43 @@ type ChatReaction = {
   userIds: string[];
 };
 
+export function hasChatReactions(reactions?: ChatReaction[]) {
+  return Boolean(reactions?.some((reaction) => reaction.emoji && reaction.userIds?.length));
+}
+
+/** Flat “add reaction” control — sits on the same line as the bubble, no chrome. */
+export function ChatMessageAddReaction({
+  disabled = false,
+  onReact,
+  className,
+}: {
+  disabled?: boolean;
+  onReact: (emoji: string) => void;
+  className?: string;
+}) {
+  if (disabled) return null;
+  return (
+    <ChatEmojiPicker
+      label="Add reaction"
+      onSelect={onReact}
+      buttonClassName={cn(
+        "mb-0 h-8 w-8 shrink-0 rounded-none border-0 bg-transparent p-0 text-gray-400 shadow-none",
+        "hover:bg-transparent hover:text-sky-600 active:bg-transparent lg:h-8 lg:w-8",
+        className,
+      )}
+      className="z-[180]"
+    />
+  );
+}
+
+/**
+ * Small reacted chips in the bottom-right of their own message bubble (in-flow),
+ * so they never float onto another user's message.
+ */
 export function ChatMessageReactions({
   reactions,
   currentUserId,
-  own,
+  own = false,
   disabled = false,
   onReact,
   className,
@@ -20,19 +58,20 @@ export function ChatMessageReactions({
   disabled?: boolean;
   onReact: (emoji: string) => void;
   className?: string;
+  /** @deprecated Add control is rendered separately via ChatMessageAddReaction. */
+  showAdd?: boolean;
 }) {
   const visible = (reactions || []).filter((reaction) => reaction.emoji && reaction.userIds?.length);
+  if (!visible.length) return null;
 
   return (
     <div
-      className={cn(
-        "flex shrink-0 flex-nowrap items-center gap-0.5 self-end",
-        own ? "order-first" : "order-last",
-        className,
-      )}
+      className={cn("mt-1 flex justify-end gap-0.5", className)}
+      data-chat-reactions
     >
       {visible.map((reaction) => {
         const selected = Boolean(currentUserId && reaction.userIds.includes(String(currentUserId)));
+        const unified = nativeEmojiToUnified(reaction.emoji);
         return (
           <button
             key={reaction.emoji}
@@ -40,25 +79,40 @@ export function ChatMessageReactions({
             disabled={disabled}
             onClick={() => onReact(reaction.emoji)}
             className={cn(
-              "inline-flex min-h-6 items-center gap-0.5 rounded-full px-1.5 text-xs transition-colors disabled:opacity-50",
-              selected
-                ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200"
-                : "bg-gray-100/90 text-gray-600 hover:bg-gray-200",
+              "inline-flex items-end gap-0.5 border-0 bg-transparent p-0 shadow-none",
+              "transition-opacity disabled:opacity-50",
+              selected ? "opacity-100" : "opacity-95 hover:opacity-100",
             )}
+            aria-label={`React with ${reaction.emoji}`}
           >
-            <span>{reaction.emoji}</span>
-            <span className="text-[11px] font-medium">{reaction.userIds.length}</span>
+            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-visible drop-shadow-sm">
+              <Emoji unified={unified} size={14} emojiStyle={EmojiStyle.APPLE} lazyLoad={false} />
+            </span>
+            {reaction.userIds.length > 1 ? (
+              <span
+                className={cn(
+                  "pb-px text-[10px] font-semibold leading-none tabular-nums drop-shadow-sm",
+                  own ? "text-white/90" : "text-gray-600",
+                )}
+              >
+                {reaction.userIds.length}
+              </span>
+            ) : null}
           </button>
         );
       })}
-      {!disabled ? (
-        <ChatEmojiPicker
-          label="Add reaction"
-          onSelect={onReact}
-          buttonClassName="mb-0 h-6 w-6 rounded-full text-gray-400 hover:bg-gray-100 hover:text-sky-600 lg:h-6 lg:w-6"
-          className="z-[180]"
-        />
-      ) : null}
     </div>
   );
+}
+
+export function ChatReactionEmoji({ emoji, size = 18 }: { emoji: string; size?: number }) {
+  return (
+    <span className="inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <Emoji unified={nativeEmojiToUnified(emoji)} size={size} emojiStyle={EmojiStyle.APPLE} lazyLoad />
+    </span>
+  );
+}
+
+export function ChatReactionLabel({ emoji }: { emoji: string }) {
+  return <ChatEmojiText text={emoji} size={18} />;
 }

@@ -744,6 +744,28 @@ export function ChatVoiceRecorderButton({
     void startRecording("holding");
   };
 
+  // On mobile the microphone permission sheet can open before `recording` becomes
+  // true. The original button is still mounted during that interval, but the
+  // window gesture listeners below are not active yet. Capture release here so
+  // permission approval cannot leave a recording running indefinitely.
+  const onPointerReleaseBeforeStart = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    cancelled = false,
+  ) => {
+    if (pointerIdRef.current != null && event.pointerId !== pointerIdRef.current) return;
+    if (!startingRef.current || recording) return;
+
+    holdIntentRef.current = false;
+    pointerIdRef.current = null;
+    pointerStartRef.current = null;
+    pendingReleaseRef.current = cancelled ? "cancel" : "send";
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is not available in every mobile browser.
+    }
+  };
+
   // While holding, track gestures on window — the mic button unmounts into the recording bar.
   useEffect(() => {
     if (!recording || phase !== "holding") return;
@@ -913,6 +935,8 @@ export function ChatVoiceRecorderButton({
       type="button"
       disabled={disabled || busy}
       onPointerDown={onPointerDown}
+      onPointerUp={(event) => onPointerReleaseBeforeStart(event)}
+      onPointerCancel={(event) => onPointerReleaseBeforeStart(event, true)}
       // Prevent the synthetic click after a completed hold gesture.
       onClick={(event) => event.preventDefault()}
       className={cn(

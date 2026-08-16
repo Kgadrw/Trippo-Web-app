@@ -219,7 +219,7 @@ export default function SettingsSubscription() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0781234567"
-                  className="h-10 text-sm"
+                  className="h-10 rounded-lg text-sm"
                   disabled={paying || polling}
                 />
               </div>

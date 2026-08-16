@@ -166,18 +166,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const switchToPersonal = useCallback(() => {
+    if (mode === 'personal' && !activeWorkspaceId) return;
     persistWorkspaceContext('personal', null);
     setMode('personal');
     setActiveWorkspaceId(null);
     clearDataCaches();
-  }, []);
+  }, [mode, activeWorkspaceId]);
 
   const switchToWorkspace = useCallback((workspace: WorkspaceSummary) => {
+    if (mode === 'workspace' && String(activeWorkspaceId) === String(workspace.id)) return;
     persistWorkspaceContext('workspace', workspace.id);
     setMode('workspace');
     setActiveWorkspaceId(workspace.id);
     clearDataCaches();
-  }, []);
+  }, [mode, activeWorkspaceId]);
 
   const createWorkspace = useCallback(async (name: string) => {
     const response = await workspaceApi.create({ name });

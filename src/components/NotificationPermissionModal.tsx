@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Bell, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { Bell, X, CheckCircle2, AlertCircle, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { notificationService } from "@/lib/notifications";
+import { isStandalonePwa, registerWebPushSubscription } from "@/lib/pushNotifications";
 import { cn } from "@/lib/utils";
 
 interface NotificationPermissionModalProps {
@@ -16,12 +17,15 @@ export function NotificationPermissionModal({
   onPermissionGranted,
 }: NotificationPermissionModalProps) {
   const [isRequesting, setIsRequesting] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>("default");
+  const [isInstalledPwa, setIsInstalledPwa] = useState(true);
+  const [isAppleMobile, setIsAppleMobile] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setPermissionStatus(notificationService.getPermission());
-    }
+    if (!open) return;
+    setPermissionStatus(notificationService.getPermission());
+    setIsInstalledPwa(isStandalonePwa());
+    setIsAppleMobile(/iPad|iPhone|iPod/.test(navigator.userAgent));
   }, [open]);
 
   const handleRequestPermission = async () => {
@@ -29,23 +33,24 @@ export function NotificationPermissionModal({
     try {
       const permission = await notificationService.requestPermission();
       setPermissionStatus(permission);
-      
-      if (permission === 'granted') {
-        // Show a test notification
-        await notificationService.showNotification('general', {
-          title: 'Notifications Enabled!',
-          body: 'You will now receive important updates from Trippo.',
-          icon: '/logo.png',
-          tag: 'permission-granted',
+
+      if (permission === "granted") {
+        await registerWebPushSubscription();
+
+        await notificationService.showNotification("general", {
+          title: "Chat alerts enabled",
+          body: "You’ll get message notifications even when Trippo is closed.",
+          icon: "/logo.png",
+          tag: "permission-granted",
         });
-        
+
         onPermissionGranted?.();
         setTimeout(() => {
           onOpenChange(false);
         }, 1500);
       }
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error("Error requesting notification permission:", error);
     } finally {
       setIsRequesting(false);
     }
@@ -53,90 +58,94 @@ export function NotificationPermissionModal({
 
   const handleDecline = () => {
     onOpenChange(false);
-    // Store that user declined
     try {
-      localStorage.setItem('profit-pilot-notification-declined', 'true');
+      localStorage.setItem("profit-pilot-notification-declined", "true");
     } catch (error) {
-      console.error('Error saving decline status:', error);
+      console.error("Error saving decline status:", error);
     }
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-300">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-4 backdrop-blur-sm animate-in fade-in-0 duration-300">
       <div className="relative mx-4 max-w-md overflow-hidden border border-gray-200 bg-white p-6 shadow-2xl animate-slide-down-fade">
-        
-        {/* Close button */}
         <button
+          type="button"
           onClick={handleDecline}
-          className="absolute top-4 right-4 z-10 p-1.5 text-gray-400 transition-all duration-200 hover:bg-gray-100/80 hover:text-gray-700"
+          className="absolute right-4 top-4 z-10 p-1.5 text-gray-400 transition-all duration-200 hover:bg-gray-100/80 hover:text-gray-700"
         >
           <X size={18} />
         </button>
 
         <div className="relative z-10">
-          {/* Icon */}
           <div className="mb-4 flex justify-center">
             <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-4 shadow-lg">
               <Bell className="text-white" size={32} />
             </div>
           </div>
 
-          {/* Title */}
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-            Enable Notifications
-          </h2>
+          <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">Enable chat alerts</h2>
 
-          {/* Description */}
-          <p className="text-sm text-gray-600 text-center mb-6 leading-relaxed">
-            Stay updated with important alerts even when you're not using Trippo.
+          <p className="mb-6 text-center text-sm leading-relaxed text-gray-600">
+            Get message notifications even when the Trippo app or browser tab is closed.
           </p>
 
-          {/* Benefits list */}
-          <div className="space-y-3 mb-6">
+          <div className="mb-6 space-y-3">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={18} />
+              <CheckCircle2 className="mt-0.5 flex-shrink-0 text-blue-600" size={18} />
               <div>
-                <p className="text-sm font-medium text-gray-900">Low Stock Alerts</p>
-                <p className="text-xs text-gray-600">Get notified before products run out</p>
+                <p className="text-sm font-medium text-gray-900">Direct & group messages</p>
+                <p className="text-xs text-gray-600">Know when teammates message you</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={18} />
+              <CheckCircle2 className="mt-0.5 flex-shrink-0 text-blue-600" size={18} />
               <div>
-                <p className="text-sm font-medium text-gray-900">Schedule Reminders</p>
-                <p className="text-xs text-gray-600">Never miss important appointments</p>
+                <p className="text-sm font-medium text-gray-900">Works while closed</p>
+                <p className="text-xs text-gray-600">Push alerts via your installed Trippo app</p>
               </div>
             </div>
           </div>
 
-          {/* Permission status */}
-          {permissionStatus === 'denied' && (
+          {!isInstalledPwa ? (
+            <div className="mb-4 flex items-start gap-2 border border-amber-200 bg-amber-50 p-3">
+              <Smartphone className="mt-0.5 flex-shrink-0 text-amber-700" size={18} />
+              <div className="flex-1">
+                <p className="text-xs font-medium text-amber-900">Install Trippo for reliable alerts</p>
+                <p className="mt-1 text-xs text-amber-800">
+                  {isAppleMobile
+                    ? "On iPhone/iPad: tap Share → Add to Home Screen, open Trippo from the icon, then enable notifications."
+                    : "Add Trippo to your Home Screen / install the app, then enable notifications for alerts when it’s closed."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {permissionStatus === "denied" && (
             <div className="mb-4 flex items-start gap-2 border border-red-200 bg-red-50 p-3">
-              <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
+              <AlertCircle className="mt-0.5 flex-shrink-0 text-red-600" size={18} />
               <div className="flex-1">
                 <p className="text-xs font-medium text-red-900">Notifications are blocked</p>
-                <p className="text-xs text-red-700 mt-1">
-                  Please enable notifications in your browser settings to receive alerts.
+                <p className="mt-1 text-xs text-red-700">
+                  Enable notifications in your browser or phone settings for Trippo.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Action buttons */}
           <div className="flex gap-3">
             <Button
               onClick={handleRequestPermission}
-              disabled={isRequesting || permissionStatus === 'granted'}
+              disabled={isRequesting || permissionStatus === "granted"}
               className={cn(
                 "flex-1 bg-gradient-to-r from-blue-600 to-purple-600 font-semibold text-white shadow-lg transition-all duration-300 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl",
-                permissionStatus === 'granted' && "cursor-not-allowed opacity-50"
+                permissionStatus === "granted" && "cursor-not-allowed opacity-50",
               )}
             >
               {isRequesting ? (
-                'Requesting...'
-              ) : permissionStatus === 'granted' ? (
+                "Requesting..."
+              ) : permissionStatus === "granted" ? (
                 <>
                   <CheckCircle2 size={16} className="mr-2" />
                   Enabled
@@ -157,9 +166,8 @@ export function NotificationPermissionModal({
             </Button>
           </div>
 
-          {/* Privacy note */}
-          <p className="text-xs text-gray-500 text-center mt-4">
-            We respect your privacy. Notifications are only sent for important business updates.
+          <p className="mt-4 text-center text-xs text-gray-500">
+            We only send chat alerts you opt into. You can change this anytime in Settings.
           </p>
         </div>
       </div>

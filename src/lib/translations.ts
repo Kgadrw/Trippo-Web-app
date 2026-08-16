@@ -710,6 +710,10 @@ export interface Translations {
   saveAll: string;
   hello: string;
   greetingFallback: string;
+  goodMorning: string;
+  goodAfternoon: string;
+  goodEvening: string;
+  goodNight: string;
   quickActions: string;
   quickActionsHint: string;
   servicesToday: string;
@@ -1587,6 +1591,7 @@ export interface Translations {
   calSourceLeave: string;
   calSourceMilestone: string;
   calSourceAnnouncement: string;
+  calSourceHoliday: string;
   corpCalOverviewTitle: string;
   corpCalOverviewSubtitle: string;
   corpCalOpenCalendar: string;
@@ -2874,8 +2879,12 @@ export const translations: Record<Language, Partial<Translations>> = {
     spreadsheetMode: "Spreadsheet",
     spreadsheetHint: "Type in any row — changes save automatically. New rows stay where you enter them.",
     saveAll: "Save all",
-    hello: "Hello",
+    hello: "Let's go",
     greetingFallback: "User",
+    goodMorning: "Rise & shine ☀️",
+    goodAfternoon: "Keep crushing it ⚡",
+    goodEvening: "Strong finish 🔥",
+    goodNight: "Late grind mode 🚀",
     quickActions: "Quick Actions",
     quickActionsHint: "Click to perform quick actions",
     servicesToday: "Services Today",

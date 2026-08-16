@@ -13,6 +13,7 @@ import {
   FEATURE_COLOR_CLASSES,
   type ResolvedHomepageContent,
 } from "@/lib/homepageContent";
+import { disableGoogleAutoSelect, isFreshLogout, isLogoutAutoLoginSuppressed } from "@/lib/session";
 
 function buildFallbackHomepageContent(t: (key: string) => string): ResolvedHomepageContent {
   return {
@@ -121,6 +122,7 @@ const Home = () => {
   const dashboardSignupUrl = getDashboardLoginUrl("/login?tab=create");
   const { handleGoogleSuccess, isGoogleLoading } = useGoogleAuth({ redirectToBookfy: true });
   const showGoogleOneTap = useMemo(() => {
+    if (isLogoutAutoLoginSuppressed()) return false;
     const userId = localStorage.getItem("profit-pilot-user-id");
     const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
     return !(userId && authenticated);
@@ -158,7 +160,7 @@ const Home = () => {
       return;
     }
 
-    if (!isMainDomain) return;
+    if (!isMainDomain || isFreshLogout()) return;
 
     const userId = localStorage.getItem("profit-pilot-user-id");
     const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
@@ -170,6 +172,14 @@ const Home = () => {
       return;
     }
     redirectToBookfyWithSession("/");
+  }, []);
+
+  // Google's script loads async, so revoke auto-select once it is available.
+  useEffect(() => {
+    if (!isLogoutAutoLoginSuppressed()) return;
+    disableGoogleAutoSelect();
+    const timer = window.setTimeout(disableGoogleAutoSelect, 1500);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Reset state when user logs out (listen for auth changes)
@@ -204,7 +214,7 @@ const Home = () => {
       <GoogleOneTapPrompt
         onSuccess={handleGoogleSuccess}
         disabled={isGoogleLoading || !showGoogleOneTap}
-        autoSelect
+        autoSelect={false}
       />
       <Navbar />
       

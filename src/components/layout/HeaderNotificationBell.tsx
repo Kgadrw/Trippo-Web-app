@@ -3,6 +3,7 @@ import { Bell, ArrowLeft, CheckCheck, Package, AlertTriangle, Building2 } from "
 import { useNavigate } from "react-router-dom";
 import { resolveAppRoute } from "@/lib/appRoutes";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { notificationService } from "@/lib/notifications";
 import { notificationStore, StoredNotification } from "@/lib/notificationStore";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StockUpdateDialog } from "@/components/StockUpdateDialog";
+import { WORKSPACE_GROUP_CHAT_PATH } from "@/lib/workspaceGroupChat";
 
 type HeaderNotificationBellProps = {
   onNotificationClick?: () => void;
@@ -30,6 +32,7 @@ export function HeaderNotificationBell({
   iconSize = 20,
 }: HeaderNotificationBellProps) {
   const { user } = useCurrentUser();
+  const { workspaces, activeWorkspace, switchToWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
@@ -103,20 +106,81 @@ export function HeaderNotificationBell({
     }
   };
 
-  const handleMarkAllAsRead = async () => {
-    await notificationStore.markAllAsRead();
-    if ("serviceWorker" in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        registration.active?.postMessage({ type: "CLEAR_BADGE" });
-      } catch {
-        // ignore
-      }
-    }
-  };
-
   const handleNotificationClick = (notification: StoredNotification) => {
     void handleMarkAsRead(notification.id);
+
+    const route =
+      typeof notification.data?.route === "string" ? notification.data.route : "";
+    const inviteToken =
+      typeof notification.data?.inviteToken === "string"
+        ? notification.data.inviteToken
+        : "";
+    const otherUserId =
+      typeof notification.data?.otherUserId === "string"
+        ? notification.data.otherUserId
+        : typeof notification.data?.senderUserId === "string"
+          ? notification.data.senderUserId
+          : "";
+    const workspaceId =
+      typeof notification.data?.workspaceId === "string"
+        ? notification.data.workspaceId
+        : "";
+    const conversationKind =
+      typeof notification.data?.conversationKind === "string"
+        ? notification.data.conversationKind
+        : typeof notification.data?.chatType === "string"
+          ? notification.data.chatType
+          : "";
+
+    const ensureWorkspace = (id: string) => {
+      if (!id) return;
+      if (activeWorkspace && String(activeWorkspace.id) === String(id)) return;
+      const match = workspaces.find((w) => String(w.id) === String(id));
+      if (match) switchToWorkspace(match);
+    };
+
+    // One-click open for chat + invites (no intermediate detail panel).
+    if (notification.type === "workspace_message") {
+      const isGroup =
+        conversationKind === "group" ||
+        route.includes("/messages/group") ||
+        (!otherUserId && Boolean(workspaceId));
+      // A direct conversation is scoped to its workspace in the URL/API call,
+      // but must not change the workspace the rest of the app is currently using.
+      if (isGroup) ensureWorkspace(workspaceId);
+      const href =
+        route ||
+        (isGroup
+          ? WORKSPACE_GROUP_CHAT_PATH
+          : otherUserId
+            ? workspaceId
+              ? `/messages/${otherUserId}?w=${encodeURIComponent(workspaceId)}`
+              : `/messages/${otherUserId}`
+            : "/messages");
+      navigate(resolveAppRoute(href));
+      setNotificationOpen(false);
+      setSelectedNotification(null);
+      return;
+    }
+
+    if (notification.type === "workspace_invite") {
+      const href = route || (inviteToken ? `/workspace/invite/${inviteToken}` : "");
+      if (href) {
+        navigate(resolveAppRoute(href));
+        setNotificationOpen(false);
+        setSelectedNotification(null);
+        return;
+      }
+    }
+
+    if (route && notification.type !== "low_stock") {
+      if (workspaceId) ensureWorkspace(workspaceId);
+      navigate(resolveAppRoute(route));
+      setNotificationOpen(false);
+      setSelectedNotification(null);
+      return;
+    }
+
     setSelectedNotification(notification);
   };
 
@@ -177,17 +241,6 @@ export function HeaderNotificationBell({
                   >
                     <CheckCheck size={14} className="mr-1" />
                     Mark as read
-                  </Button>
-                )}
-                {!selectedNotification && notifications.length > 0 && unreadCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void handleMarkAllAsRead()}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    <CheckCheck size={14} className="mr-1" />
-                    Mark all read
                   </Button>
                 )}
               </div>

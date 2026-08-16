@@ -10,6 +10,7 @@ import { HeaderAccountAvatar } from "./HeaderAccountAvatar";
 import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
 import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
 import { HeaderPlusIcon } from "./HeaderPlusIcon";
+import { HeaderWeather } from "./HeaderWeather";
 
 interface MobileHeaderProps {
   onMenuOpen?: () => void;
@@ -54,6 +55,7 @@ export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderPr
       </div>
 
       <div className="ml-auto flex shrink-0 items-center justify-end gap-0.5">
+        <HeaderWeather compact className="mr-0.5" />
         <WorkspaceMemberAvatarStack className="mr-0.5" />
         <WorkspaceHeaderMenu className="border-0 bg-transparent hover:bg-white/60" />
         <HeaderNotificationBell

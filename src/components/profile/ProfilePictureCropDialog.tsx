@@ -73,7 +73,17 @@ export function ProfilePictureCropDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-2xl border-gray-200 bg-white p-5 shadow-none">
+      <DialogContent
+        className="z-[320] max-w-sm rounded-2xl border-gray-200 bg-white p-5 shadow-none"
+        overlayClassName="z-[310]"
+        onPointerDownOutside={(event) => {
+          // Keep crop usable above an already-open host modal (e.g. settings).
+          event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Crop profile photo</DialogTitle>
         </DialogHeader>

@@ -29,7 +29,7 @@ export function HeaderPlusIcon({ className, imageClassName }: HeaderPlusIconProp
       title={t("plusActive")}
     >
       <img
-        src="/plus.png"
+        src="/gold.png"
         alt="Trippo Plus"
         className={cn("h-9 w-9 object-contain", imageClassName)}
         loading="lazy"

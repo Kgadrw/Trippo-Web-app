@@ -557,6 +557,7 @@ const en: Partial<Translations> = {
   calSourceLeave: "Leave",
   calSourceMilestone: "Delivery milestone",
   calSourceAnnouncement: "Announcement",
+  calSourceHoliday: "Rwanda holiday",
   corpCalOverviewTitle: "Corporate calendar",
   corpCalOverviewSubtitle: "Global time alignment — meetings, leave, milestones, and company announcements.",
   corpCalOpenCalendar: "Open calendar",

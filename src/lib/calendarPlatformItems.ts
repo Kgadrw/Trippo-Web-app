@@ -7,6 +7,7 @@ export type PlatformCalendarSource =
   | "leave"
   | "milestone"
   | "announcement"
+  | "holiday"
   | "sale"
   | "income"
   | "expense"
@@ -36,6 +37,7 @@ export const PLATFORM_SOURCE_COLORS: Record<PlatformCalendarSource, string> = {
   leave: "#0d9488",
   milestone: "#dc2626",
   announcement: "#7c3aed",
+  holiday: "#b45309",
   sale: "#059669",
   income: "#16a34a",
   expense: "#dc2626",
@@ -52,6 +54,7 @@ export const PLATFORM_SOURCE_LABEL_KEYS: Record<PlatformCalendarSource, string> 
   leave: "calSourceLeave",
   milestone: "calSourceMilestone",
   announcement: "calSourceAnnouncement",
+  holiday: "calSourceHoliday",
   sale: "calSourceSale",
   income: "calSourceIncome",
   expense: "calSourceExpense",
@@ -270,6 +273,27 @@ export function buildCorporateFeedItems(feed: CorporateFeedItem[]): CalendarDisp
   }));
 }
 
+export type RwandaHolidayInput = {
+  date: string;
+  name: string;
+  type?: string;
+};
+
+/** Read-only Rwanda public holiday layer for the business calendar. */
+export function buildRwandaHolidayItems(holidays: RwandaHolidayInput[]): CalendarDisplayItem[] {
+  return (holidays || [])
+    .filter((h) => h?.date && h?.name)
+    .map((h) => ({
+      id: `holiday-${h.date}-${h.name}`,
+      source: "holiday" as const,
+      title: h.name,
+      date: h.date,
+      color: PLATFORM_SOURCE_COLORS.holiday,
+      subtitle: "Rwanda public holiday",
+      editable: false,
+    }));
+}
+
 export function itemOccursOnDay(item: CalendarDisplayItem, day: Date) {
   if (item.endDate) {
     const dayKey = toDateInputValue(day);
@@ -296,14 +320,20 @@ export function buildFilteredDisplayItems(
   platformItems: CalendarDisplayItem[],
   automationItems: CalendarDisplayItem[],
   corporateItems: CalendarDisplayItem[] = [],
+  holidayItems: CalendarDisplayItem[] = [],
 ): CalendarDisplayItem[] {
   if (typeFilter === "all") {
     return [
+      ...holidayItems,
       ...buildCalendarEventItems(events),
       ...corporateItems,
       ...automationItems,
       ...platformItems,
     ];
+  }
+
+  if (typeFilter === "holiday") {
+    return holidayItems;
   }
 
   return buildCalendarEventItems(events).filter(

@@ -295,7 +295,7 @@ export default function SettingsProfile({ embedded = false }: { embedded?: boole
             <Input
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
-              className="h-10 text-sm"
+              className="h-10 rounded-lg text-sm"
               placeholder={t("ownerName")}
             />
           </div>
@@ -306,7 +306,7 @@ export default function SettingsProfile({ embedded = false }: { embedded?: boole
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-10 text-sm"
+              className="h-10 rounded-lg text-sm"
               placeholder={t("emailAddress")}
             />
           </div>

@@ -59,7 +59,7 @@ function isViewingDirectChat(
  * backgrounded, and web-push when the app is closed (WhatsApp-style).
  */
 export function WorkspaceChatNotificationBridge() {
-  const { mode, activeWorkspace } = useWorkspace();
+  const { mode, activeWorkspace, workspaces, switchToWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const location = useLocation();
   const { incrementUnread, clearUnread, unreadCount } = useWorkspaceChatPanel();
@@ -70,39 +70,80 @@ export function WorkspaceChatNotificationBridge() {
   const searchRef = useRef(location.search);
   const openRef = useRef(viewingGroupOnMessages);
   const baseTitleRef = useRef(typeof document !== "undefined" ? document.title : "Trippo");
+  const activeWorkspaceIdRef = useRef(workspaceId);
+  const workspacesRef = useRef(workspaces);
+  const switchToWorkspaceRef = useRef(switchToWorkspace);
 
   pathnameRef.current = location.pathname;
   searchRef.current = location.search;
   openRef.current = viewingGroupOnMessages;
+  activeWorkspaceIdRef.current = workspaceId;
+  workspacesRef.current = workspaces;
+  switchToWorkspaceRef.current = switchToWorkspace;
 
   useEffect(() => {
-    if (mode !== "workspace") return;
+    const ensureWorkspace = (targetWorkspaceId?: string) => {
+      const nextId = targetWorkspaceId ? String(targetWorkspaceId) : "";
+      if (!nextId) return;
+      if (String(activeWorkspaceIdRef.current) === nextId) return;
+      const match = workspacesRef.current.find((w) => String(w.id) === nextId);
+      if (match) switchToWorkspaceRef.current(match);
+    };
 
-    const openHref = (href: string) => {
+    const openHref = (href: string, options?: { workspaceId?: string }) => {
       clearUnread();
       refreshMessagesUnreadBadge();
-      if (isWorkspaceGroupChatPath(href) || href.includes("/messages/group")) {
-        if (workspaceId) clearGroupChatOsNotification(workspaceId);
+      const target = href || WORKSPACE_GROUP_CHAT_PATH;
+      const queryWs = (() => {
+        try {
+          return new URL(target, window.location.origin).searchParams.get("w") || "";
+        } catch {
+          return "";
+        }
+      })();
+      const targetWorkspaceId = options?.workspaceId || queryWs || "";
+      ensureWorkspace(targetWorkspaceId);
+
+      if (isWorkspaceGroupChatPath(target) || target.includes("/messages/group")) {
+        const groupWs = targetWorkspaceId || workspaceId;
+        if (groupWs) clearGroupChatOsNotification(groupWs);
       } else {
-        const match = href.match(/\/messages\/([^/?]+)/);
+        const match = target.match(/\/messages\/([^/?]+)/);
         const otherUserId = match?.[1];
         if (otherUserId && otherUserId !== "group") {
           clearDirectChatOsNotification(undefined, otherUserId);
         }
       }
-      navigate(href || WORKSPACE_GROUP_CHAT_PATH);
+      navigate(target);
     };
 
-    setWorkspaceChatNotificationClickHandler(openHref);
+    setWorkspaceChatNotificationClickHandler((href) => openHref(href));
 
     const onServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data?.type === "OPEN_WORKSPACE_CHAT") {
-        openHref(WORKSPACE_GROUP_CHAT_PATH);
+        const href =
+          typeof event.data.href === "string" && event.data.href
+            ? event.data.href
+            : WORKSPACE_GROUP_CHAT_PATH;
+        openHref(href, {
+          workspaceId: event.data.workspaceId ? String(event.data.workspaceId) : undefined,
+        });
         return;
       }
       if (event.data?.type === "OPEN_DIRECT_CHAT") {
         const otherUserId = event.data.otherUserId ? String(event.data.otherUserId) : "";
-        openHref(otherUserId ? `/messages/${otherUserId}` : "/messages");
+        const workspaceFromEvent = event.data.workspaceId
+          ? String(event.data.workspaceId)
+          : "";
+        const href =
+          typeof event.data.href === "string" && event.data.href
+            ? event.data.href
+            : otherUserId
+              ? workspaceFromEvent
+                ? `/messages/${otherUserId}?w=${encodeURIComponent(workspaceFromEvent)}`
+                : `/messages/${otherUserId}`
+              : "/messages";
+        openHref(href, { workspaceId: workspaceFromEvent || undefined });
       }
     };
 
@@ -112,7 +153,7 @@ export function WorkspaceChatNotificationBridge() {
       setWorkspaceChatNotificationClickHandler(null);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
-  }, [mode, clearUnread, navigate, workspaceId]);
+  }, [clearUnread, navigate, workspaceId]);
 
   useEffect(() => {
     if (viewingGroupOnMessages) {
@@ -161,10 +202,14 @@ export function WorkspaceChatNotificationBridge() {
   }, [unreadCount, mode]);
 
   useEffect(() => {
-    if (mode !== "workspace") return;
+    if (!currentUserId) return;
 
     const setupNotifications = async () => {
+      notificationService.checkPermission();
       if (notificationService.needsPermission()) {
+        // Soft prompt only when the user is already in messaging context.
+        const onMessages = pathnameRef.current.startsWith("/messages");
+        if (!onMessages && mode !== "workspace") return;
         const result = await notificationService.requestPermission();
         if (result !== "granted") return;
       }
@@ -175,7 +220,7 @@ export function WorkspaceChatNotificationBridge() {
     };
 
     void setupNotifications();
-  }, [mode, workspaceId]);
+  }, [mode, workspaceId, currentUserId, location.pathname]);
 
   useWorkspaceChatSocket(workspaceId, mode === "workspace" && Boolean(workspaceId), {
     onMessage: (message) => {

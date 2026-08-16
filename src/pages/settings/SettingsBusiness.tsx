@@ -104,7 +104,7 @@ export default function SettingsBusiness({ embedded = false }: { embedded?: bool
           <Input
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            className="h-10 text-sm"
+            className="h-10 rounded-lg text-sm"
             placeholder={t("businessNameExample")}
           />
           <p className="text-xs text-muted-foreground">
@@ -120,7 +120,7 @@ export default function SettingsBusiness({ embedded = false }: { embedded?: bool
           <Input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="h-10 text-sm"
+            className="h-10 rounded-lg text-sm"
             placeholder="+250 ..."
           />
         </div>

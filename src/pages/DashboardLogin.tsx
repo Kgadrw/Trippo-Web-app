@@ -5,8 +5,15 @@ import {
   isLocalBookfySubdomainHost,
   redirectAfterDashboardLogin,
 } from "@/hooks/useSubdomain";
+import {
+  applyLogoutQueryParamIfPresent,
+  disableGoogleAutoSelect,
+  isFreshLogout,
+  isLogoutAutoLoginSuppressed,
+} from "@/lib/session";
 
 function isDashboardAuthenticated() {
+  if (isFreshLogout() || isLogoutAutoLoginSuppressed()) return false;
   const userId = localStorage.getItem("profit-pilot-user-id");
   const authenticated = localStorage.getItem("profit-pilot-authenticated") === "true";
   const isAdmin = localStorage.getItem("profit-pilot-is-admin") === "true";
@@ -14,6 +21,11 @@ function isDashboardAuthenticated() {
 }
 
 export default function DashboardLogin() {
+  // Clear session before any auto-redirect effect can fire.
+  if (typeof window !== "undefined") {
+    applyLogoutQueryParamIfPresent();
+  }
+
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
@@ -22,8 +34,20 @@ export default function DashboardLogin() {
   const redirectTo = useMemo(() => {
     const from = (location.state as { from?: string } | null)?.from;
     if (from && from !== "/login") return from;
+    const queryRedirect = searchParams.get("redirect");
+    if (queryRedirect && queryRedirect.startsWith("/") && !queryRedirect.startsWith("//")) {
+      return queryRedirect;
+    }
     return "/";
-  }, [location.state]);
+  }, [location.state, searchParams]);
+
+  useEffect(() => {
+    if (isLogoutAutoLoginSuppressed()) {
+      disableGoogleAutoSelect();
+      const timer = window.setTimeout(disableGoogleAutoSelect, 1500);
+      return () => window.clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     if (isLocalBookfySubdomainHost()) {
@@ -33,6 +57,9 @@ export default function DashboardLogin() {
       );
       return;
     }
+
+    // Never bounce a just-logged-out user back into the dashboard.
+    if (isFreshLogout() || isLogoutAutoLoginSuppressed()) return;
 
     if (isDashboardAuthenticated()) {
       redirectAfterDashboardLogin(redirectTo);

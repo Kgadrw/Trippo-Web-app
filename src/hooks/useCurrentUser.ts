@@ -71,27 +71,34 @@ export const useCurrentUser = () => {
     const name = localStorage.getItem(USER_NAME_KEY);
     const email = localStorage.getItem(USER_EMAIL_KEY);
     const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
-    const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
+    const profilePictureUrlRaw = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
+    const profilePictureUrl = profilePictureUrlRaw
+      ? normalizeStoredFileUrl(profilePictureUrlRaw)
+      : null;
 
-    const newUser: CurrentUser | null = name ? {
-      name,
-      email: email || undefined,
-      businessName: businessName || undefined,
-      profilePictureUrl: profilePictureUrl || undefined,
-    } : null;
+    const pictureChanged = (globalUserCache?.profilePictureUrl || null) !== (profilePictureUrl || null);
+    const newUser: CurrentUser | null = name
+      ? {
+          name,
+          email: email || undefined,
+          businessName: businessName || undefined,
+          profilePictureUrl: profilePictureUrl || undefined,
+          profilePictureRevision: pictureChanged
+            ? Date.now()
+            : globalUserCache?.profilePictureRevision,
+        }
+      : null;
 
-    // Only update state if user data actually changed (prevents unnecessary re-renders)
     setUser((prevUser) => {
       if (
         prevUser?.name === newUser?.name &&
         prevUser?.email === newUser?.email &&
         prevUser?.businessName === newUser?.businessName &&
-        prevUser?.profilePictureUrl === newUser?.profilePictureUrl
+        prevUser?.profilePictureUrl === newUser?.profilePictureUrl &&
+        prevUser?.profilePictureRevision === newUser?.profilePictureRevision
       ) {
-        // No change, return previous value to prevent re-render
         return prevUser;
       }
-      // Data changed, update cache and return new value
       globalUserCache = newUser;
       return newUser;
     });
@@ -99,52 +106,40 @@ export const useCurrentUser = () => {
 
   // Load user on mount (only once)
   useEffect(() => {
-    // Only load if not already loaded
     if (!hasLoadedRef.current) {
-      // Initialize from cache first (instant, no localStorage read)
       if (globalUserCache) {
         setUser(globalUserCache);
       } else {
-        // Load from localStorage only if cache is empty
         loadUser();
       }
       hasLoadedRef.current = true;
     }
 
-    // Listen for storage changes (only update when user data actually changes)
-    const handleStorageChange = () => {
-      // Only reload if user data was actually modified
-      const name = localStorage.getItem(USER_NAME_KEY);
-      const email = localStorage.getItem(USER_EMAIL_KEY);
-      const businessName = localStorage.getItem(BUSINESS_NAME_KEY);
-      const profilePictureUrl = localStorage.getItem(PROFILE_PICTURE_URL_KEY);
-      
-      const newUser: CurrentUser | null = name ? {
-        name,
-        email: email || undefined,
-        businessName: businessName || undefined,
-        profilePictureUrl: profilePictureUrl || undefined,
-      } : null;
-
-      // Only update if data actually changed
+    // Cross-tab localStorage updates
+    const handleStorageChange = (event: StorageEvent) => {
       if (
-        globalUserCache?.name !== newUser?.name ||
-        globalUserCache?.email !== newUser?.email ||
-        globalUserCache?.businessName !== newUser?.businessName ||
-        globalUserCache?.profilePictureUrl !== newUser?.profilePictureUrl
+        event.key &&
+        event.key !== USER_NAME_KEY &&
+        event.key !== USER_EMAIL_KEY &&
+        event.key !== BUSINESS_NAME_KEY &&
+        event.key !== PROFILE_PICTURE_URL_KEY
       ) {
-        globalUserCache = newUser;
-        setUser(newUser);
+        return;
       }
+      loadUser();
+    };
+
+    // Same-window updates: updateUser already wrote globalUserCache (incl. revision).
+    const handleUserDataChanged = () => {
+      setUser(globalUserCache ? { ...globalUserCache } : null);
     };
 
     window.addEventListener("storage", handleStorageChange);
-    // Also listen for custom event for same-window updates
-    window.addEventListener("user-data-changed", handleStorageChange);
+    window.addEventListener("user-data-changed", handleUserDataChanged);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("user-data-changed", handleStorageChange);
+      window.removeEventListener("user-data-changed", handleUserDataChanged);
     };
   }, [loadUser]);
 

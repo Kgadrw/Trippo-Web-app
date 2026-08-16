@@ -17,6 +17,7 @@ import { PasswordInput } from "@/components/auth/PasswordInput";
 import type { CredentialResponse } from "@react-oauth/google";
 import { cn } from "@/lib/utils";
 import { validatePIN } from "@/lib/security";
+import { clearLogoutGuards, isLogoutAutoLoginSuppressed } from "@/lib/session";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -293,6 +294,7 @@ export function LoginForm({
     }
 
     localStorage.setItem("profit-pilot-authenticated", "true");
+    clearLogoutGuards();
     window.dispatchEvent(new Event("pin-auth-changed"));
     window.dispatchEvent(new Event("user-data-changed"));
 
@@ -703,8 +705,8 @@ export function LoginForm({
 
       <GoogleOneTapPrompt
         onSuccess={handleGoogleSuccess}
-        disabled={isLoading || showForgotPassword}
-        autoSelect
+        disabled={isLoading || showForgotPassword || isLogoutAutoLoginSuppressed()}
+        autoSelect={false}
       />
 
       <Tabs

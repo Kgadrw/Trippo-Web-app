@@ -3,6 +3,20 @@
 (function() {
   const hash = window.location.hash;
   if (hash && hash.startsWith('#auth=')) {
+    const keepUrl = window.location.pathname + window.location.search;
+
+    // Never restore a session the user just logged out of (back button, bfcache,
+    // or a stale redirect still carrying the #auth= payload).
+    const loggedOutAt = Number(localStorage.getItem('trippo-logged-out-at') || 0);
+    const justLoggedOut =
+      new URLSearchParams(window.location.search).get('logout') === '1' ||
+      (Number.isFinite(loggedOutAt) && Date.now() - loggedOutAt < 60000);
+
+    if (justLoggedOut) {
+      history.replaceState(null, '', keepUrl);
+      return;
+    }
+
     try {
       const data = JSON.parse(atob(hash.substring(6)));
       if (data.userId) localStorage.setItem('profit-pilot-user-id', data.userId);
@@ -14,7 +28,7 @@
       if (data.profilePictureUrl) {
         localStorage.setItem('profit-pilot-profile-picture-url', data.profilePictureUrl);
       }
-      history.replaceState(null, '', window.location.pathname);
+      history.replaceState(null, '', keepUrl);
     } catch(e) {}
   }
 })();

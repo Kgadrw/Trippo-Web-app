@@ -241,19 +241,9 @@ const Dashboard = () => {
     return window.innerWidth < 1024;
   }, []);
 
-  // Refresh finance data every time dashboard is opened
+  // Reuse cached finance data on revisit; force-refresh only via mutation events below
   useEffect(() => {
-    refreshExpenses(true);
-    refreshIncomes(true);
-    refreshBills(true);
-    refreshPayrolls(true);
-    refreshTaxes(true);
-    refreshInvoices(true);
-    refreshSales(true);
-    refreshBankDeposits(true);
-    refreshLoans(true);
-    window.dispatchEvent(new CustomEvent('page-opened'));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    window.dispatchEvent(new CustomEvent("page-opened"));
   }, []);
 
   // Keep chart in sync when finance data changes on other pages

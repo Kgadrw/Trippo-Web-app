@@ -131,25 +131,15 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
     if (subdomain === "bookfy") {
       if (isLocalBookfySubdomainHost()) {
-        window.location.replace(getDashboardLoginUrl("/login"));
+        window.location.replace(getDashboardLoginUrl("/login?logout=1"));
         return null;
       }
       return <Navigate to="/login" replace state={{ from: location.pathname }} />;
     }
 
-    const homeUrl = getSubdomainUrl(null);
-    const currentHost = window.location.hostname;
-    const homeHost = new URL(homeUrl).hostname;
-    
-    // Only redirect if we're on a subdomain
-    if (currentHost !== homeHost && (currentHost.includes("admin.") || isBookfySubdomainHost(currentHost))) {
-      // Clear stale session on main domain (separate localStorage per subdomain origin)
-      window.location.replace(`${homeUrl}?logout=1`);
-      return null;
-    }
-    
-    // If already on main domain, show home page
-    return <Navigate to="/" replace />;
+    // Logged out on an unexpected host — go to login, not the marketing homepage.
+    window.location.replace(getDashboardLoginUrl("/login?logout=1"));
+    return null;
   }
 
   if (requireAdmin && !isAdmin) {
@@ -157,18 +147,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
       return <Navigate to="/login" replace />;
     }
 
-    const homeUrl = getSubdomainUrl(null);
-    const currentHost = window.location.hostname;
-    const homeHost = new URL(homeUrl).hostname;
-    
-    // Only redirect if we're on a subdomain
-    if (currentHost !== homeHost && (currentHost.includes("admin.") || isBookfySubdomainHost(currentHost))) {
-      window.location.replace(`${homeUrl}?logout=1`);
-      return null;
-    }
-    
-    // If already on main domain, show home page
-    return <Navigate to="/" replace />;
+    window.location.replace(getDashboardLoginUrl("/login"));
+    return null;
   }
 
   // Check if user is on wrong subdomain

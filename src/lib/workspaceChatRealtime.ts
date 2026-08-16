@@ -71,6 +71,51 @@ export type ChatPollInput = {
   options: string[];
 };
 
+export function normalizeChatPoll(poll?: ChatPoll | null): ChatPoll | null {
+  if (!poll?.question || !Array.isArray(poll.options)) return poll ?? null;
+  return {
+    question: String(poll.question),
+    options: poll.options.map((option) => {
+      const voterIds = (option.voterIds || []).map(String);
+      return {
+        text: String(option.text || ""),
+        voterIds,
+        voteCount: Number.isFinite(option.voteCount) ? Number(option.voteCount) : voterIds.length,
+      };
+    }),
+  };
+}
+
+/** Instantly move `userId`'s vote onto `optionIndex` (WhatsApp-style live poll UI). */
+export function applyOptimisticPollVote<T extends { poll?: ChatPoll | null }>(
+  message: T,
+  userId: string | null | undefined,
+  optionIndex: number,
+): T {
+  if (!userId || !message.poll?.options?.length) return message;
+  if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= message.poll.options.length) {
+    return message;
+  }
+  const uid = String(userId);
+  const options = message.poll.options.map((option, index) => {
+    const withoutUser = (option.voterIds || []).map(String).filter((id) => id !== uid);
+    const voterIds = index === optionIndex ? [...withoutUser, uid] : withoutUser;
+    return {
+      ...option,
+      text: String(option.text || ""),
+      voterIds,
+      voteCount: voterIds.length,
+    };
+  });
+  return {
+    ...message,
+    poll: {
+      question: String(message.poll.question || ""),
+      options,
+    },
+  };
+}
+
 export type ChatReaction = {
   emoji: string;
   userIds: string[];
@@ -141,6 +186,7 @@ export function mergeChatMessages(
     workspaceId: String(incoming.workspaceId),
     senderUserId: String(incoming.senderUserId),
     replyTo: incomingReply,
+    poll: normalizeChatPoll(incoming.poll),
     reactions: (incoming.reactions || []).map((reaction) => ({
       emoji: String(reaction.emoji),
       userIds: (reaction.userIds || []).map(String),

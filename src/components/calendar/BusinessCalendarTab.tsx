@@ -44,7 +44,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { HelpTip } from "@/components/ui/help-tip";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { calendarEventApi, scheduleApi, corporateCalendarApi, saleApi, incomeApi, expenseApi, billApi, taxApi, invoiceApi, payrollApi, bankDepositApi } from "@/lib/api";
+import { calendarEventApi, scheduleApi, corporateCalendarApi, saleApi, incomeApi, expenseApi, billApi, taxApi, invoiceApi, payrollApi, bankDepositApi, aiApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { periodToggleClass } from "@/lib/fieldStyles";
 import {
@@ -81,6 +81,7 @@ import {
   buildCorporateFeedItems,
   buildFilteredDisplayItems,
   buildPlatformCalendarItems,
+  buildRwandaHolidayItems,
   CalendarDisplayItem,
   formatCalendarAmount,
   itemsForDay,
@@ -196,6 +197,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [corporateFeed, setCorporateFeed] = useState<CorporateFeedItem[]>([]);
+  const [holidayItems, setHolidayItems] = useState<CalendarDisplayItem[]>([]);
   const [platformRaw, setPlatformRaw] = useState<PlatformRawData>(EMPTY_PLATFORM);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingPlatform, setLoadingPlatform] = useState(false);
@@ -330,10 +332,14 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
       setLoadingPlatform(false);
     }
 
+    const fromIso = toDateInputValue(start);
+    const toIso = toDateInputValue(end);
+
     const corePromise = Promise.all([
       calendarEventApi.getAll({ start: start.toISOString(), end: end.toISOString() }),
       scheduleApi.getAll(),
       corporateCalendarApi.getFeed({ start: start.toISOString(), end: end.toISOString() }),
+      aiApi.getRwandaHolidays({ from: fromIso, to: toIso }).catch(() => null),
     ]);
 
     const platformPromise = includePlatform
@@ -341,7 +347,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
       : Promise.resolve();
 
     try {
-      const [eventsRes, schedulesRes, feedRes] = await corePromise;
+      const [eventsRes, schedulesRes, feedRes, holidaysRes] = await corePromise;
       if (generation !== loadGenerationRef.current) return;
 
       setEvents(Array.isArray(eventsRes.data) ? eventsRes.data : []);
@@ -351,6 +357,11 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
           Array.isArray(schedulesRes.data) ? schedulesRes.data : [],
           start,
           end,
+        ),
+      );
+      setHolidayItems(
+        buildRwandaHolidayItems(
+          Array.isArray(holidaysRes?.holidays) ? holidaysRes.holidays : [],
         ),
       );
     } catch (error) {
@@ -406,8 +417,16 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
   );
 
   const displayItems = useMemo(
-    () => buildFilteredDisplayItems(typeFilter, events, platformItems, automationItems, corporateItems),
-    [typeFilter, events, platformItems, automationItems, corporateItems],
+    () =>
+      buildFilteredDisplayItems(
+        typeFilter,
+        events,
+        platformItems,
+        automationItems,
+        corporateItems,
+        holidayItems,
+      ),
+    [typeFilter, events, platformItems, automationItems, corporateItems, holidayItems],
   );
 
   const visibleDayItems = useMemo(() => {

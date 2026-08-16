@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { clearAppSession } from "@/lib/session";
+import { clearAppSession, markLoggedOut } from "@/lib/session";
 import { getSubdomainUrl } from "@/hooks/useSubdomain";
 import {
   AlertDialog,
@@ -85,6 +85,7 @@ export function AdminSidebar({
   }, []);
 
   const handleLogoutConfirm = () => {
+    markLoggedOut();
     clearAppSession();
     setLogoutDialogOpen(false);
 

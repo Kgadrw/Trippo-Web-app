@@ -191,6 +191,7 @@ export function pathToWorkspacePage(pathname: string): WorkspacePageKey | null {
   if (pathname.startsWith('/projects')) return 'projects';
   if (pathname.startsWith('/team')) return 'team';
   if (pathname.startsWith('/messages')) return 'chat';
+  if (pathname.startsWith('/operations')) return 'dashboard';
   if (pathname.startsWith('/dashboard') || pathname === '/') return 'dashboard';
   if (pathname.startsWith('/calendar/schedules')) return 'schedules';
   if (pathname.startsWith('/calendar')) return 'calendar';

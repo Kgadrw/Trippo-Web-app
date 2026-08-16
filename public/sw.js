@@ -1,6 +1,6 @@
 // Service Worker for PWA, offline support, and background notifications
 
-const CACHE_VERSION = "v2"; // Bump when SW notification behavior changes
+const CACHE_VERSION = "v4"; // Bump: logout → login (no homepage bounce)
 const CACHE_NAME = `trippo-${CACHE_VERSION}`;
 const API_BASE_URL = 'http://localhost:3000/api';
 const NOTIFICATION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -533,10 +533,15 @@ self.addEventListener("notificationclick", async (event) => {
   // Open workspace chat from a message notification
   if (data && data.action === "open_workspace_chat") {
     const groupPath = data.href || "/messages/group";
+    const workspaceId = data.workspaceId ? String(data.workspaceId) : "";
     event.waitUntil(
       clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
         for (const client of clientList) {
-          client.postMessage({ type: "OPEN_WORKSPACE_CHAT" });
+          client.postMessage({
+            type: "OPEN_WORKSPACE_CHAT",
+            href: groupPath,
+            workspaceId,
+          });
         }
         if (clientList.length > 0 && "focus" in clientList[0]) {
           return clientList[0].focus();
@@ -552,28 +557,27 @@ self.addEventListener("notificationclick", async (event) => {
   // Open direct messages page from a DM notification
   if (data && data.action === "open_direct_chat") {
     const otherUserId = data.otherUserId ? String(data.otherUserId) : "";
-    const messagesPath = otherUserId ? `/messages/${otherUserId}` : "/messages";
+    const workspaceId = data.workspaceId ? String(data.workspaceId) : "";
+    const messagesPath =
+      data.href ||
+      (otherUserId
+        ? workspaceId
+          ? `/messages/${otherUserId}?w=${encodeURIComponent(workspaceId)}`
+          : `/messages/${otherUserId}`
+        : "/messages");
     event.waitUntil(
       clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
         for (const client of clientList) {
           client.postMessage({
             type: "OPEN_DIRECT_CHAT",
+            href: messagesPath,
             otherUserId,
+            workspaceId,
             conversationId: data.conversationId || null,
           });
         }
         const targetUrl = new URL(messagesPath, self.location.origin).href;
-        for (const client of clientList) {
-          if (client.url && client.url.includes("/messages") && "focus" in client) {
-            return client.focus();
-          }
-        }
         if (clientList.length > 0 && "focus" in clientList[0]) {
-          clientList[0].postMessage({
-            type: "OPEN_DIRECT_CHAT",
-            otherUserId,
-            conversationId: data.conversationId || null,
-          });
           return clientList[0].focus();
         }
         if (clients.openWindow) {

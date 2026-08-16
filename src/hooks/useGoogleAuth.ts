@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { authApi, ApiError } from "@/lib/api";
 import { redirectToBookfyWithSession } from "@/hooks/useSubdomain";
 import { setLoginPrefs } from "@/lib/loginPrefs";
+import { clearLogoutGuards } from "@/lib/session";
 
 type UseGoogleAuthOptions = {
   onSuccess?: () => void;
@@ -40,6 +41,7 @@ function storeUserSession(
   }
 
   localStorage.setItem("profit-pilot-authenticated", "true");
+  clearLogoutGuards();
   window.dispatchEvent(new Event("pin-auth-changed"));
   window.dispatchEvent(new Event("user-data-changed"));
 

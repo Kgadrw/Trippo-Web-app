@@ -34,10 +34,15 @@ import {
   scrollChatToMessage,
   type ChatReplyTo,
 } from "@/components/workspace/ChatReplyQuote";
+import { ChatComposerInput } from "@/components/workspace/ChatComposerInput";
 import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatEmojiPicker";
 import { ChatEmojiText } from "@/components/workspace/ChatEmojiText";
 import { ChatTypingBubble } from "@/components/workspace/ChatTypingBubble";
-import { ChatMessageReactions } from "@/components/workspace/ChatMessageReactions";
+import {
+  ChatMessageAddReaction,
+  ChatMessageReactions,
+  hasChatReactions,
+} from "@/components/workspace/ChatMessageReactions";
 import {
   ChatInfoButton,
   ChatInfoSheet,
@@ -59,7 +64,7 @@ import {
   ChatVoiceRecorderButton,
   type VoiceNoteSendPayload,
 } from "@/components/workspace/ChatVoiceNote";
-import { uploadDirectChatAttachment, isChatAudioAttachment } from "@/lib/chatUpload";
+import { uploadDirectChatAttachment, isChatAudioAttachment, prepareChatAttachmentFiles } from "@/lib/chatUpload";
 import { cn } from "@/lib/utils";
 import { useDirectChatSocket } from "@/hooks/useDirectChatSocket";
 import { useWorkspaceChatSocket } from "@/hooks/useWorkspaceChatSocket";
@@ -79,7 +84,10 @@ import {
   type DirectChatMessage,
   type DirectChatThread,
 } from "@/lib/workspaceDirectChatRealtime";
-import type { ChatPollInput } from "@/lib/workspaceChatRealtime";
+import {
+  applyOptimisticPollVote,
+  type ChatPollInput,
+} from "@/lib/workspaceChatRealtime";
 import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
 import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { websocketManager } from "@/lib/websocketManager";
@@ -364,6 +372,7 @@ export function MessagesPage() {
   const [reactingMessageId, setReactingMessageId] = useState<string | null>(null);
   const [chatInfoOpen, setChatInfoOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
+  const [attachingFiles, setAttachingFiles] = useState(false);
   const [disappearingDurationSec, setDisappearingDurationSec] = useState(0);
   const [groupPreview, setGroupPreview] = useState<{
     messageId: string | null;
@@ -397,6 +406,53 @@ export function MessagesPage() {
     if (withWorkspace) return withWorkspace;
     return threads.find((thread) => thread.otherUser.userId === selectedUserId) || null;
   }, [threads, selectedUserId, selectedWorkspaceParam, isGroupChat]);
+
+  const dmMemberPictureByUserId = useMemo(() => {
+    const map = new Map<string, string | null | undefined>();
+    if (currentUserId) {
+      map.set(String(currentUserId), currentUser?.profilePictureUrl);
+    }
+    if (selectedThread?.otherUser.userId) {
+      map.set(String(selectedThread.otherUser.userId), selectedThread.otherUser.profilePictureUrl);
+    }
+    for (const message of messages) {
+      const senderId = String(message.senderUserId || "");
+      if (senderId && message.senderProfilePictureUrl) {
+        map.set(senderId, message.senderProfilePictureUrl);
+      }
+    }
+    return map;
+  }, [currentUserId, currentUser?.profilePictureUrl, selectedThread, messages]);
+
+  const dmMemberNameByUserId = useMemo(() => {
+    const map = new Map<string, string>();
+    if (currentUserId) {
+      map.set(String(currentUserId), currentUser?.name || "You");
+    }
+    if (selectedThread?.otherUser.userId) {
+      map.set(
+        String(selectedThread.otherUser.userId),
+        selectedThread.otherUser.nickname ||
+          selectedThread.otherUser.displayName ||
+          selectedThread.otherUser.name,
+      );
+    }
+    for (const message of messages) {
+      const senderId = String(message.senderUserId || "");
+      if (senderId && message.senderName) {
+        map.set(senderId, message.senderName);
+      }
+    }
+    return map;
+  }, [currentUserId, currentUser?.name, selectedThread, messages]);
+
+  const dmMemberPictureRevisionByUserId = useMemo(() => {
+    const map = new Map<string, number | undefined>();
+    if (currentUserId && currentUser?.profilePictureRevision != null) {
+      map.set(String(currentUserId), currentUser.profilePictureRevision);
+    }
+    return map;
+  }, [currentUserId, currentUser?.profilePictureRevision]);
 
   /** Workspace for the open DM — can be any joined org, not only the active switcher. */
   const chatWorkspaceId =
@@ -639,6 +695,7 @@ export function MessagesPage() {
   }, [dmTypingUsers.length, scrollToBottom]);
 
   const composerPad = useChatComposerPad(composerRef, [
+    attachingFiles,
     conversationId,
     replyTo,
     editingMessageId,
@@ -1021,28 +1078,10 @@ export function MessagesPage() {
     };
   }, [conversationId, selectedUserId, jumpToLatest]);
 
-  // After history loads (and the list mounts), pin to the last message.
   useEffect(() => {
     if (!conversationId || messagesLoading || openingChat) return;
     return jumpToLatest();
   }, [conversationId, selectedUserId, messagesLoading, openingChat, jumpToLatest]);
-
-  useEffect(() => {
-    const onServiceWorkerMessage = (event: MessageEvent) => {
-      if (event.data?.type !== "OPEN_DIRECT_CHAT") return;
-      const otherUserId = event.data.otherUserId ? String(event.data.otherUserId) : "";
-      if (otherUserId) {
-        navigate(`/messages/${otherUserId}`);
-      } else {
-        navigate("/messages");
-      }
-    };
-
-    navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
-    return () => {
-      navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
-    };
-  }, [navigate]);
 
   useDirectChatSocket(null, hasJoinedOrgs, {
     onMessage: (message) => {
@@ -1170,6 +1209,7 @@ export function MessagesPage() {
       !chatWorkspaceId ||
       !conversationId ||
       sending ||
+      attachingFiles ||
       sendLockRef.current
     ) {
       return;
@@ -1291,14 +1331,19 @@ export function MessagesPage() {
         );
       }
       revokePendingAttachments(staged);
-    } catch {
+    } catch (error) {
       setMessages((prev) => prev.filter((row) => String(row._id) !== optimisticId));
       setText(trimmed);
       if (optimisticReply) setReplyTo(optimisticReply);
       setPendingAttachments(staged);
       toast({
         title: t("directChatSendFailed"),
-        description: staged.length ? "Failed to send attachment" : undefined,
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : staged.length
+              ? "Failed to send attachment"
+              : undefined,
         variant: "destructive",
       });
     } finally {
@@ -1308,17 +1353,31 @@ export function MessagesPage() {
   };
 
   const queuePendingAttachments = (files: File[]) => {
-    const validation = validateChatAttachmentFiles(files);
-    if (!validation.ok) {
-      toast({
-        title: "Attachment is too large",
-        description: validation.message,
-        variant: "destructive",
-      });
-      return;
-    }
-    setPendingAttachments((prev) => [...prev, ...filesToPendingAttachments(files)]);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    void (async () => {
+      setAttachingFiles(true);
+      try {
+        const prepared = await prepareChatAttachmentFiles(files);
+        const validation = validateChatAttachmentFiles(prepared);
+        if (!validation.ok) {
+          toast({
+            title: "Attachment is too large",
+            description: validation.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        setPendingAttachments((prev) => [...prev, ...filesToPendingAttachments(prepared)]);
+        requestAnimationFrame(() => inputRef.current?.focus());
+      } catch (error) {
+        toast({
+          title: "Couldn't add attachment",
+          description: error instanceof Error ? error.message : "Please try another file.",
+          variant: "destructive",
+        });
+      } finally {
+        setAttachingFiles(false);
+      }
+    })();
   };
 
   const removePendingAttachment = (id: string) => {
@@ -1431,14 +1490,27 @@ export function MessagesPage() {
   };
 
   const handleVotePoll = async (messageId: string, optionIndex: number) => {
-    if (!chatWorkspaceId || !conversationId || votingMessageId) return;
+    if (!chatWorkspaceId || !conversationId || votingMessageId || !currentUserId) return;
     setVotingMessageId(messageId);
+    setMessages((prev) =>
+      prev.map((message) =>
+        String(message._id) === messageId
+          ? applyOptimisticPollVote(message, currentUserId, optionIndex)
+          : message,
+      ),
+    );
     try {
-      const res = await workspaceApi.voteDirectChatMessagePoll(chatWorkspaceId, conversationId, messageId, optionIndex);
+      const res = await workspaceApi.voteDirectChatMessagePoll(
+        chatWorkspaceId,
+        conversationId,
+        messageId,
+        optionIndex,
+      );
       const message = res.data as DirectChatMessage;
       if (message) setMessages((prev) => mergeDirectMessages(prev, message));
     } catch {
       toast({ title: "Couldn't record vote", variant: "destructive" });
+      void loadMessages(conversationId, chatWorkspaceId);
     } finally {
       setVotingMessageId(null);
     }
@@ -1560,7 +1632,8 @@ export function MessagesPage() {
       }
       return;
     }
-    if (event.key === "Enter" && !event.shiftKey) {
+    // Mobile: Enter inserts a newline (easier captions). Desktop: Enter sends.
+    if (event.key === "Enter" && !event.shiftKey && window.innerWidth >= 1024) {
       event.preventDefault();
       void handleSend();
     }
@@ -1914,6 +1987,7 @@ export function MessagesPage() {
                 className="h-10 w-10"
                 fallbackClassName="bg-sky-400 text-xs font-bold text-white"
                 online={selectedPeerOnline}
+                avatarClassName="ring-2 ring-sky-300"
                 ringClassName="ring-white"
               />
               <div className="min-w-0 flex-1">
@@ -2004,6 +2078,7 @@ export function MessagesPage() {
                     const canModify = canModifyDirectMessage(message, currentUserId);
                     const canEdit = canModify && Boolean(message.body?.trim());
                     const hasAttachments = Boolean(message.attachments?.length);
+                    const showReactions = !deleted && hasChatReactions(message.reactions);
                     if (!deleted && !message.body?.trim() && !hasAttachments && !message.poll) return null;
 
                     return (
@@ -2041,7 +2116,12 @@ export function MessagesPage() {
                               own ? "items-end" : "items-start",
                             )}
                           >
-                          <div className="flex max-w-full items-end gap-1.5">
+                          <div
+                            className={cn(
+                              "flex max-w-full items-end gap-1",
+                              own ? "flex-row-reverse" : "flex-row",
+                            )}
+                          >
                           <ChatInteractiveBubble
                             own={own}
                             disabled={deleted}
@@ -2125,6 +2205,9 @@ export function MessagesPage() {
                                       own={own}
                                       pending={votingMessageId === String(message._id)}
                                       onVote={(optionIndex) => void handleVotePoll(String(message._id), optionIndex)}
+                                      memberPictureByUserId={dmMemberPictureByUserId}
+                                      memberNameByUserId={dmMemberNameByUserId}
+                                      memberPictureRevisionByUserId={dmMemberPictureRevisionByUserId}
                                     />
                                   ) : null}
                                   {message.body ? (
@@ -2134,6 +2217,15 @@ export function MessagesPage() {
                             ) : null}
                                 </>
                               )}
+                            {showReactions ? (
+                              <ChatMessageReactions
+                                reactions={message.reactions}
+                                currentUserId={currentUserId}
+                                own={own}
+                                disabled={reactingMessageId === String(message._id)}
+                                onReact={(emoji) => void handleReact(String(message._id), emoji)}
+                              />
+                            ) : null}
                             <div
                               className={cn(
                                 "mt-1 flex items-center justify-end gap-1 text-[10px]",
@@ -2155,10 +2247,7 @@ export function MessagesPage() {
                           </div>
                           </ChatInteractiveBubble>
                           {!deleted ? (
-                            <ChatMessageReactions
-                              reactions={message.reactions}
-                              currentUserId={currentUserId}
-                              own={own}
+                            <ChatMessageAddReaction
                               disabled={reactingMessageId === String(message._id)}
                               onReact={(emoji) => void handleReact(String(message._id), emoji)}
                             />
@@ -2278,17 +2367,22 @@ export function MessagesPage() {
                       onRemove={removePendingAttachment}
                     />
                   ) : null}
+                  {attachingFiles ? (
+                    <div className="mb-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-500 ring-1 ring-black/5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
+                      Preparing photo…
+                    </div>
+                  ) : null}
                   <div
                     className={cn(
-                      "flex items-end gap-1.5 rounded-[1.75rem] border border-gray-300 bg-white px-2.5 py-1.5 shadow-none sm:gap-2 sm:px-4 max-lg:min-h-[3rem]",
-                      "lg:rounded-lg lg:border-0 lg:py-2 lg:shadow-none lg:ring-1 lg:ring-black/5",
+                      "flex items-center gap-1.5 rounded-lg border-0 bg-white px-2.5 py-1.5 shadow-none ring-1 ring-black/5 sm:gap-2 sm:px-3",
                       voiceRecording && "border-transparent bg-transparent p-0 shadow-none ring-0",
                     )}
                   >
                     {!voiceRecording ? (
                       <button
                         type="button"
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40"
                         onClick={() => setPollDialogOpen(true)}
                         disabled={sending || !conversationId || Boolean(editingMessageId)}
                         aria-label="Create poll"
@@ -2300,6 +2394,7 @@ export function MessagesPage() {
                     {!voiceRecording ? (
                       <ChatEmojiPicker
                         label={t("chatEmoji")}
+                        buttonClassName="h-9 w-9 shrink-0"
                         onSelect={(emoji) => {
                           const el = inputRef.current;
                           const start = el?.selectionStart ?? text.length;
@@ -2316,7 +2411,7 @@ export function MessagesPage() {
                       />
                     ) : null}
                     {!voiceRecording ? (
-                <textarea
+                <ChatComposerInput
                   ref={inputRef}
                   value={text}
                         onChange={(event) => {
@@ -2335,28 +2430,32 @@ export function MessagesPage() {
                   onKeyDown={handleKeyDown}
                   rows={1}
                         inputMode="text"
-                        enterKeyHint="send"
+                        enterKeyHint={typeof window !== "undefined" && window.innerWidth < 1024 ? "enter" : "send"}
                         autoComplete="off"
                         autoCorrect="on"
                         autoCapitalize="sentences"
                         spellCheck
-                  placeholder={t("workspaceChatSend")}
-                        className="max-h-[180px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[16px] leading-5 outline-none placeholder:text-gray-400 lg:min-h-[44px] lg:py-2.5 lg:text-[15px]"
+                  placeholder={
+                          pendingAttachments.length
+                            ? "Add a caption…"
+                            : t("workspaceChatSend")
+                        }
+                        className="max-h-[180px] min-h-[36px] w-full resize-none bg-transparent py-2 text-[16px] leading-5 outline-none placeholder:text-gray-400 lg:text-[15px]"
                       />
                     ) : null}
                     {!voiceRecording ? (
                       <ChatAttachButton
-                        className="h-11 w-11"
-                        iconSize={19}
-                        disabled={sending || !conversationId || Boolean(editingMessageId)}
+                        className="h-9 w-9"
+                        iconSize={18}
+                        disabled={sending || attachingFiles || !conversationId || Boolean(editingMessageId)}
                         onFilesSelected={queuePendingAttachments}
                       />
                     ) : null}
                     {(!text.trim() && !pendingAttachments.length && !editingMessageId) ||
                     voiceRecording ? (
                       <ChatVoiceRecorderButton
-                        className={voiceRecording ? "w-full" : "max-lg:h-11 max-lg:w-11"}
-                        disabled={sending || !conversationId || Boolean(editingMessageId)}
+                        className={voiceRecording ? "w-full" : "h-9 w-9"}
+                        disabled={sending || attachingFiles || !conversationId || Boolean(editingMessageId)}
                         recordingLabel={t("chatVoiceRecording")}
                         cancelLabel={t("chatVoiceCancel")}
                         sendLabel={t("chatVoiceSend")}
@@ -2391,9 +2490,10 @@ export function MessagesPage() {
                   disabled={
                     (!text.trim() && !pendingAttachments.length) ||
                     sending ||
+                    attachingFiles ||
                     Boolean(editingMessageId && !text.trim())
                   }
-                        className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40 lg:h-10 lg:w-10"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
                   style={{ backgroundColor: CHAT_PURPLE }}
                   aria-label={t("workspaceChatSend")}
                 >

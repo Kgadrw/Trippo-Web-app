@@ -15,8 +15,13 @@ export type ChatAttachmentMeta = {
   localPreviewUrl?: string;
 };
 
-const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"]);
 const AUDIO_EXTENSIONS = new Set(["webm", "ogg", "mp3", "m4a", "aac", "wav", "mp4"]);
+
+/** Must stay aligned with backend `chatAttachmentUpload` limit. */
+export const CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+const IMAGE_MAX_EDGE = 1920;
+const IMAGE_JPEG_QUALITY = 0.84;
 
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",
@@ -24,6 +29,8 @@ const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
   gif: "image/gif",
   webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
   pdf: "application/pdf",
   txt: "text/plain",
   csv: "text/csv",
@@ -60,12 +67,123 @@ export function isChatImageAttachment(mimeType?: string, fileName?: string) {
   return IMAGE_EXTENSIONS.has(extensionFromFileName(fileName));
 }
 
+/**
+ * Mobile cameras often produce HEIC / huge JPEGs that the chat API rejects.
+ * Re-encode displayable images to a JPEG under the upload size limit.
+ */
+export async function prepareChatAttachmentFile(file: File): Promise<File> {
+  if (!isChatImageAttachment(file.type, file.name)) {
+    if (file.size > CHAT_ATTACHMENT_MAX_BYTES) {
+      throw new Error("Each file must be 10 MB or smaller.");
+    }
+    return file;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, IMAGE_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      throw new Error("Could not process image");
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    let quality = IMAGE_JPEG_QUALITY;
+    let blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", quality),
+    );
+    while (blob && blob.size > CHAT_ATTACHMENT_MAX_BYTES && quality > 0.5) {
+      quality -= 0.1;
+      blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    }
+    if (!blob) throw new Error("Could not process image");
+    if (blob.size > CHAT_ATTACHMENT_MAX_BYTES) {
+      throw new Error("Each file must be 10 MB or smaller.");
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+    return new File([blob], `${baseName}.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    if (error instanceof Error && /10 MB|process image/i.test(error.message)) {
+      throw error;
+    }
+    // Fallback for browsers that cannot decode HEIC, etc.
+    if (file.size > CHAT_ATTACHMENT_MAX_BYTES) {
+      throw new Error("Each file must be 10 MB or smaller.");
+    }
+    const ext = extensionFromFileName(file.name);
+    if (ext === "heic" || ext === "heif" || /heic|heif/i.test(file.type)) {
+      throw new Error("This photo format isn’t supported. Please choose a JPG or PNG.");
+    }
+    return file;
+  }
+}
+
+export async function prepareChatAttachmentFiles(files: File[]): Promise<File[]> {
+  return Promise.all(files.map((file) => prepareChatAttachmentFile(file)));
+}
+
 export function isChatAudioAttachment(mimeType?: string, fileName?: string) {
   const resolved = inferChatAttachmentMimeType(fileName, mimeType);
   if (resolved.startsWith("audio/")) return true;
   // Some browsers record voice as video/webm; treat chat voice filenames as audio.
   if (resolved === "video/webm" && /voice|audio/i.test(fileName || "")) return true;
   return AUDIO_EXTENSIONS.has(extensionFromFileName(fileName));
+}
+
+export function isChatPdfAttachment(mimeType?: string, fileName?: string) {
+  const resolved = inferChatAttachmentMimeType(fileName, mimeType).toLowerCase();
+  if (resolved === "application/pdf") return true;
+  return extensionFromFileName(fileName) === "pdf";
+}
+
+export function isChatTextAttachment(mimeType?: string, fileName?: string) {
+  const resolved = inferChatAttachmentMimeType(fileName, mimeType).toLowerCase();
+  if (resolved.startsWith("text/")) return true;
+  const ext = extensionFromFileName(fileName);
+  return ext === "txt" || ext === "csv" || ext === "md" || ext === "json" || ext === "log";
+}
+
+/** Documents we can preview in-app via blob URL (PDF iframe or text pane). */
+export function isChatInlineDocumentPreview(mimeType?: string, fileName?: string) {
+  return isChatPdfAttachment(mimeType, fileName) || isChatTextAttachment(mimeType, fileName);
+}
+
+/**
+ * Fetch attachment as a blob: object URL for iframe/img preview.
+ * Caller must revoke the URL when done.
+ */
+export async function getChatAttachmentBlobUrl(
+  fileUrl: string,
+  mimeType?: string,
+  fileName?: string,
+): Promise<string> {
+  if (fileUrl.startsWith("blob:") || fileUrl.startsWith("data:")) {
+    return fileUrl;
+  }
+  const blob = await fetchChatAttachmentBlob(fileUrl, mimeType, fileName);
+  return URL.createObjectURL(blob);
+}
+
+export async function readChatAttachmentText(
+  fileUrl: string,
+  mimeType?: string,
+  fileName?: string,
+): Promise<string> {
+  const blob = await fetchChatAttachmentBlob(fileUrl, mimeType, fileName);
+  const text = await blob.text();
+  // Cap preview size so huge CSVs don't freeze the UI.
+  return text.length > 200_000 ? `${text.slice(0, 200_000)}\n\n… (preview truncated)` : text;
 }
 
 /** Pick a MediaRecorder mime + file extension that this browser supports. */

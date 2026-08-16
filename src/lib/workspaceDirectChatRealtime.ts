@@ -1,3 +1,5 @@
+import { normalizeChatPoll } from "@/lib/workspaceChatRealtime";
+
 export const WORKSPACE_DM_MESSAGE_EVENT = "workspace-dm:message";
 export const WORKSPACE_DM_READ_EVENT = "workspace-dm:read";
 export const WORKSPACE_DM_EDIT_EVENT = "workspace-dm:edit";
@@ -155,6 +157,7 @@ export function mergeDirectMessages(
     workspaceId: String(incoming.workspaceId),
     senderUserId: String(incoming.senderUserId),
     replyTo: incomingReply,
+    poll: normalizeChatPoll(incoming.poll),
     reactions: (incoming.reactions || []).map((reaction) => ({
       emoji: String(reaction.emoji),
       userIds: (reaction.userIds || []).map(String),

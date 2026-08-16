@@ -35,9 +35,14 @@ import {
   scrollChatToMessage,
   type ChatReplyTo,
 } from "@/components/workspace/ChatReplyQuote";
+import { ChatComposerInput } from "@/components/workspace/ChatComposerInput";
 import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatEmojiPicker";
 import { ChatInteractiveBubble } from "@/components/workspace/ChatInteractiveBubble";
-import { ChatMessageReactions } from "@/components/workspace/ChatMessageReactions";
+import {
+  ChatMessageAddReaction,
+  ChatMessageReactions,
+  hasChatReactions,
+} from "@/components/workspace/ChatMessageReactions";
 import { ChatTypingBubble } from "@/components/workspace/ChatTypingBubble";
 import {
   ChatInfoButton,
@@ -56,7 +61,7 @@ import {
   validateChatAttachmentFiles,
   type PendingChatAttachment,
 } from "@/components/workspace/ChatComposerAttach";
-import { uploadWorkspaceChatAttachment } from "@/lib/chatUpload";
+import { uploadWorkspaceChatAttachment, prepareChatAttachmentFiles } from "@/lib/chatUpload";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +82,7 @@ import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { clearGroupChatOsNotification } from "@/lib/workspaceChatNotifications";
 import { useChatComposerPad } from "@/hooks/useChatComposerPad";
 import {
+  applyOptimisticPollVote,
   mergeChatMessages,
   WORKSPACE_CHAT_TYPING_EVENT,
   type WorkspaceChatMessage,
@@ -200,13 +206,14 @@ function shouldShowDateDivider(messages: WorkspaceChatMessage[], index: number) 
 function shouldGroupWithPrevious(
   messages: WorkspaceChatMessage[],
   index: number,
-  currentUserId: string | null,
+  _currentUserId: string | null,
 ) {
   if (index === 0) return false;
   const prev = messages[index - 1];
   const curr = messages[index];
+  // Never group across different senders — keeps own vs other bubbles clearly separated.
   if (String(prev.senderUserId) !== String(curr.senderUserId)) return false;
-  if (isOwnMessage(curr, currentUserId)) return true;
+  if (isMessageDeleted(prev) || isMessageDeleted(curr)) return false;
   const gap =
     new Date(curr.createdAt).getTime() - new Date(prev.createdAt).getTime();
   return gap <= GROUP_GAP_MS && isSameDay(prev.createdAt, curr.createdAt);
@@ -353,21 +360,50 @@ export function WorkspaceGroupChatPane({
     matches: (payload) => String(payload.workspaceId || "") === String(workspaceId),
   });
 
+  const [messages, setMessages] = useState<WorkspaceChatMessage[]>([]);
+
   const memberPictureByUserId = useMemo(() => {
     const map = new Map<string, string | null | undefined>();
     for (const member of workspaceMembers) {
       map.set(String(member.userId), member.profilePictureUrl);
     }
+    if (currentUserId && currentUser?.profilePictureUrl) {
+      map.set(String(currentUserId), currentUser.profilePictureUrl);
+    }
+    // Keep poll/reaction avatars current from message sender payloads too.
+    for (const message of messages) {
+      const senderId = String(message.senderUserId || "");
+      if (senderId && message.senderProfilePictureUrl) {
+        map.set(senderId, message.senderProfilePictureUrl);
+      }
+    }
     return map;
-  }, [workspaceMembers]);
+  }, [workspaceMembers, currentUserId, currentUser?.profilePictureUrl, messages]);
 
   const memberNameByUserId = useMemo(() => {
     const map = new Map<string, string>();
     for (const member of workspaceMembers) {
       map.set(String(member.userId), member.name);
     }
+    if (currentUserId) {
+      map.set(String(currentUserId), currentUser?.name || "You");
+    }
+    for (const message of messages) {
+      const senderId = String(message.senderUserId || "");
+      if (senderId && message.senderName) {
+        map.set(senderId, message.senderName);
+      }
+    }
     return map;
-  }, [workspaceMembers]);
+  }, [workspaceMembers, currentUserId, currentUser?.name, messages]);
+
+  const memberPictureRevisionByUserId = useMemo(() => {
+    const map = new Map<string, number | undefined>();
+    if (currentUserId && currentUser?.profilePictureRevision != null) {
+      map.set(String(currentUserId), currentUser.profilePictureRevision);
+    }
+    return map;
+  }, [currentUserId, currentUser?.profilePictureRevision]);
 
   const expectedReaderCount = useMemo(
     () =>
@@ -395,7 +431,6 @@ export function WorkspaceGroupChatPane({
     [memberPictureByUserId, currentUser?.profilePictureUrl, currentUserId],
   );
 
-  const [messages, setMessages] = useState<WorkspaceChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
@@ -416,6 +451,7 @@ export function WorkspaceGroupChatPane({
   const [votingMessageId, setVotingMessageId] = useState<string | null>(null);
   const [reactingMessageId, setReactingMessageId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
+  const [attachingFiles, setAttachingFiles] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -431,6 +467,7 @@ export function WorkspaceGroupChatPane({
     voiceRecording,
     text,
     pendingAttachments.length,
+    attachingFiles,
     variant,
   ]);
   const mentionMembers = useMemo(
@@ -801,7 +838,15 @@ export function WorkspaceGroupChatPane({
   const handleSend = async () => {
     const trimmed = text.trim();
     const staged = pendingAttachments;
-    if ((!trimmed && !staged.length) || !workspaceId || sending || sendLockRef.current) return;
+    if (
+      (!trimmed && !staged.length) ||
+      !workspaceId ||
+      sending ||
+      attachingFiles ||
+      sendLockRef.current
+    ) {
+      return;
+    }
 
     stopTyping();
 
@@ -892,7 +937,7 @@ export function WorkspaceGroupChatPane({
         requestAnimationFrame(() => scrollToBottom("smooth"));
       }
       revokePendingAttachments(staged);
-    } catch {
+    } catch (error) {
       pendingSendIdsRef.current.delete(optimisticId);
       setMessages((prev) => prev.filter((row) => String(row._id) !== optimisticId));
       setText(trimmed);
@@ -900,7 +945,12 @@ export function WorkspaceGroupChatPane({
       setPendingAttachments(staged);
       toast({
         title: t("workspaceChatSendFailed"),
-        description: staged.length ? "Failed to send attachment" : undefined,
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : staged.length
+              ? "Failed to send attachment"
+              : undefined,
         variant: "destructive",
       });
     } finally {
@@ -911,17 +961,31 @@ export function WorkspaceGroupChatPane({
   };
 
   const queuePendingAttachments = (files: File[]) => {
-    const validation = validateChatAttachmentFiles(files);
-    if (!validation.ok) {
-      toast({
-        title: "Attachment is too large",
-        description: validation.message,
-        variant: "destructive",
-      });
-      return;
-    }
-    setPendingAttachments((prev) => [...prev, ...filesToPendingAttachments(files)]);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    void (async () => {
+      setAttachingFiles(true);
+      try {
+        const prepared = await prepareChatAttachmentFiles(files);
+        const validation = validateChatAttachmentFiles(prepared);
+        if (!validation.ok) {
+          toast({
+            title: "Attachment is too large",
+            description: validation.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        setPendingAttachments((prev) => [...prev, ...filesToPendingAttachments(prepared)]);
+        requestAnimationFrame(() => inputRef.current?.focus());
+      } catch (error) {
+        toast({
+          title: "Couldn't add attachment",
+          description: error instanceof Error ? error.message : "Please try another file.",
+          variant: "destructive",
+        });
+      } finally {
+        setAttachingFiles(false);
+      }
+    })();
   };
 
   const removePendingAttachment = (id: string) => {
@@ -1014,14 +1078,24 @@ export function WorkspaceGroupChatPane({
   };
 
   const handleVotePoll = async (messageId: string, optionIndex: number) => {
-    if (!workspaceId || votingMessageId) return;
+    if (!workspaceId || votingMessageId || !currentUserId) return;
     setVotingMessageId(messageId);
+    setMessages((prev) =>
+      prev.map((message) =>
+        String(message._id) === messageId
+          ? applyOptimisticPollVote(message, currentUserId, optionIndex)
+          : message,
+      ),
+    );
     try {
       const res = await workspaceApi.voteMessagePoll(workspaceId, messageId, optionIndex);
       const message = res.data as WorkspaceChatMessage;
       if (message) setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
     } catch {
+      // Reload from last known server state via silent refresh of this message is heavy;
+      // reverse by re-fetching messages is safer if vote fails.
       toast({ title: "Couldn't record vote", variant: "destructive" });
+      void loadMessages({ silent: true });
     } finally {
       setVotingMessageId(null);
     }
@@ -1159,7 +1233,8 @@ export function WorkspaceGroupChatPane({
       }
     }
 
-    if (event.key === "Enter" && !event.shiftKey) {
+    // Mobile: Enter inserts a newline (easier captions). Desktop: Enter sends.
+    if (event.key === "Enter" && !event.shiftKey && window.innerWidth >= 1024) {
       event.preventDefault();
       void handleSend();
     }
@@ -1205,7 +1280,7 @@ export function WorkspaceGroupChatPane({
                   name={title}
                   profilePictureUrl={activeWorkspace.profilePictureUrl}
                   pictureRevision={activeWorkspace.profilePictureRevision}
-                  className="h-10 w-10 ring-2 ring-sky-200"
+                  className="h-10 w-10 ring-2 ring-sky-300"
                   fallbackClassName="bg-sky-400 text-xs font-bold text-white"
                 />
               </div>
@@ -1308,6 +1383,7 @@ export function WorkspaceGroupChatPane({
                       currentUser?.profilePictureUrl,
                       memberPictureByUserId,
                     );
+                    const showReactions = !deleted && hasChatReactions(message.reactions);
                     const receipt = own && !deleted ? readReceiptState(message, currentUserId) : null;
                     const everyoneRead = allMembersHaveRead(
                       message,
@@ -1357,7 +1433,12 @@ export function WorkspaceGroupChatPane({
                               </p>
                             ) : null}
 
-                            <div className="flex max-w-full items-end gap-1.5">
+                            <div
+                              className={cn(
+                                "flex max-w-full items-end gap-1",
+                                own ? "flex-row-reverse" : "flex-row",
+                              )}
+                            >
                             <ChatInteractiveBubble
                               own={own}
                               disabled={deleted}
@@ -1441,6 +1522,9 @@ export function WorkspaceGroupChatPane({
                                       own={own}
                                       pending={votingMessageId === String(message._id)}
                                       onVote={(optionIndex) => void handleVotePoll(String(message._id), optionIndex)}
+                                      memberPictureByUserId={memberPictureByUserId}
+                                      memberNameByUserId={memberNameByUserId}
+                                      memberPictureRevisionByUserId={memberPictureRevisionByUserId}
                                     />
                                   ) : null}
                                     {message.body?.trim() ? (
@@ -1454,13 +1538,19 @@ export function WorkspaceGroupChatPane({
                                     ) : null}
                                   </>
                                 )}
+                                {showReactions ? (
+                                  <ChatMessageReactions
+                                    reactions={message.reactions}
+                                    currentUserId={currentUserId}
+                                    own={own}
+                                    disabled={reactingMessageId === String(message._id)}
+                                    onReact={(emoji) => void handleReact(String(message._id), emoji)}
+                                  />
+                                ) : null}
                               </div>
                             </ChatInteractiveBubble>
                             {!deleted ? (
-                              <ChatMessageReactions
-                                reactions={message.reactions}
-                                currentUserId={currentUserId}
-                                own={own}
+                              <ChatMessageAddReaction
                                 disabled={reactingMessageId === String(message._id)}
                                 onReact={(emoji) => void handleReact(String(message._id), emoji)}
                               />
@@ -1630,12 +1720,18 @@ export function WorkspaceGroupChatPane({
                   onRemove={removePendingAttachment}
                 />
               ) : null}
+              {attachingFiles ? (
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-500 ring-1 ring-black/5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
+                  Preparing photo…
+                </div>
+              ) : null}
               <div
                 className={cn(
-                  "flex items-center gap-1 py-1 transition-colors",
+                  "flex items-center gap-1.5 py-1 transition-colors",
                     variant === "panel"
                       ? "border-2 border-sky-300 bg-sky-50/50 pl-2 pr-1 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100"
-                      : "flex items-end gap-1.5 rounded-[1.75rem] border border-gray-300 bg-white px-2.5 py-1.5 shadow-none sm:gap-2 sm:px-4 max-lg:min-h-[3rem]",
+                      : "rounded-lg border-0 bg-white px-2.5 py-1.5 shadow-none ring-1 ring-black/5 sm:gap-2 sm:px-3",
                     variant === "panel" && (inputExpanded ? "rounded-2xl" : "rounded-full"),
                     variant === "page" &&
                       voiceRecording &&
@@ -1657,6 +1753,7 @@ export function WorkspaceGroupChatPane({
                 {!voiceRecording ? (
                 <ChatEmojiPicker
                   label={t("chatEmoji")}
+                  buttonClassName="h-9 w-9 shrink-0"
                   onSelect={(emoji) => {
                     const el = inputRef.current;
                     const start = el?.selectionStart ?? text.length;
@@ -1672,7 +1769,7 @@ export function WorkspaceGroupChatPane({
                 />
                 ) : null}
                 {!voiceRecording ? (
-                <textarea
+                <ChatComposerInput
                   ref={inputRef}
                   value={text}
                   onChange={(e) =>
@@ -1704,38 +1801,39 @@ export function WorkspaceGroupChatPane({
                     window.setTimeout(run, 520);
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder={t("workspaceChatSend")}
+                  placeholder={
+                    pendingAttachments.length ? "Add a caption…" : t("workspaceChatSend")
+                  }
                   rows={1}
                   inputMode="text"
-                  enterKeyHint="send"
+                  enterKeyHint={
+                    typeof window !== "undefined" && window.innerWidth < 1024 ? "enter" : "send"
+                  }
                   autoComplete="off"
                   autoCorrect="on"
                   autoCapitalize="sentences"
                   spellCheck
                   className={cn(
-                    "flex-1 resize-none bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none",
+                    "w-full resize-none bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none",
                     variant === "panel"
-                      ? "max-h-[100px] min-h-[2.5rem] py-2 text-sm max-lg:min-h-[1.75rem] max-lg:py-1"
-                      : "max-h-[140px] min-h-[44px] py-2.5 text-[16px] leading-5 lg:min-h-[40px] lg:text-[15px]",
+                      ? "max-h-[100px] min-h-[2.5rem] py-2 text-sm"
+                      : "max-h-[180px] min-h-[36px] py-2 text-[16px] leading-5 lg:text-[15px]",
                   )}
                 />
                 ) : null}
                 {!voiceRecording ? (
                   <ChatAttachButton
-                    className={variant === "page" ? "h-11 w-11" : "h-9 w-9"}
+                    className="h-9 w-9"
                     iconSize={18}
-                    disabled={sending || Boolean(editingMessageId)}
+                    disabled={sending || attachingFiles || Boolean(editingMessageId)}
                     onFilesSelected={queuePendingAttachments}
                   />
                 ) : null}
                 {(!text.trim() && !pendingAttachments.length && !editingMessageId) ||
                 voiceRecording ? (
                   <ChatVoiceRecorderButton
-                    className={cn(
-                      voiceRecording ? "w-full" : undefined,
-                      variant === "page" && !voiceRecording && "max-lg:h-11 max-lg:w-11",
-                    )}
-                    disabled={sending || Boolean(editingMessageId)}
+                    className={cn(voiceRecording ? "w-full" : "h-9 w-9")}
+                    disabled={sending || attachingFiles || Boolean(editingMessageId)}
                     recordingLabel={t("chatVoiceRecording")}
                     cancelLabel={t("chatVoiceCancel")}
                     sendLabel={t("chatVoiceSend")}
@@ -1775,11 +1873,12 @@ export function WorkspaceGroupChatPane({
                 <button
                   type="button"
                   data-chat-send
-                  disabled={(!text.trim() && !pendingAttachments.length) || sending}
+                  disabled={
+                    (!text.trim() && !pendingAttachments.length) || sending || attachingFiles
+                  }
                   onClick={() => void handleSend()}
                   className={cn(
-                    "mb-0.5 flex shrink-0 items-center justify-center rounded-full p-0 transition-all",
-                    variant === "page" ? "h-11 w-11 lg:h-10 lg:w-10" : "h-9 w-9",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-0 transition-all",
                     text.trim() || pendingAttachments.length
                       ? "bg-sky-400 text-white hover:bg-sky-500"
                       : "cursor-not-allowed bg-sky-200/80 text-sky-400",
@@ -1790,7 +1889,7 @@ export function WorkspaceGroupChatPane({
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Send
-                      size={variant === "page" ? 16 : 15}
+                      size={15}
                       className={
                         text.trim() || pendingAttachments.length ? "translate-x-px" : undefined
                       }
