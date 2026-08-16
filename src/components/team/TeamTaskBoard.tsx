@@ -248,6 +248,7 @@ function TaskBoardColumn({
   onDelete,
   onDropTask,
   deletingId,
+  fillHeight,
 }: {
   statusKey: TeamTaskSection;
   tasks: TeamTaskRecord[];
@@ -261,6 +262,7 @@ function TaskBoardColumn({
   onDelete: (task: TeamTaskRecord) => void;
   onDropTask: (taskIdValue: string, nextStatus: TeamTaskSection) => void;
   deletingId: string | null;
+  fillHeight?: boolean;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -270,7 +272,8 @@ function TaskBoardColumn({
   return (
     <div
       className={cn(
-        "flex min-h-[280px] min-w-0 flex-col border-r border-gray-200 last:border-r-0",
+        "flex min-w-0 flex-col border-r border-gray-200 last:border-r-0",
+        fillHeight ? "min-h-0 md:h-full" : "min-h-[280px]",
         isDragOver && "bg-sky-50/70",
       )}
       onDragEnter={(event) => {
@@ -295,13 +298,23 @@ function TaskBoardColumn({
         if (droppedId) onDropTask(droppedId, statusKey);
       }}
     >
-      <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2.5">
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2.5",
+          fillHeight && "sticky top-0 z-10 md:static",
+        )}
+      >
         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
           {teamTaskStatusLabel(statusKey, t)}
         </h3>
         <span className="text-xs tabular-nums text-gray-500">{tasks.length}</span>
       </div>
-      <ul className="flex flex-1 flex-col gap-2 p-2">
+      <ul
+        className={cn(
+          "flex flex-1 flex-col gap-2 p-2",
+          fillHeight && "md:min-h-0 md:overflow-y-auto md:overscroll-contain",
+        )}
+      >
         {tasks.length === 0 ? (
           <li className="flex flex-1 items-center justify-center px-2 py-8 text-center text-xs text-gray-400">
             —
@@ -391,6 +404,7 @@ export function TeamTaskKanbanBoard({
   onDropTask,
   deletingId,
   emptyLabel,
+  fillHeight = false,
 }: {
   tasks: TeamTaskRecord[];
   t: (key: string) => string;
@@ -404,6 +418,8 @@ export function TeamTaskKanbanBoard({
   onDropTask: (taskIdValue: string, nextStatus: TeamTaskSection) => void;
   deletingId: string | null;
   emptyLabel: string;
+  /** When true, board fills parent height and only task cards scroll. */
+  fillHeight?: boolean;
 }) {
   const tasksBySection = useMemo(() => {
     const groups: Record<TeamTaskSection, TeamTaskRecord[]> = {
@@ -424,8 +440,18 @@ export function TeamTaskKanbanBoard({
   }
 
   return (
-    <div className="border border-gray-200">
-      <div className="grid grid-cols-1 divide-y divide-gray-200 md:min-w-0 md:grid-cols-3 md:divide-x md:divide-y-0">
+    <div
+      className={cn(
+        "border border-gray-200",
+        fillHeight && "flex h-full min-h-0 flex-col overflow-hidden",
+      )}
+    >
+      <div
+        className={cn(
+          "grid grid-cols-1 divide-y divide-gray-200 md:min-w-0 md:grid-cols-3 md:divide-x md:divide-y-0",
+          fillHeight && "min-h-0 flex-1 overflow-y-auto overscroll-contain md:h-full md:overflow-hidden",
+        )}
+      >
         {TEAM_TASK_SECTION_ORDER.map((statusKey) => (
           <TaskBoardColumn
             key={statusKey}
@@ -441,6 +467,7 @@ export function TeamTaskKanbanBoard({
             onDelete={onDelete}
             onDropTask={onDropTask}
             deletingId={deletingId}
+            fillHeight={fillHeight}
           />
         ))}
       </div>

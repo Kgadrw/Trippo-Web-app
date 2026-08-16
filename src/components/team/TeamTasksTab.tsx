@@ -519,87 +519,98 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     formatCategoryLabel(dept, departmentCategories, t, "department");
 
   return (
-    <div className="space-y-4 p-4 lg:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {department ? deptLabel(department) : t("teamAllTasks")}
-            </h2>
-            <HelpTip text={t(department === "finance" ? "helpTeamFinanceTasks" : "helpTeamTasks")} />
-          </div>
-          <p className="text-sm text-gray-600">{t("teamTasksSubtitle")}</p>
-        </div>
-        <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <Select value={monthKey} onValueChange={setMonthKey}>
-          <SelectTrigger className={filterSelectClass}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {monthOptions.map((key) => (
-              <SelectItem key={key} value={key}>
-                {formatMonthLabel(key)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[150px]")}>
-            <SelectValue placeholder={t("teamFilterStatus")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("all")}</SelectItem>
-            {TEAM_TASK_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {statusLabel(s, t)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-          <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[180px]")}>
-            <SelectValue placeholder={t("teamFilterMember")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("all")}</SelectItem>
-            {activeMembers.map((m) => (
-              <SelectItem key={m._id} value={m._id}>
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-500">
-          <Loader2 className="h-5 w-5 animate-spin mr-2" />
-          {t("loading")}
-        </div>
-      ) : !hasVisibleTasks ? (
-        <p className="text-sm text-gray-500 py-8">
-          {tasks.length === 0 ? t("teamNoTasks") : "No matching tasks."}
-        </p>
-      ) : (
-        <TeamTaskKanbanBoard
-          tasks={visibleTasks}
-          t={t}
-          currentTeamMemberId={currentTeamMemberId}
-          resolveAssigneeAvatar={resolveAssigneeAvatar}
-          onComplete={openComplete}
-          onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
-          onEdit={openEdit}
-          onDelete={(task) => void handleDelete(task)}
-          onDropTask={handleDropTask}
-          deletingId={deletingId}
-          emptyLabel={t("teamNoTasks")}
-        />
+    <div
+      className={cn(
+        "flex min-h-0 flex-col gap-4 overflow-hidden",
+        // Fill the content area under the app header; main already provides padding.
+        "h-[calc(100dvh-var(--app-header-height,3.5rem)-2rem)]",
       )}
+    >
+      <div className="shrink-0 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {department ? deptLabel(department) : t("teamAllTasks")}
+              </h2>
+              <HelpTip text={t(department === "finance" ? "helpTeamFinanceTasks" : "helpTeamTasks")} />
+            </div>
+            <p className="text-sm text-gray-600">{t("teamTasksSubtitle")}</p>
+          </div>
+          <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Select value={monthKey} onValueChange={setMonthKey}>
+            <SelectTrigger className={filterSelectClass}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((key) => (
+                <SelectItem key={key} value={key}>
+                  {formatMonthLabel(key)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[150px]")}>
+              <SelectValue placeholder={t("teamFilterStatus")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("all")}</SelectItem>
+              {TEAM_TASK_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {statusLabel(s, t)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[180px]")}>
+              <SelectValue placeholder={t("teamFilterMember")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("all")}</SelectItem>
+              {activeMembers.map((m) => (
+                <SelectItem key={m._id} value={m._id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {loading ? (
+          <div className="flex h-full items-center justify-center text-gray-500">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            {t("loading")}
+          </div>
+        ) : !hasVisibleTasks ? (
+          <p className="py-8 text-sm text-gray-500">
+            {tasks.length === 0 ? t("teamNoTasks") : "No matching tasks."}
+          </p>
+        ) : (
+          <TeamTaskKanbanBoard
+            tasks={visibleTasks}
+            t={t}
+            currentTeamMemberId={currentTeamMemberId}
+            resolveAssigneeAvatar={resolveAssigneeAvatar}
+            onComplete={openComplete}
+            onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
+            onEdit={openEdit}
+            onDelete={(task) => void handleDelete(task)}
+            onDropTask={handleDropTask}
+            deletingId={deletingId}
+            emptyLabel={t("teamNoTasks")}
+            fillHeight
+          />
+        )}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className={cn(editing ? "max-w-lg" : "max-w-3xl max-h-[90vh] overflow-y-auto")}>
