@@ -4,6 +4,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { cn } from "@/lib/utils";
 
 const MAX_VISIBLE = 4;
+const AVATAR_PX = 20;
 
 type WorkspaceActiveUsersRowProps = {
   users: Array<{
@@ -35,23 +36,34 @@ export function WorkspaceActiveUsersRow({ users }: WorkspaceActiveUsersRowProps)
           <Tooltip key={user.userId}>
             <TooltipTrigger asChild>
               <div
-                className={cn(
-                  "relative h-5 w-5 shrink-0 rounded-full ring-2 ring-sky-100",
-                  index > 0 && "-ml-1.5",
-                )}
-                style={{ zIndex: index + 1 }}
+                className={cn("relative shrink-0", index > 0 && "-ml-1.5")}
+                style={{
+                  zIndex: index + 1,
+                  width: AVATAR_PX,
+                  height: AVATAR_PX,
+                }}
               >
-                <div className="h-full w-full overflow-hidden rounded-full">
+                {/* Locked square circle — photo fills edge-to-edge; no button padding. */}
+                <div
+                  className="overflow-hidden rounded-full bg-sky-100 ring-2 ring-sky-100"
+                  style={{ width: AVATAR_PX, height: AVATAR_PX }}
+                >
                   <UserProfileAvatar
                     name={user.name}
                     profilePictureUrl={user.profilePictureUrl || undefined}
-                    className="h-full w-full"
-                    fallbackClassName="bg-sky-200 text-[7px] font-semibold text-sky-800"
+                    enablePreview={false}
+                    className="!m-0 !h-full !w-full !max-h-full !max-w-full !rounded-full !p-0 !leading-none"
+                    fallbackClassName="bg-sky-200 text-[7px] font-semibold leading-none text-sky-800"
                   />
                 </div>
                 <span
-                  className="pointer-events-none absolute h-[30%] w-[30%] min-h-[5px] min-w-[5px] rounded-full border border-white bg-emerald-500"
-                  style={{ bottom: "-8%", right: "-8%" }}
+                  className="pointer-events-none absolute rounded-full border border-white bg-emerald-500"
+                  style={{
+                    width: 7,
+                    height: 7,
+                    bottom: -1,
+                    right: -1,
+                  }}
                   aria-hidden
                 />
               </div>

@@ -53,7 +53,7 @@ export function UserProfileAvatar({
   const canPreview = enablePreview && showImage && Boolean(imageSrc);
 
   const shellClass = cn(
-    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full box-border",
+    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full box-border p-0 leading-none",
     ringClassName ? "h-full w-full border-0" : className || "h-10 w-10",
   );
 
@@ -90,7 +90,7 @@ export function UserProfileAvatar({
       type="button"
       className={cn(
         shellClass,
-        "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
+        "m-0 cursor-pointer appearance-none border-0 bg-transparent p-0 leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
       )}
       aria-label={`View ${name || "profile"} photo`}
       onClick={(e) => {
