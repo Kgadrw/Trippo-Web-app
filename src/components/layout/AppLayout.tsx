@@ -260,6 +260,10 @@ function AppLayoutInner(_props?: AppLayoutProps) {
                 bottom: "auto" as const,
                 paddingTop: 0,
                 paddingBottom: 0,
+                // Smooth slide when the keyboard closes / viewport grows.
+                transition: viewport.keyboardOpen
+                  ? "none"
+                  : "height 280ms cubic-bezier(0.22, 1, 0.36, 1), top 280ms cubic-bezier(0.22, 1, 0.36, 1)",
               }
             : isMobile
               ? isMessagesRoute

@@ -93,6 +93,10 @@ import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { websocketManager } from "@/lib/websocketManager";
 import { useChatComposerPad } from "@/hooks/useChatComposerPad";
 import {
+  scheduleJumpToLatest,
+  useStickChatListToBottom,
+} from "@/hooks/useStickChatListToBottom";
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -673,20 +677,7 @@ export function MessagesPage() {
   const jumpToLatest = useCallback(() => {
     stickToBottomRef.current = true;
     setShowScrollDown(false);
-    const timers: number[] = [];
-    const run = () => {
-      const el = listRef.current;
-      if (!el) return;
-      el.scrollTop = el.scrollHeight;
-    };
-    run();
-    requestAnimationFrame(run);
-    timers.push(window.setTimeout(run, 50));
-    timers.push(window.setTimeout(run, 180));
-    timers.push(window.setTimeout(run, 400));
-    return () => {
-      for (const id of timers) window.clearTimeout(id);
-    };
+    return scheduleJumpToLatest(listRef);
   }, []);
 
   useEffect(() => {
@@ -708,28 +699,17 @@ export function MessagesPage() {
   const keepLastMessageVisible = useCallback(() => {
     stickToBottomRef.current = true;
     setShowScrollDown(false);
-    const run = () => {
-      const el = listRef.current;
-      if (!el) return;
-      el.scrollTop = el.scrollHeight;
-    };
-    run();
-    requestAnimationFrame(run);
-    window.setTimeout(run, 120);
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    requestAnimationFrame(() => {
+      if (!listRef.current) return;
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    });
   }, []);
 
-  // Keep the latest message visible when the keyboard shrinks the list.
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      if (stickToBottomRef.current) {
-        el.scrollTop = el.scrollHeight;
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [conversationId, selectedUserId]);
+  // Keep the latest message visible when the keyboard / composer resizes the list.
+  useStickChatListToBottom(listRef, stickToBottomRef, [conversationId, selectedUserId]);
 
   const loadThreads = useCallback(async () => {
     if (!hasJoinedOrgs) return;
@@ -1729,7 +1709,7 @@ export function MessagesPage() {
                             `/messages/${peer.userId}?w=${encodeURIComponent(peer.workspaceId)}`,
                           );
                         }}
-                        className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-white transition-transform hover:scale-105"
+                        className="relative h-10 w-10 shrink-0 rounded-full ring-2 ring-white transition-transform hover:scale-105"
                         aria-label={peer.name}
                       >
                         <PresenceAvatar

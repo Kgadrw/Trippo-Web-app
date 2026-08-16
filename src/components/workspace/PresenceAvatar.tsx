@@ -21,8 +21,8 @@ type PresenceAvatarProps = {
 
 /**
  * Profile avatar with optional online green dot (WhatsApp-style).
- * Status badges sit on the photo corner inside the circle so they never
- * stretch the outer border into an oval.
+ * Photo stays a tight circle; the status badge sits slightly outside
+ * the bottom-right rim without stretching the border.
  */
 export function PresenceAvatar({
   online = false,
@@ -33,28 +33,26 @@ export function PresenceAvatar({
   ...avatarProps
 }: PresenceAvatarProps) {
   return (
-    <div
-      className={cn(
-        "relative aspect-square shrink-0 self-center overflow-hidden rounded-full",
-        className,
-      )}
-    >
-      <UserProfileAvatar
-        {...avatarProps}
-        profilePictureUrl={avatarProps.profilePictureUrl || undefined}
-        enablePreview={false}
-        className={cn(
-          "box-border !h-full !w-full max-h-full max-w-full rounded-full",
-          avatarClassName,
-        )}
-      />
+    <div className={cn("relative aspect-square shrink-0 self-center", className)}>
+      <div className="h-full w-full overflow-hidden rounded-full">
+        <UserProfileAvatar
+          {...avatarProps}
+          profilePictureUrl={avatarProps.profilePictureUrl || undefined}
+          enablePreview={false}
+          className={cn(
+            "box-border !h-full !w-full max-h-full max-w-full rounded-full",
+            avatarClassName,
+          )}
+        />
+      </div>
       {online ? (
         <span
           className={cn(
-            // Keep the dot inside the circle (bottom-right of the photo).
-            "pointer-events-none absolute bottom-[7%] right-[7%] z-10 h-[22%] w-[22%] min-h-[8px] min-w-[8px] max-h-3 max-w-3 rounded-full bg-emerald-500 ring-2",
+            // Slightly outside the bottom-right rim (active-status style).
+            "pointer-events-none absolute z-10 h-[22%] w-[22%] min-h-[8px] min-w-[8px] max-h-3 max-w-3 rounded-full bg-emerald-500 ring-2",
             ringClassName,
           )}
+          style={{ bottom: "-2%", right: "-2%" }}
           aria-label="Online"
           title="Online"
         />
@@ -62,9 +60,10 @@ export function PresenceAvatar({
       {disappearing ? (
         <span
           className={cn(
-            "pointer-events-none absolute bottom-[5%] left-[5%] z-10 flex h-[26%] w-[26%] min-h-[14px] min-w-[14px] max-h-4 max-w-4 items-center justify-center rounded-full bg-amber-500 text-white ring-2",
+            "pointer-events-none absolute z-10 flex h-[26%] w-[26%] min-h-[14px] min-w-[14px] max-h-4 max-w-4 items-center justify-center rounded-full bg-amber-500 text-white ring-2",
             ringClassName,
           )}
+          style={{ bottom: "-4%", left: "-4%" }}
           aria-label="Disappearing messages on"
           title="Disappearing messages on"
         >

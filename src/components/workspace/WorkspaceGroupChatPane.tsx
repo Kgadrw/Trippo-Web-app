@@ -82,6 +82,10 @@ import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { clearGroupChatOsNotification } from "@/lib/workspaceChatNotifications";
 import { useChatComposerPad } from "@/hooks/useChatComposerPad";
 import {
+  scheduleJumpToLatest,
+  useStickChatListToBottom,
+} from "@/hooks/useStickChatListToBottom";
+import {
   applyOptimisticPollVote,
   mergeChatMessages,
   WORKSPACE_CHAT_TYPING_EVENT,
@@ -552,20 +556,7 @@ export function WorkspaceGroupChatPane({
   const jumpToLatest = useCallback(() => {
     stickToBottomRef.current = true;
     setShowScrollDown(false);
-    const timers: number[] = [];
-    const run = () => {
-      const el = listRef.current;
-      if (!el) return;
-      el.scrollTop = el.scrollHeight;
-    };
-    run();
-    requestAnimationFrame(run);
-    timers.push(window.setTimeout(run, 50));
-    timers.push(window.setTimeout(run, 180));
-    timers.push(window.setTimeout(run, 400));
-    return () => {
-      for (const id of timers) window.clearTimeout(id);
-    };
+    return scheduleJumpToLatest(listRef);
   }, []);
 
   useEffect(() => {
@@ -587,17 +578,7 @@ export function WorkspaceGroupChatPane({
     return () => window.clearInterval(timer);
   }, [workspaceId]);
 
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      if (stickToBottomRef.current) {
-        el.scrollTop = el.scrollHeight;
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [active, workspaceId]);
+  useStickChatListToBottom(listRef, stickToBottomRef, [active, workspaceId]);
 
   const handleListScroll = useCallback(() => {
     const el = listRef.current;
