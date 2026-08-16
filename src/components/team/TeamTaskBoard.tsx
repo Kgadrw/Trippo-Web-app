@@ -1,4 +1,4 @@
-import { useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import type { TeamTaskRecord } from "@/lib/api";
 import { TEAM_TASK_STATUSES } from "@/lib/teamConstants";
 import { Button } from "@/components/ui/button";
@@ -126,13 +126,24 @@ function TaskBoardCard({
   const name = assigneeName(task);
   const cardColor = getAssigneeCardColor(assigneeKey(task));
   const [isDragging, setIsDragging] = useState(false);
+  const [finePointer, setFinePointer] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(pointer: fine)");
+    const sync = () => setFinePointer(media.matches);
+    sync();
+    media.addEventListener?.("change", sync);
+    return () => media.removeEventListener?.("change", sync);
+  }, []);
+
   const milestoneName = linkedMilestoneName(task);
+  const allowDrag = canChangeStatus && finePointer;
 
   return (
     <li
-      draggable={canChangeStatus}
+      draggable={allowDrag}
       onDragStart={(event) => {
-        if (!canChangeStatus) {
+        if (!allowDrag) {
           event.preventDefault();
           return;
         }
@@ -143,7 +154,7 @@ function TaskBoardCard({
       onDragEnd={() => setIsDragging(false)}
       className={cn(
         "rounded border p-3",
-        canChangeStatus && "cursor-grab active:cursor-grabbing",
+        allowDrag && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
       style={{ borderColor: cardColor, backgroundColor: cardColor }}
@@ -421,6 +432,8 @@ export function TeamTaskKanbanBoard({
   /** When true, board fills parent height and only task cards scroll. */
   fillHeight?: boolean;
 }) {
+  const [mobileSection, setMobileSection] = useState<TeamTaskSection>("todo");
+
   const tasksBySection = useMemo(() => {
     const groups: Record<TeamTaskSection, TeamTaskRecord[]> = {
       todo: [],
@@ -435,8 +448,11 @@ export function TeamTaskKanbanBoard({
     return groups;
   }, [tasks]);
 
+  const mobileTasks = tasksBySection[mobileSection];
+
   // Always keep To do / In progress / Done headers mounted (including empty + refresh).
   void emptyLabel;
+
   return (
     <div
       className={cn(
@@ -444,10 +460,66 @@ export function TeamTaskKanbanBoard({
         fillHeight && "flex h-full min-h-0 flex-col overflow-hidden",
       )}
     >
+      {/* Mobile: one status at a time so cards scroll under fixed tabs */}
+      <div className={cn("flex min-h-0 flex-col md:hidden", fillHeight && "h-full")}>
+        <div className="flex shrink-0 border-b border-gray-200 bg-gray-50">
+          {TEAM_TASK_SECTION_ORDER.map((statusKey) => {
+            const active = mobileSection === statusKey;
+            return (
+              <button
+                key={statusKey}
+                type="button"
+                onClick={() => setMobileSection(statusKey)}
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2.5 text-center transition-colors",
+                  active
+                    ? "border-b-2 border-sky-500 bg-white text-sky-700"
+                    : "border-b-2 border-transparent text-gray-500",
+                )}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wide">
+                  {teamTaskStatusLabel(statusKey, t)}
+                </span>
+                <span className="text-[11px] tabular-nums text-gray-500">
+                  {tasksBySection[statusKey].length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <ul
+          className="min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overscroll-contain p-2"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {mobileTasks.length === 0 ? (
+            <li className="flex items-center justify-center px-2 py-12 text-center text-xs text-gray-400">
+              —
+            </li>
+          ) : (
+            mobileTasks.map((task) => (
+              <TaskBoardCard
+                key={task._id}
+                task={task}
+                t={t}
+                assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
+                canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
+                showProjectLink={showProjectLink}
+                onComplete={onComplete}
+                onStatusChange={onStatusChange}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                deletingId={deletingId}
+              />
+            ))
+          )}
+        </ul>
+      </div>
+
+      {/* Desktop: three columns */}
       <div
         className={cn(
-          "grid grid-cols-1 divide-y divide-gray-200 md:min-w-0 md:grid-cols-3 md:divide-x md:divide-y-0",
-          fillHeight && "min-h-0 flex-1 overflow-y-auto overscroll-contain md:h-full md:overflow-hidden",
+          "hidden md:grid md:min-w-0 md:grid-cols-3 md:divide-x md:divide-gray-200",
+          fillHeight && "min-h-0 flex-1 md:h-full md:overflow-hidden",
         )}
       >
         {TEAM_TASK_SECTION_ORDER.map((statusKey) => (

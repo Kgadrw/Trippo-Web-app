@@ -556,32 +556,33 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-col gap-4 overflow-hidden",
-        // Fill the content area under the app header; main already provides padding.
-        "h-[calc(100dvh-var(--app-header-height,3.5rem)-2rem)]",
+        "flex min-h-0 flex-col gap-3 overflow-hidden md:gap-4",
+        // Fill under the app header; account for main padding + mobile bottom safe area.
+        "h-[calc(100dvh-var(--app-header-height,3.5rem)-1.25rem)]",
+        "max-md:h-[calc(100dvh-var(--app-header-height,3.5rem)-env(safe-area-inset-bottom,0px)-1rem)]",
       )}
     >
-      <div className="shrink-0 space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+      <div className="shrink-0 space-y-3 md:space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="truncate text-lg font-semibold text-gray-900">
                 {department ? deptLabel(department) : t("teamAllTasks")}
               </h2>
               <HelpTip text={t(department === "finance" ? "helpTeamFinanceTasks" : "helpTeamTasks")} />
             </div>
-            <p className="text-sm text-gray-600">{t("teamTasksSubtitle")}</p>
+            <p className="hidden text-sm text-gray-600 sm:block">{t("teamTasksSubtitle")}</p>
           </div>
           <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+          <div className="min-w-0 space-y-1">
             <Label htmlFor="team-tasks-month" className="text-xs font-medium text-gray-600">
               {t("teamMonth")}
             </Label>
             <Select value={monthKey} onValueChange={setMonthKey}>
-              <SelectTrigger id="team-tasks-month" className={filterSelectClass}>
+              <SelectTrigger id="team-tasks-month" className={cn(filterSelectClass, "w-full max-w-full")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -594,14 +595,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             </Select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1">
             <Label htmlFor="team-tasks-status" className="text-xs font-medium text-gray-600">
               {t("teamFilterStatus")}
             </Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger
                 id="team-tasks-status"
-                className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[150px]")}
+                className={cn(filterSelectClass, "w-full max-w-full")}
               >
                 <SelectValue placeholder={t("teamFilterStatus")} />
               </SelectTrigger>
@@ -616,14 +617,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             </Select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1">
             <Label htmlFor="team-tasks-member" className="text-xs font-medium text-gray-600">
               {t("teamFilterMember")}
             </Label>
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger
                 id="team-tasks-member"
-                className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[180px]")}
+                className={cn(filterSelectClass, "w-full max-w-full")}
               >
                 <SelectValue placeholder={t("teamFilterMember")} />
               </SelectTrigger>
@@ -643,7 +644,20 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {initialLoading ? (
           <div className="flex h-full flex-col overflow-hidden border border-gray-200">
-            <div className="grid min-h-0 flex-1 grid-cols-1 divide-y divide-gray-200 md:grid-cols-3 md:divide-x md:divide-y-0">
+            <div className="flex shrink-0 border-b border-gray-200 bg-gray-50 md:hidden">
+              {(["todo", "in_progress", "done"] as const).map((statusKey) => (
+                <div
+                  key={statusKey}
+                  className="flex flex-1 flex-col items-center gap-0.5 px-1 py-2.5 text-center text-gray-500"
+                >
+                  <span className="text-[10px] font-semibold uppercase tracking-wide">
+                    {statusLabel(statusKey, t)}
+                  </span>
+                  <span className="text-[11px] tabular-nums">0</span>
+                </div>
+              ))}
+            </div>
+            <div className="hidden min-h-0 flex-1 md:grid md:grid-cols-3 md:divide-x md:divide-gray-200">
               {(["todo", "in_progress", "done"] as const).map((statusKey) => (
                 <div key={statusKey} className="flex min-h-0 flex-col">
                   <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2.5">
@@ -658,9 +672,12 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 </div>
               ))}
             </div>
+            <div className="flex flex-1 items-center justify-center text-gray-400 md:hidden">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
           </div>
         ) : (
-          <div className={cn("h-full", refreshing && "pointer-events-none opacity-60")}>
+          <div className={cn("h-full min-h-0", refreshing && "pointer-events-none opacity-60")}>
             <TeamTaskKanbanBoard
               tasks={visibleTasks}
               t={t}
