@@ -238,6 +238,7 @@ async function request<T>(
     // Check cache for GET requests (deduplication)
     const isGet = (options.method || 'GET').toUpperCase() === 'GET';
     const disableGetCache =
+      endpoint.startsWith('/sales') ||
       endpoint.startsWith('/notifications') ||
       endpoint.startsWith('/auth/me') ||
       endpoint.startsWith('/subscription') ||

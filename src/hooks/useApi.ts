@@ -1,6 +1,6 @@
 // Hook to manage API data (replaces useLocalStorage for backend integration)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { productApi, saleApi, clientApi, vendorApi, accountApi, categoryBudgetApi, scheduleApi, bookingApi, expenseApi, incomeApi, payrollApi, billApi, taxApi, bankDepositApi, loanApi, invoiceApi, documentApi, assetApi } from "@/lib/api";
+import { productApi, saleApi, clientApi, vendorApi, accountApi, categoryBudgetApi, scheduleApi, bookingApi, expenseApi, incomeApi, payrollApi, billApi, taxApi, bankDepositApi, loanApi, invoiceApi, documentApi, assetApi, invalidateRequestCache } from "@/lib/api";
 import { SyncManager } from "@/lib/syncManager";
 import { tryInitDB, getAllItems, addItem, updateItem, deleteItem, getItem, clearStore } from "@/lib/indexedDB";
 import { generateUniqueId } from "@/lib/idGenerator";
@@ -92,6 +92,31 @@ function sortSalesByNewest<T>(items: T[]): T[] {
 
 function isMongoServerId(id: unknown): boolean {
   return typeof id === "string" && /^[a-f0-9]{24}$/i.test(id);
+}
+
+const PENDING_DELETED_SALES_KEY = "profit-pilot-pending-deleted-sales";
+
+function readPendingDeletedSales(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(PENDING_DELETED_SALES_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writePendingDeletedSales(ids: Set<string>) {
+  try {
+    if (ids.size === 0) {
+      sessionStorage.removeItem(PENDING_DELETED_SALES_KEY);
+      return;
+    }
+    sessionStorage.setItem(PENDING_DELETED_SALES_KEY, JSON.stringify([...ids]));
+  } catch {
+    // ignore storage failures
+  }
 }
 
 function isLikelyNetworkError(error: any): boolean {
@@ -239,7 +264,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const itemsRef = useRef<T[]>(defaultValue);
   const syncManager = SyncManager.getInstance();
   /** Sales deleted locally; stale in-flight GETs may still include these rows — filter until server catches up */
-  const pendingDeletedIdsRef = useRef<Set<string>>(new Set());
+  const pendingDeletedIdsRef = useRef<Set<string>>(
+    endpoint === "sales" ? readPendingDeletedSales() : new Set(),
+  );
 
   // Map MongoDB _id to id for compatibility
   const mapItem = useCallback((item: any): T => {
@@ -259,12 +286,15 @@ export function useApi<T extends { _id?: string; id?: number }>({
     for (const id of [...pending]) {
       if (!idsInResponse.has(id)) pending.delete(id);
     }
+    if (endpoint === "sales") {
+      writePendingDeletedSales(pending);
+    }
     return deduplicateByRecordId(
       mappedItems.filter(
         (item) => !recordMatchesDeleteIds(item as { _id?: string; id?: number | string }, pending),
       ),
     );
-  }, []);
+  }, [endpoint]);
 
   // Load data from IndexedDB first, then try to sync with API
   // silent: if true, skip setting isLoading (keeps existing data visible during background refresh)
@@ -429,8 +459,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
         }
         }
         } else {
-          // Products/sales: show IndexedDB first for instant UI, then sync from API
-          if (shouldUseOfflineFirst) {
+          // Products/sales: show IndexedDB first for instant UI, then sync from API.
+          // Forced refresh skips stale local paint so deleted rows cannot flash back.
+          if (shouldUseOfflineFirst && !force) {
             let hadLocalData = false;
             try {
               const localItems = await getAllItems<T>(storeName);
@@ -637,19 +668,19 @@ export function useApi<T extends { _id?: string; id?: number }>({
               });
             }
 
-            // Update UI first — don't block on IndexedDB writes
+            // Update UI first — don't block on IndexedDB writes.
+            // Trust the server list: never re-add Mongo rows that are missing from the API
+            // (that path was reintroducing deleted sales from stale IndexedDB / prev state).
+            // Only keep local optimistic rows that do not yet have a server id.
             setItems((prevItems) => {
               if (isSalesEndpoint) {
-                const serverIds = new Set(
-                  sortedItems
-                    .map((i: any) => String(i._id ?? i.id ?? ""))
-                    .filter(Boolean),
-                );
-                const missingFromServer = prevItems.filter((i: any) => {
+                const pendingLocal = prevItems.filter((i: any) => {
                   const id = String(i._id ?? i.id ?? "");
-                  return id && isMongoServerId(id) && !serverIds.has(id);
+                  return Boolean(id) && !isMongoServerId(id);
                 });
-                const merged = deduplicateSales([...sortedItems, ...missingFromServer]);
+                const merged = reconcileListWithPendingDeletions(
+                  deduplicateSales([...sortedItems, ...pendingLocal]),
+                );
                 return merged.length > 0 ? merged : defaultValue;
               }
 
@@ -659,11 +690,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
                     .map((i: any) => String(i._id ?? i.id ?? ""))
                     .filter(Boolean),
                 );
-                const missingFromServer = prevItems.filter((i: any) => {
+                const pendingLocal = prevItems.filter((i: any) => {
                   const id = String(i._id ?? i.id ?? "");
-                  return id && !serverIds.has(id);
+                  return Boolean(id) && !isMongoServerId(id) && !serverIds.has(id);
                 });
-                const merged = [...sortedItems, ...missingFromServer].sort((a, b) => {
+                const merged = [...sortedItems, ...pendingLocal].sort((a, b) => {
                   const aTime = (a as any).dueDate || (a as any).paymentDate || (a as any).date;
                   const bTime = (b as any).dueDate || (b as any).paymentDate || (b as any).date;
                   return new Date(bTime).getTime() - new Date(aTime).getTime();
@@ -946,7 +977,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   const itemsLengthRef = useRef<number>(0);
   const hasLoadedOnMountRef = useRef<boolean>(false);
   const MIN_RELOAD_INTERVAL = 5000; // 5 seconds minimum between reloads (increased to prevent loops)
-  const MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES = 10000; // 10 seconds for products/sales to prevent loops
+  const MIN_RELOAD_INTERVAL_FOR_PRODUCTS_SALES = 2000; // keep sales/products snappy without reload loops
   
   // Products, sales, and expenses should always refresh on mount/page open
   const shouldAlwaysRefresh = endpoint === 'products' || endpoint === 'sales' || endpoint === 'clients' || endpoint === 'vendors' || endpoint === 'accounts' || endpoint === 'categoryBudgets' || endpoint === 'schedules' || endpoint === 'bookings' || endpoint === 'expenses' || endpoint === 'incomes' || endpoint === 'payrolls' || endpoint === 'bills' || endpoint === 'taxes' || endpoint === 'bankDeposits' || endpoint === 'loans' || endpoint === 'invoices' || endpoint === 'documents' || endpoint === 'assets';
@@ -978,6 +1009,10 @@ export function useApi<T extends { _id?: string; id?: number }>({
         setItems((prev) => applyUpdateToList(prev, mapped));
       } else if (detail.action === 'delete' && detail.itemId) {
         const pending = new Set([String(detail.itemId)]);
+        if (endpoint === "sales") {
+          for (const id of pending) pendingDeletedIdsRef.current.add(id);
+          writePendingDeletedSales(pendingDeletedIdsRef.current);
+        }
         setItems((prev) =>
           prev.filter((i) => !recordMatchesDeleteIds(i as { _id?: string; id?: number | string }, pending)),
         );
@@ -1769,6 +1804,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
       for (const id of deleteIds) {
         pendingDeletedIdsRef.current.add(id);
       }
+      if (endpoint === "sales") {
+        writePendingDeletedSales(pendingDeletedIdsRef.current);
+      }
 
       // Update UI immediately — don't wait for IndexedDB or API
       setItems((prev) =>
@@ -1786,6 +1824,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
 
       // Invalidate cache for this endpoint since data changed
       apiCache.invalidateStore(endpoint);
+      if (endpoint === "sales") {
+        invalidateRequestCache("/sales");
+      }
       localStorage.setItem(`profit-pilot-${endpoint}-changed`, "true");
 
       // Delete from IndexedDB (offline-first)
@@ -1859,6 +1900,9 @@ export function useApi<T extends { _id?: string; id?: number }>({
         // For sales and products, don't queue for sync - restore the removed item
         if (endpoint === 'sales' || endpoint === 'products') {
           for (const id of deleteIds) pendingDeletedIdsRef.current.delete(id);
+          if (endpoint === 'sales') {
+            writePendingDeletedSales(pendingDeletedIdsRef.current);
+          }
           await addItem(storeName, {
             ...previousItem,
             userId,
@@ -2087,7 +2131,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
   // Rate limiting for refresh calls
   const lastRefreshTimeRef = useRef<number>(0);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const REFRESH_COOLDOWN = 10000; // 10 seconds minimum between refreshes (increased to reduce API calls)
+  const REFRESH_COOLDOWN = 2000; // keep refreshes responsive for sales/finance
 
   // Refresh function that resets error state with rate limiting (returns a Promise so callers can await a full reload)
   const refresh = useCallback((force = false): Promise<void> => {
@@ -2126,6 +2170,11 @@ export function useApi<T extends { _id?: string; id?: number }>({
     // If forced (or sales endpoint), invalidate cache and refresh immediately
     if (shouldForce) {
       apiCache.invalidateStore(endpoint);
+      if (isSalesEndpoint) {
+        invalidateRequestCache('/sales');
+      } else if (isProductsEndpoint) {
+        invalidateRequestCache('/products');
+      }
       // Clear the last refresh time to bypass cooldown
       lastRefreshTimeRef.current = 0;
       // Also clear the last refresh timestamp in localStorage to force API fetch
@@ -2197,6 +2246,16 @@ export function useApi<T extends { _id?: string; id?: number }>({
         // Merge with existing items to preserve optimistic updates
         // This ensures newly added items don't disappear if IndexedDB hasn't updated yet
         setItems((prevItems) => {
+          if (endpoint === "sales") {
+            const pendingLocal = prevItems.filter((item: any) => {
+              const id = String(item._id ?? item.id ?? "");
+              return Boolean(id) && !isMongoServerId(id);
+            });
+            return reconcileListWithPendingDeletions(
+              deduplicateSales([...mappedItems, ...pendingLocal]),
+            );
+          }
+
           // Create a map of existing items by ID for quick lookup
           const existingMap = new Map<string, T>();
           prevItems.forEach((item: any) => {
@@ -2215,15 +2274,7 @@ export function useApi<T extends { _id?: string; id?: number }>({
           });
           
           // Convert map back to array
-          let merged = Array.from(existingMap.values());
-          
-          // For sales, re-sort after merge and drop local/server duplicates
-          if (endpoint === 'sales') {
-            merged = deduplicateSales(merged);
-            return reconcileListWithPendingDeletions(merged);
-          }
-          
-          return merged;
+          return Array.from(existingMap.values());
         });
         
         console.log(`[useApi] ${endpoint}: Reloaded ${mappedItems.length} items from IndexedDB (merged with existing)`);
@@ -2337,7 +2388,8 @@ export function useApi<T extends { _id?: string; id?: number }>({
         }
         const delId = data && (data._id ?? data.id)?.toString();
         if (delId) {
-          pendingDeletedIdsRef.current.delete(delId);
+          pendingDeletedIdsRef.current.add(delId);
+          writePendingDeletedSales(pendingDeletedIdsRef.current);
           setItems((prev) =>
             prev.filter((s: any) => (s._id || s.id)?.toString() !== delId),
           );

@@ -338,7 +338,6 @@ export function SalesTab() {
     try {
       await remove(sale);
       toast({ title: t("saleDeletedTitle") });
-      void refresh(true);
     } catch (error: unknown) {
       playErrorBeep();
       const message = error instanceof Error ? error.message : t("deleteSaleFailedDesc");
@@ -380,7 +379,6 @@ export function SalesTab() {
       clearSelection();
       setBulkDeleteOpen(false);
       toast({ title: t("saleDeletedTitle") });
-      void refresh(true);
     } catch (error: unknown) {
       playErrorBeep();
       const message = error instanceof Error ? error.message : t("deleteSaleFailedDesc");
