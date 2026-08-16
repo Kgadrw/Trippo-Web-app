@@ -576,13 +576,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <div className="min-w-0 space-y-1">
-            <Label htmlFor="team-tasks-month" className="text-xs font-medium text-gray-600">
+            <Label htmlFor="team-tasks-month" className="block truncate text-xs font-medium text-gray-600">
               {t("teamMonth")}
             </Label>
             <Select value={monthKey} onValueChange={setMonthKey}>
-              <SelectTrigger id="team-tasks-month" className={cn(filterSelectClass, "w-full max-w-full")}>
+              <SelectTrigger id="team-tasks-month" className={cn(filterSelectClass, "w-full min-w-0 max-w-full")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -596,13 +596,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           </div>
 
           <div className="min-w-0 space-y-1">
-            <Label htmlFor="team-tasks-status" className="text-xs font-medium text-gray-600">
+            <Label htmlFor="team-tasks-status" className="block truncate text-xs font-medium text-gray-600">
               {t("teamFilterStatus")}
             </Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger
                 id="team-tasks-status"
-                className={cn(filterSelectClass, "w-full max-w-full")}
+                className={cn(filterSelectClass, "w-full min-w-0 max-w-full")}
               >
                 <SelectValue placeholder={t("teamFilterStatus")} />
               </SelectTrigger>
@@ -618,13 +618,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           </div>
 
           <div className="min-w-0 space-y-1">
-            <Label htmlFor="team-tasks-member" className="text-xs font-medium text-gray-600">
+            <Label htmlFor="team-tasks-member" className="block truncate text-xs font-medium text-gray-600">
               {t("teamFilterMember")}
             </Label>
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger
                 id="team-tasks-member"
-                className={cn(filterSelectClass, "w-full max-w-full")}
+                className={cn(filterSelectClass, "w-full min-w-0 max-w-full")}
               >
                 <SelectValue placeholder={t("teamFilterMember")} />
               </SelectTrigger>
