@@ -189,9 +189,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     softRefreshAfterWorkspaceChange(navigate);
   }, [mode, activeWorkspaceId, navigate]);
 
-  const switchToWorkspace = useCallback((workspace: WorkspaceSummary) => {
+  const switchToWorkspace = useCallback((workspace: WorkspaceSummary, options?: { remount?: boolean }) => {
     if (mode === 'workspace' && String(activeWorkspaceId) === String(workspace.id)) return;
     persistWorkspaceContext('workspace', workspace.id);
+    // Notification clicks pass remount:false so we only switch context + navigate,
+    // without an extra hard remount that feels like the page is jamming.
+    if (options?.remount === false) return;
     softRefreshAfterWorkspaceChange(navigate);
   }, [mode, activeWorkspaceId, navigate]);
 

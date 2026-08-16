@@ -1,6 +1,6 @@
 // Service Worker for PWA, offline support, and background notifications
 
-const CACHE_VERSION = "v4"; // Bump: logout → login (no homepage bounce)
+const CACHE_VERSION = "v5"; // Bump: soft-navigate on notification click (no full reload jam)
 const CACHE_NAME = `trippo-${CACHE_VERSION}`;
 const API_BASE_URL = 'http://localhost:3000/api';
 const NOTIFICATION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -519,7 +519,8 @@ async function showNotification(options) {
   }
 }
 
-// Handle notification clicks
+// Handle notification clicks — prefer soft-navigating an existing Trippo tab
+// (no full reload). Only open a new window when the app is closed.
 self.addEventListener("notificationclick", async (event) => {
   event.notification.close();
 
@@ -528,34 +529,62 @@ self.addEventListener("notificationclick", async (event) => {
   activeNotificationCount = count;
   await updateBadge(count);
 
-  const data = event.notification.data;
+  const data = event.notification.data || {};
+
+  const focusExistingClient = async (message) => {
+    const clientList = await clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
+    if (!clientList.length) return null;
+
+    // Prefer a visible/focused Trippo client, then any open client.
+    const preferred =
+      clientList.find((client) => client.visibilityState === "visible" && client.focused) ||
+      clientList.find((client) => client.visibilityState === "visible") ||
+      clientList[0];
+
+    for (const client of clientList) {
+      try {
+        client.postMessage(message);
+      } catch {
+        // ignore postMessage failures on stale clients
+      }
+    }
+
+    if (preferred && "focus" in preferred) {
+      await preferred.focus();
+    }
+    return preferred;
+  };
+
+  const openOrNavigate = async (path, message) => {
+    const route = path.startsWith("/") ? path : `/${path}`;
+    const targetUrl = new URL(route, self.location.origin).href;
+    const existing = await focusExistingClient(message);
+    if (existing) return existing;
+    if (clients.openWindow) {
+      return clients.openWindow(targetUrl);
+    }
+    return null;
+  };
 
   // Open workspace chat from a message notification
-  if (data && data.action === "open_workspace_chat") {
+  if (data.action === "open_workspace_chat") {
     const groupPath = data.href || "/messages/group";
     const workspaceId = data.workspaceId ? String(data.workspaceId) : "";
     event.waitUntil(
-      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          client.postMessage({
-            type: "OPEN_WORKSPACE_CHAT",
-            href: groupPath,
-            workspaceId,
-          });
-        }
-        if (clientList.length > 0 && "focus" in clientList[0]) {
-          return clientList[0].focus();
-        }
-        if (clients.openWindow) {
-          return clients.openWindow(new URL(groupPath, self.location.origin).href);
-        }
+      openOrNavigate(groupPath, {
+        type: "OPEN_WORKSPACE_CHAT",
+        href: groupPath,
+        workspaceId,
       }),
     );
     return;
   }
 
   // Open direct messages page from a DM notification
-  if (data && data.action === "open_direct_chat") {
+  if (data.action === "open_direct_chat") {
     const otherUserId = data.otherUserId ? String(data.otherUserId) : "";
     const workspaceId = data.workspaceId ? String(data.workspaceId) : "";
     const messagesPath =
@@ -566,74 +595,44 @@ self.addEventListener("notificationclick", async (event) => {
           : `/messages/${otherUserId}`
         : "/messages");
     event.waitUntil(
-      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          client.postMessage({
-            type: "OPEN_DIRECT_CHAT",
-            href: messagesPath,
-            otherUserId,
-            workspaceId,
-            conversationId: data.conversationId || null,
-          });
-        }
-        const targetUrl = new URL(messagesPath, self.location.origin).href;
-        if (clientList.length > 0 && "focus" in clientList[0]) {
-          return clientList[0].focus();
-        }
-        if (clients.openWindow) {
-          return clients.openWindow(targetUrl);
-        }
+      openOrNavigate(messagesPath, {
+        type: "OPEN_DIRECT_CHAT",
+        href: messagesPath,
+        otherUserId,
+        workspaceId,
+        conversationId: data.conversationId || null,
       }),
     );
     return;
   }
 
   // Handle low stock notification with quick update action
-  if (data && data.type === 'low_stock' && data.action === 'update_stock' && data.productId) {
+  if (data.type === "low_stock" && data.action === "update_stock" && data.productId) {
     event.waitUntil(
-      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-        // Send message to all clients to show stock update dialog
-        for (const client of clientList) {
-          client.postMessage({
-            type: 'SHOW_STOCK_UPDATE',
-            productId: data.productId,
-            productName: data.productName,
-            currentStock: data.currentStock,
-            minStock: data.minStock,
-          });
-        }
-        
-        // Focus or open a window
-        if (clientList.length > 0) {
-          return clientList[0].focus();
-        } else if (clients.openWindow) {
-          // Use current origin to support subdomains
-          const url = new URL('/products', self.location.origin);
-          return clients.openWindow(url);
-        }
-      })
+      openOrNavigate(data.route || "/products", {
+        type: "SHOW_STOCK_UPDATE",
+        productId: data.productId,
+        productName: data.productName,
+        currentStock: data.currentStock,
+        minStock: data.minStock,
+        route: data.route || "/products",
+      }),
     );
     return;
   }
-  
-  // Default behavior: navigate to route
-  if (data && data.route) {
+
+  // Default: soft-navigate to route/href on an existing tab
+  const route = data.route || data.href;
+  if (route) {
+    const normalized = route.startsWith("/") ? route : `/${route}`;
     event.waitUntil(
-      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-        // If a window is already open, focus it
-        for (const client of clientList) {
-          if (client.url.includes(data.route) && "focus" in client) {
-            return client.focus();
-          }
-        }
-        // Otherwise, open a new window
-        // ✅ Use current origin to support subdomains
-        if (clients.openWindow) {
-          const route = data.route.startsWith('/') ? data.route : `/${data.route}`;
-          const url = new URL(route, self.location.origin);
-          return clients.openWindow(url);
-        }
-      })
+      openOrNavigate(normalized, {
+        type: "NAVIGATE_TO_ROUTE",
+        href: normalized,
+        route: normalized,
+        workspaceId: data.workspaceId ? String(data.workspaceId) : "",
+        notificationType: data.type || null,
+      }),
     );
   }
 });

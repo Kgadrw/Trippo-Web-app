@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
@@ -8,6 +8,7 @@ import {
   type ChatIncomingPopupItem,
 } from "@/lib/chatIncomingPopupStore";
 import { cn } from "@/lib/utils";
+import { resolveAppRoute } from "@/lib/appRoutes";
 
 function PopupAvatar({ name, iconUrl }: { name: string; iconUrl?: string | null }) {
   const initials = name
@@ -110,7 +111,9 @@ export function ChatIncomingPopupHost() {
             item={item}
             onOpen={(popup) => {
               dismissChatIncomingPopup(popup.id);
-              navigate(popup.href);
+              startTransition(() => {
+                navigate(resolveAppRoute(popup.href));
+              });
             }}
           />
         </div>

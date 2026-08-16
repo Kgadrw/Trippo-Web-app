@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, startTransition } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceChatPanel } from "@/hooks/useWorkspaceChatPanel";
@@ -22,6 +22,15 @@ import {
   bumpMessagesUnread,
   refreshMessagesUnreadBadge,
 } from "@/lib/messagesUnreadEvents";
+import { resolveAppRoute } from "@/lib/appRoutes";
+
+export const TRIPPO_NAVIGATE_EVENT = "trippo-navigate";
+
+type TrippoNavigateDetail = {
+  href?: string;
+  route?: string;
+  workspaceId?: string;
+};
 
 function isOwnGroupMessage(message: WorkspaceChatMessage, currentUserId: string | null) {
   return Boolean(currentUserId && String(message.senderUserId) === currentUserId);
@@ -91,13 +100,14 @@ export function WorkspaceChatNotificationBridge() {
       if (!nextId) return;
       if (String(activeWorkspaceIdRef.current) === nextId) return;
       const match = workspacesRef.current.find((w) => String(w.id) === nextId);
-      if (match) switchToWorkspaceRef.current(match);
+      // Soft activate only — avoid full remount jam on notification clicks.
+      if (match) switchToWorkspaceRef.current(match, { remount: false });
     };
 
     const openHref = (href: string, options?: { workspaceId?: string }) => {
       clearUnread();
       refreshMessagesUnreadBadge();
-      const target = href || WORKSPACE_GROUP_CHAT_PATH;
+      const target = resolveAppRoute(href || WORKSPACE_GROUP_CHAT_PATH);
       const queryWs = (() => {
         try {
           return new URL(target, window.location.origin).searchParams.get("w") || "";
@@ -118,7 +128,9 @@ export function WorkspaceChatNotificationBridge() {
           clearDirectChatOsNotification(undefined, otherUserId);
         }
       }
-      navigate(target);
+      startTransition(() => {
+        navigate(target);
+      });
     };
 
     setWorkspaceChatNotificationClickHandler((href) => openHref(href));
@@ -148,14 +160,42 @@ export function WorkspaceChatNotificationBridge() {
                 : `/messages/${otherUserId}`
               : "/messages";
         openHref(href, { workspaceId: workspaceFromEvent || undefined });
+        return;
+      }
+      if (event.data?.type === "NAVIGATE_TO_ROUTE") {
+        const href =
+          (typeof event.data.href === "string" && event.data.href) ||
+          (typeof event.data.route === "string" && event.data.route) ||
+          "";
+        if (!href) return;
+        openHref(href, {
+          workspaceId: event.data.workspaceId ? String(event.data.workspaceId) : undefined,
+        });
+        return;
+      }
+      if (event.data?.type === "SHOW_STOCK_UPDATE") {
+        const href =
+          (typeof event.data.route === "string" && event.data.route) || "/products";
+        openHref(href);
       }
     };
 
+    const onTrippoNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<TrippoNavigateDetail>).detail || {};
+      const href = detail.href || detail.route || "";
+      if (!href) return;
+      openHref(href, {
+        workspaceId: detail.workspaceId ? String(detail.workspaceId) : undefined,
+      });
+    };
+
     navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
+    window.addEventListener(TRIPPO_NAVIGATE_EVENT, onTrippoNavigate);
 
     return () => {
       setWorkspaceChatNotificationClickHandler(null);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
+      window.removeEventListener(TRIPPO_NAVIGATE_EVENT, onTrippoNavigate);
     };
   }, [clearUnread, navigate, workspaceId]);
 

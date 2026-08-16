@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { Bell, ArrowLeft, CheckCheck, Package, AlertTriangle, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { resolveAppRoute } from "@/lib/appRoutes";
@@ -39,6 +39,14 @@ export function HeaderNotificationBell({
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedNotification, setSelectedNotification] = useState<StoredNotification | null>(null);
   const [stockUpdateDialogOpen, setStockUpdateDialogOpen] = useState(false);
+
+  const goTo = (href: string) => {
+    startTransition(() => {
+      navigate(resolveAppRoute(href));
+    });
+    setNotificationOpen(false);
+    setSelectedNotification(null);
+  };
 
   useEffect(() => {
     const loadNotifications = () => {
@@ -136,7 +144,7 @@ export function HeaderNotificationBell({
       if (!id) return;
       if (activeWorkspace && String(activeWorkspace.id) === String(id)) return;
       const match = workspaces.find((w) => String(w.id) === String(id));
-      if (match) switchToWorkspace(match);
+      if (match) switchToWorkspace(match, { remount: false });
     };
 
     // One-click open for chat + invites (no intermediate detail panel).
@@ -157,27 +165,21 @@ export function HeaderNotificationBell({
               ? `/messages/${otherUserId}?w=${encodeURIComponent(workspaceId)}`
               : `/messages/${otherUserId}`
             : "/messages");
-      navigate(resolveAppRoute(href));
-      setNotificationOpen(false);
-      setSelectedNotification(null);
+      goTo(href);
       return;
     }
 
     if (notification.type === "workspace_invite") {
       const href = route || (inviteToken ? `/workspace/invite/${inviteToken}` : "");
       if (href) {
-        navigate(resolveAppRoute(href));
-        setNotificationOpen(false);
-        setSelectedNotification(null);
+        goTo(href);
         return;
       }
     }
 
     if (route && notification.type !== "low_stock") {
       if (workspaceId) ensureWorkspace(workspaceId);
-      navigate(resolveAppRoute(route));
-      setNotificationOpen(false);
-      setSelectedNotification(null);
+      goTo(route);
       return;
     }
 
@@ -317,9 +319,7 @@ export function HeaderNotificationBell({
                       <div className="mt-4 border-t border-gray-200 pt-4">
                         <Button
                           onClick={() => {
-                            navigate(resolveAppRoute(selectedNotification.data.route));
-                            setNotificationOpen(false);
-                            setSelectedNotification(null);
+                            goTo(String(selectedNotification.data.route));
                           }}
                           className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400"
                         >

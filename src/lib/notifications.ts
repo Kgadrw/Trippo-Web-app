@@ -181,9 +181,18 @@ class NotificationService {
         notification.onclick = (event) => {
           event.preventDefault();
           window.focus();
-          if (data.data?.route) {
-            window.location.href = data.data.route;
+          const route = data.data?.route || data.data?.href;
+          if (route) {
+            window.dispatchEvent(
+              new CustomEvent("trippo-navigate", {
+                detail: {
+                  href: route,
+                  workspaceId: data.data?.workspaceId,
+                },
+              }),
+            );
           }
+          data.onClick?.();
           notification.close();
         };
 
@@ -240,6 +249,17 @@ class NotificationService {
         notification.onclick = (event) => {
           event.preventDefault();
           window.focus();
+          const route = data.data?.route || data.data?.href;
+          if (route) {
+            window.dispatchEvent(
+              new CustomEvent("trippo-navigate", {
+                detail: {
+                  href: route,
+                  workspaceId: data.data?.workspaceId,
+                },
+              }),
+            );
+          }
           data.onClick?.();
           notification.close();
         };
