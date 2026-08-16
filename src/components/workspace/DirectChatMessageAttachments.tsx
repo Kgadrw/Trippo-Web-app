@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink, FileText, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DirectChatAttachment } from "@/lib/workspaceDirectChatRealtime";
@@ -26,6 +26,7 @@ type DocumentPreviewState = {
   mode: "pdf" | "text" | "file";
   blobUrl?: string;
   textContent?: string;
+  error?: string;
 };
 
 type PreviewState = ImagePreviewState | DocumentPreviewState;
@@ -86,7 +87,10 @@ function ChatAttachmentImage({
     return (
       <button
         type="button"
-        onClick={() => void openChatAttachment(attachment.url, attachment.fileName, attachment.mimeType)}
+        onClick={(event) => {
+          event.stopPropagation();
+          void openChatAttachment(attachment.url, attachment.fileName, attachment.mimeType);
+        }}
         className={cn(
           "flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2 text-left text-xs underline",
           className,
@@ -100,7 +104,10 @@ function ChatAttachmentImage({
   return (
     <button
       type="button"
-      onClick={() => onOpenPreview(src, attachment)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpenPreview(src, attachment);
+      }}
       className="block max-w-full overflow-hidden rounded-lg text-left"
       aria-label={attachment.fileName}
     >
@@ -129,53 +136,95 @@ export function DirectChatMessageAttachments({
 }) {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [openingUrl, setOpeningUrl] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const ownedBlobUrlsRef = useRef<string[]>([]);
 
-  useEffect(() => {
-    return () => {
-      if (preview?.kind === "document" && preview.blobUrl?.startsWith("blob:")) {
-        URL.revokeObjectURL(preview.blobUrl);
+  const revokeOwnedBlobs = () => {
+    for (const url of ownedBlobUrlsRef.current) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore
       }
-    };
-  }, [preview]);
+    }
+    ownedBlobUrlsRef.current = [];
+  };
+
+  useEffect(() => () => revokeOwnedBlobs(), []);
+
+  const trackOwnedBlob = (url: string, sourceUrl: string) => {
+    // Only revoke URLs we created — never the attachment's own local preview URL.
+    if (url.startsWith("blob:") && url !== sourceUrl) {
+      ownedBlobUrlsRef.current.push(url);
+    }
+  };
 
   const closePreview = () => {
-    setPreview((current) => {
-      if (current?.kind === "document" && current.blobUrl?.startsWith("blob:")) {
-        URL.revokeObjectURL(current.blobUrl);
-      }
-      return null;
-    });
+    revokeOwnedBlobs();
+    setPreview(null);
+    setOpenError(null);
+  };
+
+  const handleOpenOrDownload = async (attachment: ChatAttachment) => {
+    setOpenError(null);
+    try {
+      await openChatAttachment(attachment.url, attachment.fileName, attachment.mimeType);
+    } catch (error) {
+      setOpenError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Couldn’t open or download this file.",
+      );
+    }
   };
 
   const handleOpenDocument = async (attachment: ChatAttachment) => {
     if (openingUrl) return;
-    setOpeningUrl(attachment.url);
+    const sourceUrl = attachment.url || "";
+    setOpeningUrl(sourceUrl || attachment.fileName);
 
     try {
+      if (!sourceUrl) {
+        setPreview({
+          kind: "document",
+          attachment,
+          mode: "file",
+          error: "This file is still uploading. Try again in a moment.",
+        });
+        return;
+      }
+
+      revokeOwnedBlobs();
+
       if (isChatPdfAttachment(attachment.mimeType, attachment.fileName)) {
         const blobUrl = await getChatAttachmentBlobUrl(
-          attachment.url,
+          sourceUrl,
           attachment.mimeType,
           attachment.fileName,
         );
+        trackOwnedBlob(blobUrl, sourceUrl);
         setPreview({ kind: "document", attachment, mode: "pdf", blobUrl });
         return;
       }
 
       if (isChatTextAttachment(attachment.mimeType, attachment.fileName)) {
         const [blobUrl, textContent] = await Promise.all([
-          getChatAttachmentBlobUrl(attachment.url, attachment.mimeType, attachment.fileName),
-          readChatAttachmentText(attachment.url, attachment.mimeType, attachment.fileName),
+          getChatAttachmentBlobUrl(sourceUrl, attachment.mimeType, attachment.fileName),
+          readChatAttachmentText(sourceUrl, attachment.mimeType, attachment.fileName),
         ]);
+        trackOwnedBlob(blobUrl, sourceUrl);
         setPreview({ kind: "document", attachment, mode: "text", blobUrl, textContent });
         return;
       }
 
-      // Office / other docs: preview sheet with open/download.
       setPreview({ kind: "document", attachment, mode: "file" });
     } catch {
-      // Soft fail — offer download sheet so messaging never hard-breaks.
-      setPreview({ kind: "document", attachment, mode: "file" });
+      setPreview({
+        kind: "document",
+        attachment,
+        mode: "file",
+        error: "Couldn’t load an in-app preview. You can still open or download the file.",
+      });
     } finally {
       setOpeningUrl(null);
     }
@@ -203,17 +252,22 @@ export function DirectChatMessageAttachments({
             />
           ) : (
             <button
-              key={attachment.url}
+              key={`${attachment.url}-${attachment.fileName}`}
               type="button"
-              disabled={openingUrl === attachment.url}
-              onClick={() => void handleOpenDocument(attachment)}
+              disabled={openingUrl === (attachment.url || attachment.fileName)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void handleOpenDocument(attachment);
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
               className={cn(
                 "flex max-w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs",
                 own ? "bg-white/15 hover:bg-white/20" : "bg-black/5 hover:bg-black/10",
-                openingUrl === attachment.url && "opacity-70",
+                openingUrl === (attachment.url || attachment.fileName) && "opacity-70",
               )}
             >
-              {openingUrl === attachment.url ? (
+              {openingUrl === (attachment.url || attachment.fileName) ? (
                 <Loader2 size={16} className="shrink-0 animate-spin" />
               ) : (
                 <FileText size={16} className="shrink-0" />
@@ -229,8 +283,9 @@ export function DirectChatMessageAttachments({
 
       <Dialog open={Boolean(preview)} onOpenChange={(open) => !open && closePreview()}>
         <DialogContent
+          overlayClassName="z-[220]"
           className={cn(
-            "z-[200] border-0 p-0 shadow-xl [&>button:last-child]:hidden",
+            "z-[221] border-0 p-0 shadow-xl [&>button:last-child]:hidden",
             preview?.kind === "document" && preview.mode === "pdf"
               ? "max-h-[92vh] max-w-[min(96vw,900px)] overflow-hidden bg-white"
               : preview?.kind === "document"
@@ -262,6 +317,12 @@ export function DirectChatMessageAttachments({
                       preview.attachment.url,
                       preview.attachment.fileName,
                       preview.attachment.mimeType,
+                    ).catch((error) =>
+                      setOpenError(
+                        error instanceof Error && error.message
+                          ? error.message
+                          : "Couldn’t open or download this file.",
+                      ),
                     )
                   }
                   className="rounded-full bg-white px-4 py-2 text-xs font-medium text-gray-900 shadow"
@@ -281,13 +342,7 @@ export function DirectChatMessageAttachments({
                 </DialogTitle>
                 <button
                   type="button"
-                  onClick={() =>
-                    void openChatAttachment(
-                      preview.attachment.url,
-                      preview.attachment.fileName,
-                      preview.attachment.mimeType,
-                    )
-                  }
+                  onClick={() => void handleOpenOrDownload(preview.attachment)}
                   className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100"
                 >
                   <ExternalLink size={12} />
@@ -304,11 +359,18 @@ export function DirectChatMessageAttachments({
               </div>
 
               {preview.mode === "pdf" && preview.blobUrl ? (
-                <iframe
+                <object
                   title={preview.attachment.fileName}
-                  src={preview.blobUrl}
+                  data={preview.blobUrl}
+                  type="application/pdf"
                   className="h-[min(78vh,720px)] w-full bg-gray-100"
-                />
+                >
+                  <iframe
+                    title={preview.attachment.fileName}
+                    src={preview.blobUrl}
+                    className="h-[min(78vh,720px)] w-full bg-gray-100"
+                  />
+                </object>
               ) : null}
 
               {preview.mode === "text" ? (
@@ -325,23 +387,25 @@ export function DirectChatMessageAttachments({
                   <div>
                     <p className="text-sm font-medium text-gray-900">{preview.attachment.fileName}</p>
                     <p className="mt-1 text-xs text-gray-500">
-                      In-app preview isn’t available for this file type. Open it to view or download.
+                      {preview.error ||
+                        "In-app preview isn’t available for this file type. Open it to view or download."}
                     </p>
+                    {openError ? (
+                      <p className="mt-2 text-xs text-red-600">{openError}</p>
+                    ) : null}
                   </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      void openChatAttachment(
-                        preview.attachment.url,
-                        preview.attachment.fileName,
-                        preview.attachment.mimeType,
-                      )
-                    }
+                    onClick={() => void handleOpenOrDownload(preview.attachment)}
                     className="rounded-full bg-sky-600 px-4 py-2 text-xs font-medium text-white hover:bg-sky-700"
                   >
                     Open / download
                   </button>
                 </div>
+              ) : null}
+
+              {preview.mode !== "file" && openError ? (
+                <p className="border-t border-gray-100 px-3 py-2 text-xs text-red-600">{openError}</p>
               ) : null}
             </div>
           ) : null}

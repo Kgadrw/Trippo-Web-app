@@ -1280,7 +1280,7 @@ export function WorkspaceGroupChatPane({
                   name={title}
                   profilePictureUrl={activeWorkspace.profilePictureUrl}
                   pictureRevision={activeWorkspace.profilePictureRevision}
-                  className="h-10 w-10 ring-2 ring-sky-300"
+                  className="h-10 w-10 border-2 border-sky-300"
                   fallbackClassName="bg-sky-400 text-xs font-bold text-white"
                 />
               </div>

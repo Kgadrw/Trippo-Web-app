@@ -1987,7 +1987,7 @@ export function MessagesPage() {
                 className="h-10 w-10"
                 fallbackClassName="bg-sky-400 text-xs font-bold text-white"
                 online={selectedPeerOnline}
-                avatarClassName="ring-2 ring-sky-300"
+                avatarClassName="border-2 border-sky-300"
                 ringClassName="ring-white"
               />
               <div className="min-w-0 flex-1">

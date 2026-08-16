@@ -343,6 +343,7 @@ export function openBlobAttachment(blob: Blob, fileName: string, mimeType?: stri
   if (canPreviewInline) {
     anchor.target = "_blank";
   } else {
+    // Office / binary docs: force a real download (popup-safe).
     anchor.download = fileName || "download";
   }
 
@@ -352,19 +353,53 @@ export function openBlobAttachment(blob: Blob, fileName: string, mimeType?: stri
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
+/**
+ * Open or download a chat attachment.
+ * Always prefers an authenticated blob + <a> click so popup blockers don't
+ * swallow `window.open` after the async token round-trip.
+ */
 export async function openChatAttachment(
   fileUrl: string,
   fileName: string,
   mimeType?: string,
 ): Promise<void> {
-  if (fileUrl.startsWith("blob:")) {
+  if (!fileUrl) {
+    throw new Error("File is not available yet");
+  }
+
+  try {
     const blob = await fetchChatAttachmentBlob(fileUrl, mimeType, fileName);
     openBlobAttachment(blob, fileName, mimeType || blob.type);
     return;
-  }
+  } catch (primaryError) {
+    if (fileUrl.startsWith("blob:") || fileUrl.startsWith("data:")) {
+      throw primaryError instanceof Error ? primaryError : new Error("Could not open file");
+    }
 
-  const viewUrl = await getAuthenticatedFileUrl(fileUrl);
-  window.open(viewUrl, "_blank", "noopener,noreferrer");
+    // Fallback: signed URL via <a> (still better than window.open after await).
+    try {
+      const viewUrl = await getAuthenticatedFileUrl(fileUrl);
+      const type = inferChatAttachmentMimeType(fileName, mimeType);
+      const canPreviewInline =
+        type.startsWith("image/") ||
+        type === "application/pdf" ||
+        type.startsWith("text/");
+      const anchor = document.createElement("a");
+      anchor.href = viewUrl;
+      anchor.rel = "noopener noreferrer";
+      if (canPreviewInline) {
+        anchor.target = "_blank";
+      } else {
+        anchor.download = fileName || "download";
+      }
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      return;
+    } catch {
+      throw primaryError instanceof Error ? primaryError : new Error("Could not open file");
+    }
+  }
 }
 
 /** @deprecated Use openChatAttachment */

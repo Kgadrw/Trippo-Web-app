@@ -8,7 +8,6 @@ import { HeaderNotificationBell } from "./HeaderNotificationBell";
 import { HeaderSettingsMenu, HeaderSettingsIconButton } from "./HeaderSettingsMenu";
 import { HeaderAccountAvatar } from "./HeaderAccountAvatar";
 import { WorkspaceHeaderMenu } from "@/components/workspace/WorkspaceHeaderMenu";
-import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemberAvatarStack";
 import { HeaderPlusIcon } from "./HeaderPlusIcon";
 import { HeaderWeather } from "./HeaderWeather";
 
@@ -32,8 +31,8 @@ export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderPr
   }, [location.pathname, subdomain]);
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-3 sm:px-4">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-1.5 px-2.5 sm:gap-2 sm:px-4">
+      <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1.5">
         <button
           type="button"
           onClick={onMenuOpen}
@@ -54,9 +53,8 @@ export function MobileHeader({ onMenuOpen, onNotificationClick }: MobileHeaderPr
         )}
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center justify-end gap-0.5">
-        <HeaderWeather compact className="mr-0.5" />
-        <WorkspaceMemberAvatarStack className="mr-0.5" />
+      <div className="ml-auto flex min-w-0 shrink items-center justify-end gap-0 overflow-hidden">
+        <HeaderWeather compact showTime={false} className="mr-0.5 hidden min-[380px]:flex" />
         <WorkspaceHeaderMenu className="border-0 bg-transparent hover:bg-white/60" />
         <HeaderNotificationBell
           onNotificationClick={onNotificationClick}

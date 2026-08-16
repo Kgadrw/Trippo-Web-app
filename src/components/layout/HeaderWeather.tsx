@@ -118,22 +118,29 @@ function resolveCoords(): Promise<{ lat: number; lon: number; place: string }> {
 type HeaderWeatherProps = {
   className?: string;
   compact?: boolean;
+  /** Live clock — hide on tight headers (e.g. mobile). */
+  showTime?: boolean;
 };
 
 /**
  * Live clock + today's weather for the header.
  * Weather uses Open-Meteo (no API key) and soft-fails if unavailable.
  */
-export function HeaderWeather({ className, compact = false }: HeaderWeatherProps) {
+export function HeaderWeather({
+  className,
+  compact = false,
+  showTime = true,
+}: HeaderWeatherProps) {
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<WeatherState | null>(() => readCache());
 
   useEffect(() => {
+    if (!showTime) return;
     const tick = () => setNow(new Date());
     tick();
     const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [showTime]);
 
   useEffect(() => {
     if (weather) return;
@@ -158,6 +165,8 @@ export function HeaderWeather({ className, compact = false }: HeaderWeatherProps
 
   const timeLabel = formatClock(now);
 
+  if (!showTime && !weather) return null;
+
   return (
     <div
       className={cn(
@@ -165,21 +174,37 @@ export function HeaderWeather({ className, compact = false }: HeaderWeatherProps
         compact ? "px-1" : "rounded-full px-2.5 py-1.5",
         className,
       )}
-      title={weather ? `${timeLabel} · ${weather.label} · ${weather.place}` : timeLabel}
+      title={
+        showTime
+          ? weather
+            ? `${timeLabel} · ${weather.label} · ${weather.place}`
+            : timeLabel
+          : weather
+            ? `${weather.label} · ${weather.place}`
+            : undefined
+      }
       aria-label={
-        weather
-          ? `Current time ${timeLabel}, weather ${weather.tempC} degrees, ${weather.label}`
-          : `Current time ${timeLabel}`
+        showTime
+          ? weather
+            ? `Current time ${timeLabel}, weather ${weather.tempC} degrees, ${weather.label}`
+            : `Current time ${timeLabel}`
+          : weather
+            ? `Weather ${weather.tempC} degrees, ${weather.label}`
+            : undefined
       }
     >
-      <span className={cn("tabular-nums font-medium", compact ? "text-xs" : "text-sm")}>
-        {timeLabel}
-      </span>
+      {showTime ? (
+        <span className={cn("tabular-nums font-medium", compact ? "text-xs" : "text-sm")}>
+          {timeLabel}
+        </span>
+      ) : null}
       {weather ? (
         <>
-          <span className="text-gray-300" aria-hidden>
-            ·
-          </span>
+          {showTime ? (
+            <span className="text-gray-300" aria-hidden>
+              ·
+            </span>
+          ) : null}
           <WeatherIcon
             code={weather.code}
             className={cn("shrink-0 text-amber-500", compact ? "h-4 w-4" : "h-[18px] w-[18px]")}

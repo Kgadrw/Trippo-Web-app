@@ -53,9 +53,8 @@ export function UserProfileAvatar({
   const canPreview = enablePreview && showImage && Boolean(imageSrc);
 
   const shellClass = cn(
-    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full",
-    ringClassName ? "h-full w-full border-0" : "h-10 w-10",
-    !ringClassName && className,
+    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full box-border",
+    ringClassName ? "h-full w-full border-0" : className || "h-10 w-10",
   );
 
   const avatarBody = (

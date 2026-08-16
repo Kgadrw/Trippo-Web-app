@@ -13,7 +13,7 @@ type PresenceAvatarProps = {
   online?: boolean;
   /** Timer badge when disappearing messages are on for this chat. */
   disappearing?: boolean;
-  /** Extra classes on the photo itself, e.g. a "ring-2 ring-sky-300" border. */
+  /** Extra classes on the photo shell (prefer border-* over ring-* so the outline hugs the circle). */
   avatarClassName?: string;
   /** CSS ring color for the online / disappearing badges. */
   ringClassName?: string;
@@ -29,12 +29,20 @@ export function PresenceAvatar({
   ...avatarProps
 }: PresenceAvatarProps) {
   return (
-    <div className={cn("relative shrink-0", className)}>
+    <div
+      className={cn(
+        "relative aspect-square shrink-0 self-center overflow-visible rounded-full",
+        className,
+      )}
+    >
       <UserProfileAvatar
         {...avatarProps}
         profilePictureUrl={avatarProps.profilePictureUrl || undefined}
         enablePreview={false}
-        className={cn("h-full w-full", avatarClassName)}
+        className={cn(
+          "box-border h-full w-full max-h-full max-w-full rounded-full",
+          avatarClassName,
+        )}
       />
       {online ? (
         <span

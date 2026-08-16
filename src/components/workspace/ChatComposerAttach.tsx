@@ -23,7 +23,8 @@ export function filesToPendingAttachments(files: File[]): PendingChatAttachment[
   return files.map((file) => ({
     id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
     file,
-    previewUrl: isChatImageAttachment(file.type, file.name) ? URL.createObjectURL(file) : null,
+    // Local object URL for every file so document preview works while uploading/sending.
+    previewUrl: URL.createObjectURL(file),
   }));
 }
 
@@ -63,15 +64,15 @@ export function ChatPendingAttachments({ items, onRemove, className }: ChatPendi
       )}
     >
       {items.map((item) => {
-        const isImage = Boolean(item.previewUrl);
+        const isImage = isChatImageAttachment(item.file.type, item.file.name);
         return (
           <div
             key={item.id}
             className="relative flex h-16 min-w-16 max-w-[10rem] shrink-0 items-stretch overflow-hidden rounded-lg bg-white ring-1 ring-black/10 sm:h-[4.5rem] sm:min-w-[4.5rem] sm:max-w-[11rem] sm:rounded-xl"
           >
-            {isImage ? (
+            {isImage && item.previewUrl ? (
               <img
-                src={item.previewUrl!}
+                src={item.previewUrl}
                 alt={item.file.name}
                 className="h-full w-16 object-cover sm:w-[4.5rem]"
               />
