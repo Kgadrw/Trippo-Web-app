@@ -23,6 +23,10 @@ function getInitials(name?: string): string {
   return trimmed.slice(0, 2).toUpperCase();
 }
 
+/**
+ * Workspace photo in a locked square circle so borders never stretch
+ * (same sizing model as PresenceAvatar / UserProfileAvatar).
+ */
 export function WorkspaceProfileAvatar({
   name,
   profilePictureUrl,
@@ -46,13 +50,14 @@ export function WorkspaceProfileAvatar({
 
   const showImage = Boolean(imageSrc) && !imgFailed;
 
-  const shellClass = cn(
-    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full box-border",
-    ringClassName ? "h-full w-full border-0" : className || "h-10 w-10",
-  );
-
-  const avatarNode = (
-    <div className={shellClass} aria-label={name || "Workspace"}>
+  const photo = (
+    <div
+      className={cn(
+        "profile-avatar relative aspect-square h-full w-full shrink-0 overflow-hidden rounded-full box-border",
+        ringClassName && "border-0",
+      )}
+      aria-label={name || "Workspace"}
+    >
       <span
         className={cn(
           "absolute inset-0 z-0 flex items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white",
@@ -83,15 +88,24 @@ export function WorkspaceProfileAvatar({
     return (
       <div
         className={cn(
-          "box-border shrink-0 overflow-hidden rounded-full p-[2px]",
+          "relative aspect-square shrink-0 self-center overflow-hidden rounded-full p-[2px] box-border",
           ringClassName,
-          className,
+          className || "h-10 w-10",
         )}
       >
-        {avatarNode}
+        {photo}
       </div>
     );
   }
 
-  return avatarNode;
+  return (
+    <div
+      className={cn(
+        "relative aspect-square shrink-0 self-center overflow-hidden rounded-full box-border",
+        className || "h-10 w-10",
+      )}
+    >
+      {photo}
+    </div>
+  );
 }

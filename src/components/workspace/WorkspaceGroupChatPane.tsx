@@ -1238,8 +1238,15 @@ export function WorkspaceGroupChatPane({
         className,
       )}
     >
-          {/* Header */}
-          <div className={cn("shrink-0", variant === "panel" ? "p-3" : "border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 lg:py-3")}>
+          {/* Header — stay pinned on mobile while the thread scrolls */}
+          <div
+            className={cn(
+              "z-20 shrink-0",
+              variant === "panel"
+                ? "p-3"
+                : "sticky top-0 border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 lg:static lg:py-3",
+            )}
+          >
             <div
               className={cn(
                 "flex items-center gap-2 sm:gap-3",
@@ -1256,15 +1263,13 @@ export function WorkspaceGroupChatPane({
                   <ChevronLeft size={26} strokeWidth={2.25} />
                 </button>
               ) : null}
-              <div className="relative shrink-0">
-                <WorkspaceProfileAvatar
-                  name={title}
-                  profilePictureUrl={activeWorkspace.profilePictureUrl}
-                  pictureRevision={activeWorkspace.profilePictureRevision}
-                  className="h-10 w-10 border-2 border-sky-300"
-                  fallbackClassName="bg-sky-400 text-xs font-bold text-white"
-                />
-              </div>
+              <WorkspaceProfileAvatar
+                name={title}
+                profilePictureUrl={activeWorkspace.profilePictureUrl}
+                pictureRevision={activeWorkspace.profilePictureRevision}
+                className="h-10 w-10 border-2 border-sky-300"
+                fallbackClassName="bg-sky-400 text-xs font-bold text-white"
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-bold leading-tight text-gray-900">{title}</p>
                 <WorkspaceActiveUsersRow users={activeUsers} />

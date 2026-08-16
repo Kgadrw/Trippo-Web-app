@@ -1952,7 +1952,7 @@ export function MessagesPage() {
           </div>
         ) : (
           <>
-            <div className="flex shrink-0 items-center gap-2 border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 lg:py-3">
+            <div className="sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 lg:static lg:py-3">
               <button
                 type="button"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sky-600 active:bg-sky-50 lg:hidden"
