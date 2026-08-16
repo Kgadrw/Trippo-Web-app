@@ -112,7 +112,7 @@ function formatPaymentMode(method: string | undefined, t: (key: string) => strin
 }
 
 const thClass =
-  "px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-gray-400 whitespace-nowrap bg-sidebar";
+  "px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap bg-sidebar";
 const tdClass = "px-3 py-2.5 text-sm text-gray-800 align-middle";
 
 export function IncomeTab() {

@@ -1878,6 +1878,10 @@ export interface Translations {
   projectSelectProject: string;
   projectContributionEmpty: string;
   projectTimeframe: string;
+  projectTaskCounts: string;
+  projectTaskStart: string;
+  projectTaskInProgressShort: string;
+  projectTaskAchieved: string;
   projectAllProjects: string;
   projectAllProjectsSubtitle: string;
   projectAdd: string;
@@ -2522,7 +2526,7 @@ export const translations: Record<Language, Partial<Translations>> = {
     helpApprovals:
       "Review expenses, bills, and payroll submitted by workspace members. Approve or reject before they affect reports and payments.",
     helpReports:
-      "Exportable reports for sales, finance, and inventory. Filter by day, week, month, or year and download PDF or Excel.",
+      "Submit and review daily or weekly team work reports — accomplishments, blockers, next steps, and admin review.",
     helpAutomations:
       "Schedule emails and reminders to customers — follow-ups, promotions, and recurring messages.",
     helpCalendar:

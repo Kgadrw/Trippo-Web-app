@@ -17,7 +17,7 @@ export function PageSearchBar({ className, inputClassName }: PageSearchBarProps)
     <div className={cn("relative w-full min-w-0", className)}>
       <Search
         size={16}
-        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
       />
       <Input
         value={query}

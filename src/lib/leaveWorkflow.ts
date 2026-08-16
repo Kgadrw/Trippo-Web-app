@@ -50,15 +50,15 @@ export function leaveStatusLabel(status: LeaveStatus | string | undefined) {
 export function leaveStatusClass(status: LeaveStatus | string | undefined) {
   switch (status) {
     case "approved":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/25 dark:text-emerald-200 dark:border-emerald-500/40";
     case "rejected":
-      return "bg-red-50 text-red-700 border-red-200";
+      return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/25 dark:text-red-200 dark:border-red-500/40";
     case "cancelled":
-      return "bg-gray-50 text-gray-600 border-gray-200";
+      return "bg-gray-50 text-gray-600 border-gray-200 dark:bg-white/10 dark:text-zinc-200 dark:border-transparent";
     case "changes_requested":
-      return "bg-orange-50 text-orange-700 border-orange-200";
+      return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/25 dark:text-orange-200 dark:border-orange-500/40";
     default:
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/25 dark:text-amber-200 dark:border-amber-500/40";
   }
 }
 

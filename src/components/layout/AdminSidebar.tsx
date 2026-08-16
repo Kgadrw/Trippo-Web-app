@@ -139,7 +139,7 @@ export function AdminSidebar({
     <aside
       className={cn(
         "hidden lg:flex fixed z-50 bg-sidebar text-sidebar-foreground transition-all duration-300 flex-col",
-        "left-0 top-0 h-screen border-r border-sidebar-border",
+        "left-0 top-0 h-screen border-r border-transparent",
         isExpanded ? "w-56" : "w-16",
       )}
       onMouseEnter={() => {
@@ -166,13 +166,13 @@ export function AdminSidebar({
         )}
       >
         {isExpanded && (
-          <span className="text-lg font-semibold text-gray-900 lowercase truncate">Admin</span>
+          <span className="text-lg font-semibold text-sidebar-foreground lowercase truncate">Admin</span>
         )}
         <div className="flex items-center gap-2">
           {onMobileToggle && (
             <button
               onClick={onMobileToggle}
-              className="p-2 hover:bg-sidebar-accent text-gray-600 hover:text-gray-900 transition-colors rounded lg:hidden"
+              className="p-2 hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground transition-colors rounded lg:hidden"
             >
               <Menu size={20} />
             </button>
@@ -180,7 +180,7 @@ export function AdminSidebar({
           <button
             onClick={onToggle}
             className={cn(
-              "p-2 hover:bg-sidebar-accent text-gray-600 hover:text-gray-900 transition-colors rounded",
+              "p-2 hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground transition-colors rounded",
               isMobile ? "block" : "hidden lg:block",
             )}
             title={
@@ -224,13 +224,13 @@ export function AdminSidebar({
               <item.icon
                 size={20}
                 strokeWidth={2.5}
-                className={isActive ? "text-white" : "text-gray-600"}
+                className={isActive ? "text-white" : "text-sidebar-foreground/80"}
               />
               {isExpanded && (
                 <span
                   className={cn(
                     "flex-1 text-left font-semibold",
-                    isActive ? "text-white" : "text-gray-600",
+                    isActive ? "text-white" : "text-sidebar-foreground/85",
                     isMobile ? "text-xs" : "text-sm",
                   )}
                 >
@@ -242,16 +242,16 @@ export function AdminSidebar({
         })}
       </nav>
 
-      <div className="p-2 border-t border-sidebar-border">
+      <div className="p-2 border-t border-transparent">
         <button
           onClick={() => setLogoutDialogOpen(true)}
           className={cn(
-            "sidebar-item w-full text-gray-700 hover:text-red-600 transition-colors",
+            "sidebar-item w-full text-sidebar-foreground/85 hover:text-red-500 transition-colors",
             !isExpanded && "justify-start px-2",
           )}
           title={!isExpanded ? "Logout" : undefined}
         >
-          <LogOut size={20} className="text-gray-600" />
+          <LogOut size={20} className="text-sidebar-foreground/80" />
           {isExpanded && (
             <span className={cn(isMobile ? "text-xs" : "text-sm", "text-left font-semibold")}>
               Logout

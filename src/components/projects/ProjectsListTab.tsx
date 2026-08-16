@@ -57,6 +57,40 @@ function leadName(project: ProjectRecord) {
   return "—";
 }
 
+function ProjectTaskCounts({
+  taskStatus,
+}: {
+  taskStatus?: { todo: number; in_progress: number; done: number };
+}) {
+  const { t } = useTranslation();
+  const counts = taskStatus || { todo: 0, in_progress: 0, done: 0 };
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span
+        className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-white/10 dark:text-zinc-200"
+        title={t("projectTaskStart")}
+      >
+        <span className="text-muted-foreground">{t("projectTaskStart")}</span>
+        {counts.todo}
+      </span>
+      <span
+        className="inline-flex items-center gap-1 rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-800 dark:bg-sky-500/25 dark:text-sky-200"
+        title={t("projectTaskInProgressShort")}
+      >
+        <span className="opacity-80">{t("projectTaskInProgressShort")}</span>
+        {counts.in_progress}
+      </span>
+      <span
+        className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-200"
+        title={t("projectTaskAchieved")}
+      >
+        <span className="opacity-80">{t("projectTaskAchieved")}</span>
+        {counts.done}
+      </span>
+    </div>
+  );
+}
+
 export function ProjectsListTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -248,13 +282,14 @@ export function ProjectsListTab() {
         ) : filtered.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">{t("projectEmpty")}</div>
         ) : (
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50/80">
                 <th className={FINANCE_TH_CLASS}>{t("projectName")}</th>
                 <th className={FINANCE_TH_CLASS}>{t("projectStatus")}</th>
                 <th className={FINANCE_TH_CLASS}>{t("projectLead")}</th>
                 <th className={FINANCE_TH_CLASS}>{t("projectTimeframe")}</th>
+                <th className={FINANCE_TH_CLASS}>{t("projectTaskCounts")}</th>
                 <th className={FINANCE_TH_CLASS} />
               </tr>
             </thead>
@@ -282,6 +317,9 @@ export function ProjectsListTab() {
                   <td className={FINANCE_TD_CLASS}>{leadName(project)}</td>
                   <td className={FINANCE_TD_CLASS}>
                     {formatProjectTimeframe(project.startDate, project.targetEndDate)}
+                  </td>
+                  <td className={FINANCE_TD_CLASS}>
+                    <ProjectTaskCounts taskStatus={project.taskStatus} />
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right")}>
                     <DropdownMenu>

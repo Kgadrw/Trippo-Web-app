@@ -1,8 +1,5 @@
 import {
   contributionLevelClass,
-  formatProjectTimeframe,
-  projectStatusClass,
-  projectStatusLabel,
   taskStatusLabel,
   type ProjectAchievementItem,
   type ProjectContributionDay,
@@ -26,6 +23,19 @@ import { Link } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { projectApi } from "@/lib/api";
 
+const CELL = 10;
+const GAP = 3;
+const WEEK_W = CELL + GAP;
+/** Mon / Wed / Fri labels for a Sunday-start week (GitHub layout). */
+const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
+
+function localDayKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function buildContributionWeeks(days: ProjectContributionDay[]) {
   if (!days.length) return [] as ProjectContributionDay[][];
 
@@ -44,7 +54,7 @@ function buildContributionWeeks(days: ProjectContributionDay[]) {
   let week: ProjectContributionDay[] = [];
 
   while (cursor <= end) {
-    const key = cursor.toISOString().slice(0, 10);
+    const key = localDayKey(cursor);
     week.push(
       byDate.get(key) || {
         date: key,
@@ -64,6 +74,26 @@ function buildContributionWeeks(days: ProjectContributionDay[]) {
   return weeks;
 }
 
+function formatGraphDate(iso: string) {
+  const date = new Date(`${iso}T12:00:00`);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function cellTitle(day: ProjectContributionDay) {
+  const when = formatGraphDate(day.date);
+  if (day.count <= 0 && day.level <= 0) return `No contributions on ${when}`;
+  const n = day.count || day.level;
+  const detail =
+    day.tasks > 0 || day.hours > 0
+      ? ` (${day.tasks} done${day.hours > 0 ? `, ${day.hours}h logged` : ""})`
+      : "";
+  return `${n} contribution${n === 1 ? "" : "s"} on ${when}${detail}`;
+}
+
 function ContributionGraph({
   days,
   emptyLabel,
@@ -74,71 +104,85 @@ function ContributionGraph({
   const weeks = useMemo(() => buildContributionWeeks(days), [days]);
   const monthLabels = useMemo(() => {
     const labels: Array<{ index: number; label: string }> = [];
-    let lastMonth = -1;
+    let lastLabeledWeek = -Infinity;
     weeks.forEach((week, index) => {
-      const mid = week[3] || week[0];
-      if (!mid) return;
-      const month = new Date(`${mid.date}T12:00:00`).getMonth();
-      if (month !== lastMonth) {
-        labels.push({
-          index,
-          label: new Date(`${mid.date}T12:00:00`).toLocaleDateString(undefined, { month: "short" }),
-        });
-        lastMonth = month;
-      }
+      const firstOfMonth = week.find((day) => {
+        const d = new Date(`${day.date}T12:00:00`);
+        return d.getDate() === 1;
+      });
+      if (!firstOfMonth) return;
+      // GitHub skips a month label when weeks are too close to overlap.
+      if (index - lastLabeledWeek < 2) return;
+      labels.push({
+        index,
+        label: new Date(`${firstOfMonth.date}T12:00:00`).toLocaleDateString(undefined, {
+          month: "short",
+        }),
+      });
+      lastLabeledWeek = index;
     });
     return labels;
   }, [weeks]);
 
-  const hasActivity = days.some((day) => day.level > 0);
-
-  if (!weeks.length || !hasActivity) {
-    return <p className="py-10 text-center text-sm text-gray-500">{emptyLabel}</p>;
+  if (!weeks.length) {
+    return <p className="py-10 text-center text-sm text-muted-foreground">{emptyLabel}</p>;
   }
+
+  const hasActivity = days.some((day) => day.level > 0);
 
   return (
     <div className="overflow-x-auto">
-      <div className="inline-block min-w-full">
-        <div className="mb-1 flex gap-[3px] pl-7">
+      <div className="inline-block min-w-max">
+        <div className="mb-1 flex" style={{ paddingLeft: 28 }}>
           {weeks.map((_, index) => {
             const label = monthLabels.find((row) => row.index === index);
             return (
-              <div key={`m-${index}`} className="w-[11px] text-[9px] text-gray-400">
+              <div
+                key={`m-${index}`}
+                className="text-[9px] leading-none text-muted-foreground"
+                style={{ width: WEEK_W }}
+              >
                 {label?.label || ""}
               </div>
             );
           })}
         </div>
-        <div className="flex gap-2">
-          <div className="flex flex-col justify-between py-[2px] text-[9px] leading-none text-gray-400">
-            <span>Mon</span>
-            <span>Wed</span>
-            <span>Fri</span>
+        <div className="flex gap-1">
+          <div className="flex flex-col" style={{ gap: GAP, width: 24 }}>
+            {WEEKDAY_LABELS.map((label, i) => (
+              <div
+                key={`d-${i}`}
+                className="text-[9px] leading-none text-muted-foreground"
+                style={{ height: CELL }}
+              >
+                {label}
+              </div>
+            ))}
           </div>
-          <div className="flex gap-[3px]">
+          <div className="flex" style={{ gap: GAP }}>
             {weeks.map((week, weekIndex) => (
-              <div key={`w-${weekIndex}`} className="flex flex-col gap-[3px]">
+              <div key={`w-${weekIndex}`} className="flex flex-col" style={{ gap: GAP }}>
                 {week.map((day) => (
                   <div
                     key={day.date}
-                    title={`${day.date}: ${day.hours}h logged, ${day.tasks} tasks done`}
-                    className={cn("h-[11px] w-[11px] rounded-[2px]", contributionLevelClass(day.level))}
+                    title={cellTitle(day)}
+                    className={contributionLevelClass(day.level)}
                   />
                 ))}
               </div>
             ))}
           </div>
         </div>
-        <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-gray-500">
+        <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
           <span>Less</span>
           {[0, 1, 2, 3, 4].map((level) => (
-            <span
-              key={level}
-              className={cn("inline-block h-[11px] w-[11px] rounded-[2px]", contributionLevelClass(level))}
-            />
+            <span key={level} className={contributionLevelClass(level)} />
           ))}
           <span>More</span>
         </div>
+        {!hasActivity ? (
+          <p className="mt-3 text-center text-sm text-muted-foreground">{emptyLabel}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -156,7 +200,8 @@ export function ProjectsOverviewTab() {
       const res = await projectApi.getSummary(projectId ? { projectId } : undefined);
       const data = (res.data as ProjectsSummary) || null;
       setSummary(data);
-      const nextId = data?.contributionGraph?.projectId || data?.workQueue?.[0]?._id || "";
+      const nextId =
+        data?.contributionGraph?.projectId || data?.projectOptions?.[0]?._id || "";
       setGraphProjectId((prev) => prev || nextId);
     } catch {
       setSummary(null);
@@ -174,20 +219,19 @@ export function ProjectsOverviewTab() {
     void loadSummary(projectId);
   };
 
-  const workQueue = summary?.workQueue || [];
   const contributionDays = summary?.contributionGraph?.days || [];
   const reminders = summary?.reminders || [];
   const achievements = summary?.achievements || [];
   const taskStatus = summary?.taskStatus || { todo: 0, in_progress: 0, done: 0 };
   const taskStatusTotal = taskStatus.todo + taskStatus.in_progress + taskStatus.done;
-  const graphOptions = useMemo(() => {
-    const fromApi = (summary?.projectOptions || []).map((row) => ({
-      id: row._id,
-      name: row.name,
-    }));
-    if (fromApi.length) return fromApi;
-    return workQueue.map((row) => ({ id: row._id, name: row.name }));
-  }, [summary, workQueue]);
+  const graphOptions = useMemo(
+    () =>
+      (summary?.projectOptions || []).map((row) => ({
+        id: row._id,
+        name: row.name,
+      })),
+    [summary],
+  );
 
   const selectedGraphProjectId = useMemo(() => {
     if (graphOptions.some((option) => option.id === graphProjectId)) {
@@ -198,7 +242,7 @@ export function ProjectsOverviewTab() {
 
   if (loading && !summary) {
     return (
-      <div className="flex items-center justify-center py-16 text-gray-500">
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
         {t("loading")}
       </div>
@@ -210,70 +254,20 @@ export function ProjectsOverviewTab() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-1.5">
-            <h2 className="text-lg font-semibold text-gray-900">{t("projectOverviewTitle")}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("projectOverviewTitle")}</h2>
             <HelpTip text={t("helpProjectOverview")} />
           </div>
-          <p className="text-sm text-gray-500">{t("projectOverviewSubtitle")}</p>
+          <p className="text-sm text-muted-foreground">{t("projectOverviewSubtitle")}</p>
         </div>
         <Button asChild size="sm">
           <Link to="/projects/all">{t("projectViewAll")}</Link>
         </Button>
       </div>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">{t("projectWorkQueueTitle")}</h3>
-            <p className="text-xs text-gray-500">{t("projectWorkQueueSubtitle")}</p>
-          </div>
-        </div>
-        {workQueue.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-500">{t("projectWorkQueueEmpty")}</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {workQueue.map((project) => (
-              <Link
-                key={project._id}
-                to={`/projects/${project._id}`}
-                className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 transition-colors hover:border-sky-300 hover:bg-sky-50/40"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-gray-900">{project.name}</p>
-                    {project.clientName ? (
-                      <p className="truncate text-xs text-gray-500">{project.clientName}</p>
-                    ) : null}
-                  </div>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
-                      projectStatusClass(project.status),
-                    )}
-                  >
-                    {projectStatusLabel(project.status, t)}
-                  </span>
-                </div>
-                <p className="mt-3 text-xs font-medium text-gray-700">
-                  {formatProjectTimeframe(project.startDate, project.targetEndDate)}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
-                  <span>
-                    {t("projectOpenTasksCount").replace("{count}", String(project.openTasks))}
-                  </span>
-                  {project.leadName ? (
-                    <span>{t("projectLeadLabel").replace("{name}", project.leadName)}</span>
-                  ) : null}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
       <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
-          <h3 className="text-sm font-semibold text-gray-900">{t("projectTaskStatusTitle")}</h3>
-          <p className="text-xs text-gray-500">{t("projectTaskStatusSubtitle")}</p>
+        <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
+          <h3 className="text-sm font-semibold text-foreground">{t("projectTaskStatusTitle")}</h3>
+          <p className="text-xs text-muted-foreground">{t("projectTaskStatusSubtitle")}</p>
           <div className="mt-4 space-y-3">
             {(["todo", "in_progress", "done"] as const).map((status) => {
               const count = taskStatus[status] || 0;
@@ -281,10 +275,10 @@ export function ProjectsOverviewTab() {
               return (
                 <div key={status}>
                   <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="text-gray-600">{taskStatusLabel(status, t)}</span>
-                    <span className="font-medium text-gray-900">{count}</span>
+                    <span className="text-muted-foreground">{taskStatusLabel(status, t)}</span>
+                    <span className="font-medium text-foreground">{count}</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
                     <div
                       className={cn(
                         "h-full rounded-full",
@@ -299,29 +293,38 @@ export function ProjectsOverviewTab() {
               );
             })}
             {taskStatusTotal === 0 ? (
-              <p className="py-4 text-center text-sm text-gray-500">{t("projectTaskStatusEmpty")}</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                {t("projectTaskStatusEmpty")}
+              </p>
             ) : null}
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+        <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
           <div className="mb-1 flex items-center gap-2">
-            <Bell className="h-4 w-4 text-amber-600" />
-            <h3 className="text-sm font-semibold text-gray-900">{t("projectRemindersTitle")}</h3>
+            <Bell className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+            <h3 className="text-sm font-semibold text-foreground">{t("projectRemindersTitle")}</h3>
           </div>
-          <p className="text-xs text-gray-500">{t("projectRemindersSubtitle")}</p>
+          <p className="text-xs text-muted-foreground">{t("projectRemindersSubtitle")}</p>
           {reminders.length === 0 ? (
-            <p className="mt-6 py-4 text-center text-sm text-gray-500">{t("projectRemindersEmpty")}</p>
+            <p className="mt-6 py-4 text-center text-sm text-muted-foreground">
+              {t("projectRemindersEmpty")}
+            </p>
           ) : (
             <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto">
               {reminders.map((item: ProjectReminderItem) => (
                 <li key={item.id}>
                   <Link
                     to={item.projectId ? `/projects/${item.projectId}` : "/projects"}
-                    className="block rounded-md border border-gray-100 px-3 py-2 hover:border-amber-200 hover:bg-amber-50/50"
+                    className={cn(
+                      "block rounded-md border px-3 py-2 transition-colors",
+                      "border-border bg-muted/40 text-foreground",
+                      "hover:border-amber-500/40 hover:bg-amber-500/10",
+                      "dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:hover:border-amber-400/40",
+                    )}
                   >
-                    <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-medium text-foreground">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
                       {item.type === "overdue_task"
                         ? t("projectReminderOverdueTask")
                         : item.type === "due_soon_task"
@@ -337,22 +340,28 @@ export function ProjectsOverviewTab() {
           )}
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+        <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
           <div className="mb-1 flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-emerald-600" />
-            <h3 className="text-sm font-semibold text-gray-900">{t("projectAchievementsTitle")}</h3>
+            <Trophy className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+            <h3 className="text-sm font-semibold text-foreground">{t("projectAchievementsTitle")}</h3>
           </div>
-          <p className="text-xs text-gray-500">{t("projectAchievementsSubtitle")}</p>
+          <p className="text-xs text-muted-foreground">{t("projectAchievementsSubtitle")}</p>
           {achievements.length === 0 ? (
-            <p className="mt-6 py-4 text-center text-sm text-gray-500">{t("projectAchievementsEmpty")}</p>
+            <p className="mt-6 py-4 text-center text-sm text-muted-foreground">
+              {t("projectAchievementsEmpty")}
+            </p>
           ) : (
             <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto">
               {achievements.map((item: ProjectAchievementItem) => (
                 <li
                   key={item.id}
-                  className="rounded-md border border-emerald-100 bg-emerald-50/40 px-3 py-2"
+                  className={cn(
+                    "rounded-md border px-3 py-2",
+                    "border-emerald-200/80 bg-emerald-50/60 text-foreground",
+                    "dark:border-emerald-500/30 dark:bg-emerald-500/15",
+                  )}
                 >
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-foreground">
                     {item.type === "tasks_completed_week"
                       ? t("projectAchievementTasksWeek").replace("{count}", String(item.count || 0))
                       : item.type === "milestones_completed_week"
@@ -370,7 +379,9 @@ export function ProjectsOverviewTab() {
                               .replace("{project}", item.projectName || "")}
                   </p>
                   {item.completedAt ? (
-                    <p className="text-xs text-gray-500">{formatFinanceTableDate(item.completedAt)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFinanceTableDate(item.completedAt)}
+                    </p>
                   ) : null}
                 </li>
               ))}
@@ -379,11 +390,11 @@ export function ProjectsOverviewTab() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">{t("projectContributionTitle")}</h3>
-            <p className="text-xs text-gray-500">{t("projectContributionSubtitle")}</p>
+            <h3 className="text-sm font-semibold text-foreground">{t("projectContributionTitle")}</h3>
+            <p className="text-xs text-muted-foreground">{t("projectContributionSubtitle")}</p>
           </div>
           {graphOptions.length > 0 ? (
             <Select value={selectedGraphProjectId} onValueChange={onSelectGraphProject}>
@@ -401,7 +412,7 @@ export function ProjectsOverviewTab() {
           ) : null}
         </div>
         {loading ? (
-          <div className="flex items-center justify-center py-10 text-gray-500">
+          <div className="flex items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {t("loading")}
           </div>

@@ -68,11 +68,32 @@ function isService(p: ProductEntry) {
 }
 
 function stockStatus(p: ProductEntry, t: (key: string) => string) {
-  if (isService(p)) return { label: p.category, tone: "text-gray-500 bg-gray-100" };
+  if (isService(p)) {
+    return {
+      label: p.category,
+      tone: "text-gray-600 bg-gray-100 dark:text-zinc-200 dark:bg-white/10",
+    };
+  }
   const min = p.minStock ?? 5;
-  if (p.stock === 0) return { label: t("outOfStock"), tone: "text-red-700 bg-red-100 border border-red-200" };
-  if (p.stock <= min) return { label: t("lowStock"), tone: "text-amber-700 bg-amber-100 border border-amber-200" };
-  return { label: t("inStock"), tone: "text-emerald-700 bg-emerald-50 border border-emerald-200" };
+  if (p.stock === 0) {
+    return {
+      label: t("outOfStock"),
+      tone:
+        "text-red-700 bg-red-100 border border-red-200 dark:text-red-200 dark:bg-red-500/25 dark:border-red-500/40",
+    };
+  }
+  if (p.stock <= min) {
+    return {
+      label: t("lowStock"),
+      tone:
+        "text-amber-700 bg-amber-100 border border-amber-200 dark:text-amber-200 dark:bg-amber-500/25 dark:border-amber-500/40",
+    };
+  }
+  return {
+    label: t("inStock"),
+    tone:
+      "text-emerald-700 bg-emerald-50 border border-emerald-200 dark:text-emerald-200 dark:bg-emerald-500/25 dark:border-emerald-500/40",
+  };
 }
 
 export function ProductsTab() {

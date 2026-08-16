@@ -14,6 +14,7 @@ import { WorkspaceMemberAvatarStack } from "@/components/workspace/WorkspaceMemb
 import { HeaderPlusIcon } from "./HeaderPlusIcon";
 import { HeaderWeather } from "./HeaderWeather";
 import { ChatEmojiText } from "@/components/workspace/ChatEmojiText";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type DesktopHeaderProps = {
   sidebarOpen: boolean;
@@ -141,20 +142,20 @@ export function DesktopHeader({
       <HeaderPlanBanner />
       <header
         className={cn(
-          "flex h-14 shrink-0 items-center gap-3 border-b border-sidebar-border bg-sidebar pl-2 pr-4",
+          "flex h-14 shrink-0 items-center gap-3 border-b border-transparent bg-sidebar pl-2 pr-4",
         )}
       >
         <div className="flex shrink-0 items-center gap-2.5">
           <button
             type="button"
             onClick={onSidebarToggle}
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            className="flex h-9 w-9 shrink-0 items-center justify-center text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
             aria-expanded={sidebarOpen}
           >
             <HamburgerIcon />
           </button>
-          <span className="truncate text-xl font-semibold lowercase text-gray-600">bookfy</span>
+          <span className="truncate text-xl font-semibold lowercase text-sidebar-foreground/90">bookfy</span>
         </div>
 
         <div className="flex min-w-0 flex-1 justify-center px-2">
@@ -165,6 +166,7 @@ export function DesktopHeader({
           <HeaderWeather className="mr-1 hidden md:flex" />
           <WorkspaceMemberAvatarStack className="mr-1 hidden sm:flex" />
           <WorkspaceHeaderMenu />
+          <ThemeToggle />
           <HeaderNotificationBell iconSize={18} />
 
           <HeaderSettingsIconButton

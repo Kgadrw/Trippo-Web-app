@@ -2,42 +2,53 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Apply saved theme before paint to avoid a light flash -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("profit-pilot-theme") || "system";
+          var isDark =
+            stored === "dark" ||
+            (stored === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (isDark) {
+            document.documentElement.classList.add("dark", "dark-mode");
+            document.documentElement.style.colorScheme = "dark";
+          }
+        } catch (e) {}
+      })();
+    </script>
     <!-- resizes-visual: Android Chrome shrinks visualViewport with the keyboard so chat composer stays above it -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual" />
     
     <!-- Primary Meta Tags -->
-    <title>Trippo - Free Business Management System | Inventory, Sales & Profit Tracking</title>
-    <meta name="title" content="Trippo - Free Business Management System | Inventory, Sales & Profit Tracking" />
-    <meta name="description" content="Trippo is a free, powerful business management system for local traders. Manage inventory, track sales, calculate profits, generate reports, and monitor stock levels. Works offline with automatic sync. Perfect for small businesses, retail stores, and traders." />
-    <meta name="keywords" content="business management, inventory management, stock management, sales tracking, profit calculator, business software, free business tools, retail management, small business software, inventory tracking, sales reports, business analytics, offline business app, PWA business app, stock control, product management, sales management, business dashboard, free inventory system, trader management" />
+    <title>Trippo | Inventory, Sales, Finance & Team Management for Businesses</title>
+    <meta name="title" content="Trippo | Inventory, Sales, Finance & Team Management for Businesses" />
+    <meta name="description" content="Trippo helps growing businesses manage inventory, record sales, track income and expenses, organize teams and projects, and stay on top of daily operations in one secure workspace." />
+    <meta name="keywords" content="business management software Rwanda, inventory management Rwanda, stock management, sales tracking, expense tracking, business finance software, team task management, project management, business operations platform, small business software, retail management, inventory and sales app, Trippo" />
     <meta name="author" content="Trippo" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow" />
     <meta name="language" content="English" />
-    <meta name="revisit-after" content="7 days" />
-    <meta name="rating" content="general" />
-    <meta name="distribution" content="global" />
-    <link rel="canonical" href="https://trippo.app/" />
+    <link rel="canonical" href="https://trippo.rw/" />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://trippo.app/" />
-    <meta property="og:title" content="Trippo - Free Business Management System | Inventory & Sales Tracking" />
-    <meta property="og:description" content="Free business management system for local traders. Manage inventory, track sales, calculate profits, and generate reports. Works offline with automatic sync." />
-    <meta property="og:image" content="https://trippo.app/logo.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Trippo Business Management System" />
+    <meta property="og:url" content="https://trippo.rw/" />
+    <meta property="og:title" content="Trippo | Run Every Part of Your Business, Better" />
+    <meta property="og:description" content="Manage stock, sales, finance, teams, projects, documents, and business operations from one practical workspace." />
+    <meta property="og:image" content="https://trippo.rw/logo.png" />
+    <meta property="og:image:alt" content="Trippo business management platform" />
     <meta property="og:site_name" content="Trippo" />
     <meta property="og:locale" content="en_US" />
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://trippo.app/" />
-    <meta name="twitter:title" content="Trippo - Free Business Management System" />
-    <meta name="twitter:description" content="Free business management system for local traders. Manage inventory, track sales, calculate profits, and generate reports." />
-    <meta name="twitter:image" content="https://trippo.app/logo.png" />
-    <meta name="twitter:image:alt" content="Trippo Business Management System" />
+    <meta name="twitter:url" content="https://trippo.rw/" />
+    <meta name="twitter:title" content="Trippo | Business Management That Keeps Work Moving" />
+    <meta name="twitter:description" content="A practical business workspace for inventory, sales, finance, teams, projects, and daily operations." />
+    <meta name="twitter:image" content="https://trippo.rw/logo.png" />
+    <meta name="twitter:image:alt" content="Trippo business management platform" />
     
     <!-- Application Meta Tags -->
     <meta name="application-name" content="Trippo" />
@@ -83,64 +94,45 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Trippo",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Web, iOS, Android",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "ratingCount": "150"
-      },
-      "description": "Free business management system for local traders. Manage inventory, track sales, calculate profits, and generate comprehensive reports. Works offline with automatic sync.",
-      "url": "https://trippo.app",
-      "screenshot": "https://trippo.app/dashboard.JPG",
-      "featureList": [
-        "Product inventory management",
-        "Sales tracking and recording",
-        "Real-time profit calculation",
-        "Comprehensive reports and analytics",
-        "Offline support with automatic sync",
-        "Stock level monitoring",
-        "Low stock alerts",
-        "Bulk product and sale entry",
-        "Multi-category product organization",
-        "Export reports (PDF, Excel)"
-      ],
-      "author": {
-        "@type": "Organization",
-        "name": "Trippo"
-      }
-    }
-    </script>
-    
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Trippo",
-      "url": "https://trippo.app",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://trippo.app/?s={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    }
-    </script>
-    
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Trippo",
-      "url": "https://trippo.app",
-      "logo": "https://trippo.app/logo.png",
-      "sameAs": []
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://trippo.rw/#organization",
+          "name": "Trippo",
+          "url": "https://trippo.rw/",
+          "logo": "https://trippo.rw/logo.png",
+          "sameAs": ["https://instagram.com/trippoltd"]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://trippo.rw/#website",
+          "name": "Trippo",
+          "url": "https://trippo.rw/",
+          "publisher": { "@id": "https://trippo.rw/#organization" },
+          "inLanguage": "en"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://trippo.rw/#software",
+          "name": "Trippo",
+          "url": "https://trippo.rw/",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Business Management Software",
+          "operatingSystem": "Web",
+          "browserRequirements": "Requires a modern web browser and internet connection.",
+          "description": "Trippo is an all-in-one business management platform for inventory, sales, finance, teams, projects, documents, reminders, and day-to-day operations.",
+          "featureList": [
+            "Inventory and stock control",
+            "Sales, income, expense, invoice, and payroll tracking",
+            "Team tasks, work reports, leave, and approvals",
+            "Project planning, milestones, time entries, and contribution activity",
+            "Business calendar, reminders, schedules, and announcements",
+            "Documents, assets, customer records, and business dashboards",
+            "Installable web app with offline-friendly workflows"
+          ],
+          "publisher": { "@id": "https://trippo.rw/#organization" }
+        }
+      ]
     }
     </script>
   </head>

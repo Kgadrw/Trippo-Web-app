@@ -40,14 +40,14 @@ export function ChatReplyQuote({
         "mb-1.5 w-full rounded-md border-l-[3px] px-2.5 py-1.5 text-left shadow-none transition-colors",
         own
           ? "border-white/50 bg-black/10 text-white/95 hover:bg-black/15"
-          : "border-sky-300 bg-black/[0.03] text-gray-700 hover:bg-black/[0.05]",
+          : "border-sky-300 bg-black/[0.03] text-gray-700 hover:bg-black/[0.05] dark:border-sky-400/50 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]",
         className,
       )}
     >
       <p
         className={cn(
           "truncate text-[11px] font-semibold",
-          own ? "text-white" : "text-sky-700",
+          own ? "text-white" : "text-sky-700 dark:text-sky-300",
         )}
       >
         {replyTo.senderName || "User"}
@@ -56,7 +56,7 @@ export function ChatReplyQuote({
         className={cn(
           "line-clamp-2 text-[11px] leading-snug",
           deleted && "italic opacity-80",
-          own ? "text-white/85" : "text-gray-600",
+          own ? "text-white/85" : "text-gray-600 dark:text-zinc-400",
         )}
       >
         {deleted ? preview : <ChatEmojiText text={preview} size={14} />}
@@ -84,19 +84,19 @@ export function ChatReplyComposerBar({
   const preview = deleted ? deletedLabel : (replyTo.body || "").trim() || "…";
 
   return (
-    <div className="mb-1.5 flex items-start justify-between gap-2 rounded-t-xl border-b border-sky-100/80 bg-sky-50/80 px-3 py-2 shadow-none">
-      <div className="min-w-0 border-l-[3px] border-sky-300 pl-2.5">
-        <p className="text-[11px] font-medium text-sky-700">
+    <div className="mb-1.5 flex items-start justify-between gap-2 rounded-t-xl border-b border-sky-100/80 bg-sky-50/80 px-3 py-2 shadow-none dark:border-sky-500/20 dark:bg-sky-500/15">
+      <div className="min-w-0 border-l-[3px] border-sky-300 pl-2.5 dark:border-sky-400">
+        <p className="text-[11px] font-medium text-sky-700 dark:text-sky-300">
           {title}{replyTo.senderName ? ` · ${replyTo.senderName}` : ""}
         </p>
-        <p className={cn("truncate text-xs text-gray-600", deleted && "italic")}>
+        <p className={cn("truncate text-xs text-gray-600 dark:text-zinc-300", deleted && "italic")}>
           {deleted ? preview : <ChatEmojiText text={preview} size={14} />}
         </p>
       </div>
       <button
         type="button"
         onClick={onCancel}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sky-600 hover:bg-sky-100 hover:text-sky-700"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sky-600 hover:bg-sky-100 hover:text-sky-700 dark:text-sky-300 dark:hover:bg-sky-500/20 dark:hover:text-sky-200"
         aria-label={cancelLabel}
         title={cancelLabel}
       >

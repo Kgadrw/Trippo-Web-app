@@ -1,7 +1,7 @@
 {
-  "name": "Trippo - Business Management System",
+  "name": "Trippo - Business Operations Platform",
   "short_name": "Trippo",
-  "description": "Manage your stock, track sales, calculate profits, and generate reports with Trippo - your complete business management solution",
+  "description": "Manage inventory, sales, finance, teams, projects, and daily business operations in one workspace.",
   "start_url": "/",
   "scope": "/",
   "id": "/",

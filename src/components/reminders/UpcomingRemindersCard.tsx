@@ -28,12 +28,27 @@ function formatWhen(at: string) {
 
 function kindMeta(kind: UpcomingReminderItem["kind"]) {
   if (kind === "meeting") {
-    return { label: "Meet", icon: CalendarClock, className: "bg-sky-50 text-sky-700 ring-sky-100" };
+    return {
+      label: "Meet",
+      icon: CalendarClock,
+      className:
+        "bg-sky-100 text-sky-800 ring-sky-200 dark:bg-sky-500/25 dark:text-sky-200 dark:ring-sky-500/40",
+    };
   }
   if (kind === "deadline") {
-    return { label: "Deadline", icon: CheckSquare, className: "bg-amber-50 text-amber-700 ring-amber-100" };
+    return {
+      label: "Deadline",
+      icon: CheckSquare,
+      className:
+        "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-500/25 dark:text-amber-200 dark:ring-amber-500/40",
+    };
   }
-  return { label: "Event", icon: Bell, className: "bg-violet-50 text-violet-700 ring-violet-100" };
+  return {
+    label: "Event",
+    icon: Bell,
+    className:
+      "bg-violet-100 text-violet-800 ring-violet-200 dark:bg-violet-500/25 dark:text-violet-200 dark:ring-violet-500/40",
+  };
 }
 
 export function UpcomingRemindersCard({
@@ -50,19 +65,32 @@ export function UpcomingRemindersCard({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border border-gray-200 bg-white p-4 shadow-sm", className)}>
+    <section
+      className={cn(
+        "rounded-xl border border-border bg-card p-4 shadow-sm",
+        className,
+      )}
+    >
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600 ring-1 ring-sky-100">
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-lg ring-1",
+            "bg-sky-100 text-sky-700 ring-sky-200",
+            "dark:bg-sky-500/25 dark:text-sky-200 dark:ring-sky-500/40",
+          )}
+        >
           <Bell size={16} />
         </span>
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-          {subtitle ? <p className="text-xs text-gray-500">{subtitle}</p> : null}
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
         </div>
       </div>
 
       {items.length === 0 ? (
-        <p className="rounded-lg bg-gray-50 px-3 py-6 text-center text-sm text-gray-500">{emptyText}</p>
+        <p className="rounded-lg bg-muted/50 px-3 py-6 text-center text-sm text-muted-foreground">
+          {emptyText}
+        </p>
       ) : (
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
@@ -72,7 +100,11 @@ export function UpcomingRemindersCard({
               <li key={item.id} className="min-w-0">
                 <Link
                   to={item.href}
-                  className="flex h-full items-start gap-3 rounded-lg border border-gray-100 px-3 py-2.5 transition-colors hover:border-sky-200 hover:bg-sky-50/60"
+                  className={cn(
+                    "flex h-full items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors",
+                    "border-border bg-muted/30 hover:border-sky-500/40 hover:bg-sky-500/10",
+                    "dark:bg-white/5 dark:hover:bg-sky-500/15",
+                  )}
                 >
                   <span
                     className={cn(
@@ -84,13 +116,15 @@ export function UpcomingRemindersCard({
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {meta.label}
                       </span>
-                      <span className="text-[11px] font-medium text-sky-600">{formatCountdown(item.at)}</span>
+                      <span className="text-[11px] font-medium text-sky-600 dark:text-sky-300">
+                        {formatCountdown(item.at)}
+                      </span>
                     </div>
-                    <p className="truncate text-sm font-medium text-gray-900">{item.title}</p>
-                    <p className="truncate text-xs text-gray-500">
+                    <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">
                       {formatWhen(item.at)}
                       {item.subtitle ? ` · ${item.subtitle}` : ""}
                     </p>

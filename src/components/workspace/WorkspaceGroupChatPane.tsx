@@ -1228,7 +1228,7 @@ export function WorkspaceGroupChatPane({
     <>
     <div
       className={cn(
-        "relative flex h-full min-h-0 flex-col bg-white",
+        "relative flex h-full min-h-0 flex-col bg-white dark:bg-[#0b0f14]",
         className,
       )}
     >
@@ -1238,19 +1238,20 @@ export function WorkspaceGroupChatPane({
               "z-20 shrink-0",
               variant === "panel"
                 ? "p-3"
-                : "sticky top-0 border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 lg:static lg:py-3",
+                : "sticky top-0 border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 lg:static lg:py-3 dark:border-white/10 dark:bg-[#11161d]/95",
             )}
           >
             <div
               className={cn(
                 "flex items-center gap-2 sm:gap-3",
-                variant === "panel" && "rounded-2xl border border-sky-200 bg-sky-100 px-3 py-3",
+                variant === "panel" &&
+                  "rounded-2xl border border-sky-200 bg-sky-100 px-3 py-3 dark:border-sky-500/30 dark:bg-sky-500/20",
               )}
             >
               {onBack ? (
                 <button
                   type="button"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sky-600 active:bg-sky-50 lg:hidden"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sky-600 active:bg-sky-50 dark:text-sky-300 dark:active:bg-white/10 lg:hidden"
                   onClick={onBack}
                   aria-label={t("chatBack")}
                 >
@@ -1261,11 +1262,11 @@ export function WorkspaceGroupChatPane({
                 name={title}
                 profilePictureUrl={activeWorkspace.profilePictureUrl}
                 pictureRevision={activeWorkspace.profilePictureRevision}
-                className="h-10 w-10 border-2 border-sky-300"
+                className="h-10 w-10 border-2 border-sky-300 dark:border-sky-500/50"
                 fallbackClassName="bg-sky-400 text-xs font-bold text-white"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-bold leading-tight text-gray-900">{title}</p>
+                <p className="truncate text-[15px] font-bold leading-tight text-gray-900 dark:text-zinc-50">{title}</p>
                 <WorkspaceActiveUsersRow users={activeUsers} />
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
@@ -1275,7 +1276,7 @@ export function WorkspaceGroupChatPane({
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-sky-200/70"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-sky-200/70 dark:text-zinc-300 dark:hover:bg-white/10"
                       aria-label="Chat options"
                     >
                       <MoreHorizontal size={18} />
@@ -1294,7 +1295,7 @@ export function WorkspaceGroupChatPane({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-sky-200/70"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-sky-200/70 dark:text-zinc-300 dark:hover:bg-white/10"
                     aria-label={t("workspaceChatClose")}
                   >
                     <X size={18} />
@@ -1306,13 +1307,13 @@ export function WorkspaceGroupChatPane({
 
             {/* Messages */}
             <div className="relative min-h-0 flex-1 overflow-hidden">
-              <div className="pointer-events-none absolute inset-0" aria-hidden>
+              <div className="pointer-events-none absolute inset-0 dark:bg-[#0b0f14]" aria-hidden>
                 <img
                   src={CHAT_BG_IMAGE}
                   alt=""
-                  className="h-full w-full object-cover object-center"
+                  className="h-full w-full object-cover object-center dark:hidden"
                 />
-                <div className="absolute inset-0 bg-white/96" />
+                <div className="absolute inset-0 bg-white/96 dark:hidden" />
               </div>
               <div
                     ref={listRef}
@@ -1341,7 +1342,7 @@ export function WorkspaceGroupChatPane({
                     />
                     <div className="max-w-[85%]">
                       <p className="mb-1 text-xs font-medium text-gray-500">{title}</p>
-                      <div className="rounded-[1.15rem] bg-[#F4F4F5] px-3 py-2 text-sm leading-snug text-gray-800">
+                      <div className="rounded-[1.15rem] bg-[#F4F4F5] px-3 py-2 text-sm leading-snug text-gray-800 dark:bg-[#1e2732] dark:text-zinc-100">
                         {t("workspaceChatEmpty")}
                       </div>
                     </div>
@@ -1465,11 +1466,11 @@ export function WorkspaceGroupChatPane({
                                   "rounded-[1.15rem] px-3 py-1.5 text-sm leading-snug",
                                   deleted
                                     ? own
-                                      ? "bg-gray-200 text-gray-500"
-                                      : "bg-[#F4F4F5] text-gray-400"
+                                      ? "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : "bg-[#F4F4F5] text-gray-400 dark:bg-[#1e2732] dark:text-zinc-500"
                                     : own
                                       ? "text-white"
-                                      : "bg-[#F4F4F5] text-gray-800",
+                                      : "bg-[#F4F4F5] text-gray-800 dark:bg-[#1e2732] dark:text-zinc-100",
                                 )}
                                 style={own && !deleted ? { backgroundColor: CHAT_PURPLE } : undefined}
                               >
@@ -1603,7 +1604,7 @@ export function WorkspaceGroupChatPane({
                   <button
                     type="button"
                     onClick={() => scrollToBottom("smooth")}
-                    className="flex items-center gap-1 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-sky-50"
+                    className="flex items-center gap-1 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-sky-50 dark:border-white/10 dark:bg-[#1a222d] dark:text-zinc-200 dark:hover:bg-white/10"
                   >
                     <ChevronDown size={14} />
                     New messages
@@ -1619,8 +1620,8 @@ export function WorkspaceGroupChatPane({
               data-chat-composer
               className={cn(
                 variant === "panel"
-                  ? "relative shrink-0 border-t-2 border-sky-300 bg-white px-4 py-3"
-                  : "pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-white via-white/95 to-transparent px-2 chat-composer-pad pt-6 max-lg:pt-4 lg:bg-[#f0f2f5] lg:bg-none lg:px-3 lg:pb-0 lg:pt-4",
+                  ? "relative shrink-0 border-t-2 border-sky-300 bg-white px-4 py-3 dark:border-sky-500/40 dark:bg-[#11161d]"
+                  : "pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-white via-white/95 to-transparent px-2 chat-composer-pad pt-6 max-lg:pt-4 lg:bg-[#f0f2f5] lg:bg-none lg:px-3 lg:pb-0 lg:pt-4 dark:from-[#0b0f14] dark:via-[#0b0f14]/95 dark:to-transparent dark:lg:bg-[#11161d]",
                 variant === "page" && voiceRecording && "z-30 overflow-visible pt-3 max-lg:pt-3",
               )}
             >
@@ -1639,15 +1640,17 @@ export function WorkspaceGroupChatPane({
               {editingMessageId && !voiceRecording ? (
                 <div
                   className={cn(
-                    "mb-1.5 flex items-center justify-between rounded-2xl px-3 py-2 text-sm text-gray-700",
-                    variant === "panel" ? "mb-2 rounded-xl bg-sky-50" : "bg-white/95",
+                    "mb-1.5 flex items-center justify-between rounded-2xl px-3 py-2 text-sm text-gray-700 dark:text-zinc-200",
+                    variant === "panel"
+                      ? "mb-2 rounded-xl bg-sky-50 dark:bg-sky-500/15"
+                      : "bg-white/95 dark:bg-[#1a222d]",
                   )}
                 >
                   <span>{t("directChatEditing")}</span>
                   <button
                     type="button"
                     onClick={cancelEdit}
-                    className="font-medium text-sky-600 hover:text-sky-700"
+                    className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-200"
                   >
                     {t("directChatCancelEdit")}
                   </button>
@@ -1673,7 +1676,7 @@ export function WorkspaceGroupChatPane({
                 />
               ) : null}
               {attachingFiles ? (
-                <div className="mb-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-500 ring-1 ring-black/5">
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-500 ring-1 ring-black/5 dark:bg-[#1a222d] dark:text-zinc-400 dark:ring-white/10">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
                   Preparing photo…
                 </div>
@@ -1682,12 +1685,12 @@ export function WorkspaceGroupChatPane({
                 className={cn(
                   "flex items-center gap-1.5 py-1 transition-colors",
                     variant === "panel"
-                      ? "border-2 border-sky-300 bg-sky-50/50 pl-2 pr-1 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100"
-                      : "rounded-lg border-0 bg-white px-2.5 py-1.5 shadow-none ring-1 ring-black/5 sm:gap-2 sm:px-3",
+                      ? "border-2 border-sky-300 bg-sky-50/50 pl-2 pr-1 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:focus-within:bg-[#1a222d] dark:focus-within:ring-sky-500/20"
+                      : "rounded-lg border-0 bg-white px-2.5 py-1.5 shadow-none ring-1 ring-black/5 sm:gap-2 sm:px-3 dark:bg-[#1a222d] dark:ring-white/10",
                     variant === "panel" && (inputExpanded ? "rounded-2xl" : "rounded-full"),
                     variant === "page" &&
                       voiceRecording &&
-                      "border-transparent bg-transparent p-0 shadow-none ring-0",
+                      "border-transparent bg-transparent p-0 shadow-none ring-0 dark:bg-transparent",
                   )}
                 >
                 {!voiceRecording ? (
@@ -1695,7 +1698,7 @@ export function WorkspaceGroupChatPane({
                     type="button"
                     onClick={() => setPollDialogOpen(true)}
                     disabled={sending || Boolean(editingMessageId)}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-sky-500/20 dark:hover:text-sky-300"
                     aria-label="Create poll"
                     title="Create poll"
                   >
@@ -1766,7 +1769,7 @@ export function WorkspaceGroupChatPane({
                   autoCapitalize="sentences"
                   spellCheck
                   className={cn(
-                    "w-full resize-none bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none",
+                    "w-full resize-none bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500",
                     variant === "panel"
                       ? "max-h-[100px] min-h-[2.5rem] py-2 text-sm"
                       : "max-h-[180px] min-h-[36px] py-2 text-[16px] leading-5 lg:text-[15px]",

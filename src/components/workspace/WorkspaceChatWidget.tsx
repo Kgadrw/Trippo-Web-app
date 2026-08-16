@@ -45,7 +45,7 @@ export function WorkspaceChatWidget({ topOffset = 56 }: { topOffset?: number }) 
     <>
       <aside
         className={cn(
-          "workspace-chat workspace-chat-panel fixed right-2 z-30 flex flex-col overflow-hidden rounded-xl border-2 border-sky-500 bg-white shadow-lg animate-in slide-in-from-right duration-300 max-lg:right-0 max-lg:max-w-sm max-lg:rounded-none sm:right-3",
+          "workspace-chat workspace-chat-panel fixed right-2 z-30 flex flex-col overflow-hidden rounded-xl border-2 border-sky-500 bg-white shadow-lg animate-in slide-in-from-right duration-300 max-lg:right-0 max-lg:max-w-sm max-lg:rounded-none sm:right-3 dark:border-sky-500/60 dark:bg-[#0b0f14]",
           !open && "pointer-events-none invisible",
         )}
         style={{

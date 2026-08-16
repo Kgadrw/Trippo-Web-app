@@ -854,11 +854,15 @@ const en: Partial<Translations> = {
   projectLeadLabel: "Lead: {name}",
   projectContributionTitle: "Team contribution graph",
   projectContributionSubtitle:
-    "Daily team activity for the selected project (hours logged + tasks completed).",
+    "Daily team activity for the selected project — starting work, in-progress moves, completions, and time logged.",
   projectSelectProject: "Select project",
   projectContributionEmpty:
-    "No contribution activity yet. Log time or complete tasks to fill the graph.",
+    "No contribution activity yet. Start or update project tasks to fill the graph.",
   projectTimeframe: "Timeframe",
+  projectTaskCounts: "Tasks",
+  projectTaskStart: "Start",
+  projectTaskInProgressShort: "In progress",
+  projectTaskAchieved: "Achieved",
   projectAllProjects: "All projects",
   projectAllProjectsSubtitle: "Map work from concept to completion.",
   projectAdd: "New project",

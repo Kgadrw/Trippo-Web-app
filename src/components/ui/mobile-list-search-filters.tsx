@@ -36,7 +36,7 @@ export function MobileListSearchFilters({
         <div className="relative flex-1">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10"
           />
           <Input
             placeholder={searchPlaceholder}

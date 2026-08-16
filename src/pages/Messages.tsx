@@ -1654,26 +1654,26 @@ export function MessagesPage() {
   const backSwipe = useChatBackSwipe(leaveConversation, showDirectChat || showGroupChat);
 
   return (
-    <div className="workspace-chat flex h-full min-h-0 flex-1 overflow-hidden bg-white">
+    <div className="workspace-chat flex h-full min-h-0 flex-1 overflow-hidden bg-white dark:bg-[#0b0f14]">
       {/* People list */}
       <aside
         className={cn(
-          "flex h-full min-h-0 w-full shrink-0 flex-col self-stretch border-r border-gray-200/80 bg-gray-50 lg:w-80",
+          "flex h-full min-h-0 w-full shrink-0 flex-col self-stretch border-r border-gray-200/80 bg-gray-50 lg:w-80 dark:border-white/10 dark:bg-[#11161d]",
           showThreadOnMobile && "hidden lg:flex",
         )}
       >
-        <div className="border-b border-gray-200/80 px-4 py-3 max-lg:pt-[max(0.75rem,env(safe-area-inset-top))] lg:py-4">
-          <h1 className="text-xl font-bold tracking-tight text-gray-900 lg:text-lg">
+        <div className="border-b border-gray-200/80 px-4 py-3 max-lg:pt-[max(0.75rem,env(safe-area-inset-top))] lg:py-4 dark:border-white/10">
+          <h1 className="text-xl font-bold tracking-tight text-gray-900 lg:text-lg dark:text-zinc-100">
             {t("directChatTitle")}
           </h1>
           <div className="relative mt-3">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-zinc-500" />
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t("directChatSearchPeople")}
-              className="w-full rounded-full border border-gray-200/80 bg-white py-2.5 pl-9 pr-3 text-[15px] text-gray-900 outline-none ring-sky-300 focus:ring-2 lg:py-2 lg:text-sm"
+              className="w-full rounded-full border border-gray-200/80 bg-white py-2.5 pl-9 pr-3 text-[15px] text-gray-900 outline-none ring-sky-300 focus:ring-2 lg:py-2 lg:text-sm dark:border-white/10 dark:bg-[#1a222d] dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:ring-sky-500/40"
             />
           </div>
           {activeNowPeers.length > 0 ? (
@@ -1745,8 +1745,8 @@ export function MessagesPage() {
                     className={cn(
                       "mx-2 my-0.5 flex w-[calc(100%-1rem)] items-center gap-3 px-3 py-3.5 text-left transition-colors max-lg:min-h-[4.25rem] rounded-xl",
                       showGroupChat
-                        ? "bg-sky-100 text-gray-900 hover:bg-sky-100"
-                        : "hover:bg-white/70 active:bg-white",
+                        ? "bg-sky-100 text-gray-900 hover:bg-sky-100 dark:bg-sky-500/25 dark:text-zinc-50 dark:hover:bg-sky-500/25"
+                        : "hover:bg-white/70 active:bg-white dark:hover:bg-white/5 dark:active:bg-white/10",
                     )}
                   >
                     <WorkspaceProfileAvatar
@@ -1758,14 +1758,14 @@ export function MessagesPage() {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-semibold text-gray-900">
+                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-zinc-100">
                           {activeWorkspace.name}
                         </p>
                         {groupPreview.at ? (
                           <span
                             className={cn(
                               "shrink-0 text-[10px]",
-                              showGroupChat ? "text-sky-700/70" : "text-gray-400",
+                              showGroupChat ? "text-sky-700/70 dark:text-sky-300/80" : "text-gray-400 dark:text-zinc-500",
                             )}
                           >
                             {formatThreadTime(groupPreview.at)}
@@ -1776,7 +1776,7 @@ export function MessagesPage() {
                         <p
                           className={cn(
                             "truncate text-xs",
-                            showGroupChat ? "text-sky-800/70" : "text-gray-500",
+                            showGroupChat ? "text-sky-800/70 dark:text-sky-200/80" : "text-gray-500 dark:text-zinc-400",
                           )}
                         >
                           {groupPreview.body
@@ -1838,9 +1838,9 @@ export function MessagesPage() {
                   className={cn(
                     "mx-2 my-0.5 flex w-[calc(100%-1rem)] items-center gap-3 px-3 py-3.5 text-left transition-colors max-lg:min-h-[4.25rem] rounded-xl",
                     active
-                      ? "bg-sky-100 text-gray-900 hover:bg-sky-100"
-                      : "hover:bg-white/70 active:bg-white",
-                    thread.unreadCount > 0 && !active && "bg-[#5B2EFF]/[0.04]",
+                      ? "bg-sky-100 text-gray-900 hover:bg-sky-100 dark:bg-sky-500/25 dark:text-zinc-50 dark:hover:bg-sky-500/25"
+                      : "hover:bg-white/70 active:bg-white dark:hover:bg-white/5 dark:active:bg-white/10",
+                    thread.unreadCount > 0 && !active && "bg-[#5B2EFF]/[0.04] dark:bg-[#5B2EFF]/15",
                   )}
                 >
                   <PresenceAvatar
@@ -1850,12 +1850,12 @@ export function MessagesPage() {
                     fallbackClassName="bg-sky-400 text-xs font-bold text-white"
                     online={isOnline(thread.otherUser.userId)}
                     disappearing={Number(thread.disappearingDurationSec) > 0}
-                    ringClassName={active ? "ring-sky-100" : "ring-gray-50"}
+                    ringClassName={active ? "ring-sky-100 dark:ring-sky-500/30" : "ring-gray-50 dark:ring-[#11161d]"}
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900">
+                      <p className="truncate text-sm font-semibold text-gray-900 dark:text-zinc-100">
                         {thread.otherUser.nickname ||
                           thread.otherUser.displayName ||
                           thread.otherUser.name}
@@ -1864,7 +1864,7 @@ export function MessagesPage() {
                           <p
                             className={cn(
                               "truncate text-[10px] font-medium",
-                              active ? "text-sky-700" : "text-sky-600",
+                              active ? "text-sky-700 dark:text-sky-300" : "text-sky-600 dark:text-sky-400",
                             )}
                           >
                             {thread.workspaceName}
@@ -1875,7 +1875,7 @@ export function MessagesPage() {
                         <span
                           className={cn(
                             "shrink-0 text-[10px]",
-                            active ? "text-sky-700/70" : "text-gray-400",
+                            active ? "text-sky-700/70 dark:text-sky-300/80" : "text-gray-400 dark:text-zinc-500",
                           )}
                         >
                           {formatThreadTime(thread.lastMessageAt)}
@@ -1887,10 +1887,10 @@ export function MessagesPage() {
                         className={cn(
                           "truncate text-xs",
                           active
-                            ? "text-sky-800/70"
+                            ? "text-sky-800/70 dark:text-sky-200/80"
                             : thread.unreadCount > 0
-                              ? "font-semibold text-gray-800"
-                              : "text-gray-500",
+                              ? "font-semibold text-gray-800 dark:text-zinc-100"
+                              : "text-gray-500 dark:text-zinc-400",
                         )}
                       >
                         {previewPrefix}
@@ -1918,7 +1918,7 @@ export function MessagesPage() {
       {/* Conversation */}
       <section
         className={cn(
-          "relative flex h-full min-h-0 min-w-0 flex-1 flex-col bg-white",
+          "relative flex h-full min-h-0 min-w-0 flex-1 flex-col bg-white dark:bg-[#0b0f14]",
           !showThreadOnMobile && "hidden lg:flex",
         )}
         onTouchStart={backSwipe.onTouchStart}
@@ -1932,9 +1932,9 @@ export function MessagesPage() {
             onBack={leaveConversation}
           />
         ) : !showDirectChat ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-gray-500">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-gray-500 dark:text-zinc-400">
             <img src="/chat.png" alt="" className="h-16 w-16 opacity-80" />
-            <p className="text-base font-medium text-gray-800">{t("directChatSelectPerson")}</p>
+            <p className="text-base font-medium text-gray-800 dark:text-zinc-100">{t("directChatSelectPerson")}</p>
             <p className="max-w-sm text-sm">{t("directChatSelectPersonHint")}</p>
             <button
               type="button"
@@ -1946,10 +1946,10 @@ export function MessagesPage() {
           </div>
         ) : (
           <>
-            <div className="sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 lg:static lg:py-3">
+            <div className="sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-sky-100 bg-white/95 px-2 py-2.5 backdrop-blur-sm max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 lg:static lg:py-3 dark:border-white/10 dark:bg-[#11161d]/95">
               <button
                 type="button"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sky-600 active:bg-sky-50 lg:hidden"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sky-600 active:bg-sky-50 dark:text-sky-300 dark:active:bg-white/10 lg:hidden"
                 onClick={leaveConversation}
                 aria-label={t("chatBack")}
               >
@@ -1961,11 +1961,11 @@ export function MessagesPage() {
                 className="h-10 w-10"
                 fallbackClassName="bg-sky-400 text-xs font-bold text-white"
                 online={selectedPeerOnline}
-                avatarClassName="border-2 border-sky-300"
-                ringClassName="ring-white"
+                avatarClassName="border-2 border-sky-300 dark:border-sky-500/50"
+                ringClassName="ring-white dark:ring-[#11161d]"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-semibold text-gray-900">
+                <p className="truncate text-[15px] font-semibold text-gray-900 dark:text-zinc-50">
                   {selectedThread.otherUser.nickname ||
                     selectedThread.otherUser.displayName ||
                     selectedThread.otherUser.name}
@@ -1973,7 +1973,9 @@ export function MessagesPage() {
                 <p
                   className={cn(
                     "truncate text-xs",
-                    selectedPeerOnline ? "font-medium text-emerald-600" : "text-gray-500",
+                    selectedPeerOnline
+                      ? "font-medium text-emerald-600 dark:text-emerald-400"
+                      : "text-gray-500 dark:text-zinc-400",
                   )}
                 >
                   {selectedPeerPresence}
@@ -1988,9 +1990,13 @@ export function MessagesPage() {
             </div>
 
             <div className="relative min-h-0 flex-1 overflow-hidden">
-              <div className="pointer-events-none absolute inset-0" aria-hidden>
-                <img src={CHAT_BG_IMAGE} alt="" className="h-full w-full object-cover object-center" />
-                <div className="absolute inset-0 bg-white/96" />
+              <div className="pointer-events-none absolute inset-0 dark:bg-[#0b0f14]" aria-hidden>
+                <img
+                  src={CHAT_BG_IMAGE}
+                  alt=""
+                  className="h-full w-full object-cover object-center dark:hidden"
+                />
+                <div className="absolute inset-0 bg-white/96 dark:hidden" />
               </div>
 
               <div
@@ -2031,13 +2037,13 @@ export function MessagesPage() {
                         >
                           {shouldShowDateDivider(messages, index) ? (
                             <div className="my-4 flex justify-center">
-                              <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-500">
+                              <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-500 dark:bg-[#1e2732] dark:text-zinc-300">
                                 {formatDateDivider(message.createdAt)}
                               </span>
                             </div>
                           ) : null}
                           <div className="my-4 flex justify-center">
-                            <span className="max-w-[min(100%,22rem)] rounded-full bg-white/90 px-3 py-1 text-center text-[11px] font-medium leading-snug text-gray-500">
+                            <span className="max-w-[min(100%,22rem)] rounded-full bg-white/90 px-3 py-1 text-center text-[11px] font-medium leading-snug text-gray-500 dark:bg-[#1e2732] dark:text-zinc-300">
                               {systemNotice}
                             </span>
                           </div>
@@ -2058,7 +2064,7 @@ export function MessagesPage() {
                       <div key={String(message._id)} data-chat-message-id={String(message._id)} className="rounded-xl transition-shadow">
                         {shouldShowDateDivider(messages, index) ? (
                           <div className="my-4 flex justify-center">
-                            <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-500">
+                            <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-500 dark:bg-[#1e2732] dark:text-zinc-300">
                               {formatDateDivider(message.createdAt)}
                             </span>
                           </div>
@@ -2142,11 +2148,11 @@ export function MessagesPage() {
                                 "rounded-[1.15rem] px-3 py-1.5 text-sm leading-snug shadow-none",
                               deleted
                                 ? own
-                                  ? "rounded-br-md bg-gray-200 text-gray-500"
-                                  : "rounded-bl-md bg-[#F4F4F5] text-gray-400"
+                                  ? "rounded-br-md bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-zinc-400"
+                                  : "rounded-bl-md bg-[#F4F4F5] text-gray-400 dark:bg-[#1e2732] dark:text-zinc-500"
                                 : own
                                   ? "rounded-br-md text-white"
-                                  : "rounded-bl-md bg-[#F4F4F5] text-gray-800",
+                                  : "rounded-bl-md bg-[#F4F4F5] text-gray-800 dark:bg-[#1e2732] dark:text-zinc-100",
                             )}
                             style={own && !deleted ? { backgroundColor: CHAT_PURPLE } : undefined}
                           >
@@ -2259,7 +2265,7 @@ export function MessagesPage() {
                 <button
                   type="button"
                   onClick={() => scrollToBottom("smooth")}
-                  className="absolute right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-none ring-1 ring-sky-100 lg:h-10 lg:w-10"
+                  className="absolute right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 shadow-none ring-1 ring-sky-100 lg:h-10 lg:w-10 dark:bg-[#1a222d] dark:text-zinc-200 dark:ring-white/10"
                   style={{ bottom: Math.max(composerPad - 8, 72) }}
                   aria-label={t("directChatScrollDown")}
                 >
@@ -2278,20 +2284,22 @@ export function MessagesPage() {
                 className={cn(
                   "pointer-events-none absolute inset-x-0 bottom-0 z-20",
                   "bg-gradient-to-t from-white via-white/95 to-transparent",
+                  "dark:from-[#0b0f14] dark:via-[#0b0f14]/95 dark:to-transparent",
                   "px-2 pt-6 max-lg:pt-4",
                   "chat-composer-pad",
                   "lg:bg-[#f0f2f5] lg:bg-none lg:px-3 lg:pb-0 lg:pt-4",
+                  "dark:lg:bg-[#11161d]",
                   voiceRecording && "z-30 overflow-visible pt-3 max-lg:pt-3",
                 )}
               >
                 <div className="pointer-events-auto w-full">
               {editingMessageId && !voiceRecording ? (
-                    <div className="mb-2 flex min-h-11 items-center justify-between rounded-2xl bg-white px-3 py-2 text-sm text-gray-700 ring-1 ring-black/5">
+                    <div className="mb-2 flex min-h-11 items-center justify-between rounded-2xl bg-white px-3 py-2 text-sm text-gray-700 ring-1 ring-black/5 dark:bg-[#1a222d] dark:text-zinc-200 dark:ring-white/10">
                   <span>{t("directChatEditing")}</span>
                   <button
                     type="button"
                     onClick={cancelEdit}
-                        className="min-h-9 px-2 font-medium text-sky-600 hover:text-sky-700"
+                        className="min-h-9 px-2 font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300 dark:hover:text-sky-200"
                   >
                     {t("directChatCancelEdit")}
                   </button>
@@ -2312,21 +2320,21 @@ export function MessagesPage() {
                     />
                   ) : null}
                   {attachingFiles ? (
-                    <div className="mb-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-500 ring-1 ring-black/5">
+                    <div className="mb-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-500 ring-1 ring-black/5 dark:bg-[#1a222d] dark:text-zinc-400 dark:ring-white/10">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
                       Preparing photo…
                     </div>
                   ) : null}
                   <div
                     className={cn(
-                      "flex items-center gap-1.5 rounded-lg border-0 bg-white px-2.5 py-1.5 shadow-none ring-1 ring-black/5 sm:gap-2 sm:px-3",
-                      voiceRecording && "border-transparent bg-transparent p-0 shadow-none ring-0",
+                      "flex items-center gap-1.5 rounded-lg border-0 bg-white px-2.5 py-1.5 shadow-none ring-1 ring-black/5 sm:gap-2 sm:px-3 dark:bg-[#1a222d] dark:ring-white/10",
+                      voiceRecording && "border-transparent bg-transparent p-0 shadow-none ring-0 dark:bg-transparent",
                     )}
                   >
                     {!voiceRecording ? (
                       <button
                         type="button"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-sky-500/20 dark:hover:text-sky-300"
                         onClick={() => setPollDialogOpen(true)}
                         disabled={sending || !conversationId || Boolean(editingMessageId)}
                         aria-label="Create poll"
@@ -2384,7 +2392,7 @@ export function MessagesPage() {
                             ? "Add a caption…"
                             : t("workspaceChatSend")
                         }
-                        className="max-h-[180px] min-h-[36px] w-full resize-none bg-transparent py-2 text-[16px] leading-5 outline-none placeholder:text-gray-400 lg:text-[15px]"
+                        className="max-h-[180px] min-h-[36px] w-full resize-none bg-transparent py-2 text-[16px] leading-5 text-gray-900 outline-none placeholder:text-gray-400 lg:text-[15px] dark:text-zinc-100 dark:placeholder:text-zinc-500"
                       />
                     ) : null}
                     {!voiceRecording ? (

@@ -144,7 +144,7 @@ export function AdminLayout({ children, title, activeSection, onSectionChange }:
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-white">
+    <div className="relative min-h-screen w-full bg-background text-foreground">
       <MobileFixedBackground />
       {/* Sidebar - Hidden on mobile, visible on desktop */}
       <div className="hidden lg:block">

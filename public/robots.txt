@@ -1,13 +1,23 @@
-# Robots.txt for Trippo Business Management System
-# Allow all search engines to crawl the site
+# Trippo public website
 
 User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /finance/
+Disallow: /reports/
+Disallow: /sales/
+Disallow: /products/
+Disallow: /documents/
+Disallow: /assets/
+Disallow: /approvals/
+Disallow: /calendar/
+Disallow: /team/
+Disallow: /hr/
+Disallow: /projects/
+Disallow: /settings/
+Disallow: /billing/
 
 # Sitemap location
-Sitemap: https://trippo.app/sitemap.xml
-
-# Crawl delay (optional, helps with server load)
-Crawl-delay: 1
+Sitemap: https://trippo.rw/sitemap.xml

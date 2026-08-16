@@ -18,8 +18,8 @@ import { openReceiptInNewTab } from "@/lib/financeUpload";
 import { DesktopDataTable, MobileDataList, MobileListCard } from "@/components/ui/mobile-list-card";
 
 export const FINANCE_TH_CLASS =
-  "px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-gray-400 whitespace-nowrap bg-sidebar";
-export const FINANCE_TD_CLASS = "px-3 py-2.5 text-sm text-gray-800 align-middle";
+  "px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap bg-sidebar";
+export const FINANCE_TD_CLASS = "px-3 py-2.5 text-sm text-foreground align-middle";
 
 /** Desktop table wrapper — scrolls only when needed on larger screens. */
 export function FinanceDesktopTable({

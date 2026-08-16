@@ -101,15 +101,15 @@ export function registryStatusLabel(status: string, t: (key: string) => string) 
 export function registryStatusClass(status: string) {
   switch (status) {
     case "active":
-      return "bg-emerald-100 text-emerald-800";
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-200";
     case "draft":
-      return "bg-slate-100 text-slate-700";
+      return "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-zinc-200";
     case "archived":
-      return "bg-amber-100 text-amber-800";
+      return "bg-amber-100 text-amber-800 dark:bg-amber-500/25 dark:text-amber-200";
     case "expired":
-      return "bg-red-100 text-red-800";
+      return "bg-red-100 text-red-800 dark:bg-red-500/25 dark:text-red-200";
     default:
-      return "bg-gray-100 text-gray-700";
+      return "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-zinc-200";
   }
 }
 

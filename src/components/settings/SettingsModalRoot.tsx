@@ -28,13 +28,13 @@ function SettingsNavItem({
       className={cn(
         "sidebar-item w-full",
         isActive && "sidebar-item-active",
-        danger && !isActive && "text-gray-700 hover:text-red-600",
+        danger && !isActive && "text-sidebar-foreground/85 hover:text-red-500",
       )}
     >
       <span
         className={cn(
           "flex-1 text-left text-sm font-semibold",
-          isActive && !danger ? "text-white" : "text-gray-600",
+          isActive && !danger ? "text-white" : "text-sidebar-foreground/85",
         )}
       >
         {label}
@@ -70,7 +70,7 @@ function SettingsNavList({
       </ScrollArea>
 
       {deletePanelItem ? (
-        <div className="shrink-0 border-t border-sidebar-border p-2">
+        <div className="shrink-0 border-t border-transparent p-2">
           <SettingsNavItem
             label={t(deletePanelItem.labelKey)}
             danger
@@ -145,9 +145,9 @@ export function SettingsModalRoot() {
             <X size={18} />
           </button>
 
-          <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-            <div className="flex shrink-0 items-center border-b border-sidebar-border px-3 py-4">
-              <h2 className="text-sm font-semibold text-gray-600">{t("settings")}</h2>
+          <aside className="flex h-full w-56 shrink-0 flex-col border-r border-transparent bg-sidebar text-sidebar-foreground">
+            <div className="flex shrink-0 items-center border-b border-transparent px-3 py-4">
+              <h2 className="text-sm font-semibold text-sidebar-foreground/90">{t("settings")}</h2>
             </div>
             <SettingsNavList activePanel={activePanel} openPanel={openPanel} />
           </aside>
@@ -215,19 +215,19 @@ export function SettingsModalRoot() {
         <div
           className={cn(
             "absolute top-0 right-0 flex h-full w-full flex-col bg-sidebar sm:w-52",
-            activePanel ? "hidden sm:flex" : "flex border-l border-sidebar-border",
+            activePanel ? "hidden sm:flex" : "flex border-l border-transparent",
           )}
           role="dialog"
           aria-modal="true"
           aria-label={t("settings")}
         >
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-3 py-4">
-            <h2 className="text-sm font-semibold text-gray-600">{t("settings")}</h2>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-transparent px-3 py-4">
+            <h2 className="text-sm font-semibold text-sidebar-foreground/90">{t("settings")}</h2>
             {!activePanel ? (
               <button
                 type="button"
                 onClick={closeSettings}
-                className="flex h-8 w-8 shrink-0 items-center justify-center text-gray-500 transition-colors hover:bg-gray-200/80 hover:text-gray-800"
+                className="flex h-8 w-8 shrink-0 items-center justify-center text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 aria-label="Close settings"
               >
                 <X size={18} />

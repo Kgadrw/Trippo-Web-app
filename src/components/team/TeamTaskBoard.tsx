@@ -13,13 +13,14 @@ import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { cn } from "@/lib/utils";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { taskId } from "@/lib/teamTaskRealtime";
+import { useTheme } from "@/hooks/useTheme";
 
 export const TEAM_TASK_SECTION_ORDER = ["todo", "in_progress", "done"] as const;
 export type TeamTaskSection = (typeof TEAM_TASK_SECTION_ORDER)[number];
 
 const TEAM_TASK_DND_MIME = "application/x-trippo-team-task";
 
-const ASSIGNEE_BORDER_COLORS = [
+const ASSIGNEE_COLORS_LIGHT = [
   "#bae6fd",
   "#a7f3d0",
   "#fde68a",
@@ -32,6 +33,22 @@ const ASSIGNEE_BORDER_COLORS = [
   "#a5f3fc",
   "#fecdd3",
   "#e9d5ff",
+] as const;
+
+/** Muted tinted fills that sit on dark surfaces (same hue order as light). */
+const ASSIGNEE_COLORS_DARK = [
+  "#1a3345",
+  "#1a3a30",
+  "#3a321c",
+  "#2c2742",
+  "#3a2434",
+  "#1a3836",
+  "#3a2c1e",
+  "#242748",
+  "#2a361c",
+  "#1a343c",
+  "#3a2428",
+  "#302848",
 ] as const;
 
 function hashString(input: string) {
@@ -68,8 +85,9 @@ export function canCurrentUserChangeTaskStatus(
   return assigneeKey(task) === currentTeamMemberId;
 }
 
-export function getAssigneeCardColor(key: string) {
-  return ASSIGNEE_BORDER_COLORS[hashString(key) % ASSIGNEE_BORDER_COLORS.length];
+export function getAssigneeCardColor(key: string, mode: "light" | "dark" = "light") {
+  const palette = mode === "dark" ? ASSIGNEE_COLORS_DARK : ASSIGNEE_COLORS_LIGHT;
+  return palette[hashString(key) % palette.length];
 }
 
 function linkedProjectName(task: TeamTaskRecord) {
@@ -124,7 +142,8 @@ function TaskBoardCard({
   const id = taskId(task);
   const currentStatus = task.status || "todo";
   const name = assigneeName(task);
-  const cardColor = getAssigneeCardColor(assigneeKey(task));
+  const { resolvedTheme } = useTheme();
+  const cardColor = getAssigneeCardColor(assigneeKey(task), resolvedTheme);
   const [isDragging, setIsDragging] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
 
@@ -153,7 +172,7 @@ function TaskBoardCard({
       }}
       onDragEnd={() => setIsDragging(false)}
       className={cn(
-        "rounded border p-3",
+        "task-assignee-card rounded border p-3",
         allowDrag && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}

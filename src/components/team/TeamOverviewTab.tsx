@@ -21,6 +21,7 @@ import { TEAM_TASK_EVENTS } from "@/lib/teamTaskRealtime";
 import { UpcomingRemindersCard } from "@/components/reminders/UpcomingRemindersCard";
 import type { UpcomingReminderItem } from "@/lib/workReminders";
 import { assigneeKey, getAssigneeCardColor } from "@/components/team/TeamTaskBoard";
+import { useTheme } from "@/hooks/useTheme";
 
 const COLUMN_LIMIT = 12;
 const RECENTLY_ADDED_MS = 7 * 24 * 60 * 60 * 1000;
@@ -74,6 +75,7 @@ type BoardColumn = {
 
 export function TeamOverviewTab() {
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [tasks, setTasks] = useState<TeamTaskRecord[]>([]);
   const [recentDoneTasks, setRecentDoneTasks] = useState<TeamTaskRecord[]>([]);
@@ -288,13 +290,13 @@ export function TeamOverviewTab() {
                   const due = formatShortDate(task.dueDate);
                   const completed = formatShortDate(task.completedAt);
                   const showRecentBadge = column.key === "todo" && isRecentlyAdded(task);
-                  const cardColor = getAssigneeCardColor(assigneeKey(task));
+                  const cardColor = getAssigneeCardColor(assigneeKey(task), resolvedTheme);
                   const isDone = column.key === "done";
 
                   return (
                     <li
                       key={task._id}
-                      className="rounded border p-3 shadow-none"
+                      className="task-assignee-card rounded border p-3 shadow-none"
                       style={{ borderColor: cardColor, backgroundColor: cardColor }}
                     >
                       <div className="flex items-start justify-between gap-2">

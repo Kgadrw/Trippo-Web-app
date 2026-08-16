@@ -165,9 +165,9 @@ const EMPTY_FORM: EventFormState = {
   customReminderOffsets: [],
 };
 
-const GRID_TABLE_CLASS = "grid grid-cols-7 border-l border-t border-gray-300 bg-white";
-const CELL_BORDER_CLASS = "box-border border-r border-b border-gray-300";
-const HEADER_CELL_CLASS = `${CELL_BORDER_CLASS} bg-gray-50 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500`;
+const GRID_TABLE_CLASS = "grid grid-cols-7 bg-white";
+const CELL_BORDER_CLASS = "box-border border-0";
+const HEADER_CELL_CLASS = `${CELL_BORDER_CLASS} bg-muted/60 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground`;
 
 const EMPTY_PLATFORM: PlatformRawData = {
   sales: [],
@@ -698,7 +698,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
     const event = item.calendarEvent;
 
     return (
-      <div key={item.id} className="border-b border-gray-300 py-4 last:border-b-0">
+      <div key={item.id} className="border-0 py-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium" style={{ color: item.color }}>
@@ -892,7 +892,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
         ))}
       </div>
       <div
-        className="mt-4 h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain border border-gray-300 pb-4"
+        className="mt-4 h-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-0 pb-4"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <div className="px-3">
@@ -1013,7 +1013,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
               {t("calViewYear")}
             </ToggleGroupItem>
           </ToggleGroup>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:border-l sm:border-gray-200 sm:pl-5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:pl-5">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger
               className={cn(
@@ -1103,7 +1103,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
         </div>
 
         {showSidePanel && (
-          <div className="flex min-h-0 flex-col overflow-hidden border-t border-gray-100 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <div className="flex min-h-0 flex-col overflow-hidden border-0 pt-4 lg:pl-6 lg:pt-0">
             <div className="mb-3 flex shrink-0 items-start justify-between gap-4 lg:mb-4">
               <div className="min-w-0 space-y-1.5">
                 <p className="text-xs uppercase tracking-wide text-gray-500">{t("calSelectedDay")}</p>

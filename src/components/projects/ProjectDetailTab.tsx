@@ -57,6 +57,7 @@ import {
 } from "@/components/team/TeamTaskBoard";
 import { taskId } from "@/lib/teamTaskRealtime";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
+import { useTheme } from "@/hooks/useTheme";
 
 type DetailTab = "milestones" | "tasks" | "team";
 
@@ -76,6 +77,7 @@ function milestoneIdOf(task: TeamTaskRecord) {
 export function ProjectDetailTab({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
   const { visibleMembers, overflowMembers } = useWorkspaceMemberAvatars();
   const [profile, setProfile] = useState<ProjectProfilePayload | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMemberRecord[]>([]);
@@ -638,11 +640,11 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {teamFromTasks.map((member) => {
-                const cardColor = getAssigneeCardColor(member.id);
+                const cardColor = getAssigneeCardColor(member.id, resolvedTheme);
                 return (
                   <section
                     key={member.id}
-                    className="rounded border p-3"
+                    className="task-assignee-card rounded border p-3"
                     style={{ borderColor: cardColor, backgroundColor: cardColor }}
                   >
                     <div className="flex items-start gap-2">

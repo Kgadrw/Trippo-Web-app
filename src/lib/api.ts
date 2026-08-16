@@ -34,6 +34,7 @@ export function getWebSocketBaseUrl(): string {
 export interface ApiResponse<T = any> {
   message?: string;
   data?: T;
+  meta?: Record<string, unknown>;
   error?: string;
   user?: T;
   isAdmin?: boolean;
@@ -1536,6 +1537,69 @@ export const leaveRequestApi = {
 
   async delete(id: string): Promise<ApiResponse> {
     return request(`/leave-requests/${id}`, { method: "DELETE" });
+  },
+};
+
+export const teamReportApi = {
+  async getAll(params?: {
+    status?: string;
+    reportType?: string;
+    mine?: boolean;
+  }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.reportType) queryParams.append("reportType", params.reportType);
+    if (params?.mine) queryParams.append("mine", "1");
+    const queryString = queryParams.toString();
+    const url = queryString ? `/team-reports?${queryString}` : "/team-reports";
+    return request(url, { method: "GET" });
+  },
+
+  async getSummary(): Promise<ApiResponse> {
+    return request("/team-reports/summary", { method: "GET" });
+  },
+
+  async create(data: Record<string, unknown>): Promise<ApiResponse> {
+    return request("/team-reports", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Record<string, unknown>): Promise<ApiResponse> {
+    return request(`/team-reports/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async review(id: string, data?: { reviewNote?: string }): Promise<ApiResponse> {
+    return request(`/team-reports/${id}/review`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  async reject(id: string, data?: { reviewNote?: string }): Promise<ApiResponse> {
+    return request(`/team-reports/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  async requestChanges(id: string, data: { note: string }): Promise<ApiResponse> {
+    return request(`/team-reports/${id}/request-changes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async resubmit(id: string): Promise<ApiResponse> {
+    return request(`/team-reports/${id}/resubmit`, { method: "POST" });
+  },
+
+  async delete(id: string): Promise<ApiResponse> {
+    return request(`/team-reports/${id}`, { method: "DELETE" });
   },
 };
 

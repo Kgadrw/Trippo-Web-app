@@ -267,10 +267,10 @@ function LowStockAlertList({
                   className={cn(
                     "whitespace-nowrap px-2 py-1 text-xs font-bold",
                     item.isOutOfStock
-                      ? "border border-red-300 bg-red-100 text-red-700"
+                      ? "border border-red-300 bg-red-100 text-red-700 dark:border-red-500/40 dark:bg-red-500/25 dark:text-red-200"
                       : item.isExpiringSoon
-                        ? "border border-orange-300 bg-orange-100 text-orange-700"
-                        : "bg-gray-100 text-gray-700",
+                        ? "border border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-500/40 dark:bg-orange-500/25 dark:text-orange-200"
+                        : "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-zinc-200",
                   )}
                 >
                   {item.isOutOfStock

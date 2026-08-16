@@ -944,11 +944,11 @@ const Schedules = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return "bg-green-100 text-green-700 border-green-300";
+        return "bg-green-100 text-green-700 border-green-300 dark:bg-emerald-500/25 dark:text-emerald-200 dark:border-emerald-500/40";
       case "cancelled":
-        return "bg-gray-100 text-gray-700 border-gray-300";
+        return "bg-gray-100 text-gray-700 border-gray-300 dark:bg-white/10 dark:text-zinc-200 dark:border-transparent";
       default:
-        return "bg-blue-100 text-blue-700 border-blue-300";
+        return "bg-blue-100 text-blue-700 border-blue-300 dark:bg-sky-500/25 dark:text-sky-200 dark:border-sky-500/40";
     }
   };
 

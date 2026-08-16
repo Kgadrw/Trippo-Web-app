@@ -181,7 +181,7 @@ function AppLayoutInner(_props?: AppLayoutProps) {
   return (
     <div
       className={cn(
-        "relative w-full bg-white",
+        "relative w-full bg-background text-foreground",
         mobileMessagesShell || isMessagesRoute
           ? "h-[100dvh] overflow-hidden"
           : "min-h-screen",

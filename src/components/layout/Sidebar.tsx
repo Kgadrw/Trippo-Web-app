@@ -245,7 +245,7 @@ export function Sidebar({
 
     const labelClass = cn(
       "flex-1 text-left text-sm font-semibold",
-      isActive ? "text-white" : "text-gray-600",
+      isActive ? "text-white" : "text-sidebar-foreground/85",
     );
 
     if (isExpandableItem) {
@@ -264,11 +264,11 @@ export function Sidebar({
             <span className={labelClass}>{item.label}</span>
             {sectionOpen ? (
               <FilledTriangleUp
-                className={cn("ml-auto", isActive ? "text-white" : "text-gray-600")}
+                className={cn("ml-auto", isActive ? "text-white" : "text-sidebar-foreground/70")}
               />
             ) : (
               <FilledTriangleDown
-                className={cn("ml-auto", isActive ? "text-white" : "text-gray-600")}
+                className={cn("ml-auto", isActive ? "text-white" : "text-sidebar-foreground/70")}
               />
             )}
           </button>
@@ -357,10 +357,10 @@ export function Sidebar({
   );
 
   const logoutButton = (
-    <div className="shrink-0 border-t border-sidebar-border p-2">
+    <div className="shrink-0 border-t border-transparent p-2">
       <button
         onClick={handleLogoutClick}
-        className="sidebar-item w-full text-gray-700 hover:text-red-600"
+        className="sidebar-item w-full text-sidebar-foreground/85 hover:text-red-500"
       >
         <span className="text-sm font-semibold">Log out</span>
       </button>
@@ -377,9 +377,9 @@ export function Sidebar({
             aria-label="Close menu"
             onClick={onMobileClose}
           />
-          <aside className="fixed left-0 top-0 z-50 flex h-full w-56 flex-col bg-sidebar shadow-xl lg:hidden">
-            <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4">
-              <span className="text-lg font-semibold lowercase text-gray-600">bookfy</span>
+          <aside className="fixed left-0 top-0 z-50 flex h-full w-56 flex-col bg-sidebar text-sidebar-foreground shadow-xl lg:hidden">
+            <div className="flex h-14 shrink-0 items-center border-b border-transparent px-4">
+              <span className="text-lg font-semibold lowercase text-sidebar-foreground/90">bookfy</span>
             </div>
             {navContent}
             {logoutButton}
@@ -390,7 +390,7 @@ export function Sidebar({
       {open ? (
         <aside
           className={cn(
-            "hidden lg:flex fixed z-30 bg-sidebar flex-col",
+            "hidden lg:flex fixed z-30 bg-sidebar text-sidebar-foreground flex-col",
             "left-0 w-52",
           )}
           style={{

@@ -136,6 +136,7 @@ import VerifyTicket from "./pages/VerifyTicket";
 import WorkspaceInviteAccept from "./pages/WorkspaceInviteAccept";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { WorkspaceActivityListener } from "@/components/workspace/WorkspaceActivityListener";
+import { SeoPageTitle } from "@/components/SeoPageTitle";
 
 const queryClient = new QueryClient();
 
@@ -457,9 +458,10 @@ const App = () => {
   <QueryClientProvider client={queryClient}>
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
     <TooltipProvider>
-      <Toaster />
       <BrowserRouter>
+        <SeoPageTitle />
         <ThemeProvider>
+          <Toaster />
           <LanguageProvider>
             <SettingsModalProvider>
             <PageSearchProvider>

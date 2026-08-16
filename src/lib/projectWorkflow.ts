@@ -24,6 +24,7 @@ export interface ProjectRecord {
   clientName?: string;
   createdAt?: string;
   updatedAt?: string;
+  taskStatus?: { todo: number; in_progress: number; done: number };
 }
 
 export interface ProjectMilestoneRecord {
@@ -261,17 +262,8 @@ export function formatProjectTimeframe(startDate?: string | null, targetEndDate?
   return "No timeframe set";
 }
 
+/** GitHub contribution palette (light + dark via CSS). */
 export function contributionLevelClass(level: number) {
-  switch (level) {
-    case 1:
-      return "bg-emerald-200";
-    case 2:
-      return "bg-emerald-400";
-    case 3:
-      return "bg-emerald-600";
-    case 4:
-      return "bg-emerald-800";
-    default:
-      return "bg-gray-100";
-  }
+  const clamped = Math.max(0, Math.min(4, Math.round(level))) as 0 | 1 | 2 | 3 | 4;
+  return `contribution-graph-cell contribution-level-${clamped}`;
 }

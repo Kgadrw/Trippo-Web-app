@@ -19,7 +19,7 @@ export function WorkspaceActiveUsersRow({ users }: WorkspaceActiveUsersRowProps)
 
   if (!users.length) {
     return (
-      <p className="mt-1 text-xs text-gray-500">{t("workspaceChatNoActiveUsers")}</p>
+      <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">{t("workspaceChatNoActiveUsers")}</p>
     );
   }
 
@@ -45,7 +45,7 @@ export function WorkspaceActiveUsersRow({ users }: WorkspaceActiveUsersRowProps)
               >
                 {/* Locked square circle — photo fills edge-to-edge; no button padding. */}
                 <div
-                  className="overflow-hidden rounded-full bg-sky-100 ring-2 ring-sky-100"
+                  className="overflow-hidden rounded-full bg-sky-100 ring-2 ring-sky-100 dark:bg-sky-500/20 dark:ring-[#11161d]"
                   style={{ width: AVATAR_PX, height: AVATAR_PX }}
                 >
                   <UserProfileAvatar
@@ -75,7 +75,7 @@ export function WorkspaceActiveUsersRow({ users }: WorkspaceActiveUsersRowProps)
         ))}
       </div>
       {overflowCount > 0 ? (
-        <span className="whitespace-nowrap text-[10px] text-gray-500">
+        <span className="whitespace-nowrap text-[10px] text-gray-500 dark:text-zinc-400">
           {t("workspaceMembersOthers").replace("{count}", String(overflowCount))}
         </span>
       ) : null}

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type ReportSection = "overview" | "sales" | "finance" | "inventory";
+export type ReportSection = "overview" | "sales" | "finance" | "inventory" | "team";
 
 type ReportSectionTabsProps = {
   value: ReportSection;
@@ -10,14 +10,16 @@ type ReportSectionTabsProps = {
     sales: string;
     finance: string;
     inventory: string;
+    team: string;
   };
 };
 
-const sections: ReportSection[] = ["overview", "sales", "finance", "inventory"];
+const sections: ReportSection[] = ["overview", "team", "sales", "finance", "inventory"];
 
 export function ReportSectionTabs({ value, onChange, labels }: ReportSectionTabsProps) {
   const labelMap: Record<ReportSection, string> = {
     overview: labels.overview,
+    team: labels.team,
     sales: labels.sales,
     finance: labels.finance,
     inventory: labels.inventory,
@@ -34,7 +36,7 @@ export function ReportSectionTabs({ value, onChange, labels }: ReportSectionTabs
             "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
             value === section
               ? "bg-primary text-white"
-              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           {labelMap[section]}

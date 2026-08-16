@@ -87,13 +87,21 @@ export function corporateFeedTypeLabel(feedType: CorporateFeedType, t: TFn) {
 }
 
 export function announcementPriorityClass(priority?: string) {
-  if (priority === "critical") return "bg-red-100 text-red-800";
-  if (priority === "high") return "bg-orange-100 text-orange-800";
-  return "bg-gray-100 text-gray-700";
+  if (priority === "critical") {
+    return "bg-red-100 text-red-800 dark:bg-red-500/25 dark:text-red-200";
+  }
+  if (priority === "high") {
+    return "bg-orange-100 text-orange-800 dark:bg-orange-500/25 dark:text-orange-200";
+  }
+  return "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-zinc-200";
 }
 
 export function announcementStatusClass(status?: string) {
-  if (status === "published") return "bg-emerald-100 text-emerald-800";
-  if (status === "archived") return "bg-gray-100 text-gray-600";
-  return "bg-amber-100 text-amber-800";
+  if (status === "published") {
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-200";
+  }
+  if (status === "archived") {
+    return "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-zinc-300";
+  }
+  return "bg-amber-100 text-amber-800 dark:bg-amber-500/25 dark:text-amber-200";
 }

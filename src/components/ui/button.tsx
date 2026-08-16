@@ -12,10 +12,16 @@ const buttonVariants = cva(
         default: "bg-sky-400 text-white hover:bg-sky-500 hover:text-white border border-sky-400",
         destructive: "bg-red-500 text-white hover:bg-red-600 border border-red-500",
         cancel: "bg-red-500 text-white hover:bg-red-600 border border-red-500",
-        outline: "border border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-900",
-        secondary: "bg-sky-100 text-sky-900 border border-sky-200 hover:bg-sky-200",
-        ghost: "text-sky-700 hover:bg-sky-50 hover:text-sky-800",
-        link: "text-sky-600 underline-offset-4 hover:underline",
+        outline:
+          "border border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-900 " +
+          "dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-100 dark:hover:bg-sky-500/30 dark:hover:text-white",
+        secondary:
+          "bg-sky-100 text-sky-900 border border-sky-200 hover:bg-sky-200 " +
+          "dark:bg-sky-500/20 dark:text-sky-100 dark:border-sky-500/30 dark:hover:bg-sky-500/30",
+        ghost:
+          "text-sky-700 hover:bg-sky-50 hover:text-sky-800 " +
+          "dark:text-sky-300 dark:hover:bg-sky-500/20 dark:hover:text-sky-100",
+        link: "text-sky-600 underline-offset-4 hover:underline dark:text-sky-300",
       },
       size: {
         default: "h-10 px-4 py-2",

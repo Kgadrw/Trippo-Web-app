@@ -417,8 +417,8 @@ export function PayrollTab() {
                       className={cn(
                         "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
                         entry.status === "pending"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-emerald-100 text-emerald-800",
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-500/25 dark:text-amber-200"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-200",
                       )}
                     >
                       {entry.status === "pending" ? t("pending") : t("paid")}
