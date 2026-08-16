@@ -34,6 +34,7 @@ const LONG_PRESS_MS = 420;
 const SWIPE_REPLY_THRESHOLD = 56;
 const SWIPE_MAX = 72;
 const MOVE_CANCEL_PX = 12;
+const SINGLE_CLICK_DELAY_MS = 260;
 
 function haptic(ms = 12) {
   try {
@@ -43,17 +44,27 @@ function haptic(ms = 12) {
   }
 }
 
+function isInteractiveTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "button, a, input, textarea, select, [role='button'], [data-no-bubble-gesture]",
+    ),
+  );
+}
+
 /**
- * WhatsApp/Telegram-style message interactions:
- * - swipe horizontally to reply (mobile) — locked to the bubble only
- * - long-press for action sheet (mobile)
- * - hover actions + double-click reply (desktop)
+ * Message interactions:
+ * - Desktop: single-click → react, double-click → reply
+ * - Mobile: tap → react, swipe → reply, long-press → edit/delete sheet
+ * - Right-click disabled everywhere
  */
 export function ChatInteractiveBubble({
   own = false,
   disabled = false,
   actions,
   onReply,
+  onReact,
   actionsTitle = "Message",
   children,
   className,
@@ -62,6 +73,7 @@ export function ChatInteractiveBubble({
   disabled?: boolean;
   actions: ChatBubbleAction[];
   onReply?: () => void;
+  onReact?: () => void;
   actionsTitle?: string;
   children: ReactNode;
   className?: string;
@@ -73,6 +85,7 @@ export function ChatInteractiveBubble({
 
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
+  const singleClickTimer = useRef<number | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const trackingSwipe = useRef(false);
   const replyArmedRef = useRef(false);
@@ -87,15 +100,29 @@ export function ChatInteractiveBubble({
     }
   }, []);
 
-  useEffect(() => () => clearLongPress(), [clearLongPress]);
+  const clearSingleClick = useCallback(() => {
+    if (singleClickTimer.current != null) {
+      window.clearTimeout(singleClickTimer.current);
+      singleClickTimer.current = null;
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearLongPress();
+      clearSingleClick();
+    },
+    [clearLongPress, clearSingleClick],
+  );
 
   const openActions = useCallback(() => {
     if (disabled || !actions.length) return;
     didLongPress.current = true;
     suppressClick.current = true;
+    clearSingleClick();
     haptic(18);
     setSheetOpen(true);
-  }, [actions.length, disabled]);
+  }, [actions.length, clearSingleClick, disabled]);
 
   // Non-passive listeners so we can preventDefault once a horizontal reply swipe locks —
   // stops the whole chat thread from rubber-banding sideways on mobile.
@@ -112,9 +139,11 @@ export function ChatInteractiveBubble({
       replyArmedRef.current = false;
       setReplyArmed(false);
       clearLongPress();
-      longPressTimer.current = window.setTimeout(() => {
-        openActions();
-      }, LONG_PRESS_MS);
+      if (actions.length) {
+        longPressTimer.current = window.setTimeout(() => {
+          openActions();
+        }, LONG_PRESS_MS);
+      }
     };
 
     const onTouchMove = (event: TouchEvent) => {
@@ -151,6 +180,7 @@ export function ChatInteractiveBubble({
       const shouldReply = replyArmedRef.current && onReply;
       if (shouldReply) {
         suppressClick.current = true;
+        clearSingleClick();
         haptic(14);
         onReply();
       }
@@ -177,10 +207,14 @@ export function ChatInteractiveBubble({
       el.removeEventListener("touchend", finishGesture);
       el.removeEventListener("touchcancel", finishGesture);
     };
-  }, [clearLongPress, disabled, onReply, openActions, own]);
+  }, [actions.length, clearLongPress, clearSingleClick, disabled, onReply, openActions, own]);
 
   const replyHintOpacity = Math.min(1, Math.abs(offsetX) / SWIPE_REPLY_THRESHOLD);
-  const showDesktopChrome = !disabled && (hovered || sheetOpen);
+  const showDesktopMenu =
+    !disabled &&
+    own &&
+    actions.some((action) => action.id !== "reply") &&
+    (hovered || sheetOpen);
 
   return (
     <>
@@ -193,64 +227,52 @@ export function ChatInteractiveBubble({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {!disabled && (onReply || (own && actions.length > 0)) ? (
+        {/* Own-message edit/delete only — reply is double-click / swipe */}
+        {!disabled && own && actions.some((action) => action.id !== "reply") ? (
           <div
             className={cn(
               "pointer-events-none absolute top-1/2 z-20 hidden -translate-y-1/2 items-center gap-0.5 lg:flex",
               own ? "right-full mr-1.5" : "left-full ml-1.5",
-              showDesktopChrome
+              showDesktopMenu
                 ? "pointer-events-auto opacity-100"
                 : "opacity-0 group-hover/bubble:pointer-events-auto group-hover/bubble:opacity-100",
               "transition-opacity duration-150",
             )}
           >
-            {onReply ? (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onReply();
-                }}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-600 shadow-none ring-1 ring-black/[0.04] hover:bg-sky-50 hover:text-sky-700"
-                aria-label="Reply"
-                title="Reply"
-              >
-                <Reply size={15} />
-              </button>
-            ) : null}
-            {own && actions.length > 0 ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-500 shadow-none ring-1 ring-black/[0.04] hover:bg-sky-50 hover:text-sky-700"
-                    aria-label={actionsTitle}
-                    title={actionsTitle}
-                  >
-                    <MoreVertical size={15} />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="min-w-[10rem] border-0 bg-white/95 text-gray-500 shadow-none"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-500 shadow-none ring-1 ring-black/[0.04] hover:bg-sky-50 hover:text-sky-700"
+                  aria-label={actionsTitle}
+                  title={actionsTitle}
+                  data-no-bubble-gesture
                 >
-                  {actions.map((action) => (
-                    <DropdownMenuItem
-                      key={action.id}
-                      disabled={action.disabled}
-                      className={cn(
-                        "font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700",
-                        action.destructive && "text-red-400 focus:text-red-500",
-                      )}
-                      onClick={action.onSelect}
-                    >
-                      {action.icon ? <span className="mr-2 inline-flex">{action.icon}</span> : null}
-                      {action.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
+                  <MoreVertical size={15} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="min-w-[10rem] border-0 bg-white/95 text-gray-500 shadow-none"
+              >
+                {actions
+                  .filter((action) => action.id !== "reply")
+                  .map((action) => (
+                  <DropdownMenuItem
+                    key={action.id}
+                    disabled={action.disabled}
+                    className={cn(
+                      "font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700",
+                      action.destructive && "text-red-400 focus:text-red-500",
+                    )}
+                    onClick={action.onSelect}
+                  >
+                    {action.icon ? <span className="mr-2 inline-flex">{action.icon}</span> : null}
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ) : null}
 
@@ -268,23 +290,52 @@ export function ChatInteractiveBubble({
 
           <div
             ref={surfaceRef}
-            className="relative z-10 touch-pan-y select-none lg:select-text"
+            className="relative z-10 cursor-pointer touch-pan-y select-none lg:select-text"
             style={{
               transform: offsetX ? `translateX(${offsetX}px)` : undefined,
               transition: trackingSwipe.current ? "none" : "transform 160ms ease-out",
               touchAction: "pan-y",
             }}
+            onContextMenu={(event) => {
+              // Disable right-click / long-press context menu on mobile & desktop
+              event.preventDefault();
+            }}
+            onClick={(event) => {
+              if (disabled) return;
+              if (suppressClick.current || didLongPress.current) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+              if (isInteractiveTarget(event.target)) return;
+
+              const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+
+              // Double-click reply (desktop): click detail === 2 arrives before dblclick in some browsers
+              if (isDesktop && event.detail >= 2) {
+                clearSingleClick();
+                return;
+              }
+
+              // Single click / tap → react (delay on desktop so double-click can cancel)
+              if (!onReact) return;
+              clearSingleClick();
+              if (!isDesktop) {
+                onReact();
+                return;
+              }
+              singleClickTimer.current = window.setTimeout(() => {
+                singleClickTimer.current = null;
+                onReact();
+              }, SINGLE_CLICK_DELAY_MS);
+            }}
             onDoubleClick={(event) => {
               if (disabled || !onReply) return;
               if (window.matchMedia("(max-width: 1023px)").matches) return;
+              if (isInteractiveTarget(event.target)) return;
               event.preventDefault();
+              clearSingleClick();
               onReply();
-            }}
-            onContextMenu={(event) => {
-              if (window.matchMedia("(max-width: 1023px)").matches) {
-                event.preventDefault();
-                openActions();
-              }
             }}
             onClickCapture={(event) => {
               if (suppressClick.current || didLongPress.current) {

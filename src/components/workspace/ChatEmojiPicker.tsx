@@ -23,6 +23,11 @@ type ChatEmojiPickerProps = {
   label?: string;
   className?: string;
   buttonClassName?: string;
+  /** Controlled open state (e.g. open from message single-click). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Hide the trigger button (picker still opens when controlled). */
+  hideTrigger?: boolean;
 };
 
 const EMOJI_PICKER_OVERRIDES = `
@@ -170,8 +175,16 @@ export function ChatEmojiPicker({
   label = "Emoji",
   className,
   buttonClassName,
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
 }: ChatEmojiPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    onOpenChange?.(next);
+    if (openProp === undefined) setUncontrolledOpen(next);
+  };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onSelect(emojiData.emoji);
@@ -217,10 +230,13 @@ export function ChatEmojiPicker({
           type="button"
           className={cn(
             "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-sky-100 hover:text-sky-700 active:bg-sky-100 lg:h-9 lg:w-9",
+            hideTrigger && "pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0",
             buttonClassName,
           )}
           aria-label={label}
           title={label}
+          tabIndex={hideTrigger ? -1 : undefined}
+          aria-hidden={hideTrigger || undefined}
         >
           <Smile size={18} />
         </button>

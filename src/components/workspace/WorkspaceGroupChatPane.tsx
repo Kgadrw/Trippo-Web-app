@@ -68,13 +68,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -454,6 +447,7 @@ export function WorkspaceGroupChatPane({
   const [pollDialogOpen, setPollDialogOpen] = useState(false);
   const [votingMessageId, setVotingMessageId] = useState<string | null>(null);
   const [reactingMessageId, setReactingMessageId] = useState<string | null>(null);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
   const [attachingFiles, setAttachingFiles] = useState(false);
 
@@ -1320,9 +1314,7 @@ export function WorkspaceGroupChatPane({
                 />
                 <div className="absolute inset-0 bg-white/96" />
               </div>
-              <ContextMenu>
-                <ContextMenuTrigger asChild>
-                  <div
+              <div
                     ref={listRef}
                     onScroll={handleListScroll}
                     className={cn(
@@ -1330,6 +1322,7 @@ export function WorkspaceGroupChatPane({
                       variant !== "page" && "pb-5",
                     )}
                     style={variant === "page" ? { paddingBottom: composerPad } : undefined}
+                    onContextMenu={(event) => event.preventDefault()}
                   >
               {loading && messages.length === 0 ? (
                 <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 text-gray-500">
@@ -1430,6 +1423,11 @@ export function WorkspaceGroupChatPane({
                               disabled={deleted}
                               actionsTitle={t("chatMessageActions")}
                               onReply={() => startReply(message)}
+                              onReact={
+                                deleted
+                                  ? undefined
+                                  : () => setReactionPickerMessageId(String(message._id))
+                              }
                               className="min-w-0 max-w-full ml-0 mr-0"
                               actions={[
                                 {
@@ -1538,6 +1536,10 @@ export function WorkspaceGroupChatPane({
                             {!deleted ? (
                               <ChatMessageAddReaction
                                 disabled={reactingMessageId === String(message._id)}
+                                open={reactionPickerMessageId === String(message._id)}
+                                onOpenChange={(open) =>
+                                  setReactionPickerMessageId(open ? String(message._id) : null)
+                                }
                                 onReact={(emoji) => void handleReact(String(message._id), emoji)}
                               />
                             ) : null}
@@ -1609,43 +1611,7 @@ export function WorkspaceGroupChatPane({
                 </div>
               ) : null}
                   </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="min-w-[11rem] rounded-xl border border-gray-600 bg-white/95 p-1.5 text-gray-500 shadow-none">
-                  <ContextMenuItem
-                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                    onSelect={() => setChatInfoOpen(true)}
-                  >
-                    Chat info
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                    onSelect={() => void loadMessages()}
-                  >
-                    Refresh messages
-                  </ContextMenuItem>
-                  <ContextMenuSeparator className="bg-gray-100" />
-                  <ContextMenuItem
-                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                    onSelect={() => {
-                      setMessages([]);
-                      setReplyTo(null);
-                      setEditingMessageId(null);
-                      toast({ title: "Chat cleared from this view" });
-                    }}
-                  >
-                    Clear chat
-                  </ContextMenuItem>
-                  {onClose ? (
-                    <ContextMenuItem
-                      className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                      onSelect={onClose}
-                    >
-                      Close chat
-                    </ContextMenuItem>
-                  ) : null}
-                </ContextMenuContent>
-              </ContextMenu>
-            </div>
+              </div>
 
             {/* Composer — sits above native soft keyboard via visualViewport shell */}
             <div

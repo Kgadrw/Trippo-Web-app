@@ -96,13 +96,6 @@ import {
   scheduleJumpToLatest,
   useStickChatListToBottom,
 } from "@/hooks/useStickChatListToBottom";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 
 const CHAT_PURPLE = "#5B2EFF";
 const CHAT_BG_IMAGE = "/mobile.jpg";
@@ -374,6 +367,7 @@ export function MessagesPage() {
   const [pollDialogOpen, setPollDialogOpen] = useState(false);
   const [votingMessageId, setVotingMessageId] = useState<string | null>(null);
   const [reactingMessageId, setReactingMessageId] = useState<string | null>(null);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [chatInfoOpen, setChatInfoOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingChatAttachment[]>([]);
   const [attachingFiles, setAttachingFiles] = useState(false);
@@ -1999,13 +1993,12 @@ export function MessagesPage() {
                 <div className="absolute inset-0 bg-white/96" />
               </div>
 
-              <ContextMenu>
-                <ContextMenuTrigger asChild>
-                  <div
+              <div
                     ref={listRef}
                     onScroll={handleListScroll}
                     className="relative z-10 h-full w-full overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-3 pt-4 scroll-smooth sm:px-4"
                     style={{ paddingBottom: composerPad }}
+                    onContextMenu={(event) => event.preventDefault()}
                   >
                 <DisappearingBanner
                   durationSec={disappearingDurationSec}
@@ -2107,6 +2100,11 @@ export function MessagesPage() {
                             disabled={deleted}
                             actionsTitle={t("chatMessageActions")}
                             onReply={() => startReply(message)}
+                            onReact={
+                              deleted
+                                ? undefined
+                                : () => setReactionPickerMessageId(String(message._id))
+                            }
                             className="min-w-0 max-w-full ml-0 mr-0"
                             actions={[
                               {
@@ -2229,6 +2227,10 @@ export function MessagesPage() {
                           {!deleted ? (
                             <ChatMessageAddReaction
                               disabled={reactingMessageId === String(message._id)}
+                              open={reactionPickerMessageId === String(message._id)}
+                              onOpenChange={(open) =>
+                                setReactionPickerMessageId(open ? String(message._id) : null)
+                              }
                               onReact={(emoji) => void handleReact(String(message._id), emoji)}
                             />
                           ) : null}
@@ -2252,44 +2254,7 @@ export function MessagesPage() {
                   </div>
                 ) : null}
                   </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="min-w-[11rem] rounded-xl border border-gray-600 bg-white/95 p-1.5 text-gray-500 shadow-none">
-                  <ContextMenuItem
-                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                    onSelect={() => setChatInfoOpen(true)}
-                  >
-                    Chat info
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                    onSelect={() => {
-                      if (conversationId && chatWorkspaceId) {
-                        void loadMessages(conversationId, chatWorkspaceId);
-                      }
-                    }}
-                  >
-                    Refresh messages
-                  </ContextMenuItem>
-                  <ContextMenuSeparator className="bg-gray-100" />
-                  <ContextMenuItem
-                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                    onSelect={() => {
-                      setMessages([]);
-                      setReplyTo(null);
-                      setEditingMessageId(null);
-                      toast({ title: "Chat cleared from this view" });
-                    }}
-                  >
-                    Clear chat
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    className="font-normal text-gray-500 focus:bg-sky-50 focus:text-gray-700"
-                    onSelect={leaveConversation}
-                  >
-                    Close chat
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                </div>
 
               {showScrollDown ? (
                 <button

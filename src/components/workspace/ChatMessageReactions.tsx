@@ -15,22 +15,27 @@ export function hasChatReactions(reactions?: ChatReaction[]) {
   return Boolean(reactions?.some((reaction) => reaction.emoji && reaction.userIds?.length));
 }
 
-/** Flat “add reaction” control — sits on the same line as the bubble.
- * Always hidden until the message is hovered (or the picker is open). */
+/** Reaction emoji control — hidden until message hover; can open from message click. */
 export function ChatMessageAddReaction({
   disabled = false,
   onReact,
   className,
+  open,
+  onOpenChange,
 }: {
   disabled?: boolean;
   onReact: (emoji: string) => void;
   className?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   if (disabled) return null;
   return (
     <ChatEmojiPicker
       label="Add reaction"
       onSelect={onReact}
+      open={open}
+      onOpenChange={onOpenChange}
       buttonClassName={cn(
         "mb-0 h-8 w-8 shrink-0 rounded-full border-0 bg-transparent p-0 text-gray-500 shadow-none",
         "h-8 w-8 transition-[opacity,color,background-color] duration-150",
