@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   WorkspaceContext,
   createFallbackWorkspaceValue,
@@ -41,29 +42,27 @@ function clearDataCaches() {
   window.dispatchEvent(new Event('force-refresh-data'));
 }
 
-/** Full reload after scope change so no page keeps the previous workspace in memory. */
-function hardRefreshAfterWorkspaceChange() {
+/**
+ * Soft workspace switch: clear scoped caches and let React remount page content.
+ * Avoids a full browser reload. Only falls back to location navigation for
+ * cross-subdomain dashboard URLs.
+ */
+function softRefreshAfterWorkspaceChange(navigate: ReturnType<typeof useNavigate>) {
   clearDataCaches();
   const home = getDashboardPath();
   if (home.startsWith('http://') || home.startsWith('https://')) {
-    window.location.replace(home);
+    window.location.assign(home);
     return;
   }
-  const path = home || '/';
-  if (
-    window.location.pathname === path &&
-    window.location.search === '' &&
-    window.location.hash === ''
-  ) {
-    window.location.reload();
-    return;
-  }
-  window.location.replace(path);
+  // Stay on the current route when possible; WorkspacePageGuard redirects if needed.
+  // Nudge React Router so listeners re-run even when path is unchanged.
+  navigate('.', { replace: true });
 }
 
 const WORKSPACE_LIST_MIN_REFRESH_MS = 30_000;
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<WorkspaceMode>(() => getStoredWorkspaceMode());
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => getStoredWorkspaceId());
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
@@ -115,7 +114,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const stillMember = list.some((w) => String(w.id) === String(activeWorkspaceId));
         if (!stillMember) {
           persistWorkspaceContext('personal', null);
-          hardRefreshAfterWorkspaceChange();
+          softRefreshAfterWorkspaceChange(navigate);
         }
       }
     } catch {
@@ -123,7 +122,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [mode, activeWorkspaceId]);
+  }, [mode, activeWorkspaceId, navigate]);
 
   useEffect(() => {
     void refreshWorkspaces();
@@ -187,14 +186,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const switchToPersonal = useCallback(() => {
     if (mode === 'personal' && !activeWorkspaceId) return;
     persistWorkspaceContext('personal', null);
-    hardRefreshAfterWorkspaceChange();
-  }, [mode, activeWorkspaceId]);
+    softRefreshAfterWorkspaceChange(navigate);
+  }, [mode, activeWorkspaceId, navigate]);
 
   const switchToWorkspace = useCallback((workspace: WorkspaceSummary) => {
     if (mode === 'workspace' && String(activeWorkspaceId) === String(workspace.id)) return;
     persistWorkspaceContext('workspace', workspace.id);
-    hardRefreshAfterWorkspaceChange();
-  }, [mode, activeWorkspaceId]);
+    softRefreshAfterWorkspaceChange(navigate);
+  }, [mode, activeWorkspaceId, navigate]);
 
   const createWorkspace = useCallback(async (name: string) => {
     const response = await workspaceApi.create({ name });

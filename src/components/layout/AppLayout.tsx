@@ -13,6 +13,7 @@ import { WorkspaceChatNotificationBridge } from "@/components/workspace/Workspac
 import { ChatIncomingPopupHost } from "@/components/workspace/ChatIncomingPopupHost";
 import { WorkspaceChatPanelProvider } from "@/hooks/useWorkspaceChatPanel";
 import { WorkspacePresenceProvider } from "@/hooks/useWorkspacePresence";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 interface AppLayoutProps {
   title?: string;
@@ -30,6 +31,8 @@ export function AppLayout(_props?: AppLayoutProps) {
 
 function AppLayoutInner(_props?: AppLayoutProps) {
   const location = useLocation();
+  const { mode, activeWorkspace } = useWorkspace();
+  const workspaceContentKey = `${mode}:${activeWorkspace?.id || "personal"}`;
   const { loading: subLoading, isLocked } = useSubscriptionAccess();
   const isBillingRoute = location.pathname.startsWith("/billing");
   const isMessagesRoute = location.pathname.startsWith("/messages");
@@ -301,7 +304,11 @@ function AppLayoutInner(_props?: AppLayoutProps) {
             <Navigate to="/billing" replace />
           ) : null}
           <WorkspacePageGuard>
-            <div className={cn(isMessagesRoute && "flex h-full min-h-0 flex-1 flex-col")}>
+            {/* Remount page content on workspace switch without a full browser reload. */}
+            <div
+              key={workspaceContentKey}
+              className={cn(isMessagesRoute && "flex h-full min-h-0 flex-1 flex-col")}
+            >
               <Outlet />
             </div>
           </WorkspacePageGuard>
