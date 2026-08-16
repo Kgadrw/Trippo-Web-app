@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   projectApi,
   teamMemberApi,
@@ -154,7 +154,11 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [tasks, setTasks] = useState<TeamTaskRecord[]>([]);
   const [members, setMembers] = useState<TeamMemberRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const membersLoadedRef = useRef(false);
+  const projectsLoadedRef = useRef(false);
+  const hasLoadedTasksOnceRef = useRef(false);
 
   const [open, setOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
@@ -199,37 +203,66 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     return mine?._id || null;
   }, [members]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadTasks = useCallback(async () => {
+    if (hasLoadedTasksOnceRef.current) setRefreshing(true);
+    else setInitialLoading(true);
+
     try {
-      const [tasksRes, membersRes] = await Promise.all([
-        teamTaskApi.getAll({
-          monthKey,
-          department: department || undefined,
-          status: statusFilter === "all" ? undefined : statusFilter,
-          assigneeId: assigneeFilter === "all" ? undefined : assigneeFilter,
-        }),
-        teamMemberApi.getAll({ status: "active" }),
-      ]);
+      const tasksRes = await teamTaskApi.getAll({
+        monthKey,
+        department: department || undefined,
+      });
       setTasks((tasksRes.data as TeamTaskRecord[]) || []);
-      setMembers((membersRes.data as TeamMemberRecord[]) || []);
+      hasLoadedTasksOnceRef.current = true;
     } catch {
       toast({ title: t("teamLoadFailed"), variant: "destructive" });
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
+      setRefreshing(false);
+    }
+  }, [monthKey, department, toast, t]);
+
+  const loadMembersAndProjects = useCallback(async () => {
+    const jobs: Promise<void>[] = [];
+
+    if (!membersLoadedRef.current) {
+      jobs.push(
+        teamMemberApi
+          .getAll({ status: "active" })
+          .then((membersRes) => {
+            setMembers((membersRes.data as TeamMemberRecord[]) || []);
+            membersLoadedRef.current = true;
+          })
+          .catch(() => {
+            setMembers([]);
+          }),
+      );
     }
 
-    try {
-      const projectsRes = await projectApi.getAll();
-      setProjects((projectsRes.data as ProjectRecord[]) || []);
-    } catch {
-      setProjects([]);
+    if (!projectsLoadedRef.current) {
+      jobs.push(
+        projectApi
+          .getAll()
+          .then((projectsRes) => {
+            setProjects((projectsRes.data as ProjectRecord[]) || []);
+            projectsLoadedRef.current = true;
+          })
+          .catch(() => {
+            setProjects([]);
+          }),
+      );
     }
-  }, [monthKey, department, statusFilter, assigneeFilter, toast, t]);
+
+    if (jobs.length) await Promise.all(jobs);
+  }, []);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    void loadTasks();
+  }, [loadTasks]);
+
+  useEffect(() => {
+    void loadMembersAndProjects();
+  }, [loadMembersAndProjects]);
 
   const listFilters = useMemo(
     () => ({
@@ -243,10 +276,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
   const applyTaskUpdate = useCallback(
     (task: TeamTaskRecord) => {
-      const matches = taskMatchesListFilters(task, listFilters);
-      setTasks((prev) => mergeTaskIntoList(prev, task, matches));
+      // Keep the full month list in memory; client filters decide visibility.
+      const matchesMonth =
+        (!listFilters.department || task.department === listFilters.department) &&
+        (!listFilters.monthKey || task.monthKey === listFilters.monthKey);
+      setTasks((prev) => mergeTaskIntoList(prev, task, matchesMonth));
     },
-    [listFilters],
+    [listFilters.department, listFilters.monthKey],
   );
 
   useEffect(() => {
@@ -273,17 +309,16 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   }, [applyTaskUpdate]);
 
   const { query: pageSearchQuery } = usePageSearch();
-  const visibleTasks = useMemo(
-    () =>
-      filterByPageSearch(tasks, pageSearchQuery, (task) => {
-        const assignee =
-          typeof task.assigneeId === "object" && task.assigneeId
-            ? task.assigneeId.name
-            : task.assigneeId;
-        return [task.title, task.description, task.status, task.priority, assignee, task.department];
-      }),
-    [tasks, pageSearchQuery],
-  );
+  const visibleTasks = useMemo(() => {
+    const filtered = tasks.filter((task) => taskMatchesListFilters(task, listFilters));
+    return filterByPageSearch(filtered, pageSearchQuery, (task) => {
+      const assignee =
+        typeof task.assigneeId === "object" && task.assigneeId
+          ? task.assigneeId.name
+          : task.assigneeId;
+      return [task.title, task.description, task.status, task.priority, assignee, task.department];
+    });
+  }, [tasks, listFilters, pageSearchQuery]);
 
   const hasVisibleTasks = visibleTasks.length > 0;
 
@@ -605,31 +640,48 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {loading ? (
-          <div className="flex h-full items-center justify-center text-gray-500">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            {t("loading")}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {initialLoading ? (
+          <div className="flex h-full flex-col overflow-hidden border border-gray-200">
+            <div className="grid min-h-0 flex-1 grid-cols-1 divide-y divide-gray-200 md:grid-cols-3 md:divide-x md:divide-y-0">
+              {(["todo", "in_progress", "done"] as const).map((statusKey) => (
+                <div key={statusKey} className="flex min-h-0 flex-col">
+                  <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2.5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+                      {statusLabel(statusKey, t)}
+                    </h3>
+                    <span className="text-xs tabular-nums text-gray-500">0</span>
+                  </div>
+                  <div className="flex flex-1 items-center justify-center text-gray-400">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        ) : !hasVisibleTasks ? (
-          <p className="py-8 text-sm text-gray-500">
-            {tasks.length === 0 ? t("teamNoTasks") : "No matching tasks."}
-          </p>
         ) : (
-          <TeamTaskKanbanBoard
-            tasks={visibleTasks}
-            t={t}
-            currentTeamMemberId={currentTeamMemberId}
-            resolveAssigneeAvatar={resolveAssigneeAvatar}
-            onComplete={openComplete}
-            onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
-            onEdit={openEdit}
-            onDelete={(task) => void handleDelete(task)}
-            onDropTask={handleDropTask}
-            deletingId={deletingId}
-            emptyLabel={t("teamNoTasks")}
-            fillHeight
-          />
+          <div className={cn("h-full", refreshing && "pointer-events-none opacity-60")}>
+            <TeamTaskKanbanBoard
+              tasks={visibleTasks}
+              t={t}
+              currentTeamMemberId={currentTeamMemberId}
+              resolveAssigneeAvatar={resolveAssigneeAvatar}
+              onComplete={openComplete}
+              onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
+              onEdit={openEdit}
+              onDelete={(task) => void handleDelete(task)}
+              onDropTask={handleDropTask}
+              deletingId={deletingId}
+              emptyLabel={
+                tasks.length === 0
+                  ? t("teamNoTasks")
+                  : hasVisibleTasks
+                    ? t("teamNoTasks")
+                    : "No matching tasks."
+              }
+              fillHeight
+            />
+          </div>
         )}
       </div>
 

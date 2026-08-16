@@ -435,10 +435,8 @@ export function TeamTaskKanbanBoard({
     return groups;
   }, [tasks]);
 
-  if (!tasks.length) {
-    return <p className="py-8 text-center text-sm text-gray-500">{emptyLabel}</p>;
-  }
-
+  // Always keep To do / In progress / Done headers mounted (including empty + refresh).
+  void emptyLabel;
   return (
     <div
       className={cn(
