@@ -541,46 +541,67 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Select value={monthKey} onValueChange={setMonthKey}>
-            <SelectTrigger className={filterSelectClass}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {monthOptions.map((key) => (
-                <SelectItem key={key} value={key}>
-                  {formatMonthLabel(key)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <Label htmlFor="team-tasks-month" className="text-xs font-medium text-gray-600">
+              {t("teamMonth")}
+            </Label>
+            <Select value={monthKey} onValueChange={setMonthKey}>
+              <SelectTrigger id="team-tasks-month" className={filterSelectClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {formatMonthLabel(key)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[150px]")}>
-              <SelectValue placeholder={t("teamFilterStatus")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("all")}</SelectItem>
-              {TEAM_TASK_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {statusLabel(s, t)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <Label htmlFor="team-tasks-status" className="text-xs font-medium text-gray-600">
+              {t("teamFilterStatus")}
+            </Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger
+                id="team-tasks-status"
+                className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[150px]")}
+              >
+                <SelectValue placeholder={t("teamFilterStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                {TEAM_TASK_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {statusLabel(s, t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-            <SelectTrigger className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[180px]")}>
-              <SelectValue placeholder={t("teamFilterMember")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("all")}</SelectItem>
-              {activeMembers.map((m) => (
-                <SelectItem key={m._id} value={m._id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <Label htmlFor="team-tasks-member" className="text-xs font-medium text-gray-600">
+              {t("teamFilterMember")}
+            </Label>
+            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+              <SelectTrigger
+                id="team-tasks-member"
+                className={cn(filterSelectClass, "w-full sm:w-auto sm:min-w-[180px]")}
+              >
+                <SelectValue placeholder={t("teamFilterMember")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                {activeMembers.map((m) => (
+                  <SelectItem key={m._id} value={m._id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
