@@ -1729,16 +1729,16 @@ export function MessagesPage() {
                             `/messages/${peer.userId}?w=${encodeURIComponent(peer.workspaceId)}`,
                           );
                         }}
-                        className="relative shrink-0 rounded-full ring-2 ring-white transition-transform hover:scale-105"
+                        className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-white transition-transform hover:scale-105"
                         aria-label={peer.name}
                       >
                         <PresenceAvatar
                           name={peer.name}
                           profilePictureUrl={peer.profilePictureUrl}
-                          className="h-10 w-10"
+                          className="h-full w-full"
                           fallbackClassName="bg-sky-400 text-[10px] font-bold text-white"
                           online
-                          ringClassName="ring-gray-50"
+                          ringClassName="ring-white"
                         />
                       </button>
                     </TooltipTrigger>

@@ -36,7 +36,7 @@ export function WorkspaceActiveUsersRow({ users }: WorkspaceActiveUsersRowProps)
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  "relative rounded-full ring-2 ring-sky-100",
+                  "relative h-5 w-5 shrink-0 overflow-hidden rounded-full ring-2 ring-sky-100",
                   index > 0 && "-ml-1.5",
                 )}
                 style={{ zIndex: index + 1 }}
@@ -44,11 +44,11 @@ export function WorkspaceActiveUsersRow({ users }: WorkspaceActiveUsersRowProps)
                 <UserProfileAvatar
                   name={user.name}
                   profilePictureUrl={user.profilePictureUrl || undefined}
-                  className="h-5 w-5"
+                  className="h-full w-full"
                   fallbackClassName="bg-sky-200 text-[7px] font-semibold text-sky-800"
                 />
                 <span
-                  className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-full border border-white bg-emerald-500"
+                  className="pointer-events-none absolute bottom-[6%] right-[6%] h-[28%] w-[28%] min-h-[5px] min-w-[5px] rounded-full border border-white bg-emerald-500"
                   aria-hidden
                 />
               </div>
