@@ -2092,7 +2092,7 @@ export function MessagesPage() {
 
                           <div
                             className={cn(
-                              "flex min-w-0 max-w-[85%] flex-col",
+                              "group/msg flex min-w-0 max-w-[85%] flex-col",
                               own ? "items-end" : "items-start",
                             )}
                           >

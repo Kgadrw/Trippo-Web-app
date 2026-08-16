@@ -15,7 +15,8 @@ export function hasChatReactions(reactions?: ChatReaction[]) {
   return Boolean(reactions?.some((reaction) => reaction.emoji && reaction.userIds?.length));
 }
 
-/** Flat “add reaction” control — sits on the same line as the bubble, no chrome. */
+/** Flat “add reaction” control — sits on the same line as the bubble.
+ * Always hidden until the message is hovered (or the picker is open). */
 export function ChatMessageAddReaction({
   disabled = false,
   onReact,
@@ -31,8 +32,14 @@ export function ChatMessageAddReaction({
       label="Add reaction"
       onSelect={onReact}
       buttonClassName={cn(
-        "mb-0 h-8 w-8 shrink-0 rounded-none border-0 bg-transparent p-0 text-gray-400 shadow-none",
-        "hover:bg-transparent hover:text-sky-600 active:bg-transparent lg:h-8 lg:w-8",
+        "mb-0 h-8 w-8 shrink-0 rounded-full border-0 bg-transparent p-0 text-gray-500 shadow-none",
+        "h-8 w-8 transition-[opacity,color,background-color] duration-150",
+        "hover:bg-sky-50 hover:text-sky-600 active:bg-transparent",
+        // Hidden by default — only appear on message hover / open picker
+        "pointer-events-none opacity-0",
+        "group-hover/msg:pointer-events-auto group-hover/msg:opacity-100",
+        "group-focus-within/msg:pointer-events-auto group-focus-within/msg:opacity-100",
+        "data-[state=open]:pointer-events-auto data-[state=open]:opacity-100",
         className,
       )}
       className="z-[180]"
