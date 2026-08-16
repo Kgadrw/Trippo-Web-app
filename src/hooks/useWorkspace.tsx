@@ -31,6 +31,7 @@ import { normalizeStoredFileUrl } from '@/lib/storedFileUrl';
 import { apiCache } from '@/lib/apiCache';
 import { clearAllStores } from '@/lib/indexedDB';
 import { getWorkspaceScopeKey, STORED_DATA_SCOPE_KEY } from '@/lib/workspace';
+import { getDashboardPath } from '@/lib/appRoutes';
 
 function clearDataCaches() {
   apiCache.clear();
@@ -38,6 +39,26 @@ function clearDataCaches() {
   void clearAllStores().catch(() => undefined);
   window.dispatchEvent(new Event('profit-pilot-data-changed'));
   window.dispatchEvent(new Event('force-refresh-data'));
+}
+
+/** Full reload after scope change so no page keeps the previous workspace in memory. */
+function hardRefreshAfterWorkspaceChange() {
+  clearDataCaches();
+  const home = getDashboardPath();
+  if (home.startsWith('http://') || home.startsWith('https://')) {
+    window.location.replace(home);
+    return;
+  }
+  const path = home || '/';
+  if (
+    window.location.pathname === path &&
+    window.location.search === '' &&
+    window.location.hash === ''
+  ) {
+    window.location.reload();
+    return;
+  }
+  window.location.replace(path);
 }
 
 const WORKSPACE_LIST_MIN_REFRESH_MS = 30_000;
@@ -94,9 +115,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const stillMember = list.some((w) => String(w.id) === String(activeWorkspaceId));
         if (!stillMember) {
           persistWorkspaceContext('personal', null);
-          setMode('personal');
-          setActiveWorkspaceId(null);
-          clearDataCaches();
+          hardRefreshAfterWorkspaceChange();
         }
       }
     } catch {
@@ -168,17 +187,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const switchToPersonal = useCallback(() => {
     if (mode === 'personal' && !activeWorkspaceId) return;
     persistWorkspaceContext('personal', null);
-    setMode('personal');
-    setActiveWorkspaceId(null);
-    clearDataCaches();
+    hardRefreshAfterWorkspaceChange();
   }, [mode, activeWorkspaceId]);
 
   const switchToWorkspace = useCallback((workspace: WorkspaceSummary) => {
     if (mode === 'workspace' && String(activeWorkspaceId) === String(workspace.id)) return;
     persistWorkspaceContext('workspace', workspace.id);
-    setMode('workspace');
-    setActiveWorkspaceId(workspace.id);
-    clearDataCaches();
+    hardRefreshAfterWorkspaceChange();
   }, [mode, activeWorkspaceId]);
 
   const createWorkspace = useCallback(async (name: string) => {
