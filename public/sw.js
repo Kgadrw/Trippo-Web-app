@@ -696,17 +696,18 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     (async () => {
-      // If the app is open and visible, socket/in-app alerts already handle chat.
+      // Skip only when a Trippo window is visible AND focused.
+      // Desktop often leaves a tab "visible" behind other apps — still show push then.
       if (isChat) {
         const clientList = await clients.matchAll({
           type: "window",
           includeUncontrolled: true,
         });
-        const hasVisibleClient = clientList.some(
-          (client) => client.visibilityState === "visible",
+        const hasFocusedClient = clientList.some(
+          (client) => client.visibilityState === "visible" && client.focused,
         );
-        if (hasVisibleClient) {
-          console.log("[SW] Skipping chat push — app is visible");
+        if (hasFocusedClient) {
+          console.log("[SW] Skipping chat push — app is focused");
           return;
         }
       }

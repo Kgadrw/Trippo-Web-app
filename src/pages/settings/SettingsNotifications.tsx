@@ -4,7 +4,7 @@ import { Bell, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { notificationService } from "@/lib/notifications";
-import { isStandalonePwa, registerWebPushSubscription } from "@/lib/pushNotifications";
+import { isStandalonePwa, registerWebPushSubscription, requiresInstalledPwaForPush } from "@/lib/pushNotifications";
 import { SettingsSubpageHeader } from "@/components/settings/SettingsSubpageHeader";
 
 export default function SettingsNotifications({ embedded = false }: { embedded?: boolean }) {
@@ -14,13 +14,11 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermission>("default");
   const [pushReady, setPushReady] = useState(false);
-  const [isInstalledPwa, setIsInstalledPwa] = useState(true);
-  const [isAppleMobile, setIsAppleMobile] = useState(false);
+  const [needsHomeScreenInstall, setNeedsHomeScreenInstall] = useState(false);
 
   useEffect(() => {
     setNotificationPermission(Notification.permission);
-    setIsInstalledPwa(isStandalonePwa());
-    setIsAppleMobile(/iPad|iPhone|iPod/.test(navigator.userAgent));
+    setNeedsHomeScreenInstall(requiresInstalledPwaForPush());
 
     if (Notification.permission === "granted") {
       void registerWebPushSubscription().then((ok) => setPushReady(ok));
@@ -45,17 +43,15 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
               {t("browserNotificationsTitle")}
             </h3>
             <p className="mb-4 text-xs text-muted-foreground">
-              Get chat message alerts even when Trippo is closed. Best reliability comes from the
-              Home Screen / installed app.
+              Get chat alerts on desktop and mobile — including when Trippo or the browser is closed.
             </p>
 
-            {!isInstalledPwa ? (
+            {needsHomeScreenInstall ? (
               <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <Smartphone className="mt-0.5 shrink-0 text-amber-700" size={16} />
                 <p className="text-xs text-amber-900">
-                  {isAppleMobile
-                    ? "On iPhone/iPad: Share → Add to Home Screen, open Trippo from the icon, then enable notifications below."
-                    : "Install Trippo to your Home Screen, then enable notifications below for alerts when the app is closed."}
+                  On iPhone/iPad: Share → Add to Home Screen, open Trippo from the icon, then enable
+                  notifications below.
                 </p>
               </div>
             ) : null}
@@ -67,7 +63,7 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
                   <p className="mt-1 text-xs text-muted-foreground">
                     {notificationPermission === "granted" &&
                       (pushReady
-                        ? "Enabled — closed-app chat push is active"
+                        ? "Enabled — desktop & mobile push is active"
                         : t("notifStatusGranted"))}
                     {notificationPermission === "denied" && t("notifStatusDenied")}
                     {notificationPermission === "default" && t("notifStatusDefault")}
@@ -114,7 +110,7 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
                         toast({
                           title: t("notifEnabledTitle"),
                           description: ok
-                            ? "Chat alerts will arrive even when Trippo is closed."
+                            ? "Chat alerts will arrive on this device even when Trippo is closed."
                             : t("notifEnabledBody"),
                         });
                       } else if (result === "denied") {
@@ -153,7 +149,9 @@ export default function SettingsNotifications({ embedded = false }: { embedded?:
                       title: ok ? "Push connected" : "Couldn’t connect push",
                       description: ok
                         ? "This device will receive chat alerts when Trippo is closed."
-                        : "Check that the app is installed and try again.",
+                        : needsHomeScreenInstall || !isStandalonePwa()
+                          ? "Allow notifications, then try again. On iPhone, use the Home Screen app."
+                          : "Check that notifications are allowed and try again.",
                       variant: ok ? "default" : "destructive",
                     });
                   }}

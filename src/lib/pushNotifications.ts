@@ -35,9 +35,16 @@ export function isStandalonePwa(): boolean {
   return mediaStandalone || iosStandalone;
 }
 
+/** iPhone/iPad require Add to Home Screen before Web Push works. Desktop browsers do not. */
+export function requiresInstalledPwaForPush(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (isStandalonePwa()) return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
 /**
  * Register (or refresh) a Web Push subscription with the backend.
- * Required for chat notifications when the PWA/mobile app is closed or inactive.
+ * Works on desktop Chrome/Edge/Firefox and installed mobile PWAs when permission is granted.
  */
 export async function registerWebPushSubscription(): Promise<boolean> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {

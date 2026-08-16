@@ -31,10 +31,14 @@ function isOwnDirectMessage(message: DirectChatMessage, currentUserId: string | 
   return Boolean(currentUserId && String(message.senderUserId) === currentUserId);
 }
 
-function alertForIncoming(viewingThisChat: boolean, tabHidden: boolean) {
+function isPageActive() {
+  return typeof document !== "undefined" && !document.hidden && document.hasFocus();
+}
+
+function alertForIncoming(viewingThisChat: boolean, pageActive: boolean) {
   // Show whenever this exact thread is not open (any other page / Messages list),
-  // or when the browser tab is in the background.
-  return !viewingThisChat || tabHidden;
+  // or when the browser/tab/window is backgrounded or unfocused (desktop).
+  return !viewingThisChat || !pageActive;
 }
 
 function isViewingDirectChat(
@@ -171,7 +175,7 @@ export function WorkspaceChatNotificationBridge() {
     if (!dmMatch) return;
     const otherUserId = dmMatch[1];
     if (otherUserId === "group") return;
-    if (typeof document !== "undefined" && document.hidden) return;
+    if (!isPageActive()) return;
     clearDirectChatOsNotification(undefined, otherUserId);
   }, [mode, location.pathname, location.search]);
 
@@ -227,14 +231,14 @@ export function WorkspaceChatNotificationBridge() {
       if (isOwnGroupMessage(message, currentUserId)) return;
 
       const viewingThisChat = openRef.current;
-      const tabHidden = typeof document !== "undefined" && document.hidden;
+      const pageActive = isPageActive();
 
       if (!viewingThisChat) {
         incrementUnread();
         bumpMessagesUnread(1);
       }
 
-      if (!alertForIncoming(viewingThisChat, tabHidden)) return;
+      if (!alertForIncoming(viewingThisChat, pageActive)) return;
 
       void notifyIncomingChatAlert({
         messageId: String(message._id),
@@ -271,13 +275,13 @@ export function WorkspaceChatNotificationBridge() {
         senderId,
         messageWorkspaceId,
       );
-      const tabHidden = typeof document !== "undefined" && document.hidden;
+      const pageActive = isPageActive();
 
       if (!viewingThisChat) {
         bumpMessagesUnread(1);
       }
 
-      if (!alertForIncoming(viewingThisChat, tabHidden)) return;
+      if (!alertForIncoming(viewingThisChat, pageActive)) return;
 
       void notifyIncomingChatAlert({
         messageId: String(message._id),

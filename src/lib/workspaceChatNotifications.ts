@@ -144,7 +144,9 @@ export async function notifyIncomingChatAlert(input: IncomingChatAlertInput): Pr
   unreadByTag.set(tag, unreadCount);
   const body =
     unreadCount > 1 ? `${preview}\n(${unreadCount} unread)` : preview;
-  const tabHidden = typeof document !== "undefined" && document.hidden;
+  // Desktop: a visible-but-unfocused window (behind another app) still needs OS push.
+  const pageActive =
+    typeof document !== "undefined" && !document.hidden && document.hasFocus();
   const href = input.href || WORKSPACE_GROUP_CHAT_PATH;
   const notificationData = {
     action: input.action,
@@ -156,8 +158,8 @@ export async function notifyIncomingChatAlert(input: IncomingChatAlertInput): Pr
     tag,
   };
 
-  // Foreground: always push in-app banner (any route except when caller suppressed).
-  if (!tabHidden) {
+  // Foreground & focused: in-app banner only.
+  if (pageActive) {
     pushChatIncomingPopup({
       id: tag,
       title,
@@ -168,7 +170,7 @@ export async function notifyIncomingChatAlert(input: IncomingChatAlertInput): Pr
     return;
   }
 
-  // Background: sticky OS notification that stays until the chat is opened/read.
+  // Background / unfocused desktop window / locked phone: sticky OS notification.
   await notificationService.showEphemeralNotification({
     title,
     body,

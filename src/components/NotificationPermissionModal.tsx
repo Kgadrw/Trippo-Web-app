@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Bell, X, CheckCircle2, AlertCircle, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { notificationService } from "@/lib/notifications";
-import { isStandalonePwa, registerWebPushSubscription } from "@/lib/pushNotifications";
+import { registerWebPushSubscription, requiresInstalledPwaForPush } from "@/lib/pushNotifications";
 import { cn } from "@/lib/utils";
 
 interface NotificationPermissionModalProps {
@@ -18,14 +18,12 @@ export function NotificationPermissionModal({
 }: NotificationPermissionModalProps) {
   const [isRequesting, setIsRequesting] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>("default");
-  const [isInstalledPwa, setIsInstalledPwa] = useState(true);
-  const [isAppleMobile, setIsAppleMobile] = useState(false);
+  const [needsHomeScreenInstall, setNeedsHomeScreenInstall] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setPermissionStatus(notificationService.getPermission());
-    setIsInstalledPwa(isStandalonePwa());
-    setIsAppleMobile(/iPad|iPhone|iPod/.test(navigator.userAgent));
+    setNeedsHomeScreenInstall(requiresInstalledPwaForPush());
   }, [open]);
 
   const handleRequestPermission = async () => {
@@ -39,7 +37,7 @@ export function NotificationPermissionModal({
 
         await notificationService.showNotification("general", {
           title: "Chat alerts enabled",
-          body: "You’ll get message notifications even when Trippo is closed.",
+          body: "You’ll get message notifications on this device even when Trippo is closed.",
           icon: "/logo.png",
           tag: "permission-granted",
         });
@@ -88,7 +86,8 @@ export function NotificationPermissionModal({
           <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">Enable chat alerts</h2>
 
           <p className="mb-6 text-center text-sm leading-relaxed text-gray-600">
-            Get message notifications even when the Trippo app or browser tab is closed.
+            Get message notifications on desktop and mobile — even when the Trippo tab or browser is
+            closed.
           </p>
 
           <div className="mb-6 space-y-3">
@@ -103,20 +102,21 @@ export function NotificationPermissionModal({
               <CheckCircle2 className="mt-0.5 flex-shrink-0 text-blue-600" size={18} />
               <div>
                 <p className="text-sm font-medium text-gray-900">Works while closed</p>
-                <p className="text-xs text-gray-600">Push alerts via your installed Trippo app</p>
+                <p className="text-xs text-gray-600">
+                  Desktop browsers and installed mobile apps both receive push alerts
+                </p>
               </div>
             </div>
           </div>
 
-          {!isInstalledPwa ? (
+          {needsHomeScreenInstall ? (
             <div className="mb-4 flex items-start gap-2 border border-amber-200 bg-amber-50 p-3">
               <Smartphone className="mt-0.5 flex-shrink-0 text-amber-700" size={18} />
               <div className="flex-1">
-                <p className="text-xs font-medium text-amber-900">Install Trippo for reliable alerts</p>
+                <p className="text-xs font-medium text-amber-900">Install Trippo for iPhone alerts</p>
                 <p className="mt-1 text-xs text-amber-800">
-                  {isAppleMobile
-                    ? "On iPhone/iPad: tap Share → Add to Home Screen, open Trippo from the icon, then enable notifications."
-                    : "Add Trippo to your Home Screen / install the app, then enable notifications for alerts when it’s closed."}
+                  On iPhone/iPad: tap Share → Add to Home Screen, open Trippo from the icon, then
+                  enable notifications.
                 </p>
               </div>
             </div>
