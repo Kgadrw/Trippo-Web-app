@@ -768,7 +768,6 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                     contact={contact}
                     compact
                     title={t("callSupport")}
-                    className="lg:bg-gray-50"
                   />
                 </>
               ) : !paymentReady ? (

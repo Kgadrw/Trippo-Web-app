@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Mail, Phone, Instagram, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TextWithUssdCodes } from "@/components/billing/TextWithUssdCodes";
@@ -22,7 +23,7 @@ type ContactRow = {
   href: string;
   label: string;
   value: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   external?: boolean;
 };
 
