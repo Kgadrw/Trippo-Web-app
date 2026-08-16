@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { approvalApi } from "@/lib/api";
+import { approvalApi, teamReportApi } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -86,8 +86,13 @@ export function ApprovalsTab() {
     const key = `${item.entityType}-${item.id}-approve`;
     setActingId(key);
     try {
-      await approvalApi.approve(item.entityType, item.id);
-      toast({ title: "Approved", description: `${item.title} was approved.` });
+      if (item.entityType === "team_report") {
+        await teamReportApi.review(item.id);
+        toast({ title: "Reviewed", description: `${item.title} was marked as reviewed.` });
+      } else {
+        await approvalApi.approve(item.entityType, item.id);
+        toast({ title: "Approved", description: `${item.title} was approved.` });
+      }
       dispatchFinanceRefresh();
       await loadQueue(true);
     } catch (error: unknown) {
@@ -103,9 +108,15 @@ export function ApprovalsTab() {
     const key = `${rejectTarget.entityType}-${rejectTarget.id}-reject`;
     setActingId(key);
     try {
-      await approvalApi.reject(rejectTarget.entityType, rejectTarget.id, {
-        rejectionNote: rejectionNote.trim() || undefined,
-      });
+      if (rejectTarget.entityType === "team_report") {
+        await teamReportApi.reject(rejectTarget.id, {
+          reviewNote: rejectionNote.trim() || undefined,
+        });
+      } else {
+        await approvalApi.reject(rejectTarget.entityType, rejectTarget.id, {
+          rejectionNote: rejectionNote.trim() || undefined,
+        });
+      }
       toast({ title: "Rejected", description: `${rejectTarget.title} was rejected.` });
       setRejectTarget(null);
       setRejectionNote("");
@@ -133,7 +144,11 @@ export function ApprovalsTab() {
     const key = `${changesTarget.entityType}-${changesTarget.id}-changes`;
     setActingId(key);
     try {
-      await approvalApi.requestChanges(changesTarget.entityType, changesTarget.id, { note });
+      if (changesTarget.entityType === "team_report") {
+        await teamReportApi.requestChanges(changesTarget.id, { note });
+      } else {
+        await approvalApi.requestChanges(changesTarget.entityType, changesTarget.id, { note });
+      }
       toast({
         title: "Changes requested",
         description: `${changesTarget.title} was returned to the submitter with your note.`,
@@ -166,7 +181,7 @@ export function ApprovalsTab() {
         <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs">
           <Link to={financePathForEntity(item.entityType)}>View</Link>
         </Button>
-        {isWorkspaceAdmin && isPending ? (
+        {(isWorkspaceAdmin || item.canApprove) && isPending ? (
           <>
             <Button
               size="sm"
@@ -281,6 +296,14 @@ export function ApprovalsTab() {
                       <td className={cn(FINANCE_TD_CLASS, "text-gray-600")}>{entityTypeLabel(item.entityType)}</td>
                       <td className={cn(FINANCE_TD_CLASS, "font-medium text-gray-900 max-w-[220px]")}>
                         <div className="truncate">{item.title}</div>
+                        {item.entityType === "team_report" ? (
+                          <div className="mt-0.5 text-xs text-gray-500">
+                            {item.reportType
+                              ? `${item.reportType.charAt(0).toUpperCase()}${item.reportType.slice(1)} report`
+                              : "Team report"}
+                            {item.reportTo?.length ? ` · To ${item.reportTo.join(", ")}` : ""}
+                          </div>
+                        ) : null}
                         {dateValue ? (
                           <div className="text-xs text-gray-500 mt-0.5">{formatFinanceTableDate(dateValue)}</div>
                         ) : null}
@@ -289,7 +312,7 @@ export function ApprovalsTab() {
                         ) : null}
                       </td>
                       <td className={cn(FINANCE_TD_CLASS, "tabular-nums font-medium")}>
-                        {formatCurrency(item.amount)}
+                        {item.amount == null ? "—" : formatCurrency(item.amount)}
                       </td>
                       <td className={FINANCE_TD_CLASS}>
                         <span
@@ -349,7 +372,7 @@ export function ApprovalsTab() {
                       ) : null}
                     </span>
                   }
-                  amount={formatCurrency(item.amount)}
+                  amount={item.amount == null ? "—" : formatCurrency(item.amount)}
                   actions={renderActionButtons(item, true)}
                 />
               );

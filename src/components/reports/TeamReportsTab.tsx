@@ -125,7 +125,11 @@ export function TeamReportsTab() {
   useEffect(() => {
     void teamMemberApi
       .getAll({ status: "active" })
-      .then((response) => setTeamMembers((response.data || []) as TeamMemberRecord[]))
+      .then((response) =>
+        setTeamMembers(
+          ((response.data || []) as TeamMemberRecord[]).filter((member) => Boolean(member.linkedUserId)),
+        ),
+      )
       .catch(() => setTeamMembers([]));
   }, []);
 
@@ -386,48 +390,83 @@ export function TeamReportsTab() {
       ) : (
         <FinanceTableShell>
           <DesktopDataTable>
-            <thead>
-              <tr>
-                <th className={FINANCE_TH_CLASS}>Title</th>
-                <th className={cn(FINANCE_TH_CLASS, "hidden md:table-cell")}>Submitter</th>
-                <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell")}>Period</th>
-                <th className={FINANCE_TH_CLASS}>Status</th>
-                <th className={cn(FINANCE_TH_CLASS, "hidden lg:table-cell")}>Submitted</th>
-                <th className={cn(FINANCE_TH_CLASS, "text-right")}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((report) => (
-                <tr key={teamReportId(report)} className="border-b border-transparent hover:bg-muted/40">
-                  <td className={cn(FINANCE_TD_CLASS, "font-medium")}>
-                    <div className="min-w-0">
-                      <p className="truncate">{report.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {teamReportTypeLabel(report.reportType)}
-                      </p>
-                    </div>
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell")}>{report.submitterName}</td>
-                  <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell text-xs")}>
-                    {formatReportPeriod(report.periodStart, report.periodEnd)}
-                  </td>
-                  <td className={FINANCE_TD_CLASS}>
-                    <span
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className={cn(FINANCE_TH_CLASS, "w-full min-w-[180px]")}>Title</th>
+                  <th className={cn(FINANCE_TH_CLASS, "hidden md:table-cell w-[1%] whitespace-nowrap")}>
+                    Submitter
+                  </th>
+                  <th className={cn(FINANCE_TH_CLASS, "hidden lg:table-cell w-[1%] whitespace-nowrap")}>
+                    Reporting to
+                  </th>
+                  <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell w-[1%] whitespace-nowrap")}>
+                    Period
+                  </th>
+                  <th className={cn(FINANCE_TH_CLASS, "w-[1%] whitespace-nowrap")}>Status</th>
+                  <th className={cn(FINANCE_TH_CLASS, "hidden xl:table-cell w-[1%] whitespace-nowrap")}>
+                    Submitted
+                  </th>
+                  <th className={cn(FINANCE_TH_CLASS, "w-[1%] whitespace-nowrap text-right")}>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((report) => (
+                  <tr
+                    key={teamReportId(report)}
+                    className="border-b border-transparent hover:bg-muted/40"
+                  >
+                    <td className={cn(FINANCE_TD_CLASS, "font-medium")}>
+                      <div className="min-w-0 max-w-3xl">
+                        <p className="break-words">{report.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {teamReportTypeLabel(report.reportType)}
+                        </p>
+                      </div>
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell whitespace-nowrap")}>
+                      {report.submitterName}
+                    </td>
+                    <td
                       className={cn(
-                        "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                        teamReportStatusClass(report.status),
+                        FINANCE_TD_CLASS,
+                        "hidden lg:table-cell max-w-[220px] text-xs text-muted-foreground",
                       )}
                     >
-                      {teamReportStatusLabel(report.status)}
-                    </span>
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "hidden lg:table-cell text-xs text-muted-foreground")}>
-                    {formatFinanceTableDate(report.createdAt)}
-                  </td>
-                  <td className={cn(FINANCE_TD_CLASS, "text-right")}>{renderActions(report)}</td>
-                </tr>
-              ))}
-            </tbody>
+                      {report.reportTo?.length
+                        ? report.reportTo.map((recipient) => recipient.name).join(", ")
+                        : "—"}
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell whitespace-nowrap text-xs")}>
+                      {formatReportPeriod(report.periodStart, report.periodEnd)}
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "whitespace-nowrap")}>
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                          teamReportStatusClass(report.status),
+                        )}
+                      >
+                        {teamReportStatusLabel(report.status)}
+                      </span>
+                    </td>
+                    <td
+                      className={cn(
+                        FINANCE_TD_CLASS,
+                        "hidden xl:table-cell whitespace-nowrap text-xs text-muted-foreground",
+                      )}
+                    >
+                      {formatFinanceTableDate(report.createdAt)}
+                    </td>
+                    <td className={cn(FINANCE_TD_CLASS, "whitespace-nowrap text-right")}>
+                      {renderActions(report)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </DesktopDataTable>
 
           <MobileDataList>
@@ -447,7 +486,11 @@ export function TeamReportsTab() {
                     </span>
                   </div>
                 }
-                subtitle={`${report.submitterName} · ${teamReportTypeLabel(report.reportType)}`}
+                subtitle={`${report.submitterName} · ${teamReportTypeLabel(report.reportType)}${
+                  report.reportTo?.length
+                    ? ` · To ${report.reportTo.map((recipient) => recipient.name).join(", ")}`
+                    : ""
+                }`}
                 meta={formatReportPeriod(report.periodStart, report.periodEnd)}
                 actions={renderActions(report, true)}
               />

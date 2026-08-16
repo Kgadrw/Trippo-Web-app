@@ -63,10 +63,10 @@ export function canResubmitApproval(status?: string | null) {
 }
 
 export type ApprovalQueueItem = {
-  entityType: "expense" | "bill" | "payroll";
+  entityType: "expense" | "bill" | "payroll" | "team_report";
   id: string;
   title: string;
-  amount: number;
+  amount: number | null;
   date?: string;
   dueDate?: string;
   paymentDate?: string;
@@ -80,6 +80,9 @@ export type ApprovalQueueItem = {
   employeeName?: string;
   period?: string;
   status?: string;
+  reportType?: "daily" | "weekly" | "monthly";
+  reportTo?: string[];
+  canApprove?: boolean;
 };
 
 export function entityTypeLabel(entityType: ApprovalQueueItem["entityType"]) {
@@ -90,6 +93,8 @@ export function entityTypeLabel(entityType: ApprovalQueueItem["entityType"]) {
       return "Bill";
     case "payroll":
       return "Payroll";
+    case "team_report":
+      return "Team report";
   }
 }
 
@@ -101,5 +106,7 @@ export function financePathForEntity(entityType: ApprovalQueueItem["entityType"]
       return "/finance/bills";
     case "payroll":
       return "/finance/payroll";
+    case "team_report":
+      return "/reports";
   }
 }
