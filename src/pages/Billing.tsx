@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { displayCurrencyCode } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,12 +74,40 @@ function getPeriodTotalDays(
   return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SummaryRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2 text-sm">
-      <span className="text-muted-foreground shrink-0">{label}</span>
-      <span className="font-medium text-foreground text-right">{value}</span>
+    <div className="flex items-baseline justify-between gap-4 border-b border-gray-100 py-3 last:border-b-0">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-right text-sm font-medium text-gray-900">{value}</span>
     </div>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title?: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("rounded-lg border border-gray-200 bg-white", className)}>
+      {(title || description) && (
+        <header className="border-b border-gray-100 px-4 py-3 sm:px-5">
+          {title ? <h2 className="text-sm font-semibold text-gray-900">{title}</h2> : null}
+          {description ? (
+            <p className={cn("text-xs leading-relaxed text-gray-500", title && "mt-0.5")}>
+              {description}
+            </p>
+          ) : null}
+        </header>
+      )}
+      <div className="px-4 py-4 sm:px-5 sm:py-5">{children}</div>
+    </section>
   );
 }
 
@@ -102,7 +130,7 @@ function NetworkOption({
       htmlFor={id}
       className={cn(
         "flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-2 transition-colors",
-        selected ? "border-sky-300 bg-sky-50/60" : "hover:bg-gray-50",
+        selected ? "border-sky-400 bg-sky-50" : "hover:border-gray-300 hover:bg-gray-50",
       )}
     >
       <RadioGroupItem
@@ -117,7 +145,7 @@ function NetworkOption({
           "[&_svg]:h-2.5 [&_svg]:w-2.5 data-[state=checked]:[&_svg]:fill-white",
         )}
       />
-      <img src={logoSrc} alt="" className="h-7 w-7 shrink-0 object-contain" />
+      <img src={logoSrc} alt="" className="h-6 w-6 shrink-0 object-contain" />
       <span
         className={cn(
           "truncate text-xs font-medium sm:text-sm",
@@ -466,24 +494,25 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
 
   const billingBody = (
     <>
-      <div className="flex flex-col min-h-0 w-full space-y-4 pb-4">
+      <div className="mx-auto w-full max-w-3xl space-y-4 pb-6">
         {loading ? (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-20 lg:bg-white lg:rounded-lg">
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-16 text-sm text-gray-500">
             <Loader2 className="h-4 w-4 animate-spin" />
             {t("loading")}
           </div>
         ) : (
-          <div className="space-y-4 w-full">
+          <div className="space-y-4">
             {isTrialEnded ? (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-semibold">{t("billingPaymentRequired")}</p>
-                <p className="text-xs text-amber-800 mt-1">{t("billingTrialEndedBanner")}</p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-950">{t("billingPaymentRequired")}</p>
+                <p className="mt-1 text-xs text-amber-800">{t("billingTrialEndedBanner")}</p>
               </div>
             ) : null}
+
             {paymentConfig?.configured && paymentConfig.livePrompts === false && !paymentConfig.mock ? (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-semibold">{t("billingPromptsUnavailable")}</p>
-                <p className="text-xs text-amber-800 mt-1">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-950">{t("billingPromptsUnavailable")}</p>
+                <p className="mt-1 text-xs text-amber-800">
                   {t("billingPromptsUnavailableDesc")}
                   {paymentConfig.webhookMode
                     ? ` (${t("billingWebhookMode")}: ${paymentConfig.webhookMode})`
@@ -491,318 +520,297 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                 </p>
               </div>
             ) : null}
-          <div
-            className={cn(
-              "grid gap-4 w-full",
-              !isPaidActive && (canPay || !paymentReady) ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1",
-            )}
-          >
-            <div className="space-y-4">
-              {/* Summary — only when not on an active paid plan */}
-              {!isPaidActive ? (
-                <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-1">
-                  <h1 className="text-lg font-semibold text-foreground">{t("billingSummary")}</h1>
-                  <p className="text-sm text-muted-foreground pb-4">{t("billingSummarySubtitle")}</p>
 
-                  <div className="divide-y divide-border/60">
-                    <SummaryRow label={`${t("billingPackage")}:`} value={packageName} />
-                    <SummaryRow
-                      label={`${t("price")}:`}
-                      value={`${amount.toLocaleString()} ${currencyLabel}`}
-                    />
-                    {plan?.status ? (
-                      <div className="flex items-center justify-between gap-4 py-3">
-                        <span className="text-sm text-muted-foreground">Status:</span>
-                        <Badge
-                          className={cn(
-                            "border-0 capitalize",
-                            plan.status === "past_due"
-                              ? "bg-red-100 text-red-800 hover:bg-red-100"
-                              : plan.status === "active"
-                                ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                : "bg-gray-100 text-gray-800 hover:bg-gray-100",
-                          )}
+            <div
+              className={cn(
+                "grid gap-4",
+                !isPaidActive && (canPay || !paymentReady) ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1",
+              )}
+            >
+              <div className="space-y-4">
+                {!isPaidActive ? (
+                  <SectionCard title={t("billingSummary")} description={t("billingSummarySubtitle")}>
+                    <div>
+                      <SummaryRow label={t("billingPackage")} value={packageName} />
+                      <SummaryRow
+                        label={t("price")}
+                        value={`${amount.toLocaleString()} ${currencyLabel}`}
+                      />
+                      {plan?.status ? (
+                        <SummaryRow
+                          label="Status"
+                          value={
+                            <Badge
+                              className={cn(
+                                "border capitalize shadow-none",
+                                plan.status === "past_due"
+                                  ? "border-red-200 bg-red-50 text-red-800 hover:bg-red-50"
+                                  : plan.status === "active"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-50"
+                                    : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-50",
+                              )}
+                            >
+                              {plan.status}
+                            </Badge>
+                          }
+                        />
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
+                      <span className="text-sm font-semibold text-gray-900">{t("total")}</span>
+                      <span className="text-base font-semibold tabular-nums text-gray-900">
+                        {amount.toLocaleString()} {currencyLabel}
+                      </span>
+                    </div>
+
+                    {isCancelled ? (
+                      <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-3">
+                        <p className="text-sm font-medium text-gray-900">{t("billingCancelledTitle")}</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {plan?.hasPlus && plan.nextDueDate
+                            ? `${t("billingCancelledUntil")} ${formatBillingDate(plan.nextDueDate)}.`
+                            : t("billingNotBilledMonthly")}
+                        </p>
+                      </div>
+                    ) : canCancelPlan ? (
+                      <div className="mt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
+                          onClick={() => setCancelDialogOpen(true)}
+                          disabled={paying || polling || cancelling}
                         >
-                          {plan.status}
-                        </Badge>
+                          {t("billingCancelPlan")}
+                        </Button>
                       </div>
                     ) : null}
-                  </div>
+                  </SectionCard>
+                ) : null}
 
-                  <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-border">
-                    <span className="text-sm font-semibold text-foreground">{t("total")}:</span>
-                    <span className="text-lg font-bold text-foreground tabular-nums">
-                      {amount.toLocaleString()} {currencyLabel}
-                    </span>
-                  </div>
-
-                  {isCancelled ? (
-                    <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1">
-                      <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
-                      {plan?.hasPlus && plan.nextDueDate ? (
-                        <p className="text-xs text-muted-foreground">
-                          {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate)}.
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          {t("billingNotBilledMonthly")}
-                        </p>
-                      )}
-                    </div>
-                  ) : canCancelPlan ? (
-                    <div className="mt-4 pt-2">
-                      <Button
-                        type="button"
-                        className={cn(
-                          "w-full border border-destructive bg-background text-destructive",
-                          "hover:bg-destructive hover:text-white hover:border-destructive",
-                        )}
-                        onClick={() => setCancelDialogOpen(true)}
-                        disabled={paying || polling || cancelling}
-                      >
-                        {t("billingCancelPlan")}
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {isPaidActive ? (
-                <>
-                  <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden lg:bg-white lg:rounded-lg">
-                    <div className="p-4 sm:p-5">
-                      <div className="flex items-start gap-4">
-                        <div className="shrink-0">
-                          <img
-                            src="/paid.png"
-                            alt=""
-                            aria-hidden
-                            className="h-14 w-14 sm:h-16 sm:w-16 object-contain"
-                          />
-                        </div>
+                {isPaidActive ? (
+                  <>
+                    <SectionCard>
+                      <div className="flex items-start gap-3">
+                        <img
+                          src="/paid.png"
+                          alt=""
+                          aria-hidden
+                          className="h-10 w-10 shrink-0 object-contain"
+                        />
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-green-900">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-gray-900">
                               {t("billingPaymentSuccess")}
                             </p>
-                            <Badge className="border-0 bg-green-100 capitalize text-green-800 hover:bg-green-100">
+                            <Badge className="border border-emerald-200 bg-emerald-50 capitalize text-emerald-800 shadow-none hover:bg-emerald-50">
                               {plan?.status === "past_due" || plan?.status === "cancelled"
                                 ? plan.status
                                 : "active"}
                             </Badge>
                           </div>
-
-                          <div className="mt-2 space-y-1">
-                            <p className="text-xs text-green-800">
-                              {t("billingPlusActiveUntil")} {formatBillingDate(plan.nextDueDate)}.
-                            </p>
+                          <dl className="mt-3 space-y-1.5 text-xs text-gray-600">
+                            <div className="flex justify-between gap-3">
+                              <dt>{t("billingPlusActiveUntil")}</dt>
+                              <dd className="font-medium text-gray-900">
+                                {formatBillingDate(plan.nextDueDate)}
+                              </dd>
+                            </div>
                             {plan.lastPaidAt ? (
-                              <p className="text-xs text-green-800">
-                                {t("billingLastPaid")}: {formatBillingDate(plan.lastPaidAt)}
-                              </p>
+                              <div className="flex justify-between gap-3">
+                                <dt>{t("billingLastPaid")}</dt>
+                                <dd className="font-medium text-gray-900">
+                                  {formatBillingDate(plan.lastPaidAt)}
+                                </dd>
+                              </div>
                             ) : null}
                             {phone.trim() ? (
-                              <p className="text-xs text-green-800">
-                                {t("billingPhone")}: {phone.trim()}
-                              </p>
+                              <div className="flex justify-between gap-3">
+                                <dt>{t("billingPhone")}</dt>
+                                <dd className="font-medium text-gray-900">{phone.trim()}</dd>
+                              </div>
                             ) : null}
-                            <p className="text-xs text-green-800">
-                              {t("billingPackage")}: {packageName}
-                            </p>
-                            <p className="text-xs text-green-800">
-                              {t("price")}: {amount.toLocaleString()} {currencyLabel}
-                            </p>
-                          </div>
+                            <div className="flex justify-between gap-3">
+                              <dt>{t("billingPackage")}</dt>
+                              <dd className="font-medium text-gray-900">{packageName}</dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt>{t("price")}</dt>
+                              <dd className="font-medium text-gray-900">
+                                {amount.toLocaleString()} {currencyLabel}
+                              </dd>
+                            </div>
+                          </dl>
                         </div>
                       </div>
 
                       {daysRemaining != null ? (
-                        <div className="mt-4 rounded-xl border border-green-200/70 bg-white/60 p-3">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium text-green-900/80">
-                              {t("daysRemaining").replace("{days}", String(daysRemaining))}
-                            </span>
-                            <span className="font-semibold tabular-nums text-green-900">
+                        <div className="mt-4 border-t border-gray-100 pt-4">
+                          <div className="flex items-center justify-between text-xs text-gray-600">
+                            <span>{t("daysRemaining").replace("{days}", String(daysRemaining))}</span>
+                            <span className="font-semibold tabular-nums text-gray-900">
                               {daysRemaining.toLocaleString()}{" "}
                               {daysRemaining === 1 ? "day" : "days"}
                             </span>
                           </div>
-                          <div className="mt-2 h-2 rounded-full bg-green-100 overflow-hidden">
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
                             <div
-                              className="h-full bg-green-500"
+                              className="h-full bg-emerald-500"
                               style={{ width: `${usedPct ?? 0}%` }}
                             />
                           </div>
-                          <div className="mt-1 text-[10px] text-green-900/70 tabular-nums text-right">
+                          <p className="mt-1.5 text-right text-[11px] tabular-nums text-gray-400">
                             {formatBillingDate(periodStart)} → {formatBillingDate(periodEnd)}
-                          </div>
+                          </p>
                         </div>
                       ) : null}
-                    </div>
-                  </div>
+                    </SectionCard>
 
-                  {isCancelled ? (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1 lg:bg-white">
-                      <p className="text-sm font-semibold text-foreground">{t("billingCancelledTitle")}</p>
-                      {plan?.hasPlus && plan.nextDueDate ? (
-                        <p className="text-xs text-muted-foreground">
-                          {t("billingCancelledUntil")} {formatBillingDate(plan.nextDueDate)}.
+                    {isCancelled ? (
+                      <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                        <p className="text-sm font-medium text-gray-900">{t("billingCancelledTitle")}</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {plan?.hasPlus && plan.nextDueDate
+                            ? `${t("billingCancelledUntil")} ${formatBillingDate(plan.nextDueDate)}.`
+                            : t("billingNotBilledMonthly")}
                         </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          {t("billingNotBilledMonthly")}
-                        </p>
-                      )}
-                    </div>
-                  ) : canCancelPlan ? (
-                    <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5">
+                      </div>
+                    ) : canCancelPlan ? (
                       <Button
                         type="button"
-                        className={cn(
-                          "w-full border border-destructive bg-background text-destructive",
-                          "hover:bg-destructive hover:text-white hover:border-destructive",
-                        )}
+                        variant="outline"
+                        className="w-full border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
                         onClick={() => setCancelDialogOpen(true)}
                         disabled={paying || polling || cancelling}
                       >
                         {t("billingCancelPlan")}
                       </Button>
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
 
-            {!isPaidActive ? (
-            <div className="lg:bg-white lg:rounded-lg p-4 sm:p-5 space-y-5 relative min-h-[280px]">
-              {(paying || polling) && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[2px] px-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-yellow-600" />
-                  <p className="text-sm font-medium text-foreground text-center">{t("billingProcessing")}</p>
-                  <p className="text-xs text-muted-foreground text-center">
-                    {t("billingCheckPhoneApprove")}
-                  </p>
-                  {polling ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-1"
-                      onClick={() => void handlePay({ forceRetry: true })}
-                    >
-                      {t("billingSendNewPrompt")}
-                    </Button>
-                  ) : null}
-                </div>
-              )}
-
-              {canPay && paymentReady ? (
-                <>
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">{t("billingSelectNetwork")}</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{t("billingSelectNetworkDesc")}</p>
-                  </div>
-
-                  <RadioGroup
-                    value={network ?? ""}
-                    onValueChange={(v) => setNetwork(v as MobileNetwork)}
-                    className="flex w-full flex-row gap-2 sm:gap-3"
-                    disabled={paying || polling}
-                  >
-                    <NetworkOption
-                      id="pay-mtn"
-                      value="mtn"
-                      label="MTN MoMo"
-                      logoSrc="/mtn.png"
-                      logoAlt="MTN MoMo"
-                      selected={network === "mtn"}
-                    />
-                    <NetworkOption
-                      id="pay-airtel"
-                      value="airtel"
-                      label="Airtel Money"
-                      logoSrc="/airtel.png"
-                      logoAlt="Airtel Money"
-                      selected={network === "airtel"}
-                    />
-                  </RadioGroup>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="billing-phone">{t("billingPhone")}</Label>
-                    <Input
-                      id="billing-phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder={network === "airtel" ? "0721234567" : "0781234567"}
-                      disabled={paying || polling}
-                      className="border border-gray-300 shadow-none"
-                    />
-                  </div>
-
-                  {network ? (
-                    <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-                      <p>{t("billingPinHint")}</p>
-                      <p>
-                        {t("billingHaveMoMoBalance")
-                          .replace("{amount}", Math.ceil(amount * 1.023).toLocaleString())
-                          .replace("{base}", amount.toLocaleString())}
+              {!isPaidActive ? (
+                <SectionCard
+                  title={canPay && paymentReady ? t("billingSelectNetwork") : undefined}
+                  description={canPay && paymentReady ? t("billingSelectNetworkDesc") : undefined}
+                  className="relative min-h-[280px]"
+                >
+                  {(paying || polling) && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white/95 px-4">
+                      <Loader2 className="h-7 w-7 animate-spin text-sky-600" />
+                      <p className="text-center text-sm font-medium text-gray-900">
+                        {t("billingProcessing")}
                       </p>
-                      <p>
-                        <TextWithUssdCodes text={getBillingNoPromptHint(network, contact)} />
+                      <p className="text-center text-xs text-gray-500">
+                        {t("billingCheckPhoneApprove")}
                       </p>
+                      {polling ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-1 shadow-none"
+                          onClick={() => void handlePay({ forceRetry: true })}
+                        >
+                          {t("billingSendNewPrompt")}
+                        </Button>
+                      ) : null}
                     </div>
-                  ) : null}
-
-                  <Button
-                    onClick={() => void handlePay(polling ? { forceRetry: true } : undefined)}
-                    disabled={paying || !network}
-                    className={cn(
-                      "w-full h-11 font-semibold",
-                      "bg-yellow-500 hover:bg-yellow-600 text-gray-900",
-                    )}
-                  >
-                    {t("billingPayAmount").replace("{amount}", amount.toLocaleString())}
-                  </Button>
-
-                  <PlatformContactCard
-                    contact={contact}
-                    compact
-                    title={t("callSupport")}
-                  />
-                </>
-              ) : !paymentReady ? (
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    {t("billingPaymentsUnavailable")}
-                  </p>
-                  {statusError || configError ? (
-                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                      {statusError || configError} {t("billingBackendError")}
-                    </p>
-                  ) : (
-                    <p className="text-xs">
-                      {t("billingPaypackHint")}
-                    </p>
                   )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => void refresh()}
-                  >
-                    {t("billingRetry")}
-                  </Button>
-                </div>
+
+                  {canPay && paymentReady ? (
+                    <div className="space-y-4">
+                      <RadioGroup
+                        value={network ?? ""}
+                        onValueChange={(v) => setNetwork(v as MobileNetwork)}
+                        className="flex w-full flex-row gap-2"
+                        disabled={paying || polling}
+                      >
+                        <NetworkOption
+                          id="pay-mtn"
+                          value="mtn"
+                          label="MTN MoMo"
+                          logoSrc="/mtn.png"
+                          logoAlt="MTN MoMo"
+                          selected={network === "mtn"}
+                        />
+                        <NetworkOption
+                          id="pay-airtel"
+                          value="airtel"
+                          label="Airtel Money"
+                          logoSrc="/airtel.png"
+                          logoAlt="Airtel Money"
+                          selected={network === "airtel"}
+                        />
+                      </RadioGroup>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="billing-phone">{t("billingPhone")}</Label>
+                        <Input
+                          id="billing-phone"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder={network === "airtel" ? "0721234567" : "0781234567"}
+                          disabled={paying || polling}
+                          className="border border-gray-300 shadow-none focus-visible:shadow-none"
+                        />
+                      </div>
+
+                      {network ? (
+                        <div className="space-y-1.5 rounded-md border border-gray-100 bg-gray-50 px-3 py-2.5 text-xs leading-relaxed text-gray-600">
+                          <p>{t("billingPinHint")}</p>
+                          <p>
+                            {t("billingHaveMoMoBalance")
+                              .replace("{amount}", Math.ceil(amount * 1.023).toLocaleString())
+                              .replace("{base}", amount.toLocaleString())}
+                          </p>
+                          <p>
+                            <TextWithUssdCodes text={getBillingNoPromptHint(network, contact)} />
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <Button
+                        onClick={() => void handlePay(polling ? { forceRetry: true } : undefined)}
+                        disabled={paying || !network}
+                        className="h-10 w-full bg-sky-500 font-semibold text-white shadow-none hover:bg-sky-600"
+                      >
+                        {t("billingPayAmount").replace("{amount}", amount.toLocaleString())}
+                      </Button>
+
+                      <PlatformContactCard contact={contact} compact title={t("callSupport")} />
+                    </div>
+                  ) : !paymentReady ? (
+                    <div className="space-y-3 text-sm text-gray-600">
+                      <p>{t("billingPaymentsUnavailable")}</p>
+                      {statusError || configError ? (
+                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                          {statusError || configError} {t("billingBackendError")}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500">{t("billingPaypackHint")}</p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full shadow-none"
+                        onClick={() => void refresh()}
+                      >
+                        {t("billingRetry")}
+                      </Button>
+                    </div>
+                  ) : null}
+                </SectionCard>
               ) : null}
             </div>
-            ) : null}
-          </div>
           </div>
         )}
       </div>
 
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="shadow-none">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("billingCancelTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -812,11 +820,9 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>
-              {t("billingKeepPlan")}
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={cancelling}>{t("billingKeepPlan")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-500 text-white hover:bg-red-600 border border-red-500"
+              className="border border-red-500 bg-red-500 text-white shadow-none hover:bg-red-600"
               disabled={cancelling}
               onClick={(e) => {
                 e.preventDefault();
@@ -825,7 +831,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
             >
               {cancelling ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t("billingCancelling")}
                 </>
               ) : (
