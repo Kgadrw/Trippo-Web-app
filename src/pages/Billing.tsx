@@ -735,6 +735,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder={network === "airtel" ? "0721234567" : "0781234567"}
                       disabled={paying || polling}
+                      className="border border-gray-300 shadow-none"
                     />
                   </div>
 

@@ -17,6 +17,46 @@ type PlatformContactCardProps = {
   description?: string;
 };
 
+type ContactRow = {
+  key: string;
+  href: string;
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  external?: boolean;
+};
+
+function ContactLinkRow({
+  href,
+  label,
+  value,
+  icon,
+  external,
+  isLast,
+}: ContactRow & { isLast?: boolean }) {
+  return (
+    <a
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-gray-50",
+        !isLast && "border-b border-gray-100",
+      )}
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-gray-200 bg-white text-gray-600">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-medium uppercase tracking-wide text-gray-400">
+          {label}
+        </span>
+        <span className="block truncate text-sm font-medium text-gray-900">{value}</span>
+      </span>
+    </a>
+  );
+}
+
 export function PlatformContactCard({
   contact,
   className,
@@ -29,62 +69,76 @@ export function PlatformContactCard({
   const instagram = instagramHref(contact.instagramUrl);
   const email = contact.supportEmail?.trim();
 
-  const hasAny = Boolean(phone || whatsapp || email || instagram);
-  if (!hasAny) return null;
+  const rows: ContactRow[] = [];
+  if (phone) {
+    rows.push({
+      key: "phone",
+      href: phoneTelHref(phone),
+      label: "Phone",
+      value: phone,
+      icon: <Phone className="h-3.5 w-3.5" />,
+    });
+  }
+  if (whatsapp) {
+    rows.push({
+      key: "whatsapp",
+      href: whatsappHref(whatsapp),
+      label: "WhatsApp",
+      value: whatsapp,
+      icon: <MessageCircle className="h-3.5 w-3.5" />,
+      external: true,
+    });
+  }
+  if (email) {
+    rows.push({
+      key: "email",
+      href: `mailto:${email}`,
+      label: "Email",
+      value: email,
+      icon: <Mail className="h-3.5 w-3.5" />,
+    });
+  }
+  if (instagram) {
+    rows.push({
+      key: "instagram",
+      href: instagram,
+      label: "Instagram",
+      value: "Follow us",
+      icon: <Instagram className="h-3.5 w-3.5" />,
+      external: true,
+    });
+  }
+
+  if (!rows.length) return null;
 
   return (
-    <div className={cn("rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-3", className)}>
-      {title ? <h3 className="text-sm font-semibold text-gray-900">{title}</h3> : null}
-      {description ? (
-        <p className="text-xs text-muted-foreground">
-          <TextWithUssdCodes text={description} />
-        </p>
-      ) : null}
+    <div
+      className={cn(
+        "overflow-hidden rounded-lg border border-gray-200 bg-white",
+        className,
+      )}
+    >
+      {(title || description) && (
+        <div className={cn("border-b border-gray-100 px-3", compact ? "py-2.5" : "py-3")}>
+          {title ? (
+            <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+          ) : null}
+          {description ? (
+            <p className={cn("text-xs leading-relaxed text-gray-500", title && "mt-0.5")}>
+              <TextWithUssdCodes text={description} />
+            </p>
+          ) : null}
+        </div>
+      )}
 
-      <div className={cn("flex flex-col gap-2", compact ? "text-sm" : "text-sm sm:text-base")}>
-        {phone ? (
-          <a
-            href={phoneTelHref(phone)}
-            className="inline-flex items-center gap-2 text-gray-900 hover:text-blue-700 transition-colors"
-          >
-            <Phone className="h-4 w-4 shrink-0 text-gray-500" />
-            <span>{phone}</span>
-          </a>
-        ) : null}
-
-        {whatsapp ? (
-          <a
-            href={whatsappHref(whatsapp)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-gray-900 hover:text-green-700 transition-colors"
-          >
-            <MessageCircle className="h-4 w-4 shrink-0 text-gray-500" />
-            <span>WhatsApp {whatsapp}</span>
-          </a>
-        ) : null}
-
-        {email ? (
-          <a
-            href={`mailto:${email}`}
-            className="inline-flex items-center gap-2 text-gray-900 hover:text-blue-700 transition-colors"
-          >
-            <Mail className="h-4 w-4 shrink-0 text-gray-500" />
-            <span>{email}</span>
-          </a>
-        ) : null}
-
-        {instagram ? (
-          <a
-            href={instagram}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-gray-900 hover:text-pink-600 transition-colors"
-          >
-            <Instagram className="h-4 w-4 shrink-0 text-gray-500" />
-            <span>Instagram</span>
-          </a>
-        ) : null}
+      <div>
+        {rows.map((row, index) => (
+          <ContactLinkRow
+            key={row.key}
+            {...row}
+            isLast={index === rows.length - 1}
+          />
+        ))}
       </div>
     </div>
   );
@@ -95,16 +149,16 @@ export function PlatformContactFooter({ contact }: { contact: PlatformContact })
   const instagram = instagramHref(contact.instagramUrl);
 
   return (
-    <footer className="bg-stone-50 border-t border-gray-200" role="contentinfo">
-      <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20 py-12">
+    <footer className="border-t border-gray-200 bg-stone-50" role="contentinfo">
+      <div className="mx-auto w-full max-w-none px-4 py-12 sm:px-6 lg:px-10 xl:px-16 2xl:px-20">
         <div className="flex flex-col items-center gap-4">
           <div className="flex flex-wrap items-center justify-center gap-6">
             {phone ? (
               <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-gray-600" />
+                <Phone className="h-4 w-4 text-gray-600" />
                 <a
                   href={phoneTelHref(phone)}
-                  className="text-sm text-gray-900 hover:text-gray-600 transition-colors"
+                  className="text-sm text-gray-900 transition-colors hover:text-gray-600"
                 >
                   {phone}
                 </a>
@@ -114,7 +168,7 @@ export function PlatformContactFooter({ contact }: { contact: PlatformContact })
             {contact.supportEmail ? (
               <a
                 href={`mailto:${contact.supportEmail}`}
-                className="text-sm text-gray-900 hover:text-gray-600 transition-colors"
+                className="text-sm text-gray-900 transition-colors hover:text-gray-600"
               >
                 {contact.supportEmail}
               </a>
@@ -125,10 +179,10 @@ export function PlatformContactFooter({ contact }: { contact: PlatformContact })
                 href={instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-900 hover:text-pink-600 transition-colors"
+                className="text-gray-900 transition-colors hover:text-pink-600"
                 aria-label="Follow us on Instagram"
               >
-                <Instagram className="w-5 h-5" />
+                <Instagram className="h-5 w-5" />
               </a>
             ) : null}
           </div>
