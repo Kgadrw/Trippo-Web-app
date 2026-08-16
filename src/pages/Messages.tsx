@@ -2254,7 +2254,6 @@ export function MessagesPage() {
                   </div>
                 ) : null}
                   </div>
-                </div>
 
               {showScrollDown ? (
                 <button
