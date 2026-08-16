@@ -49,7 +49,7 @@ export const WORKSPACE_PAGES: WorkspacePageMeta[] = [
   { key: 'sales', label: 'Sales', path: '/sales' },
   { key: 'finance', label: 'Finance', path: '/finance/customers' },
   { key: 'approvals', label: 'Approvals', path: '/approvals' },
-  { key: 'team', label: 'Team', path: '/team' },
+  { key: 'team', label: 'Tasks', path: '/team/tasks' },
   { key: 'projects', label: 'Projects', path: '/projects' },
   { key: 'hr', label: 'HR', path: '/hr' },
   { key: 'assets', label: 'Assets', path: '/assets' },

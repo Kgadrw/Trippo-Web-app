@@ -115,7 +115,6 @@ import BusinessCalendarView from "./pages/calendar/BusinessCalendarView";
 import CalendarSchedules from "./pages/calendar/CalendarSchedules";
 import CalendarAnnouncements from "./pages/calendar/CalendarAnnouncements";
 import { TeamLayout } from "./components/team/TeamLayout";
-import TeamOverview from "./pages/team/TeamOverview";
 import TeamTasks from "./pages/team/TeamTasks";
 import { HrLayout } from "./components/hr/HrLayout";
 import HrOverview from "./pages/hr/HrOverview";
@@ -257,7 +256,7 @@ const SubdomainRouter = () => {
           path="/team"
           element={<TeamLayout />}
         >
-          <Route index element={<TeamOverview />} />
+          <Route index element={<Navigate to="/team/tasks" replace />} />
           <Route path="tasks" element={<TeamTasks />} />
           <Route path="tasks/finance" element={<Navigate to="/team/tasks" replace />} />
           <Route path="members" element={<Navigate to="/hr/people" replace />} />

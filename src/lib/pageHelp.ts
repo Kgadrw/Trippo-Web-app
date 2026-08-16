@@ -15,7 +15,7 @@ export const pageHelpByPath: Record<string, HelpTranslationKey> = {
   "/calendar/view": "helpCalendar",
   "/calendar/schedules": "helpAutomations",
   "/calendar/announcements": "helpCorpCalAnnouncements",
-  "/team": "helpTeamOverview",
+  "/team": "helpTeamTasks",
   "/team/tasks": "helpTeamTasks",
   "/hr": "helpHrOverview",
   "/hr/people": "helpTeamMembers",

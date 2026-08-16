@@ -54,11 +54,6 @@ const financeChildren = [
   { label: "Transactions", to: "/finance/transactions" },
 ];
 
-const teamChildren = [
-  { label: "Overview", to: "/team" },
-  { label: "All tasks", to: "/team/tasks" },
-];
-
 const hrChildren = [
   { label: "Overview", to: "/hr" },
   { label: "People", to: "/hr/people" },
@@ -80,6 +75,7 @@ const menuItems: SidebarMenuItem[] = [
   // Start of day
   { label: "Overview", path: "/", pageKey: "dashboard" },
   { label: "Messages", path: "/messages", pageKey: "chat" },
+  { label: "Tasks", path: "/team/tasks", matchPrefix: "/team", pageKey: "team" },
   {
     label: "Calendar",
     path: "/calendar",
@@ -102,14 +98,6 @@ const menuItems: SidebarMenuItem[] = [
   },
   { label: "Approvals", path: "/approvals", pageKey: "approvals" },
   // People & work
-  {
-    label: "Team",
-    path: "/team",
-    matchPrefix: "/team",
-    sectionKey: "team",
-    pageKey: "team",
-    children: teamChildren,
-  },
   {
     label: "Projects",
     path: "/projects",
@@ -227,9 +215,6 @@ export function Sidebar({
   useEffect(() => {
     if (location.pathname.startsWith("/finance")) {
       setOpenSections((prev) => ({ ...prev, finance: true }));
-    }
-    if (location.pathname.startsWith("/team")) {
-      setOpenSections((prev) => ({ ...prev, team: true }));
     }
     if (location.pathname.startsWith("/hr")) {
       setOpenSections((prev) => ({ ...prev, hr: true }));
