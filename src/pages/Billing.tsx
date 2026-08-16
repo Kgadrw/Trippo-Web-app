@@ -88,7 +88,6 @@ function NetworkOption({
   value,
   label,
   logoSrc,
-  logoAlt,
   selected,
 }: {
   id: string;
@@ -102,10 +101,8 @@ function NetworkOption({
     <label
       htmlFor={id}
       className={cn(
-        "flex items-center gap-3 sm:gap-4 cursor-pointer rounded-xl p-4 sm:p-5 w-full border-2 transition-all",
-        selected
-          ? "border-yellow-500 bg-yellow-50 shadow-sm ring-2 ring-yellow-500/25"
-          : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50",
+        "flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-2 transition-colors",
+        selected ? "border-sky-300 bg-sky-50/60" : "hover:bg-gray-50",
       )}
     >
       <RadioGroupItem
@@ -113,17 +110,18 @@ function NetworkOption({
         id={id}
         aria-label={label}
         className={cn(
-          "h-5 w-5 shrink-0 rounded-full border-2 bg-white shadow-sm",
-          "border-gray-500 text-yellow-600",
-          "data-[state=checked]:border-yellow-500 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-white",
+          "h-5 w-5 shrink-0 rounded border border-solid !border-gray-400 bg-white text-white shadow-none",
+          "hover:!border-gray-500",
+          "data-[state=checked]:bg-sky-400 data-[state=checked]:!border-gray-400 data-[state=checked]:text-white",
+          "focus-visible:outline-none focus-visible:ring-0",
           "[&_svg]:h-2.5 [&_svg]:w-2.5 data-[state=checked]:[&_svg]:fill-white",
         )}
       />
-      <img src={logoSrc} alt="" className="h-14 w-14 sm:h-16 sm:w-16 object-contain shrink-0" />
+      <img src={logoSrc} alt="" className="h-7 w-7 shrink-0 object-contain" />
       <span
         className={cn(
-          "text-sm font-semibold sr-only sm:not-sr-only",
-          selected ? "text-gray-900" : "text-muted-foreground",
+          "truncate text-xs font-medium sm:text-sm",
+          selected ? "text-gray-900" : "text-gray-600",
         )}
       >
         {label}
@@ -708,7 +706,7 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                   <RadioGroup
                     value={network ?? ""}
                     onValueChange={(v) => setNetwork(v as MobileNetwork)}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full"
+                    className="flex w-full flex-row gap-2 sm:gap-3"
                     disabled={paying || polling}
                   >
                     <NetworkOption
@@ -730,15 +728,12 @@ export default function Billing({ embedded = false }: { embedded?: boolean }) {
                   </RadioGroup>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="billing-phone" className="text-sm text-muted-foreground">
-                      {t("billingPhone")}
-                    </Label>
+                    <Label htmlFor="billing-phone">{t("billingPhone")}</Label>
                     <Input
                       id="billing-phone"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder={network === "airtel" ? "0721234567" : "0781234567"}
-                      className="h-11 text-sm w-full border-border"
                       disabled={paying || polling}
                     />
                   </div>
