@@ -222,10 +222,18 @@ function TaskBoardCard({
                           </DropdownMenuItem>
                         ))
                       : null}
-                    <DropdownMenuItem onClick={() => onEdit(task)}>
-                      <Pencil size={14} className="mr-2" />
-                      {t("edit")}
-                    </DropdownMenuItem>
+                    {!isDone && (canChangeStatus || canManageTask) ? (
+                      <DropdownMenuItem onClick={() => onEdit(task)}>
+                        <Pencil size={14} className="mr-2" />
+                        {t("edit")}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {isDone && canChangeStatus ? (
+                      <DropdownMenuItem onClick={() => onEdit(task)}>
+                        <Pencil size={14} className="mr-2" />
+                        {t("teamEditCompletionNote")}
+                      </DropdownMenuItem>
+                    ) : null}
                     <DropdownMenuItem
                       className="text-red-600"
                       disabled={deletingId === id}

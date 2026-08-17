@@ -91,10 +91,12 @@
         font-size: var(--text-xl);
         line-height: var(--text-xl--line-height);
     }
-    &:where(blockquote p:first-of-type::before) {
+    /* Pseudo-elements must sit outside :where() — inside it, Vite/Lightning CSS
+       minify flattens to empty :where() and warns Unexpected ")". */
+    &:where(blockquote p:first-of-type)::before {
         content: open-quote;
     }
-    &:where(blockquote p:last-of-type::after) {
+    &:where(blockquote p:last-of-type)::after {
         content: close-quote;
     }
 

@@ -689,6 +689,8 @@ const en: Partial<Translations> = {
   teamCompletionNote: "Completion note",
   teamCompletionNotePlaceholder: "What was done? Any follow-up for the manager?",
   teamCompletionNotifyHint: "Your manager will be notified when you complete this task.",
+  teamEditCompletionNote: "Edit completion note",
+  teamDoneLockedHint: "This task is done. To edit other fields, move it back to To do or In progress.",
   teamDepartment: "Department",
   teamMonth: "Month",
   teamLinkProject: "Link to project",

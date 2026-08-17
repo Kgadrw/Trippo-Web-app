@@ -166,6 +166,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
   const [open, setOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [editingCompletionNote, setEditingCompletionNote] = useState(false);
   const [editing, setEditing] = useState<TeamTaskRecord | null>(null);
   const [completing, setCompleting] = useState<TeamTaskRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -348,6 +349,10 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   };
 
   const openEdit = (task: TeamTaskRecord) => {
+    if ((task.status || "todo") === "done") {
+      openEditCompletionNote(task);
+      return;
+    }
     setEditing(task);
     setTitle(task.title);
     setDescription(task.description || "");
@@ -366,6 +371,17 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setOpen(true);
   };
 
+  const openEditCompletionNote = (task: TeamTaskRecord) => {
+    if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {
+      toast({ title: t("teamTaskStatusAssigneeOnly"), variant: "destructive" });
+      return;
+    }
+    setCompleting(task);
+    setCompletionNote(task.completionNote || "");
+    setEditingCompletionNote(true);
+    setCompleteOpen(true);
+  };
+
   const openComplete = (task: TeamTaskRecord) => {
     if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {
       toast({ title: t("teamTaskStatusAssigneeOnly"), variant: "destructive" });
@@ -373,6 +389,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     }
     setCompleting(task);
     setCompletionNote(task.completionNote || "");
+    setEditingCompletionNote(false);
     setCompleteOpen(true);
   };
 
@@ -383,6 +400,10 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     }
 
     if (editing) {
+      if ((editing.status || "todo") === "done") {
+        toast({ title: t("teamDoneLockedHint"), variant: "destructive" });
+        return;
+      }
       if (!title.trim()) {
         toast({ title: t("teamTitleRequired"), variant: "destructive" });
         return;
@@ -495,12 +516,32 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     if (!completing) return;
     setIsSaving(true);
     try {
-      const res = await teamTaskApi.complete(taskId(completing), completionNote.trim());
-      applyTaskUpdate((res.data as TeamTaskRecord) || { ...completing, status: "done", completionNote: completionNote.trim() });
-      toast({ title: t("teamTaskCompleted") });
+      if (editingCompletionNote) {
+        const res = await teamTaskApi.update(taskId(completing), {
+          completionNote: completionNote.trim(),
+        });
+        applyTaskUpdate(
+          (res.data as TeamTaskRecord) || {
+            ...completing,
+            completionNote: completionNote.trim(),
+          },
+        );
+        toast({ title: t("teamTaskUpdated") });
+      } else {
+        const res = await teamTaskApi.complete(taskId(completing), completionNote.trim());
+        applyTaskUpdate(
+          (res.data as TeamTaskRecord) || {
+            ...completing,
+            status: "done",
+            completionNote: completionNote.trim(),
+          },
+        );
+        toast({ title: t("teamTaskCompleted") });
+      }
       setCompleteOpen(false);
       setCompleting(null);
       setCompletionNote("");
+      setEditingCompletionNote(false);
       window.dispatchEvent(new Event("notifications-should-refresh"));
     } catch {
       toast({ title: t("teamSaveFailed"), variant: "destructive" });
@@ -1064,10 +1105,22 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+      <Dialog
+        open={completeOpen}
+        onOpenChange={(next) => {
+          setCompleteOpen(next);
+          if (!next) {
+            setEditingCompletionNote(false);
+            setCompleting(null);
+            setCompletionNote("");
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("teamCompleteTask")}</DialogTitle>
+            <DialogTitle>
+              {editingCompletionNote ? t("teamEditCompletionNote") : t("teamCompleteTask")}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-gray-600">{completing?.title}</p>
@@ -1080,14 +1133,24 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 rows={3}
               />
             </div>
-            <p className="text-xs text-gray-500">{t("teamCompletionNotifyHint")}</p>
+            {!editingCompletionNote ? (
+              <p className="text-xs text-gray-500">{t("teamCompletionNotifyHint")}</p>
+            ) : (
+              <p className="text-xs text-gray-500">{t("teamDoneLockedHint")}</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCompleteOpen(false)}>
               {t("cancel")}
             </Button>
             <Button onClick={() => void handleComplete()} disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("teamMarkComplete")}
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : editingCompletionNote ? (
+                t("save")
+              ) : (
+                t("teamMarkComplete")
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

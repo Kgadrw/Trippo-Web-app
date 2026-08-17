@@ -1725,6 +1725,8 @@ export interface Translations {
   teamCompletionNote: string;
   teamCompletionNotePlaceholder: string;
   teamCompletionNotifyHint: string;
+  teamEditCompletionNote: string;
+  teamDoneLockedHint: string;
   teamDepartment: string;
   teamMonth: string;
   teamLinkProject: string;
