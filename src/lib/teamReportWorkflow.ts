@@ -41,12 +41,26 @@ export function teamReportTypeLabel(type: TeamReportType | string | undefined) {
 
 export function teamReportStatusLabel(status: TeamReportStatus | string | undefined) {
   const map: Record<string, string> = {
-    submitted: "Submitted",
+    submitted: "Waiting for review",
     reviewed: "Reviewed",
     changes_requested: "Changes requested",
     rejected: "Rejected",
   };
-  return map[status || "submitted"] || status || "Submitted";
+  return map[status || "submitted"] || status || "Waiting for review";
+}
+
+/** Status copy shown to the person who submitted the report. */
+export function teamReportSubmitterStatusLabel(status: TeamReportStatus | string | undefined) {
+  switch (status) {
+    case "reviewed":
+      return "Reviewed";
+    case "rejected":
+      return "Rejected";
+    case "changes_requested":
+      return "Changes requested";
+    default:
+      return "Waiting for review";
+  }
 }
 
 export function teamReportStatusClass(status: TeamReportStatus | string | undefined) {

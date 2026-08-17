@@ -49,6 +49,7 @@ import {
   teamReportId,
   teamReportStatusClass,
   teamReportStatusLabel,
+  teamReportSubmitterStatusLabel,
   type TeamReportRecord,
   type TeamReportStatus,
 } from "@/lib/teamReportWorkflow";
@@ -60,15 +61,19 @@ function currentUserId() {
   return localStorage.getItem("profit-pilot-user-id");
 }
 
+function isOwnReport(report: TeamReportRecord, userId: string | null) {
+  if (!userId) return false;
+  if (!report.submitterUserId) return true;
+  return String(report.submitterUserId) === String(userId);
+}
+
 function canManageReport(
   report: TeamReportRecord,
   userId: string | null,
   isAdmin: boolean,
 ) {
   if (isAdmin) return true;
-  if (!userId) return false;
-  if (!report.submitterUserId) return true;
-  return String(report.submitterUserId) === String(userId);
+  return isOwnReport(report, userId);
 }
 
 const emptyForm = () => {
@@ -299,12 +304,33 @@ export function TeamReportsTab() {
   const renderActions = (report: TeamReportRecord, compact = false) => {
     const id = teamReportId(report);
     const isPending = report.status === "submitted";
+    const ownedByMe = isOwnReport(report, userId);
     const canManage = canManageReport(report, userId, isAdminReviewer);
     const showEdit = canManage && (isAdminReviewer || canEditTeamReport(report.status));
     const showDelete = canManage && (isAdminReviewer || canDeleteTeamReport(report.status));
     const needsResubmit = shouldResubmitTeamReport(report.status);
     return (
-      <div className={cn("flex flex-wrap items-center gap-1", compact && "justify-end")}>
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-1.5",
+          compact ? "justify-end" : "justify-end",
+        )}
+      >
+        {ownedByMe ? (
+          <span
+            className={cn(
+              "inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+              teamReportStatusClass(report.status),
+            )}
+            title={
+              report.reviewNote
+                ? `${teamReportSubmitterStatusLabel(report.status)} — ${report.reviewNote}`
+                : teamReportSubmitterStatusLabel(report.status)
+            }
+          >
+            {teamReportSubmitterStatusLabel(report.status)}
+          </span>
+        ) : null}
         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetail(report)}>
           View
         </Button>
