@@ -241,6 +241,7 @@ async function request<T>(
     const disableGetCache =
       endpoint.startsWith('/sales') ||
       endpoint.startsWith('/notifications') ||
+      endpoint.startsWith('/team-reports') ||
       endpoint.startsWith('/auth/me') ||
       endpoint.startsWith('/subscription') ||
       endpoint.startsWith('/content/') ||

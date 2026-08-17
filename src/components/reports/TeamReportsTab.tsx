@@ -307,16 +307,22 @@ export function TeamReportsTab() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const id = teamReportId(deleteTarget);
+    const title = deleteTarget.title;
     setActingId(`${id}-delete`);
+    // Remove from the list immediately so the row disappears without waiting on refetch.
+    setItems((prev) => prev.filter((report) => teamReportId(report) !== id));
+    if (detail && teamReportId(detail) === id) setDetail(null);
     try {
       await teamReportApi.delete(id);
-      toast({ title: "Report deleted", description: `"${deleteTarget.title}" was removed.` });
+      toast({ title: "Report deleted", description: `"${title}" was removed.` });
       setDeleteTarget(null);
-      if (detail && teamReportId(detail) === id) setDetail(null);
+      window.dispatchEvent(new CustomEvent("approvals-should-refresh"));
+      window.dispatchEvent(new CustomEvent("notifications-should-refresh"));
       await loadReports(true);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Could not delete report.";
       toast({ title: "Error", description: message, variant: "destructive" });
+      await loadReports(true);
     } finally {
       setActingId(null);
     }

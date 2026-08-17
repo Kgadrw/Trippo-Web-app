@@ -63,7 +63,11 @@ export function DeleteConfirmDialog({
             {cancelLabel}
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => void onConfirm()}
+            onClick={(event) => {
+              // Keep dialog open while async delete runs (default Action closes immediately).
+              event.preventDefault();
+              void onConfirm();
+            }}
             disabled={isDeleting}
             className={cn(
               "rounded bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-300",
