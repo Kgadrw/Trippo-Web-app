@@ -76,7 +76,7 @@ export function teamReportStatusClass(status: TeamReportStatus | string | undefi
   }
 }
 
-/** Own reports (or admin) can edit unless already reviewed — reviewed stays locked to history. */
+/** Only the submitter can edit — locked once reviewed. */
 export function canEditTeamReport(status: TeamReportStatus | string | undefined) {
   return status !== "reviewed";
 }
@@ -86,6 +86,7 @@ export function shouldResubmitTeamReport(status: TeamReportStatus | string | und
   return status === "changes_requested" || status === "rejected";
 }
 
+/** Only the submitter can delete — locked once reviewed. */
 export function canDeleteTeamReport(status: TeamReportStatus | string | undefined) {
   return status !== "reviewed";
 }

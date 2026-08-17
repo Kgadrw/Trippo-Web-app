@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Pause, Play, Send, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -424,21 +424,20 @@ type ChatVoiceRecorderProps = {
   sendLabel: string;
   micLabel: string;
   permissionDeniedLabel: string;
+  /** @deprecated Hold gestures removed — tap to record / tap to send. */
   holdHintLabel?: string;
+  /** @deprecated */
   slideUpLockLabel?: string;
+  /** @deprecated */
   slideCancelLabel?: string;
+  /** Hint shown while recording (default: tap send when done). */
   lockedLabel?: string;
+  /** @deprecated */
   releaseToSendLabel?: string;
   onError: (message: string) => void;
   onSend: (payload: VoiceNoteSendPayload) => void | Promise<void>;
   onRecordingChange?: (recording: boolean) => void;
 };
-
-type HoldPhase = "idle" | "holding" | "locked";
-
-const LOCK_SWIPE_PX = 56;
-const CANCEL_SWIPE_PX = 72;
-const TAP_LOCK_MS = 280;
 
 export function ChatVoiceRecorderButton({
   disabled,
@@ -448,11 +447,8 @@ export function ChatVoiceRecorderButton({
   sendLabel,
   micLabel,
   permissionDeniedLabel,
-  holdHintLabel = "Hold to record",
-  slideUpLockLabel = "Slide up to lock",
-  slideCancelLabel = "Slide left to cancel",
-  lockedLabel = "Locked — tap send when done",
-  releaseToSendLabel = "Release to send",
+  holdHintLabel = "Tap to record",
+  lockedLabel = "Recording — tap send when done",
   onError,
   onSend,
   onRecordingChange,
@@ -467,27 +463,13 @@ export function ChatVoiceRecorderButton({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const levelSamplesRef = useRef<number[]>([]);
   const liveBarsRef = useRef<number[]>(normalizePeaks(undefined));
-  const pointerIdRef = useRef<number | null>(null);
-  const pointerStartRef = useRef<{ x: number; y: number; at: number } | null>(null);
-  const holdIntentRef = useRef(false);
-  const phaseRef = useRef<HoldPhase>("idle");
-  const cancelArmedRef = useRef(false);
-  const pendingReleaseRef = useRef<"send" | "cancel" | "lock" | null>(null);
   const startingRef = useRef(false);
-  const micBtnRef = useRef<HTMLButtonElement | null>(null);
+  const finishingRef = useRef(false);
 
   const [recording, setRecording] = useState(false);
-  const [phase, setPhase] = useState<HoldPhase>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
   const [livePeaks, setLivePeaks] = useState(() => normalizePeaks(undefined));
-  const [cancelArmed, setCancelArmed] = useState(false);
-  const [lockHint, setLockHint] = useState(false);
-
-  const setHoldPhase = (next: HoldPhase) => {
-    phaseRef.current = next;
-    setPhase(next);
-  };
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -572,17 +554,10 @@ export function ChatVoiceRecorderButton({
   };
 
   const finishRecording = (action: "send" | "cancel") => {
+    if (finishingRef.current) return;
     const recorder = mediaRecorderRef.current;
     const durationSec = Math.max(0, (Date.now() - startedAtRef.current) / 1000);
     const waveform = downsamplePeaks(levelSamplesRef.current);
-    holdIntentRef.current = false;
-    pendingReleaseRef.current = null;
-    cancelArmedRef.current = false;
-    setCancelArmed(false);
-    setLockHint(false);
-    setHoldPhase("idle");
-    pointerIdRef.current = null;
-    pointerStartRef.current = null;
 
     if (!recorder || recorder.state === "inactive") {
       stopAnalyser();
@@ -593,10 +568,12 @@ export function ChatVoiceRecorderButton({
       return;
     }
 
-    // Prevent double-send when tap-to-send and release-to-send both fire.
+    finishingRef.current = true;
+    // Prevent double-send if send is tapped twice quickly.
     mediaRecorderRef.current = null;
 
     recorder.onstop = () => {
+      finishingRef.current = false;
       clearTick();
       stopAnalyser();
       stopTracks();
@@ -633,6 +610,7 @@ export function ChatVoiceRecorderButton({
     try {
       recorder.stop();
     } catch {
+      finishingRef.current = false;
       stopAnalyser();
       setRecording(false);
       onRecordingChange?.(false);
@@ -641,31 +619,8 @@ export function ChatVoiceRecorderButton({
     }
   };
 
-  const lockRecording = () => {
-    cancelArmedRef.current = false;
-    setCancelArmed(false);
-    setLockHint(false);
-    setHoldPhase("locked");
-    try {
-      navigator.vibrate?.(10);
-    } catch {
-      // ignore
-    }
-  };
-
-  const applyPendingRelease = () => {
-    const pending = pendingReleaseRef.current;
-    pendingReleaseRef.current = null;
-    if (!pending) return;
-    if (pending === "lock") {
-      lockRecording();
-      return;
-    }
-    finishRecording(pending);
-  };
-
-  const startRecording = async (initialPhase: HoldPhase = "holding") => {
-    if (disabled || recording || busy || startingRef.current) return;
+  const startRecording = async () => {
+    if (disabled || recording || busy || startingRef.current || finishingRef.current) return;
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       onError("Voice recording is not supported on this device.");
       return;
@@ -698,253 +653,68 @@ export function ChatVoiceRecorderButton({
       setElapsed(0);
       setRecording(true);
       onRecordingChange?.(true);
-      setHoldPhase(initialPhase);
       clearTick();
       tickRef.current = window.setInterval(() => {
         setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
       }, 200);
-
-      // Finger may have released while permission dialog was open.
-      if (!holdIntentRef.current) {
-        applyPendingRelease();
-      } else if (pendingReleaseRef.current) {
-        applyPendingRelease();
+      try {
+        navigator.vibrate?.(8);
+      } catch {
+        // ignore
       }
     } catch {
       stopAnalyser();
       stopTracks();
-      holdIntentRef.current = false;
-      pendingReleaseRef.current = null;
-      setHoldPhase("idle");
       onError(permissionDeniedLabel);
     } finally {
       startingRef.current = false;
     }
   };
 
-  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (disabled || busy || recording || startingRef.current) return;
-    if (event.button !== 0 && event.pointerType === "mouse") return;
-
-    event.preventDefault();
-    holdIntentRef.current = true;
-    pendingReleaseRef.current = null;
-    cancelArmedRef.current = false;
-    setCancelArmed(false);
-    setLockHint(false);
-    pointerIdRef.current = event.pointerId;
-    pointerStartRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-      at: Date.now(),
-    };
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // ignore
-    }
-    void startRecording("holding");
-  };
-
-  // On mobile the microphone permission sheet can open before `recording` becomes
-  // true. The original button is still mounted during that interval, but the
-  // window gesture listeners below are not active yet. Capture release here so
-  // permission approval cannot leave a recording running indefinitely.
-  const onPointerReleaseBeforeStart = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-    cancelled = false,
-  ) => {
-    if (pointerIdRef.current != null && event.pointerId !== pointerIdRef.current) return;
-    if (!startingRef.current || recording) return;
-
-    holdIntentRef.current = false;
-    pointerIdRef.current = null;
-    pointerStartRef.current = null;
-    pendingReleaseRef.current = cancelled ? "cancel" : "send";
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is not available in every mobile browser.
-    }
-  };
-
-  // While holding, track gestures on window — the mic button unmounts into the recording bar.
-  useEffect(() => {
-    if (!recording || phase !== "holding") return;
-
-    const matchesPointer = (event: PointerEvent) =>
-      pointerIdRef.current == null || event.pointerId === pointerIdRef.current;
-
-    const onMove = (event: PointerEvent) => {
-      if (!holdIntentRef.current || phaseRef.current !== "holding") return;
-      if (!matchesPointer(event)) return;
-      const start = pointerStartRef.current;
-      if (!start) return;
-
-      const dx = event.clientX - start.x;
-      const dy = event.clientY - start.y;
-
-      if (dy < -LOCK_SWIPE_PX) {
-        holdIntentRef.current = false;
-        lockRecording();
-        return;
-      }
-
-      const armed = dx < -CANCEL_SWIPE_PX;
-      cancelArmedRef.current = armed;
-      setCancelArmed(armed);
-      setLockHint(dy < -20 && !armed);
-    };
-
-    const onUp = (event: PointerEvent) => {
-      if (!matchesPointer(event)) return;
-      if (phaseRef.current === "locked") {
-        holdIntentRef.current = false;
-        pointerIdRef.current = null;
-        pointerStartRef.current = null;
-        return;
-      }
-      if (phaseRef.current !== "holding") return;
-
-      const start = pointerStartRef.current;
-      const heldMs = start ? Date.now() - start.at : 0;
-      holdIntentRef.current = false;
-      pointerIdRef.current = null;
-
-      if (heldMs < TAP_LOCK_MS && !cancelArmedRef.current) {
-        lockRecording();
-        pointerStartRef.current = null;
-        return;
-      }
-
-      finishRecording(cancelArmedRef.current ? "cancel" : "send");
-      pointerStartRef.current = null;
-    };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  }, [recording, phase]);
-
   if (recording) {
-    const holding = phase === "holding";
     return (
       <div
-        className={cn(
-          "relative z-30 flex w-full min-w-0 flex-col gap-1.5",
-          className,
-        )}
+        className={cn("relative z-30 flex w-full min-w-0 flex-col gap-1.5", className)}
         data-chat-voice-recording="true"
         aria-live="polite"
       >
-        {holding ? (
-          <div className="flex items-center justify-center gap-3 px-1 text-[11px] font-medium">
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1",
-                cancelArmed ? "bg-red-600 text-white" : "bg-gray-900/90 text-white",
-              )}
-            >
-              {cancelArmed
-                ? slideCancelLabel
-                : lockHint
-                  ? slideUpLockLabel
-                  : `${releaseToSendLabel} · ${sendLabel}`}
-            </span>
-            {!cancelArmed ? (
-              <span className="text-sky-600">
-                ↑ <span className="uppercase tracking-wide">{slideUpLockLabel}</span>
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div
-          className={cn(
-            "flex w-full items-center gap-2 rounded-full border px-3 py-2.5 shadow-none",
-            cancelArmed
-              ? "border-red-300 bg-red-100"
-              : holding
-                ? "border-red-200 bg-red-50"
-                : "border-sky-200 bg-sky-50",
-          )}
-        >
+        <div className="flex w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-2.5 shadow-none">
           <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
           </span>
           <div className="min-w-0 flex-1">
             <VoiceWaveform peaks={livePeaks} live />
-            <p
-              className={cn(
-                "mt-0.5 text-xs font-semibold tabular-nums",
-                cancelArmed ? "text-red-700" : holding ? "text-red-600" : "text-sky-700",
-              )}
-            >
-              {holding
-                ? `${recordingLabel} · ${formatDuration(elapsed)}`
-                : `${lockedLabel} · ${formatDuration(elapsed)}`}
+            <p className="mt-0.5 text-xs font-semibold tabular-nums text-sky-700">
+              {`${recordingLabel} · ${formatDuration(elapsed)}`}
             </p>
+            <p className="text-[10px] font-medium text-sky-600/90">{lockedLabel}</p>
           </div>
 
-          {holding ? (
-            <button
-              type="button"
-              disabled={busy || cancelArmed || elapsed < 1}
-              onPointerDown={(event) => {
-                // Don't steal the hold finger — only react to a separate tap/click.
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (busy || cancelArmed || elapsed < 1) return;
-                holdIntentRef.current = false;
-                pendingReleaseRef.current = null;
-                finishRecording("send");
-              }}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow disabled:opacity-40"
-              aria-label={sendLabel}
-              title={sendLabel}
-            >
-              {busy ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Send size={16} className="translate-x-px" />
-              )}
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => finishRecording("cancel")}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-100"
-                aria-label={cancelLabel}
-                title={cancelLabel}
-              >
-                <Trash2 size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => finishRecording("send")}
-                disabled={busy || elapsed < 1}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
-                aria-label={sendLabel}
-                title={sendLabel}
-              >
-                {busy ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Send size={15} className="translate-x-px" />
-                )}
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => finishRecording("cancel")}
+            disabled={busy}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-100 disabled:opacity-40"
+            aria-label={cancelLabel}
+            title={cancelLabel}
+          >
+            <Trash2 size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => finishRecording("send")}
+            disabled={busy || elapsed < 1}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow disabled:opacity-40"
+            aria-label={sendLabel}
+            title={sendLabel}
+          >
+            {busy ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Send size={16} className="translate-x-px" />
+            )}
+          </button>
         </div>
       </div>
     );
@@ -952,20 +722,15 @@ export function ChatVoiceRecorderButton({
 
   return (
     <button
-      ref={micBtnRef}
       type="button"
       disabled={disabled || busy}
-      onPointerDown={onPointerDown}
-      onPointerUp={(event) => onPointerReleaseBeforeStart(event)}
-      onPointerCancel={(event) => onPointerReleaseBeforeStart(event, true)}
-      // Prevent the synthetic click after a completed hold gesture.
-      onClick={(event) => event.preventDefault()}
+      onClick={() => void startRecording()}
       className={cn(
-        "flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40",
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-sky-100 hover:text-sky-700 disabled:opacity-40",
         "select-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
         className,
       )}
-      aria-label={`${micLabel}. ${holdHintLabel}. ${slideUpLockLabel}.`}
+      aria-label={`${micLabel}. ${holdHintLabel}.`}
       title={`${micLabel} — ${holdHintLabel}`}
     >
       {busy ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}

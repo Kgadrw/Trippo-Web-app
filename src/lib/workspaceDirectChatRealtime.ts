@@ -66,6 +66,8 @@ export interface DirectChatMessage {
   senderName: string;
   senderProfilePictureUrl?: string | null;
   body: string;
+  /** Client-generated id so optimistic rows reconcile with HTTP/WS echoes. */
+  clientMessageId?: string;
   replyTo?: DirectChatReplyTo | null;
   attachments?: DirectChatAttachment[];
   poll?: DirectChatPoll | null;
@@ -124,6 +126,13 @@ function pendingMatchesIncoming(
   pending: DirectChatMessage,
   incoming: DirectChatMessage,
 ): boolean {
+  if (
+    pending.clientMessageId &&
+    incoming.clientMessageId &&
+    String(pending.clientMessageId) === String(incoming.clientMessageId)
+  ) {
+    return true;
+  }
   if (String(pending.senderUserId) !== String(incoming.senderUserId)) return false;
   const pendingBody = (pending.body || "").trim();
   const incomingBody = (incoming.body || "").trim();
@@ -132,6 +141,27 @@ function pendingMatchesIncoming(
   const incomingAttachments = incoming.attachments?.length || 0;
   if (pendingAttachments > 0 && incomingAttachments > 0) return true;
   return Boolean(pending.poll && incoming.poll);
+}
+
+export function sortDirectMessagesByTime(messages: DirectChatMessage[]) {
+  return [...messages].sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime() || 0;
+    const tb = new Date(b.createdAt).getTime() || 0;
+    if (ta !== tb) return ta - tb;
+    return directMessageId(a).localeCompare(directMessageId(b));
+  });
+}
+
+/** Merge a server snapshot into live state without dropping optimistic / websocket rows. */
+export function reconcileDirectMessagesAfterFetch(
+  prev: DirectChatMessage[],
+  loaded: DirectChatMessage[],
+): DirectChatMessage[] {
+  let next = prev;
+  for (const message of loaded) {
+    next = mergeDirectMessages(next, message);
+  }
+  return sortDirectMessagesByTime(next);
 }
 
 export function mergeDirectMessages(
@@ -156,6 +186,7 @@ export function mergeDirectMessages(
     conversationId: String(incoming.conversationId),
     workspaceId: String(incoming.workspaceId),
     senderUserId: String(incoming.senderUserId),
+    clientMessageId: incoming.clientMessageId ? String(incoming.clientMessageId) : undefined,
     replyTo: incomingReply,
     poll: normalizeChatPoll(incoming.poll),
     reactions: (incoming.reactions || []).map((reaction) => ({
@@ -178,6 +209,7 @@ export function mergeDirectMessages(
         next[pendingIndex] = {
           ...existing,
           ...normalized,
+          clientMessageId: normalized.clientMessageId || existing.clientMessageId,
           replyTo: normalized.replyTo?.messageId
             ? normalized.replyTo
             : existing.replyTo?.messageId
@@ -199,6 +231,7 @@ export function mergeDirectMessages(
   next[index] = {
     ...existing,
     ...normalized,
+    clientMessageId: normalized.clientMessageId || existing.clientMessageId,
     // Never drop an existing quote if the incoming payload omitted it.
     replyTo: normalized.replyTo?.messageId
       ? normalized.replyTo

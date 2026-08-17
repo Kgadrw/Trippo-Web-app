@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { teamTaskApi, type TeamTaskRecord } from "@/lib/api";
-import { formatMonthLabel, getMonthKey } from "@/lib/teamConstants";
+import { formatMonthLabel, getMonthKey, teamPriorityBarClass, teamPriorityClass } from "@/lib/teamConstants";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -296,9 +296,13 @@ export function TeamOverviewTab() {
                   return (
                     <li
                       key={task._id}
-                      className="task-assignee-card rounded border p-3 shadow-none"
+                      className="task-assignee-card relative overflow-hidden rounded border p-3 pl-4 shadow-none"
                       style={{ borderColor: cardColor, backgroundColor: cardColor }}
                     >
+                      <span
+                        aria-hidden
+                        className={cn("absolute inset-y-0 left-0 w-1", teamPriorityBarClass(task.priority))}
+                      />
                       <div className="flex items-start justify-between gap-2">
                         <p
                           className={cn(
@@ -326,7 +330,14 @@ export function TeamOverviewTab() {
                           </span>
                         ) : null}
                         {task.priority ? (
-                          <span className="capitalize">{task.priority}</span>
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide capitalize",
+                              teamPriorityClass(task.priority),
+                            )}
+                          >
+                            {task.priority}
+                          </span>
                         ) : null}
                       </div>
                     </li>

@@ -14,6 +14,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Loader2,
   CheckCircle2,
   XCircle,
@@ -27,6 +33,7 @@ import {
   Check,
   Pencil,
   Trash2,
+  MoreVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadCompanyDocument } from "@/lib/financeUpload";
@@ -63,23 +70,13 @@ function currentUserId() {
 }
 
 function isOwnReport(report: TeamReportRecord, userId: string | null) {
-  if (!userId) return false;
-  if (!report.submitterUserId) return true;
+  if (!userId || !report.submitterUserId) return false;
   return String(report.submitterUserId) === String(userId);
 }
 
 function reportToNames(report: TeamReportRecord) {
   const names = (report.reportTo || []).map((recipient) => recipient.name).filter(Boolean);
   return names.length ? names.join(", ") : "—";
-}
-
-function canManageReport(
-  report: TeamReportRecord,
-  userId: string | null,
-  isAdmin: boolean,
-) {
-  if (isAdmin) return true;
-  return isOwnReport(report, userId);
 }
 
 const emptyForm = () => {
@@ -97,7 +94,7 @@ const emptyForm = () => {
 
 export function TeamReportsTab() {
   const { toast } = useToast();
-  const { mode, isWorkspaceAdmin } = useWorkspace();
+  const { mode } = useWorkspace();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<TeamReportRecord[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberRecord[]>([]);
@@ -115,7 +112,6 @@ export function TeamReportsTab() {
   const [reviewNote, setReviewNote] = useState("");
   const [detail, setDetail] = useState<TeamReportRecord | null>(null);
   const userId = currentUserId();
-  const isAdminReviewer = mode === "workspace" && isWorkspaceAdmin;
   const myMemberId = useMemo(() => {
     if (!userId) return null;
     const mine = teamMembers.find((member) => String(member.linkedUserId) === String(userId));
@@ -240,11 +236,13 @@ export function TeamReportsTab() {
           title: "Report submitted",
           description:
             mode === "workspace"
-              ? "Admins can now review your report."
+              ? "People you reported to can now review it in Approvals."
               : "Your report was saved.",
         });
       }
       setModalOpen(false);
+      window.dispatchEvent(new CustomEvent("approvals-should-refresh"));
+      window.dispatchEvent(new CustomEvent("notifications-should-refresh"));
       await loadReports(true);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Could not save report.";
@@ -267,6 +265,8 @@ export function TeamReportsTab() {
       setRejectTarget(null);
       setChangesTarget(null);
       setReviewNote("");
+      window.dispatchEvent(new CustomEvent("approvals-should-refresh"));
+      window.dispatchEvent(new CustomEvent("notifications-should-refresh"));
       await loadReports(true);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Action failed.";
@@ -313,9 +313,8 @@ export function TeamReportsTab() {
     const id = teamReportId(report);
     const isPending = report.status === "submitted";
     const ownedByMe = isOwnReport(report, userId);
-    const canManage = canManageReport(report, userId, isAdminReviewer);
-    const showEdit = canManage && (isAdminReviewer || canEditTeamReport(report.status));
-    const showDelete = canManage && (isAdminReviewer || canDeleteTeamReport(report.status));
+    const showEdit = ownedByMe && canEditTeamReport(report.status);
+    const showDelete = ownedByMe && canDeleteTeamReport(report.status);
     const showReviewActions = canReviewTeamReport(report, userId, myMemberId) && isPending;
     const needsResubmit = shouldResubmitTeamReport(report.status);
     return (
@@ -343,23 +342,37 @@ export function TeamReportsTab() {
         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetail(report)}>
           View
         </Button>
-        {showEdit ? (
-          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(report)}>
-            <Pencil className="mr-1 h-3.5 w-3.5" />
-            {needsResubmit ? (compact ? "Edit" : "Edit & resubmit") : "Edit"}
-          </Button>
-        ) : null}
-        {showDelete ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 px-2 text-xs text-red-700 border-red-200 dark:text-red-200 dark:border-red-500/40"
-            disabled={actingId !== null}
-            onClick={() => setDeleteTarget(report)}
-          >
-            <Trash2 className="mr-1 h-3.5 w-3.5" />
-            {compact ? null : "Delete"}
-          </Button>
+        {showEdit || showDelete ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 px-0 text-muted-foreground"
+                disabled={actingId !== null}
+                aria-label="More actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {showEdit ? (
+                <DropdownMenuItem onClick={() => openEdit(report)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  {needsResubmit ? "Edit & resubmit" : "Edit"}
+                </DropdownMenuItem>
+              ) : null}
+              {showDelete ? (
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  onClick={() => setDeleteTarget(report)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
         {showReviewActions ? (
           <>
@@ -422,8 +435,8 @@ export function TeamReportsTab() {
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-foreground">Team reporting</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Submit a report with a name, description, and optional document or link. People listed
-            under Reporting to can review, request changes, or reject.
+            Submit a report with a name, description, and optional document or link. Only the
+            submitter can edit; people listed under Reporting to receive it in Approvals.
           </p>
         </div>
         <div className="flex shrink-0 gap-2">

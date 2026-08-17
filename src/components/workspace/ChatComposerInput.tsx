@@ -12,7 +12,8 @@ type ChatComposerInputProps = Omit<
 /**
  * Composer that shows Apple-style HD emoji while keeping a real textarea for typing.
  * Mirror overlay is only used when the draft contains emoji, so the caret stays
- * flush against normal typed letters on desktop.
+ * flush against normal typed letters on desktop. Bold (`**text**`) is rendered in
+ * sent messages, not while typing, to avoid caret misalignment.
  */
 export const ChatComposerInput = forwardRef<HTMLTextAreaElement, ChatComposerInputProps>(
   function ChatComposerInput({ value, className, onScroll, placeholder, ...props }, ref) {

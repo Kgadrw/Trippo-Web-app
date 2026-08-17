@@ -12,6 +12,7 @@ import {
   TEAM_TASK_STATUSES,
   formatMonthLabel,
   getMonthKey,
+  teamPriorityClass,
   type TeamDepartment,
 } from "@/lib/teamConstants";
 import { CategorySelect } from "@/components/categories/CategorySelect";
@@ -772,7 +773,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                       <SelectContent>
                         {TEAM_PRIORITIES.map((p) => (
                           <SelectItem key={p} value={p}>
-                            {p}
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                teamPriorityClass(p),
+                              )}
+                            >
+                              {p}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -965,7 +973,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                   <SelectContent>
                     {TEAM_PRIORITIES.map((p) => (
                       <SelectItem key={p} value={p}>
-                        {p}
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                            teamPriorityClass(p),
+                          )}
+                        >
+                          {p}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

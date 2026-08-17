@@ -2630,6 +2630,7 @@ export const workspaceApi = {
         waveform?: number[];
       }>;
       poll?: ChatPollInput;
+      clientMessageId?: string;
     },
   ): Promise<ApiResponse> {
     return request(`/workspaces/${encodeURIComponent(workspaceId)}/messages`, {
@@ -2642,6 +2643,7 @@ export const workspaceApi = {
         replyTo: options?.replyTo || undefined,
         attachments: options?.attachments || undefined,
         poll: options?.poll,
+        clientMessageId: options?.clientMessageId || undefined,
       }),
     });
   },
@@ -2757,6 +2759,7 @@ export const workspaceApi = {
         deletedAt?: string | null;
       } | null;
       poll?: ChatPollInput;
+      clientMessageId?: string;
     },
   ): Promise<ApiResponse> {
     return request(
@@ -2769,6 +2772,7 @@ export const workspaceApi = {
           replyToMessageId: options?.replyToMessageId || undefined,
           replyTo: options?.replyTo || undefined,
           poll: options?.poll,
+          clientMessageId: options?.clientMessageId || undefined,
         }),
       },
     );

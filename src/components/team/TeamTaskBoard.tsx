@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent } from "react";
 import type { TeamTaskRecord } from "@/lib/api";
-import { TEAM_TASK_STATUSES } from "@/lib/teamConstants";
+import { TEAM_TASK_STATUSES, teamPriorityBarClass, teamPriorityClass } from "@/lib/teamConstants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -174,12 +174,16 @@ function TaskBoardCard({
       }}
       onDragEnd={() => setIsDragging(false)}
       className={cn(
-        "task-assignee-card rounded border p-3",
+        "task-assignee-card relative overflow-hidden rounded border p-3 pl-4",
         allowDrag && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
       style={{ borderColor: cardColor, backgroundColor: cardColor }}
     >
+      <span
+        aria-hidden
+        className={cn("absolute inset-y-0 left-0 w-1", teamPriorityBarClass(task.priority))}
+      />
       <div className="flex gap-2">
         {canChangeStatus ? (
           <Checkbox
@@ -261,7 +265,14 @@ function TaskBoardCard({
                 {t("teamDueDate")}: {formatDate(task.dueDate)}
               </p>
             ) : null}
-            <p className="capitalize">{task.priority || "medium"}</p>
+            <span
+              className={cn(
+                "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                teamPriorityClass(task.priority),
+              )}
+            >
+              {task.priority || "medium"}
+            </span>
           </div>
         </div>
       </div>

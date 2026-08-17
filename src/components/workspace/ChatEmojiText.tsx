@@ -35,6 +35,50 @@ export function splitEmojiParts(
   return parts;
 }
 
+/** Split `**bold**` markers, then emoji sequences within each segment. */
+export function splitRichChatParts(
+  text: string,
+): Array<{ type: "text" | "bold" | "emoji"; value: string }> {
+  if (!text) return [];
+
+  const boldSegments: Array<{ type: "text" | "bold"; value: string }> = [];
+  const boldRe = /\*\*(.+?)\*\*/g;
+  let lastIndex = 0;
+  for (const match of text.matchAll(boldRe)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      boldSegments.push({ type: "text", value: text.slice(lastIndex, index) });
+    }
+    const inner = match[1] ?? "";
+    if (inner) boldSegments.push({ type: "bold", value: inner });
+    lastIndex = index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    boldSegments.push({ type: "text", value: text.slice(lastIndex) });
+  }
+  if (!boldSegments.length) {
+    boldSegments.push({ type: "text", value: text });
+  }
+
+  const parts: Array<{ type: "text" | "bold" | "emoji"; value: string }> = [];
+  for (const segment of boldSegments) {
+    for (const part of splitEmojiParts(segment.value)) {
+      if (part.type === "emoji") {
+        parts.push(part);
+      } else if (segment.type === "bold") {
+        parts.push({ type: "bold", value: part.value });
+      } else {
+        parts.push({ type: "text", value: part.value });
+      }
+    }
+  }
+  return parts;
+}
+
+export function chatTextHasRichFormatting(text: string) {
+  return /\*\*.+?\*\*/.test(text) || splitEmojiParts(text).some((part) => part.type === "emoji");
+}
+
 export function isEmojiOnlyMessage(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
@@ -67,10 +111,11 @@ type ChatEmojiTextProps = {
 };
 
 export function ChatEmojiText({ text, size, className }: ChatEmojiTextProps) {
-  const parts = useMemo(() => splitEmojiParts(text), [text]);
+  const parts = useMemo(() => splitRichChatParts(text), [text]);
   const emojiSize = resolveChatEmojiSize(text, size);
+  const hasRich = parts.some((part) => part.type === "emoji" || part.type === "bold");
 
-  if (!parts.some((p) => p.type === "emoji")) {
+  if (!hasRich) {
     return <span className={className}>{text}</span>;
   }
 
@@ -79,6 +124,13 @@ export function ChatEmojiText({ text, size, className }: ChatEmojiTextProps) {
       {parts.map((part, index) => {
         if (part.type === "text") {
           return <span key={index}>{part.value}</span>;
+        }
+        if (part.type === "bold") {
+          return (
+            <strong key={index} className="font-bold">
+              {part.value}
+            </strong>
+          );
         }
         const unified = nativeEmojiToUnified(part.value);
         return (

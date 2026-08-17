@@ -128,6 +128,8 @@ export interface WorkspaceChatMessage {
   senderName: string;
   senderProfilePictureUrl?: string | null;
   body: string;
+  /** Client-generated id so optimistic rows reconcile with HTTP/WS echoes. */
+  clientMessageId?: string;
   attachments?: WorkspaceChatAttachment[];
   poll?: ChatPoll | null;
   reactions?: ChatReaction[];
@@ -154,6 +156,13 @@ function pendingChatMatchesIncoming(
   pending: WorkspaceChatMessage,
   incoming: WorkspaceChatMessage,
 ): boolean {
+  if (
+    pending.clientMessageId &&
+    incoming.clientMessageId &&
+    String(pending.clientMessageId) === String(incoming.clientMessageId)
+  ) {
+    return true;
+  }
   if (String(pending.senderUserId) !== String(incoming.senderUserId)) return false;
   const pendingBody = (pending.body || "").trim();
   const incomingBody = (incoming.body || "").trim();
@@ -162,6 +171,34 @@ function pendingChatMatchesIncoming(
   const incomingAttachments = incoming.attachments?.length || 0;
   if (pendingAttachments > 0 && incomingAttachments > 0) return true;
   return Boolean(pending.poll && incoming.poll);
+}
+
+export function sortChatMessagesByTime(messages: WorkspaceChatMessage[]) {
+  return [...messages].sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime() || 0;
+    const tb = new Date(b.createdAt).getTime() || 0;
+    if (ta !== tb) return ta - tb;
+    return chatMessageId(a).localeCompare(chatMessageId(b));
+  });
+}
+
+/** Merge a server snapshot into live state without dropping optimistic / websocket rows. */
+export function reconcileChatMessagesAfterFetch(
+  prev: WorkspaceChatMessage[],
+  loaded: WorkspaceChatMessage[],
+): WorkspaceChatMessage[] {
+  let next = prev;
+  for (const message of loaded) {
+    next = mergeChatMessages(next, message);
+  }
+  return sortChatMessagesByTime(next);
+}
+
+export function newClientMessageId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `client-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function mergeChatMessages(
@@ -185,6 +222,7 @@ export function mergeChatMessages(
     _id: String(incoming._id),
     workspaceId: String(incoming.workspaceId),
     senderUserId: String(incoming.senderUserId),
+    clientMessageId: incoming.clientMessageId ? String(incoming.clientMessageId) : undefined,
     replyTo: incomingReply,
     poll: normalizeChatPoll(incoming.poll),
     reactions: (incoming.reactions || []).map((reaction) => ({
@@ -208,6 +246,7 @@ export function mergeChatMessages(
         next[pendingIndex] = {
           ...existing,
           ...normalized,
+          clientMessageId: normalized.clientMessageId || existing.clientMessageId,
           replyTo: normalized.replyTo?.messageId
             ? normalized.replyTo
             : existing.replyTo?.messageId
@@ -228,6 +267,7 @@ export function mergeChatMessages(
   next[index] = {
     ...existing,
     ...normalized,
+    clientMessageId: normalized.clientMessageId || existing.clientMessageId,
     replyTo: normalized.replyTo?.messageId
       ? normalized.replyTo
       : existing.replyTo?.messageId

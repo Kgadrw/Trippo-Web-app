@@ -39,6 +39,11 @@ import { ChatComposerInput } from "@/components/workspace/ChatComposerInput";
 import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatEmojiPicker";
 import { ChatInteractiveBubble } from "@/components/workspace/ChatInteractiveBubble";
 import {
+  chatMessageLengthError,
+  friendlyChatSendError,
+  isOverChatMessageLimit,
+} from "@/lib/chatMessageLimits";
+import {
   ChatMessageAddReaction,
   ChatMessageReactions,
   hasChatReactions,
@@ -81,6 +86,8 @@ import {
 import {
   applyOptimisticPollVote,
   mergeChatMessages,
+  newClientMessageId,
+  reconcileChatMessagesAfterFetch,
   WORKSPACE_CHAT_TYPING_EVENT,
   type WorkspaceChatMessage,
   type WorkspaceChatReceipt,
@@ -460,6 +467,7 @@ export function WorkspaceGroupChatPane({
   const markedReadIdsRef = useRef<Set<string>>(new Set());
   const loadedWorkspaceRef = useRef<string | null>(null);
   const fetchStartedRef = useRef<string | null>(null);
+  const loadGenerationRef = useRef(0);
   const composerPad = useChatComposerPad(composerRef, [
     workspaceId,
     replyTo,
@@ -586,21 +594,35 @@ export function WorkspaceGroupChatPane({
   }, [messages.length]);
 
   const loadMessages = useCallback(
-    async (options?: { silent?: boolean }) => {
+    async (options?: { silent?: boolean; replace?: boolean }) => {
       if (!workspaceId) return;
 
+      const targetWorkspaceId = workspaceId;
+      const generation = ++loadGenerationRef.current;
       if (!options?.silent) setLoading(true);
 
       try {
-        const res = await workspaceApi.getMessages(workspaceId, { limit: 50 });
+        const res = await workspaceApi.getMessages(targetWorkspaceId, { limit: 50 });
+        if (
+          loadGenerationRef.current !== generation ||
+          targetWorkspaceId !== workspaceId
+        ) {
+          return;
+        }
         const loaded = ((res.data as WorkspaceChatMessage[]) || [])
           .map(enrichMessageProfiles)
           .filter((message) => {
             if (!message.expiresAt) return true;
             return new Date(message.expiresAt).getTime() > Date.now();
           });
-        setMessages(loaded);
-        loadedWorkspaceRef.current = workspaceId;
+        setMessages((prev) => {
+          const base =
+            options?.replace || loadedWorkspaceRef.current !== targetWorkspaceId
+              ? []
+              : prev;
+          return reconcileChatMessagesAfterFetch(base, loaded);
+        });
+        loadedWorkspaceRef.current = targetWorkspaceId;
         if (active) stickToBottomRef.current = true;
 
         if (!active && trackUnreadWhenInactive) {
@@ -615,7 +637,9 @@ export function WorkspaceGroupChatPane({
           toast({ title: t("workspaceChatLoadFailed"), variant: "destructive" });
         }
       } finally {
-        if (!options?.silent) setLoading(false);
+        if (!options?.silent && loadGenerationRef.current === generation) {
+          setLoading(false);
+        }
       }
     },
     [
@@ -701,7 +725,8 @@ export function WorkspaceGroupChatPane({
         void markMessagesRead([String(message._id)]);
       }
 
-      if (active && stickToBottomRef.current) {
+      if (active && (fromSelf || stickToBottomRef.current)) {
+        stickToBottomRef.current = true;
         requestAnimationFrame(() => scrollToBottom("smooth"));
       } else if (active && !fromSelf) {
         setShowScrollDown(true);
@@ -724,6 +749,25 @@ export function WorkspaceGroupChatPane({
       setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
     },
   });
+
+  // Catch up after reconnect / tab focus so missed websocket events still appear.
+  useEffect(() => {
+    if (mode !== "workspace" || !workspaceId || !active) return;
+
+    const catchUp = () => {
+      void loadMessages({ silent: true });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") catchUp();
+    };
+
+    window.addEventListener("app-websocket-open", catchUp);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("app-websocket-open", catchUp);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [mode, workspaceId, active, loadMessages]);
 
   useEffect(() => {
     if (!memberPictureByUserId.size && !currentUser?.profilePictureUrl) return;
@@ -825,6 +869,15 @@ export function WorkspaceGroupChatPane({
       return;
     }
 
+    if (trimmed && isOverChatMessageLimit(trimmed)) {
+      toast({
+        title: t("workspaceChatSendFailed"),
+        description: chatMessageLengthError(trimmed.length),
+        variant: "destructive",
+      });
+      return;
+    }
+
     stopTyping();
 
     if (editingMessageId) {
@@ -854,7 +907,8 @@ export function WorkspaceGroupChatPane({
     setSending(true);
 
     const { mentionAll, mentions } = buildMentionsFromBody(trimmed, mentionMembers);
-    const optimisticId = `pending-${Date.now()}`;
+    const clientMessageId = newClientMessageId();
+    const optimisticId = `pending-${clientMessageId}`;
     const optimisticReply = replyTo;
     const optimisticAttachments = staged.map((item) => ({
       url: item.previewUrl || "",
@@ -869,6 +923,7 @@ export function WorkspaceGroupChatPane({
       senderName: currentUser?.name || "You",
       senderProfilePictureUrl: currentUser?.profilePictureUrl || null,
       body: trimmed,
+      clientMessageId,
       replyTo: optimisticReply,
       attachments: optimisticAttachments,
       mentionAll,
@@ -878,6 +933,7 @@ export function WorkspaceGroupChatPane({
       readBy: [],
     };
 
+    stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
     pendingSendIdsRef.current.add(optimisticId);
     setText("");
@@ -899,12 +955,14 @@ export function WorkspaceGroupChatPane({
         mentions,
         replyToMessageId: optimisticReply?.messageId || null,
         replyTo: optimisticReply,
+        clientMessageId,
       });
       const message = res.data as WorkspaceChatMessage;
       if (message) {
         pendingSendIdsRef.current.delete(optimisticId);
         const withReply: WorkspaceChatMessage = {
           ...message,
+          clientMessageId: message.clientMessageId || clientMessageId,
           replyTo: message.replyTo?.messageId ? message.replyTo : optimisticReply,
         };
         setMessages((prev) => {
@@ -924,7 +982,7 @@ export function WorkspaceGroupChatPane({
         title: t("workspaceChatSendFailed"),
         description:
           error instanceof Error && error.message
-            ? error.message
+            ? friendlyChatSendError(error.message, trimmed.length)
             : staged.length
               ? "Failed to send attachment"
               : undefined,
@@ -978,7 +1036,8 @@ export function WorkspaceGroupChatPane({
 
     stopTyping();
     setSending(true);
-    const optimisticId = `pending-voice-${Date.now()}`;
+    const clientMessageId = newClientMessageId();
+    const optimisticId = `pending-voice-${clientMessageId}`;
     const localUrl = URL.createObjectURL(file);
     const optimisticAttachment = {
       url: localUrl,
@@ -995,12 +1054,14 @@ export function WorkspaceGroupChatPane({
       senderName: currentUser?.name || "You",
       senderProfilePictureUrl: currentUser?.profilePictureUrl || null,
       body: "",
+      clientMessageId,
       attachments: [optimisticAttachment],
       createdAt: new Date().toISOString(),
       deliveredTo: [],
       readBy: [],
     };
 
+    stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
     pendingSendIdsRef.current.add(optimisticId);
     requestAnimationFrame(() => scrollToBottom("smooth"));
@@ -1018,13 +1079,17 @@ export function WorkspaceGroupChatPane({
             waveform,
           },
         ],
+        clientMessageId,
       });
       const message = res.data as WorkspaceChatMessage;
       if (message) {
         pendingSendIdsRef.current.delete(optimisticId);
         setMessages((prev) => {
           const withoutPending = prev.filter((row) => String(row._id) !== optimisticId);
-          return mergeChatMessages(withoutPending, enrichMessageProfiles(message));
+          return mergeChatMessages(withoutPending, enrichMessageProfiles({
+            ...message,
+            clientMessageId: message.clientMessageId || clientMessageId,
+          }));
         });
         requestAnimationFrame(() => scrollToBottom("smooth"));
       }

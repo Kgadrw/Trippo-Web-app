@@ -62,7 +62,12 @@ export function ApprovalsTab() {
     if (!silent) setIsLoading(true);
     try {
       const response = await approvalApi.getQueue(filter === "all" ? undefined : { status: filter });
-      setItems((response.data || []) as ApprovalQueueItem[]);
+      const queue = ((response.data || []) as ApprovalQueueItem[]).filter((item) => {
+        // Team reports go only to people listed as "Reporting to".
+        if (item.entityType === "team_report") return Boolean(item.canApprove);
+        return true;
+      });
+      setItems(queue);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Could not load approvals.";
       toast({ title: t("error"), description: message, variant: "destructive" });
@@ -176,12 +181,16 @@ export function ApprovalsTab() {
   const renderActionButtons = (item: ApprovalQueueItem, compact = false) => {
     const rowKey = `${item.entityType}-${item.id}`;
     const isPending = item.approvalStatus === "pending_approval";
+    const canActOnItem =
+      item.entityType === "team_report"
+        ? Boolean(item.canApprove)
+        : Boolean(isWorkspaceAdmin || item.canApprove);
     return (
       <div className={cn("flex flex-wrap items-center gap-1", compact && "justify-end")}>
         <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs">
           <Link to={financePathForEntity(item.entityType)}>View</Link>
         </Button>
-        {(isWorkspaceAdmin || item.canApprove) && isPending ? (
+        {canActOnItem && isPending ? (
           <>
             <Button
               size="sm"

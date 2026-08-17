@@ -39,6 +39,11 @@ import { ChatEmojiPicker, insertEmojiInText } from "@/components/workspace/ChatE
 import { ChatEmojiText } from "@/components/workspace/ChatEmojiText";
 import { ChatTypingBubble } from "@/components/workspace/ChatTypingBubble";
 import {
+  chatMessageLengthError,
+  friendlyChatSendError,
+  isOverChatMessageLimit,
+} from "@/lib/chatMessageLimits";
+import {
   ChatMessageAddReaction,
   ChatMessageReactions,
   hasChatReactions,
@@ -77,6 +82,7 @@ import type { WorkspaceChatMessage } from "@/lib/workspaceChatRealtime";
 import { clearDirectChatOsNotification } from "@/lib/workspaceChatNotifications";
 import {
   mergeDirectMessages,
+  reconcileDirectMessagesAfterFetch,
   canModifyDirectMessage,
   isDirectMessageDeleted,
   WORKSPACE_DM_TYPING_EVENT,
@@ -86,6 +92,7 @@ import {
 } from "@/lib/workspaceDirectChatRealtime";
 import {
   applyOptimisticPollVote,
+  newClientMessageId,
   type ChatPollInput,
 } from "@/lib/workspaceChatRealtime";
 import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
@@ -389,6 +396,8 @@ export function MessagesPage() {
   const selectedUserIdRef = useRef(selectedUserId);
   const conversationIdRef = useRef(conversationId);
   const loadedSelectionRef = useRef<string | null>(null);
+  const loadGenerationRef = useRef(0);
+  const chatWorkspaceIdRef = useRef<string | null>(null);
 
   selectedUserIdRef.current = selectedUserId;
   conversationIdRef.current = conversationId;
@@ -458,6 +467,7 @@ export function MessagesPage() {
     selectedWorkspaceParam ||
     activeWorkspace?.id ||
     "";
+  chatWorkspaceIdRef.current = chatWorkspaceId || null;
   const groupWorkspaceId = activeWorkspace?.id || "";
 
   const presenceWorkspaceIds = useMemo(() => {
@@ -762,23 +772,40 @@ export function MessagesPage() {
   const loadMessages = useCallback(
     async (activeConversationId: string, forWorkspaceId: string) => {
       if (!forWorkspaceId || !activeConversationId) return;
+      const generation = ++loadGenerationRef.current;
+      const targetConversationId = activeConversationId;
+      const targetWorkspaceId = forWorkspaceId;
       setMessagesLoading(true);
       try {
-        const res = await workspaceApi.getDirectChatMessages(forWorkspaceId, activeConversationId, {
+        const res = await workspaceApi.getDirectChatMessages(targetWorkspaceId, targetConversationId, {
           limit: 50,
         });
-        setMessages(
-          ((res.data as DirectChatMessage[]) || []).filter((message) => {
-            if (!message.expiresAt) return true;
-            return new Date(message.expiresAt).getTime() > Date.now();
-          }),
-        );
+        if (
+          loadGenerationRef.current !== generation ||
+          conversationIdRef.current !== targetConversationId
+        ) {
+          return;
+        }
+        const loaded = ((res.data as DirectChatMessage[]) || []).filter((message) => {
+          if (!message.expiresAt) return true;
+          return new Date(message.expiresAt).getTime() > Date.now();
+        });
+        setMessages((prev) => {
+          const sameConversation =
+            prev.length > 0 &&
+            prev.every((row) => String(row.conversationId) === String(targetConversationId));
+          return reconcileDirectMessagesAfterFetch(sameConversation ? prev : [], loaded);
+        });
         markedReadIdsRef.current = new Set();
         stickToBottomRef.current = true;
       } catch {
-        toast({ title: t("directChatLoadFailed"), variant: "destructive" });
+        if (loadGenerationRef.current === generation) {
+          toast({ title: t("directChatLoadFailed"), variant: "destructive" });
+        }
       } finally {
-        setMessagesLoading(false);
+        if (loadGenerationRef.current === generation) {
+          setMessagesLoading(false);
+        }
       }
     },
     [toast, t],
@@ -1081,13 +1108,15 @@ export function MessagesPage() {
       if (activeConversationId && String(message.conversationId) === activeConversationId) {
         setMessages((prev) => mergeDirectMessages(prev, message));
 
-        if (!isOwnMessage(message, currentUserId) && messageWs) {
+        const fromSelf = isOwnMessage(message, currentUserId);
+        if (!fromSelf && messageWs) {
           void markMessagesRead([String(message._id)], activeConversationId, messageWs);
         }
 
-        if (stickToBottomRef.current) {
+        if (fromSelf || stickToBottomRef.current) {
+          stickToBottomRef.current = true;
           requestAnimationFrame(() => scrollToBottom("smooth"));
-        } else if (!isOwnMessage(message, currentUserId)) {
+        } else {
           setShowScrollDown(true);
         }
       }
@@ -1166,6 +1195,25 @@ export function MessagesPage() {
     },
   });
 
+  // Catch up after reconnect / tab focus so missed websocket events still appear.
+  useEffect(() => {
+    if (!conversationId || !chatWorkspaceId || isGroupChat) return;
+
+    const catchUp = () => {
+      void loadMessages(conversationId, chatWorkspaceId);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") catchUp();
+    };
+
+    window.addEventListener("app-websocket-open", catchUp);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("app-websocket-open", catchUp);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [conversationId, chatWorkspaceId, isGroupChat, loadMessages]);
+
   const handleListScroll = useCallback(() => {
     const el = listRef.current;
     if (!el) return;
@@ -1186,6 +1234,15 @@ export function MessagesPage() {
       attachingFiles ||
       sendLockRef.current
     ) {
+      return;
+    }
+
+    if (trimmed && isOverChatMessageLimit(trimmed)) {
+      toast({
+        title: t("directChatSendFailed"),
+        description: chatMessageLengthError(trimmed.length),
+        variant: "destructive",
+      });
       return;
     }
 
@@ -1225,7 +1282,8 @@ export function MessagesPage() {
     sendLockRef.current = true;
     setSending(true);
 
-    const optimisticId = `pending-${Date.now()}`;
+    const clientMessageId = newClientMessageId();
+    const optimisticId = `pending-${clientMessageId}`;
     const optimisticReply = replyTo;
     const optimisticAttachments = staged.map((item) => ({
       url: item.previewUrl || "",
@@ -1241,12 +1299,14 @@ export function MessagesPage() {
       senderName: currentUser?.name || "You",
       senderProfilePictureUrl: currentUser?.profilePictureUrl || null,
       body: trimmed,
+      clientMessageId,
       replyTo: optimisticReply,
       attachments: optimisticAttachments,
       createdAt: new Date().toISOString(),
       readBy: [],
     };
 
+    stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
     setText("");
     setReplyTo(null);
@@ -1270,12 +1330,14 @@ export function MessagesPage() {
         {
           replyToMessageId: optimisticReply?.messageId || null,
           replyTo: optimisticReply,
+          clientMessageId,
         },
       );
       const message = res.data as DirectChatMessage;
       if (message) {
         const withReply: DirectChatMessage = {
           ...message,
+          clientMessageId: message.clientMessageId || clientMessageId,
           replyTo: message.replyTo?.messageId ? message.replyTo : optimisticReply,
         };
         setMessages((prev) => {
@@ -1314,7 +1376,7 @@ export function MessagesPage() {
         title: t("directChatSendFailed"),
         description:
           error instanceof Error && error.message
-            ? error.message
+            ? friendlyChatSendError(error.message, trimmed.length)
             : staged.length
               ? "Failed to send attachment"
               : undefined,
@@ -1370,7 +1432,8 @@ export function MessagesPage() {
     stopDmTyping();
     sendLockRef.current = true;
     setSending(true);
-    const optimisticId = `pending-voice-${Date.now()}`;
+    const clientMessageId = newClientMessageId();
+    const optimisticId = `pending-voice-${clientMessageId}`;
     const localUrl = URL.createObjectURL(file);
     const optimisticAttachment = {
       url: localUrl,
@@ -1388,11 +1451,13 @@ export function MessagesPage() {
       senderName: currentUser?.name || "You",
       senderProfilePictureUrl: currentUser?.profilePictureUrl || null,
       body: "",
+      clientMessageId,
       attachments: [optimisticAttachment],
       createdAt: new Date().toISOString(),
       readBy: [],
     };
 
+    stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
     requestAnimationFrame(() => scrollToBottom("smooth"));
 
@@ -1412,12 +1477,16 @@ export function MessagesPage() {
             waveform,
           },
         ],
+        { clientMessageId },
       );
       const message = res.data as DirectChatMessage;
       if (message) {
         setMessages((prev) => {
           const withoutPending = prev.filter((row) => String(row._id) !== optimisticId);
-          return mergeDirectMessages(withoutPending, message);
+          return mergeDirectMessages(withoutPending, {
+            ...message,
+            clientMessageId: message.clientMessageId || clientMessageId,
+          });
         });
         const preview = messagePreviewText(message, t("directChatMessageDeleted"));
         setThreads((prev) =>
