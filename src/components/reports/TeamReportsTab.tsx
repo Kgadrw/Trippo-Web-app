@@ -25,6 +25,8 @@ import {
   Link2,
   X,
   Check,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadCompanyDocument } from "@/lib/financeUpload";
@@ -40,16 +42,34 @@ import {
   MobileDataList,
 } from "@/components/finance/financeTable";
 import {
+  canDeleteTeamReport,
   canEditTeamReport,
   defaultPeriodForType,
+  shouldResubmitTeamReport,
   teamReportId,
   teamReportStatusClass,
   teamReportStatusLabel,
   type TeamReportRecord,
   type TeamReportStatus,
 } from "@/lib/teamReportWorkflow";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 
 type StatusFilter = TeamReportStatus | "all" | "mine";
+
+function currentUserId() {
+  return localStorage.getItem("profit-pilot-user-id");
+}
+
+function canManageReport(
+  report: TeamReportRecord,
+  userId: string | null,
+  isAdmin: boolean,
+) {
+  if (isAdmin) return true;
+  if (!userId) return false;
+  if (!report.submitterUserId) return true;
+  return String(report.submitterUserId) === String(userId);
+}
 
 const emptyForm = () => {
   const period = defaultPeriodForType("daily");
@@ -81,8 +101,11 @@ export function TeamReportsTab() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<TeamReportRecord | null>(null);
   const [changesTarget, setChangesTarget] = useState<TeamReportRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TeamReportRecord | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [detail, setDetail] = useState<TeamReportRecord | null>(null);
+  const userId = currentUserId();
+  const isAdminReviewer = mode === "workspace" && isWorkspaceAdmin;
 
   const loadReports = useCallback(
     async (silent = false) => {
@@ -192,10 +215,12 @@ export function TeamReportsTab() {
       if (editing) {
         const id = teamReportId(editing);
         await teamReportApi.update(id, payload);
-        if (canEditTeamReport(editing.status)) {
+        if (shouldResubmitTeamReport(editing.status)) {
           await teamReportApi.resubmit(id);
+          toast({ title: "Report updated", description: "Your report was resubmitted for review." });
+        } else {
+          toast({ title: "Report updated", description: "Your changes were saved." });
         }
-        toast({ title: "Report updated", description: "Your report was resubmitted for review." });
       } else {
         await teamReportApi.create(payload);
         toast({
@@ -253,17 +278,52 @@ export function TeamReportsTab() {
 
   const attachmentLabel = attachmentFile?.name || form.attachmentName || "";
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const id = teamReportId(deleteTarget);
+    setActingId(`${id}-delete`);
+    try {
+      await teamReportApi.delete(id);
+      toast({ title: "Report deleted", description: `"${deleteTarget.title}" was removed.` });
+      setDeleteTarget(null);
+      if (detail && teamReportId(detail) === id) setDetail(null);
+      await loadReports(true);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not delete report.";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setActingId(null);
+    }
+  };
+
   const renderActions = (report: TeamReportRecord, compact = false) => {
     const id = teamReportId(report);
     const isPending = report.status === "submitted";
+    const canManage = canManageReport(report, userId, isAdminReviewer);
+    const showEdit = canManage && (isAdminReviewer || canEditTeamReport(report.status));
+    const showDelete = canManage && (isAdminReviewer || canDeleteTeamReport(report.status));
+    const needsResubmit = shouldResubmitTeamReport(report.status);
     return (
       <div className={cn("flex flex-wrap items-center gap-1", compact && "justify-end")}>
         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetail(report)}>
           View
         </Button>
-        {canEditTeamReport(report.status) ? (
+        {showEdit ? (
           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => openEdit(report)}>
-            Edit & resubmit
+            <Pencil className="mr-1 h-3.5 w-3.5" />
+            {needsResubmit ? (compact ? "Edit" : "Edit & resubmit") : "Edit"}
+          </Button>
+        ) : null}
+        {showDelete ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs text-red-700 border-red-200 dark:text-red-200 dark:border-red-500/40"
+            disabled={actingId !== null}
+            onClick={() => setDeleteTarget(report)}
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" />
+            {compact ? null : "Delete"}
           </Button>
         ) : null}
         {(canReview || report.canReview) && isPending ? (
@@ -493,7 +553,13 @@ export function TeamReportsTab() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit & resubmit report" : "Submit report"}</DialogTitle>
+            <DialogTitle>
+              {editing
+                ? shouldResubmitTeamReport(editing.status)
+                  ? "Edit & resubmit report"
+                  : "Edit report"
+                : "Submit report"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -666,11 +732,28 @@ export function TeamReportsTab() {
             </Button>
             <Button type="button" onClick={() => void handleSave()} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {editing ? "Save & resubmit" : "Submit report"}
+              {editing
+                ? shouldResubmitTeamReport(editing.status)
+                  ? "Save & resubmit"
+                  : "Save changes"
+                : "Submit report"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete report?"
+        description={
+          deleteTarget
+            ? `This will permanently delete “${deleteTarget.title}”. This cannot be undone.`
+            : "This will permanently delete the report."
+        }
+        onConfirm={() => void handleDelete()}
+        isDeleting={Boolean(deleteTarget && actingId === `${teamReportId(deleteTarget)}-delete`)}
+      />
 
       <Dialog open={Boolean(detail)} onOpenChange={(open) => !open && setDetail(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

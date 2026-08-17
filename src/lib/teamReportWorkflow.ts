@@ -62,8 +62,18 @@ export function teamReportStatusClass(status: TeamReportStatus | string | undefi
   }
 }
 
+/** Own reports (or admin) can edit unless already reviewed — reviewed stays locked to history. */
 export function canEditTeamReport(status: TeamReportStatus | string | undefined) {
+  return status !== "reviewed";
+}
+
+/** After changes/rejection, saving should resubmit into the review queue. */
+export function shouldResubmitTeamReport(status: TeamReportStatus | string | undefined) {
   return status === "changes_requested" || status === "rejected";
+}
+
+export function canDeleteTeamReport(status: TeamReportStatus | string | undefined) {
+  return status !== "reviewed";
 }
 
 export function formatReportPeriod(start?: string, end?: string) {
