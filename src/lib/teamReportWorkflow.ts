@@ -86,9 +86,9 @@ export function shouldResubmitTeamReport(status: TeamReportStatus | string | und
   return status === "changes_requested" || status === "rejected";
 }
 
-/** Only the submitter can delete — locked once reviewed. */
-export function canDeleteTeamReport(status: TeamReportStatus | string | undefined) {
-  return status === "submitted" || status === "changes_requested" || status === "rejected";
+/** Only the submitter can delete — allowed in any status (including reviewed). */
+export function canDeleteTeamReport(_status?: TeamReportStatus | string) {
+  return true;
 }
 
 /** True when the current user is listed in this report's "Reporting to" recipients. */
