@@ -90,6 +90,34 @@ export function canDeleteTeamReport(status: TeamReportStatus | string | undefine
   return status !== "reviewed";
 }
 
+/** True when the current user is listed in this report's "Reporting to" recipients. */
+export function isTeamReportRecipient(
+  report: TeamReportRecord,
+  userId: string | null | undefined,
+  myMemberId?: string | null,
+) {
+  const recipients = report.reportTo || [];
+  if (!recipients.length) return false;
+  return recipients.some((recipient) => {
+    if (userId && recipient.userId && String(recipient.userId) === String(userId)) {
+      return true;
+    }
+    if (myMemberId && String(recipient.memberId) === String(myMemberId)) {
+      return true;
+    }
+    return false;
+  });
+}
+
+/** Review / request changes / reject — only for people this report was sent to. */
+export function canReviewTeamReport(
+  report: TeamReportRecord,
+  userId: string | null | undefined,
+  myMemberId?: string | null,
+) {
+  return isTeamReportRecipient(report, userId, myMemberId);
+}
+
 export function formatReportPeriod(start?: string, end?: string) {
   const startDate = start ? new Date(start) : null;
   const endDate = end ? new Date(end) : null;

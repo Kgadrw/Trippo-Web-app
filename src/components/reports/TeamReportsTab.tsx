@@ -44,6 +44,7 @@ import {
 import {
   canDeleteTeamReport,
   canEditTeamReport,
+  canReviewTeamReport,
   defaultPeriodForType,
   shouldResubmitTeamReport,
   teamReportId,
@@ -65,6 +66,11 @@ function isOwnReport(report: TeamReportRecord, userId: string | null) {
   if (!userId) return false;
   if (!report.submitterUserId) return true;
   return String(report.submitterUserId) === String(userId);
+}
+
+function reportToNames(report: TeamReportRecord) {
+  const names = (report.reportTo || []).map((recipient) => recipient.name).filter(Boolean);
+  return names.length ? names.join(", ") : "—";
 }
 
 function canManageReport(
@@ -95,7 +101,6 @@ export function TeamReportsTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<TeamReportRecord[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberRecord[]>([]);
-  const [canReview, setCanReview] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
@@ -111,6 +116,11 @@ export function TeamReportsTab() {
   const [detail, setDetail] = useState<TeamReportRecord | null>(null);
   const userId = currentUserId();
   const isAdminReviewer = mode === "workspace" && isWorkspaceAdmin;
+  const myMemberId = useMemo(() => {
+    if (!userId) return null;
+    const mine = teamMembers.find((member) => String(member.linkedUserId) === String(userId));
+    return mine?._id ?? null;
+  }, [teamMembers, userId]);
 
   const loadReports = useCallback(
     async (silent = false) => {
@@ -121,8 +131,6 @@ export function TeamReportsTab() {
         else if (filter !== "all") params.status = filter;
         const response = await teamReportApi.getAll(params);
         setItems((response.data || []) as TeamReportRecord[]);
-        const meta = (response as { meta?: { canReview?: boolean } }).meta;
-        setCanReview(Boolean(meta?.canReview ?? isWorkspaceAdmin));
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Could not load reports.";
         toast({ title: "Error", description: message, variant: "destructive" });
@@ -130,7 +138,7 @@ export function TeamReportsTab() {
         setIsLoading(false);
       }
     },
-    [filter, isWorkspaceAdmin, toast],
+    [filter, toast],
   );
 
   useEffect(() => {
@@ -308,6 +316,7 @@ export function TeamReportsTab() {
     const canManage = canManageReport(report, userId, isAdminReviewer);
     const showEdit = canManage && (isAdminReviewer || canEditTeamReport(report.status));
     const showDelete = canManage && (isAdminReviewer || canDeleteTeamReport(report.status));
+    const showReviewActions = canReviewTeamReport(report, userId, myMemberId) && isPending;
     const needsResubmit = shouldResubmitTeamReport(report.status);
     return (
       <div
@@ -352,7 +361,7 @@ export function TeamReportsTab() {
             {compact ? null : "Delete"}
           </Button>
         ) : null}
-        {(canReview || report.canReview) && isPending ? (
+        {showReviewActions ? (
           <>
             <Button
               size="sm"
@@ -413,10 +422,8 @@ export function TeamReportsTab() {
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-foreground">Team reporting</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Submit a report with a name, description, and optional document or link.{" "}
-            {canReview
-              ? "You can review submissions from the team."
-              : "Workspace admins review submitted reports."}
+            Submit a report with a name, description, and optional document or link. People listed
+            under Reporting to can review, request changes, or reject.
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
@@ -472,6 +479,9 @@ export function TeamReportsTab() {
                   <th className={cn(FINANCE_TH_CLASS, "hidden md:table-cell w-[1%] whitespace-nowrap")}>
                     Submitter
                   </th>
+                  <th className={cn(FINANCE_TH_CLASS, "hidden lg:table-cell w-[1%] whitespace-nowrap")}>
+                    Reported to
+                  </th>
                   <th className={cn(FINANCE_TH_CLASS, "w-[1%] whitespace-nowrap")}>Status</th>
                   <th className={cn(FINANCE_TH_CLASS, "hidden xl:table-cell w-[1%] whitespace-nowrap")}>
                     Submitted
@@ -508,6 +518,15 @@ export function TeamReportsTab() {
                     </td>
                     <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell whitespace-nowrap")}>
                       {report.submitterName}
+                    </td>
+                    <td
+                      className={cn(
+                        FINANCE_TD_CLASS,
+                        "hidden lg:table-cell max-w-[200px] text-sm text-muted-foreground",
+                      )}
+                      title={reportToNames(report)}
+                    >
+                      <span className="line-clamp-2">{reportToNames(report)}</span>
                     </td>
                     <td className={cn(FINANCE_TD_CLASS, "whitespace-nowrap")}>
                       <span
@@ -554,9 +573,13 @@ export function TeamReportsTab() {
                   </div>
                 }
                 subtitle={
-                  report.accomplishments
-                    ? `${report.submitterName} · ${report.accomplishments}`
-                    : report.submitterName
+                  [
+                    report.submitterName,
+                    report.reportTo?.length ? `To ${reportToNames(report)}` : null,
+                    report.accomplishments || null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
                 }
                 meta={
                   report.attachmentUrl ? (
