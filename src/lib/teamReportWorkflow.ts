@@ -78,7 +78,7 @@ export function teamReportStatusClass(status: TeamReportStatus | string | undefi
 
 /** Only the submitter can edit — locked once reviewed. */
 export function canEditTeamReport(status: TeamReportStatus | string | undefined) {
-  return status !== "reviewed";
+  return status === "submitted" || status === "changes_requested" || status === "rejected";
 }
 
 /** After changes/rejection, saving should resubmit into the review queue. */
@@ -88,7 +88,7 @@ export function shouldResubmitTeamReport(status: TeamReportStatus | string | und
 
 /** Only the submitter can delete — locked once reviewed. */
 export function canDeleteTeamReport(status: TeamReportStatus | string | undefined) {
-  return status !== "reviewed";
+  return status === "submitted" || status === "changes_requested" || status === "rejected";
 }
 
 /** True when the current user is listed in this report's "Reporting to" recipients. */

@@ -296,49 +296,51 @@ export function TeamOverviewTab() {
                   return (
                     <li
                       key={task._id}
-                      className="task-assignee-card relative overflow-hidden rounded border p-3 pl-4 shadow-none"
+                      className="task-assignee-card flex overflow-hidden rounded border shadow-none"
                       style={{ borderColor: cardColor, backgroundColor: cardColor }}
                     >
                       <span
                         aria-hidden
-                        className={cn("absolute inset-y-0 left-0 w-1", teamPriorityBarClass(task.priority))}
+                        className={cn("w-1 shrink-0 self-stretch", teamPriorityBarClass(task.priority))}
                       />
-                      <div className="flex items-start justify-between gap-2">
-                        <p
-                          className={cn(
-                            "text-sm font-medium text-gray-900",
-                            isDone && "line-through text-gray-500",
-                          )}
-                        >
-                          {task.title}
-                        </p>
-                        {showRecentBadge ? (
-                          <span className="shrink-0 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
-                            {t("teamRecentlyAdded")}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className={cn("mt-1 text-xs text-gray-500", isDone && "line-through")}>
-                        {assigneeName(task, t("teamUnknownMember"))}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
-                        {isDone && completed ? (
-                          <span>{completed}</span>
-                        ) : due ? (
-                          <span>
-                            {t("teamDueDate")}: {due}
-                          </span>
-                        ) : null}
-                        {task.priority ? (
-                          <span
+                      <div className="min-w-0 flex-1 space-y-1.5 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p
                             className={cn(
-                              "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide capitalize",
-                              teamPriorityClass(task.priority),
+                              "min-w-0 flex-1 break-words text-sm font-medium leading-snug text-gray-900",
+                              isDone && "line-through text-gray-500",
                             )}
                           >
-                            {task.priority}
-                          </span>
-                        ) : null}
+                            {task.title}
+                          </p>
+                          {showRecentBadge ? (
+                            <span className="shrink-0 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
+                              {t("teamRecentlyAdded")}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className={cn("truncate text-xs text-gray-500", isDone && "line-through")}>
+                          {assigneeName(task, t("teamUnknownMember"))}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                          {isDone && completed ? (
+                            <span>{completed}</span>
+                          ) : due ? (
+                            <span>
+                              {t("teamDueDate")}: {due}
+                            </span>
+                          ) : null}
+                          {task.priority ? (
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide capitalize",
+                                teamPriorityClass(task.priority),
+                              )}
+                            >
+                              {task.priority}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </li>
                   );

@@ -174,7 +174,7 @@ function TaskBoardCard({
       }}
       onDragEnd={() => setIsDragging(false)}
       className={cn(
-        "task-assignee-card relative overflow-hidden rounded border p-3 pl-4",
+        "task-assignee-card flex overflow-hidden rounded border",
         allowDrag && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
@@ -182,97 +182,113 @@ function TaskBoardCard({
     >
       <span
         aria-hidden
-        className={cn("absolute inset-y-0 left-0 w-1", teamPriorityBarClass(task.priority))}
+        className={cn("w-1 shrink-0 self-stretch", teamPriorityBarClass(task.priority))}
       />
-      <div className="flex gap-2">
-        {canChangeStatus ? (
-          <Checkbox
-            checked={isDone}
-            disabled={isDone}
-            className="mt-0.5 shrink-0"
-            onCheckedChange={() => {
-              if (!isDone) onComplete(task);
-            }}
-            aria-label={t("teamMarkComplete")}
-          />
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-1">
-            <p className={cn("text-sm font-medium text-gray-900", isDone && "line-through text-gray-500")}>
-              {task.title}
-            </p>
-            {canChangeStatus || canManageTask ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                    <MoreVertical size={14} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canChangeStatus
-                    ? TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
-                        <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
-                          {teamTaskStatusLabel(s, t)}
-                        </DropdownMenuItem>
-                      ))
-                    : null}
-                  <DropdownMenuItem onClick={() => onEdit(task)}>
-                    <Pencil size={14} className="mr-2" />
-                    {t("edit")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-red-600"
-                    disabled={deletingId === id}
-                    onClick={() => onDelete(task)}
-                  >
-                    <Trash2 size={14} className="mr-2" />
-                    {t("delete")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+      <div className="min-w-0 flex-1 p-3">
+        <div className="flex gap-2">
+          {canChangeStatus ? (
+            <Checkbox
+              checked={isDone}
+              disabled={isDone}
+              className="mt-0.5 shrink-0"
+              onCheckedChange={() => {
+                if (!isDone) onComplete(task);
+              }}
+              aria-label={t("teamMarkComplete")}
+            />
+          ) : null}
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex items-start justify-between gap-2">
+              <p
+                className={cn(
+                  "min-w-0 flex-1 break-words text-sm font-medium leading-snug text-gray-900",
+                  isDone && "line-through text-gray-500",
+                )}
+              >
+                {task.title}
+              </p>
+              {canChangeStatus || canManageTask ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                      <MoreVertical size={14} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {canChangeStatus
+                      ? TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
+                          <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
+                            {teamTaskStatusLabel(s, t)}
+                          </DropdownMenuItem>
+                        ))
+                      : null}
+                    <DropdownMenuItem onClick={() => onEdit(task)}>
+                      <Pencil size={14} className="mr-2" />
+                      {t("edit")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      disabled={deletingId === id}
+                      onClick={() => onDelete(task)}
+                    >
+                      <Trash2 size={14} className="mr-2" />
+                      {t("delete")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </div>
+            {task.description ? (
+              <p
+                className={cn(
+                  "break-words text-xs leading-relaxed text-gray-500",
+                  isDone && "line-through",
+                )}
+              >
+                {task.description}
+              </p>
             ) : null}
-          </div>
-          {task.description ? (
-            <p className={cn("mt-1 text-xs text-gray-500", isDone && "line-through")}>{task.description}</p>
-          ) : null}
-          {task.completionNote ? (
-            <p className="mt-1 text-xs text-emerald-700">{task.completionNote}</p>
-          ) : null}
-          <div className="mt-2 space-y-1 text-xs text-gray-500">
-            {name ? (
-              <div className="flex items-center gap-2">
-                <UserProfileAvatar
-                  name={name}
-                  profilePictureUrl={assigneeProfilePictureUrl}
-                  className="h-6 w-6 border border-gray-200"
-                  fallbackClassName="bg-sky-100 text-[9px] font-semibold text-sky-700"
-                />
-                <p className="truncate font-medium text-gray-700">{name}</p>
+            {task.completionNote ? (
+              <p className="break-words text-xs leading-relaxed text-emerald-700">{task.completionNote}</p>
+            ) : null}
+            <div className="flex flex-col gap-1.5 pt-0.5 text-xs text-gray-500">
+              {name ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <UserProfileAvatar
+                    name={name}
+                    profilePictureUrl={assigneeProfilePictureUrl}
+                    className="h-6 w-6 shrink-0 border border-gray-200"
+                    fallbackClassName="bg-sky-100 text-[9px] font-semibold text-sky-700"
+                  />
+                  <p className="min-w-0 truncate font-medium text-gray-700">{name}</p>
+                </div>
+              ) : null}
+              {showProjectLink && linkedProjectName(task) ? (
+                <p className="truncate text-sky-700">
+                  {t("teamLinkedProject")}: {linkedProjectName(task)}
+                </p>
+              ) : null}
+              {milestoneName ? (
+                <p className="truncate text-violet-700">
+                  {t("projectMilestone")}: {milestoneName}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                {task.dueDate ? (
+                  <span>
+                    {t("teamDueDate")}: {formatDate(task.dueDate)}
+                  </span>
+                ) : null}
+                <span
+                  className={cn(
+                    "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    teamPriorityClass(task.priority),
+                  )}
+                >
+                  {task.priority || "medium"}
+                </span>
               </div>
-            ) : null}
-            {showProjectLink && linkedProjectName(task) ? (
-              <p className="truncate text-sky-700">
-                {t("teamLinkedProject")}: {linkedProjectName(task)}
-              </p>
-            ) : null}
-            {milestoneName ? (
-              <p className="truncate text-violet-700">
-                {t("projectMilestone")}: {milestoneName}
-              </p>
-            ) : null}
-            {task.dueDate ? (
-              <p>
-                {t("teamDueDate")}: {formatDate(task.dueDate)}
-              </p>
-            ) : null}
-            <span
-              className={cn(
-                "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                teamPriorityClass(task.priority),
-              )}
-            >
-              {task.priority || "medium"}
-            </span>
+            </div>
           </div>
         </div>
       </div>

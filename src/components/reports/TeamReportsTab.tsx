@@ -69,9 +69,22 @@ function currentUserId() {
   return localStorage.getItem("profit-pilot-user-id");
 }
 
+function normalizeId(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value === "object") {
+    const obj = value as { _id?: unknown; id?: unknown; $oid?: unknown };
+    if (obj._id != null) return normalizeId(obj._id);
+    if (obj.id != null) return normalizeId(obj.id);
+    if (obj.$oid != null) return String(obj.$oid);
+  }
+  return "";
+}
+
 function isOwnReport(report: TeamReportRecord, userId: string | null) {
-  if (!userId || !report.submitterUserId) return false;
-  return String(report.submitterUserId) === String(userId);
+  if (!userId) return false;
+  const submitterId = normalizeId(report.submitterUserId);
+  return Boolean(submitterId) && submitterId === String(userId);
 }
 
 function reportToNames(report: TeamReportRecord) {
@@ -342,7 +355,7 @@ export function TeamReportsTab() {
         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetail(report)}>
           View
         </Button>
-        {showEdit || showDelete ? (
+        {ownedByMe ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -356,21 +369,25 @@ export function TeamReportsTab() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {showEdit ? (
-                <DropdownMenuItem onClick={() => openEdit(report)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {needsResubmit ? "Edit & resubmit" : "Edit"}
-                </DropdownMenuItem>
-              ) : null}
-              {showDelete ? (
-                <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600"
-                  onClick={() => setDeleteTarget(report)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              ) : null}
+              <DropdownMenuItem
+                disabled={!showEdit}
+                onClick={() => {
+                  if (showEdit) openEdit(report);
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                {needsResubmit ? "Edit & resubmit" : "Edit"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-600 focus:text-red-600"
+                disabled={!showDelete}
+                onClick={() => {
+                  if (showDelete) setDeleteTarget(report);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
