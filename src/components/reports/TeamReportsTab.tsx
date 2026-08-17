@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { teamReportApi } from "@/lib/api";
+import { teamMemberApi, teamReportApi, type TeamMemberRecord } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
   FileText,
   Link2,
   X,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadCompanyDocument } from "@/lib/financeUpload";
@@ -57,6 +58,7 @@ const emptyForm = () => {
     description: "",
     attachmentUrl: "",
     attachmentName: "",
+    reportTo: [] as string[],
     periodStart: period.start,
     periodEnd: period.end,
   };
@@ -67,6 +69,7 @@ export function TeamReportsTab() {
   const { mode, isWorkspaceAdmin } = useWorkspace();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<TeamReportRecord[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberRecord[]>([]);
   const [canReview, setCanReview] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -106,6 +109,22 @@ export function TeamReportsTab() {
     void loadReports();
   }, [loadReports]);
 
+  useEffect(() => {
+    void teamMemberApi
+      .getAll({ status: "active" })
+      .then((response) =>
+        setTeamMembers(
+          ((response.data || []) as TeamMemberRecord[]).filter((member) => Boolean(member.linkedUserId)),
+        ),
+      )
+      .catch(() => setTeamMembers([]));
+  }, []);
+
+  const selectedRecipients = useMemo(
+    () => teamMembers.filter((member) => form.reportTo.includes(member._id)),
+    [form.reportTo, teamMembers],
+  );
+
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm());
@@ -121,6 +140,7 @@ export function TeamReportsTab() {
       description: report.accomplishments || "",
       attachmentUrl: report.attachmentUrl || "",
       attachmentName: report.attachmentName || "",
+      reportTo: (report.reportTo || []).map((recipient) => recipient.memberId),
       periodStart: String(report.periodStart || "").slice(0, 10) || emptyForm().periodStart,
       periodEnd: String(report.periodEnd || "").slice(0, 10) || emptyForm().periodEnd,
     });
@@ -166,7 +186,7 @@ export function TeamReportsTab() {
         nextSteps: "",
         attachmentUrl,
         attachmentName,
-        reportTo: [] as string[],
+        reportTo: form.reportTo,
       };
 
       if (editing) {
@@ -498,6 +518,63 @@ export function TeamReportsTab() {
             </div>
 
             <div className="space-y-2">
+              <Label>Reporting to</Label>
+              <p className="text-xs text-muted-foreground">
+                Select the people who should receive and review this report.
+              </p>
+              <div className="max-h-44 space-y-1 overflow-y-auto rounded-md border border-border p-1">
+                {teamMembers.length === 0 ? (
+                  <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                    No active workspace members are available.
+                  </p>
+                ) : (
+                  teamMembers.map((member) => {
+                    const selected = form.reportTo.includes(member._id);
+                    return (
+                      <button
+                        key={member._id}
+                        type="button"
+                        disabled={saving}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+                          selected ? "bg-sky-50 dark:bg-sky-500/15" : "hover:bg-muted",
+                        )}
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            reportTo: selected
+                              ? prev.reportTo.filter((id) => id !== member._id)
+                              : [...prev.reportTo, member._id],
+                          }))
+                        }
+                      >
+                        <Check
+                          className={cn(
+                            "h-4 w-4 shrink-0",
+                            selected ? "text-sky-600 opacity-100 dark:text-sky-300" : "opacity-0",
+                          )}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-foreground">{member.name}</span>
+                          {member.jobTitle ? (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {member.jobTitle}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              {selectedRecipients.length ? (
+                <p className="text-xs text-muted-foreground">
+                  Reporting to: {selectedRecipients.map((member) => member.name).join(", ")}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
               <Label>Document or link</Label>
               <p className="text-xs text-muted-foreground">
                 Upload a file, or paste a link — use either one.
@@ -621,6 +698,16 @@ export function TeamReportsTab() {
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-foreground">{detail.accomplishments}</p>
               </div>
+              {detail.reportTo?.length ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Reporting to
+                  </p>
+                  <p className="mt-1 text-foreground">
+                    {detail.reportTo.map((recipient) => recipient.name).join(", ")}
+                  </p>
+                </div>
+              ) : null}
               {detail.attachmentUrl ? (
                 <div>
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
