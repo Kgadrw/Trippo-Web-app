@@ -174,7 +174,7 @@ function TaskBoardCard({
       }}
       onDragEnd={() => setIsDragging(false)}
       className={cn(
-        "task-assignee-card flex overflow-hidden rounded border",
+        "task-assignee-card flex shrink-0 overflow-hidden rounded border",
         allowDrag && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
@@ -578,7 +578,7 @@ export function TeamTaskKanbanBoard({
       <div
         className={cn(
           "hidden md:grid md:min-w-0 md:grid-cols-3 md:divide-x md:divide-gray-200",
-          fillHeight && "min-h-0 flex-1 md:h-full md:overflow-hidden",
+          fillHeight && "min-h-0 flex-1 md:h-full md:grid-rows-1 md:overflow-hidden",
         )}
       >
         {TEAM_TASK_SECTION_ORDER.map((statusKey) => (
