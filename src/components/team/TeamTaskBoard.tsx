@@ -120,6 +120,7 @@ function TaskBoardCard({
   t,
   assigneeProfilePictureUrl,
   canChangeStatus,
+  canManageTask,
   showProjectLink,
   onComplete,
   onStatusChange,
@@ -131,6 +132,7 @@ function TaskBoardCard({
   t: (key: string) => string;
   assigneeProfilePictureUrl?: string;
   canChangeStatus: boolean;
+  canManageTask: boolean;
   showProjectLink: boolean;
   onComplete: (task: TeamTaskRecord) => void;
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
@@ -195,7 +197,7 @@ function TaskBoardCard({
             <p className={cn("text-sm font-medium text-gray-900", isDone && "line-through text-gray-500")}>
               {task.title}
             </p>
-            {canChangeStatus ? (
+            {canChangeStatus || canManageTask ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
@@ -203,11 +205,13 @@ function TaskBoardCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
-                    <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
-                      {teamTaskStatusLabel(s, t)}
-                    </DropdownMenuItem>
-                  ))}
+                  {canChangeStatus
+                    ? TEAM_TASK_STATUSES.filter((s) => s !== currentStatus).map((s) => (
+                        <DropdownMenuItem key={s} onClick={() => onStatusChange(task, s)}>
+                          {teamTaskStatusLabel(s, t)}
+                        </DropdownMenuItem>
+                      ))
+                    : null}
                   <DropdownMenuItem onClick={() => onEdit(task)}>
                     <Pencil size={14} className="mr-2" />
                     {t("edit")}
@@ -271,6 +275,7 @@ function TaskBoardColumn({
   t,
   resolveAssigneeAvatar,
   currentTeamMemberId,
+  canManageTasks,
   showProjectLink,
   onComplete,
   onStatusChange,
@@ -285,6 +290,7 @@ function TaskBoardColumn({
   t: (key: string) => string;
   resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
   currentTeamMemberId: string | null;
+  canManageTasks: boolean;
   showProjectLink: boolean;
   onComplete: (task: TeamTaskRecord) => void;
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
@@ -357,6 +363,7 @@ function TaskBoardColumn({
               t={t}
               assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
               canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
+              canManageTask={canManageTasks}
               showProjectLink={showProjectLink}
               onComplete={onComplete}
               onStatusChange={onStatusChange}
@@ -375,6 +382,7 @@ export function TeamTaskCardStack({
   tasks,
   t,
   currentTeamMemberId,
+  canManageTasks = false,
   resolveAssigneeAvatar,
   showProjectLink = true,
   onComplete,
@@ -387,6 +395,7 @@ export function TeamTaskCardStack({
   tasks: TeamTaskRecord[];
   t: (key: string) => string;
   currentTeamMemberId: string | null;
+  canManageTasks?: boolean;
   resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
   showProjectLink?: boolean;
   onComplete: (task: TeamTaskRecord) => void;
@@ -409,6 +418,7 @@ export function TeamTaskCardStack({
           t={t}
           assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
           canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
+          canManageTask={canManageTasks}
           showProjectLink={showProjectLink}
           onComplete={onComplete}
           onStatusChange={onStatusChange}
@@ -425,6 +435,7 @@ export function TeamTaskKanbanBoard({
   tasks,
   t,
   currentTeamMemberId,
+  canManageTasks = false,
   resolveAssigneeAvatar,
   showProjectLink = true,
   onComplete,
@@ -439,6 +450,7 @@ export function TeamTaskKanbanBoard({
   tasks: TeamTaskRecord[];
   t: (key: string) => string;
   currentTeamMemberId: string | null;
+  canManageTasks?: boolean;
   resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
   showProjectLink?: boolean;
   onComplete: (task: TeamTaskRecord) => void;
@@ -522,6 +534,7 @@ export function TeamTaskKanbanBoard({
                 t={t}
                 assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
                 canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
+                canManageTask={canManageTasks}
                 showProjectLink={showProjectLink}
                 onComplete={onComplete}
                 onStatusChange={onStatusChange}
@@ -549,6 +562,7 @@ export function TeamTaskKanbanBoard({
             t={t}
             resolveAssigneeAvatar={resolveAssigneeAvatar}
             currentTeamMemberId={currentTeamMemberId}
+            canManageTasks={canManageTasks}
             showProjectLink={showProjectLink}
             onComplete={onComplete}
             onStatusChange={onStatusChange}

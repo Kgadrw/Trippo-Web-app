@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { teamMemberApi, teamReportApi, type TeamMemberRecord } from "@/lib/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { teamReportApi } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -14,27 +14,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Loader2,
   CheckCircle2,
   XCircle,
   MessageSquareWarning,
   Plus,
-  Paperclip,
   RefreshCw,
-  Search,
-  ChevronsUpDown,
-  Check,
+  Upload,
+  FileText,
+  Link2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { filterSelectClass } from "@/lib/fieldStyles";
+import { uploadCompanyDocument } from "@/lib/financeUpload";
+import { ReportAttachmentViewer } from "@/components/reports/ReportAttachmentViewer";
 import {
   FINANCE_TH_CLASS,
   FINANCE_TD_CLASS,
@@ -48,54 +41,45 @@ import {
 import {
   canEditTeamReport,
   defaultPeriodForType,
-  formatReportPeriod,
   teamReportId,
   teamReportStatusClass,
   teamReportStatusLabel,
-  teamReportTypeLabel,
   type TeamReportRecord,
   type TeamReportStatus,
-  type TeamReportType,
 } from "@/lib/teamReportWorkflow";
 
 type StatusFilter = TeamReportStatus | "all" | "mine";
 
-const emptyForm = (type: TeamReportType = "daily") => {
-  const period = defaultPeriodForType(type);
+const emptyForm = () => {
+  const period = defaultPeriodForType("daily");
   return {
     title: "",
-    reportType: type,
-    periodStart: period.start,
-    periodEnd: period.end,
-    accomplishments: "",
-    blockers: "",
-    nextSteps: "",
+    description: "",
     attachmentUrl: "",
     attachmentName: "",
-    reportTo: [] as string[],
+    periodStart: period.start,
+    periodEnd: period.end,
   };
 };
 
 export function TeamReportsTab() {
   const { toast } = useToast();
   const { mode, isWorkspaceAdmin } = useWorkspace();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<TeamReportRecord[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMemberRecord[]>([]);
   const [canReview, setCanReview] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TeamReportRecord | null>(null);
   const [form, setForm] = useState(emptyForm());
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<TeamReportRecord | null>(null);
   const [changesTarget, setChangesTarget] = useState<TeamReportRecord | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [detail, setDetail] = useState<TeamReportRecord | null>(null);
-  const [reportToPickerOpen, setReportToPickerOpen] = useState(false);
-  const [memberSearch, setMemberSearch] = useState("");
-  const [pendingReportTo, setPendingReportTo] = useState<string[]>([]);
 
   const loadReports = useCallback(
     async (silent = false) => {
@@ -122,43 +106,11 @@ export function TeamReportsTab() {
     void loadReports();
   }, [loadReports]);
 
-  useEffect(() => {
-    void teamMemberApi
-      .getAll({ status: "active" })
-      .then((response) =>
-        setTeamMembers(
-          ((response.data || []) as TeamMemberRecord[]).filter((member) => Boolean(member.linkedUserId)),
-        ),
-      )
-      .catch(() => setTeamMembers([]));
-  }, []);
-
-  const selectedRecipients = useMemo(
-    () => teamMembers.filter((member) => form.reportTo.includes(member._id)),
-    [teamMembers, form.reportTo],
-  );
-
-  const filteredMembers = useMemo(() => {
-    const q = memberSearch.trim().toLowerCase();
-    const sorted = [...teamMembers].sort((a, b) =>
-      String(a.name || "").localeCompare(String(b.name || "")),
-    );
-    if (!q) return sorted;
-    return sorted.filter((member) => {
-      const haystack = `${member.name || ""} ${member.jobTitle || ""} ${member.email || ""}`.toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [teamMembers, memberSearch]);
-
-  const openReportToPicker = () => {
-    setPendingReportTo(form.reportTo);
-    setMemberSearch("");
-    setReportToPickerOpen(true);
-  };
-
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm("daily"));
+    setForm(emptyForm());
+    setAttachmentFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
 
@@ -166,42 +118,57 @@ export function TeamReportsTab() {
     setEditing(report);
     setForm({
       title: report.title || "",
-      reportType: report.reportType || "daily",
-      periodStart: String(report.periodStart || "").slice(0, 10),
-      periodEnd: String(report.periodEnd || "").slice(0, 10),
-      accomplishments: report.accomplishments || "",
-      blockers: report.blockers || "",
-      nextSteps: report.nextSteps || "",
+      description: report.accomplishments || "",
       attachmentUrl: report.attachmentUrl || "",
       attachmentName: report.attachmentName || "",
-      reportTo: (report.reportTo || []).map((recipient) => recipient.memberId),
+      periodStart: String(report.periodStart || "").slice(0, 10) || emptyForm().periodStart,
+      periodEnd: String(report.periodEnd || "").slice(0, 10) || emptyForm().periodEnd,
     });
+    setAttachmentFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setModalOpen(true);
   };
 
+  const clearAttachment = () => {
+    setAttachmentFile(null);
+    setForm((prev) => ({ ...prev, attachmentUrl: "", attachmentName: "" }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleSave = async () => {
-    if (!form.title.trim() || !form.accomplishments.trim()) {
+    if (!form.title.trim() || !form.description.trim()) {
       toast({
         title: "Missing fields",
-        description: "Title and accomplishments are required.",
+        description: "Report name and description are required.",
         variant: "destructive",
       });
       return;
     }
+
     setSaving(true);
     try {
+      let attachmentUrl = form.attachmentUrl.trim() || undefined;
+      let attachmentName = form.attachmentName.trim() || undefined;
+
+      if (attachmentFile) {
+        const uploaded = await uploadCompanyDocument(attachmentFile);
+        attachmentUrl = uploaded.fileUrl;
+        attachmentName = uploaded.fileName || attachmentFile.name;
+      }
+
       const payload = {
         title: form.title.trim(),
-        reportType: form.reportType,
+        reportType: "daily" as const,
         periodStart: form.periodStart,
         periodEnd: form.periodEnd,
-        accomplishments: form.accomplishments.trim(),
-        blockers: form.blockers.trim(),
-        nextSteps: form.nextSteps.trim(),
-        attachmentUrl: form.attachmentUrl.trim() || undefined,
-        attachmentName: form.attachmentName.trim() || undefined,
-        reportTo: form.reportTo,
+        accomplishments: form.description.trim(),
+        blockers: "",
+        nextSteps: "",
+        attachmentUrl,
+        attachmentName,
+        reportTo: [] as string[],
       };
+
       if (editing) {
         const id = teamReportId(editing);
         await teamReportApi.update(id, payload);
@@ -263,6 +230,8 @@ export function TeamReportsTab() {
       ] as const,
     [],
   );
+
+  const attachmentLabel = attachmentFile?.name || form.attachmentName || "";
 
   const renderActions = (report: TeamReportRecord, compact = false) => {
     const id = teamReportId(report);
@@ -338,7 +307,7 @@ export function TeamReportsTab() {
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-foreground">Team reporting</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Submit daily or weekly work reports.{" "}
+            Submit a report with a name, description, and optional document or link.{" "}
             {canReview
               ? "You can review submissions from the team."
               : "Workspace admins review submitted reports."}
@@ -380,7 +349,7 @@ export function TeamReportsTab() {
         <div className="rounded-lg border border-dashed border-transparent bg-muted/40 px-4 py-16 text-center">
           <p className="text-sm font-medium text-foreground">No reports yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Submit your first daily, weekly, or monthly report to get started.
+            Submit your first report with a name, description, and optional file or link.
           </p>
           <Button type="button" className="mt-4" onClick={openCreate}>
             <Plus className="h-4 w-4" />
@@ -393,15 +362,9 @@ export function TeamReportsTab() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className={cn(FINANCE_TH_CLASS, "w-full min-w-[180px]")}>Title</th>
+                  <th className={cn(FINANCE_TH_CLASS, "w-full min-w-[180px]")}>Report name</th>
                   <th className={cn(FINANCE_TH_CLASS, "hidden md:table-cell w-[1%] whitespace-nowrap")}>
                     Submitter
-                  </th>
-                  <th className={cn(FINANCE_TH_CLASS, "hidden lg:table-cell w-[1%] whitespace-nowrap")}>
-                    Reporting to
-                  </th>
-                  <th className={cn(FINANCE_TH_CLASS, "hidden sm:table-cell w-[1%] whitespace-nowrap")}>
-                    Period
                   </th>
                   <th className={cn(FINANCE_TH_CLASS, "w-[1%] whitespace-nowrap")}>Status</th>
                   <th className={cn(FINANCE_TH_CLASS, "hidden xl:table-cell w-[1%] whitespace-nowrap")}>
@@ -421,26 +384,24 @@ export function TeamReportsTab() {
                     <td className={cn(FINANCE_TD_CLASS, "font-medium")}>
                       <div className="min-w-0 max-w-3xl">
                         <p className="break-words">{report.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {teamReportTypeLabel(report.reportType)}
-                        </p>
+                        {report.accomplishments ? (
+                          <p className="mt-0.5 line-clamp-2 text-xs font-normal text-muted-foreground">
+                            {report.accomplishments}
+                          </p>
+                        ) : null}
+                        {report.attachmentUrl ? (
+                          <div className="mt-1.5">
+                            <ReportAttachmentViewer
+                              fileUrl={report.attachmentUrl}
+                              fileName={report.attachmentName}
+                              compact
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                     <td className={cn(FINANCE_TD_CLASS, "hidden md:table-cell whitespace-nowrap")}>
                       {report.submitterName}
-                    </td>
-                    <td
-                      className={cn(
-                        FINANCE_TD_CLASS,
-                        "hidden lg:table-cell max-w-[220px] text-xs text-muted-foreground",
-                      )}
-                    >
-                      {report.reportTo?.length
-                        ? report.reportTo.map((recipient) => recipient.name).join(", ")
-                        : "—"}
-                    </td>
-                    <td className={cn(FINANCE_TD_CLASS, "hidden sm:table-cell whitespace-nowrap text-xs")}>
-                      {formatReportPeriod(report.periodStart, report.periodEnd)}
                     </td>
                     <td className={cn(FINANCE_TD_CLASS, "whitespace-nowrap")}>
                       <span
@@ -486,12 +447,22 @@ export function TeamReportsTab() {
                     </span>
                   </div>
                 }
-                subtitle={`${report.submitterName} · ${teamReportTypeLabel(report.reportType)}${
-                  report.reportTo?.length
-                    ? ` · To ${report.reportTo.map((recipient) => recipient.name).join(", ")}`
-                    : ""
-                }`}
-                meta={formatReportPeriod(report.periodStart, report.periodEnd)}
+                subtitle={
+                  report.accomplishments
+                    ? `${report.submitterName} · ${report.accomplishments}`
+                    : report.submitterName
+                }
+                meta={
+                  report.attachmentUrl ? (
+                    <ReportAttachmentViewer
+                      fileUrl={report.attachmentUrl}
+                      fileName={report.attachmentName}
+                      compact
+                    />
+                  ) : (
+                    formatFinanceTableDate(report.createdAt)
+                  )
+                }
                 actions={renderActions(report, true)}
               />
             ))}
@@ -499,166 +470,115 @@ export function TeamReportsTab() {
         </FinanceTableShell>
       )}
 
-      <Dialog
-        open={modalOpen}
-        onOpenChange={(open) => {
-          setModalOpen(open);
-          if (!open) {
-            setReportToPickerOpen(false);
-            setMemberSearch("");
-          }
-        }}
-      >
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit & resubmit report" : "Submit team report"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit & resubmit report" : "Submit report"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Title</Label>
+              <Label htmlFor="report-name">Report name</Label>
               <Input
+                id="report-name"
                 value={form.title}
                 onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g. Week 12 progress report"
+                placeholder="e.g. March inventory summary"
               />
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label>Type</Label>
-                <Select
-                  value={form.reportType}
-                  onValueChange={(value: TeamReportType) => {
-                    const period = defaultPeriodForType(value);
+
+            <div className="space-y-1.5">
+              <Label htmlFor="report-description">Description</Label>
+              <Textarea
+                id="report-description"
+                rows={5}
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Briefly describe this report…"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Document or link</Label>
+              <p className="text-xs text-muted-foreground">
+                Upload a file, or paste a link — use either one.
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const picked = e.target.files?.[0] ?? null;
+                  setAttachmentFile(picked);
+                  if (picked) {
                     setForm((prev) => ({
                       ...prev,
-                      reportType: value,
-                      periodStart: period.start,
-                      periodEnd: period.end,
+                      attachmentName: picked.name,
+                      attachmentUrl: "",
+                    }));
+                  }
+                }}
+              />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5"
+                  disabled={saving}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload size={14} />
+                  {attachmentFile || form.attachmentUrl ? "Change file" : "Upload document"}
+                </Button>
+                {attachmentLabel ? (
+                  <span className="inline-flex max-w-[14rem] items-center gap-1 truncate text-xs text-muted-foreground">
+                    <FileText size={14} className="shrink-0" />
+                    {attachmentLabel}
+                  </span>
+                ) : null}
+                {(attachmentFile || form.attachmentUrl || form.attachmentName) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-2"
+                    disabled={saving}
+                    onClick={clearAttachment}
+                  >
+                    <X size={14} />
+                  </Button>
+                )}
+              </div>
+
+              {form.attachmentUrl && !attachmentFile ? (
+                <ReportAttachmentViewer
+                  fileUrl={form.attachmentUrl}
+                  fileName={form.attachmentName || "Attachment"}
+                />
+              ) : null}
+
+              <div className="relative">
+                <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={attachmentFile ? "" : form.attachmentUrl}
+                  disabled={Boolean(attachmentFile) || saving}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setAttachmentFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                    setForm((prev) => ({
+                      ...prev,
+                      attachmentUrl: url,
+                      attachmentName: url.trim()
+                        ? prev.attachmentName || "Link"
+                        : "",
                     }));
                   }}
-                >
-                  <SelectTrigger className={filterSelectClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Period start</Label>
-                <Input
-                  type="date"
-                  value={form.periodStart}
-                  onChange={(e) => setForm((prev) => ({ ...prev, periodStart: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Period end</Label>
-                <Input
-                  type="date"
-                  value={form.periodEnd}
-                  onChange={(e) => setForm((prev) => ({ ...prev, periodEnd: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Reporting to</Label>
-              <p className="text-xs text-muted-foreground">
-                Select one or more people who should receive and review this report.
-              </p>
-              <button
-                type="button"
-                onClick={openReportToPicker}
-                className={cn(
-                  filterSelectClass,
-                  "flex h-10 w-full items-center justify-between px-3 text-left text-sm",
-                )}
-              >
-                <span
-                  className={cn(
-                    "min-w-0 truncate",
-                    selectedRecipients.length ? "text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {selectedRecipients.length === 0
-                    ? "Select people…"
-                    : selectedRecipients.length === 1
-                      ? selectedRecipients[0].name
-                      : `${selectedRecipients.length} people selected`}
-                </span>
-                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-              </button>
-              {selectedRecipients.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {selectedRecipients.map((member) => (
-                    <span
-                      key={member._id}
-                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs text-foreground"
-                    >
-                      <span className="truncate">{member.name}</span>
-                      <button
-                        type="button"
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                        aria-label={`Remove ${member.name}`}
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            reportTo: prev.reportTo.filter((id) => id !== member._id),
-                          }))
-                        }
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Accomplishments</Label>
-              <Textarea
-                rows={4}
-                value={form.accomplishments}
-                onChange={(e) => setForm((prev) => ({ ...prev, accomplishments: e.target.value }))}
-                placeholder="What did you complete?"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Blockers</Label>
-              <Textarea
-                rows={3}
-                value={form.blockers}
-                onChange={(e) => setForm((prev) => ({ ...prev, blockers: e.target.value }))}
-                placeholder="Anything slowing you down? (optional)"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Next steps</Label>
-              <Textarea
-                rows={3}
-                value={form.nextSteps}
-                onChange={(e) => setForm((prev) => ({ ...prev, nextSteps: e.target.value }))}
-                placeholder="What will you focus on next? (optional)"
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Attachment name</Label>
-                <Input
-                  value={form.attachmentName}
-                  onChange={(e) => setForm((prev) => ({ ...prev, attachmentName: e.target.value }))}
-                  placeholder="Optional file label"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Attachment URL</Label>
-                <Input
-                  value={form.attachmentUrl}
-                  onChange={(e) => setForm((prev) => ({ ...prev, attachmentUrl: e.target.value }))}
-                  placeholder="https://..."
+                  placeholder="Or paste a link (https://…)"
+                  className="pl-9"
                 />
               </div>
             </div>
@@ -675,111 +595,6 @@ export function TeamReportsTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={reportToPickerOpen}
-        onOpenChange={(open) => {
-          setReportToPickerOpen(open);
-          if (!open) setMemberSearch("");
-        }}
-      >
-        <DialogContent
-          className="z-[70] max-h-[85vh] overflow-hidden sm:max-w-md"
-          overlayClassName="z-[65]"
-        >
-          <DialogHeader>
-            <DialogTitle>Select who you are reporting to</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                placeholder="Search by name…"
-                className="pl-9"
-                autoFocus
-              />
-            </div>
-            <div className="max-h-[45vh] space-y-1 overflow-y-auto rounded-md border border-border p-1">
-              {teamMembers.length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                  No active team members available.
-                </p>
-              ) : filteredMembers.length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                  No matching people found.
-                </p>
-              ) : (
-                filteredMembers.map((member) => {
-                  const selected = pendingReportTo.includes(member._id);
-                  return (
-                    <button
-                      key={member._id}
-                      type="button"
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
-                        selected ? "bg-sky-50 dark:bg-sky-500/15" : "hover:bg-muted",
-                      )}
-                      onClick={() =>
-                        setPendingReportTo((prev) =>
-                          selected
-                            ? prev.filter((id) => id !== member._id)
-                            : [...prev, member._id],
-                        )
-                      }
-                    >
-                      <Check
-                        className={cn(
-                          "h-4 w-4 shrink-0",
-                          selected ? "opacity-100 text-sky-600 dark:text-sky-300" : "opacity-0",
-                        )}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-foreground">
-                          {member.name}
-                        </span>
-                        {member.jobTitle ? (
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {member.jobTitle}
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {pendingReportTo.length === 0
-                ? "No one selected yet."
-                : `${pendingReportTo.length} selected`}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setReportToPickerOpen(false);
-                setMemberSearch("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                setForm((prev) => ({ ...prev, reportTo: pendingReportTo }));
-                setReportToPickerOpen(false);
-                setMemberSearch("");
-              }}
-            >
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={Boolean(detail)} onOpenChange={(open) => !open && setDetail(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
@@ -787,23 +602,11 @@ export function TeamReportsTab() {
           </DialogHeader>
           {detail ? (
             <div className="space-y-3 text-sm">
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>{detail.submitterName}</span>
                 <span>·</span>
-                <span>{teamReportTypeLabel(detail.reportType)}</span>
-                <span>·</span>
-                <span>{formatReportPeriod(detail.periodStart, detail.periodEnd)}</span>
+                <span>{formatFinanceTableDate(detail.createdAt)}</span>
               </div>
-              {detail.reportTo?.length ? (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Reporting to
-                  </p>
-                  <p className="mt-1 text-foreground">
-                    {detail.reportTo.map((recipient) => recipient.name).join(", ")}
-                  </p>
-                </div>
-              ) : null}
               <span
                 className={cn(
                   "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
@@ -814,36 +617,20 @@ export function TeamReportsTab() {
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Accomplishments
+                  Description
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-foreground">{detail.accomplishments}</p>
               </div>
-              {detail.blockers ? (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Blockers
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap text-foreground">{detail.blockers}</p>
-                </div>
-              ) : null}
-              {detail.nextSteps ? (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Next steps
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap text-foreground">{detail.nextSteps}</p>
-                </div>
-              ) : null}
               {detail.attachmentUrl ? (
-                <a
-                  href={detail.attachmentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sky-700 dark:text-sky-300"
-                >
-                  <Paperclip className="h-3.5 w-3.5" />
-                  {detail.attachmentName || "Attachment"}
-                </a>
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Document
+                  </p>
+                  <ReportAttachmentViewer
+                    fileUrl={detail.attachmentUrl}
+                    fileName={detail.attachmentName}
+                  />
+                </div>
               ) : null}
               {detail.reviewNote ? (
                 <div className="rounded-md bg-muted/50 p-3">

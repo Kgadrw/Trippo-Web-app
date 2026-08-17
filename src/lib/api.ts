@@ -2343,7 +2343,13 @@ export const notificationApi = {
   },
 
   // Create a notification
-  async create(data: { type: string; title: string; body: string; icon?: string; data?: any }): Promise<ApiResponse> {
+  async create(data: {
+    type: string;
+    title: string;
+    body: string;
+    icon?: string;
+    data?: Record<string, unknown>;
+  }): Promise<ApiResponse> {
     return request('/notifications', {
       method: 'POST',
       body: JSON.stringify(data),

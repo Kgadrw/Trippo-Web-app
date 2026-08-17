@@ -593,6 +593,9 @@ export function ChatVoiceRecorderButton({
       return;
     }
 
+    // Prevent double-send when tap-to-send and release-to-send both fire.
+    mediaRecorderRef.current = null;
+
     recorder.onstop = () => {
       clearTick();
       stopAnalyser();
@@ -604,7 +607,6 @@ export function ChatVoiceRecorderButton({
         recorder.mimeType || format.mimeType || chunksRef.current[0]?.type || "audio/webm";
       const blob = new Blob(chunksRef.current, { type: mimeType.split(";")[0] });
       chunksRef.current = [];
-      mediaRecorderRef.current = null;
 
       if (action === "cancel" || blob.size < 400 || durationSec < 0.4) return;
 
@@ -852,7 +854,7 @@ export function ChatVoiceRecorderButton({
                 ? slideCancelLabel
                 : lockHint
                   ? slideUpLockLabel
-                  : releaseToSendLabel}
+                  : `${releaseToSendLabel} · ${sendLabel}`}
             </span>
             {!cancelArmed ? (
               <span className="text-sky-600">
@@ -891,12 +893,31 @@ export function ChatVoiceRecorderButton({
           </div>
 
           {holding ? (
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow"
-              aria-hidden
+            <button
+              type="button"
+              disabled={busy || cancelArmed || elapsed < 1}
+              onPointerDown={(event) => {
+                // Don't steal the hold finger — only react to a separate tap/click.
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (busy || cancelArmed || elapsed < 1) return;
+                holdIntentRef.current = false;
+                pendingReleaseRef.current = null;
+                finishRecording("send");
+              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow disabled:opacity-40"
+              aria-label={sendLabel}
+              title={sendLabel}
             >
-              <Mic size={18} />
-            </div>
+              {busy ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Send size={16} className="translate-x-px" />
+              )}
+            </button>
           ) : (
             <>
               <button

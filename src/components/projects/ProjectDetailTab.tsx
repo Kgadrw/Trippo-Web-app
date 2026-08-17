@@ -48,6 +48,7 @@ import { formatFinanceTableDate } from "@/components/finance/financeTable";
 import { AddEntryButton } from "@/components/ui/add-entry-button";
 import { HelpTip } from "@/components/ui/help-tip";
 import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import {
   TeamTaskCardStack,
   TeamTaskKanbanBoard,
@@ -56,6 +57,7 @@ import {
   type TeamTaskSection,
 } from "@/components/team/TeamTaskBoard";
 import { taskId } from "@/lib/teamTaskRealtime";
+import { notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -77,6 +79,7 @@ function milestoneIdOf(task: TeamTaskRecord) {
 export function ProjectDetailTab({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { mode, isWorkspaceAdmin } = useWorkspace();
   const { resolvedTheme } = useTheme();
   const { visibleMembers, overflowMembers } = useWorkspaceMemberAvatars();
   const [profile, setProfile] = useState<ProjectProfilePayload | null>(null);
@@ -325,6 +328,9 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
           payload.status = taskStatus;
         }
         await teamTaskApi.update(taskId(editing), payload);
+        if (mode === "workspace" && isWorkspaceAdmin) {
+          void notifyTaskAssigneeOfAdminChange(editing, "updated");
+        }
         toast({ title: t("teamTaskUpdated") });
       } else {
         payload.status = taskStatus;
@@ -371,6 +377,9 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
     setDeletingId(id);
     try {
       await teamTaskApi.delete(id);
+      if (mode === "workspace" && isWorkspaceAdmin) {
+        void notifyTaskAssigneeOfAdminChange(task, "deleted");
+      }
       toast({ title: t("teamTaskDeleted") });
       void loadProfile();
     } catch {
@@ -583,6 +592,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                                     tasks={related}
                                     t={t}
                                     currentTeamMemberId={currentTeamMemberId}
+                                    canManageTasks={mode === "workspace" && isWorkspaceAdmin}
                                     resolveAssigneeAvatar={resolveAssigneeAvatar}
                                     showProjectLink={false}
                                     onComplete={openComplete}
@@ -619,6 +629,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
             tasks={linkedTeamTasks}
             t={t}
             currentTeamMemberId={currentTeamMemberId}
+            canManageTasks={mode === "workspace" && isWorkspaceAdmin}
             resolveAssigneeAvatar={resolveAssigneeAvatar}
             showProjectLink={false}
             onComplete={openComplete}
@@ -679,6 +690,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                         tasks={member.tasks}
                         t={t}
                         currentTeamMemberId={currentTeamMemberId}
+                        canManageTasks={mode === "workspace" && isWorkspaceAdmin}
                         resolveAssigneeAvatar={resolveAssigneeAvatar}
                         showProjectLink={false}
                         onComplete={openComplete}

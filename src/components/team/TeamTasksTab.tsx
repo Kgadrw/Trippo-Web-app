@@ -51,7 +51,9 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { cn } from "@/lib/utils";
+import { notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
 import { websocketManager } from "@/lib/websocketManager";
 import { matchesRealtimeRecord } from "@/lib/workspaceRealtime";
 import {
@@ -122,6 +124,7 @@ function statusLabel(status: string, t: (key: string) => string) {
 export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { mode, isWorkspaceAdmin } = useWorkspace();
   const { categories: departmentCategories } = useWorkspaceCategories("department");
   const { visibleMembers, overflowMembers } = useWorkspaceMemberAvatars();
 
@@ -403,6 +406,9 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         }
         const res = await teamTaskApi.update(taskId(editing), payload);
         applyTaskUpdate((res.data as TeamTaskRecord) || { ...editing, ...payload });
+        if (mode === "workspace" && isWorkspaceAdmin) {
+          void notifyTaskAssigneeOfAdminChange(editing, "updated");
+        }
         toast({ title: t("teamTaskUpdated") });
         setOpen(false);
         resetForm();
@@ -540,13 +546,19 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
   const handleDelete = async (task: TeamTaskRecord) => {
     const id = taskId(task);
+    setDeletingId(id);
     setTasks((prev) => prev.filter((t) => taskId(t) !== id));
     try {
       await teamTaskApi.delete(id);
+      if (mode === "workspace" && isWorkspaceAdmin) {
+        void notifyTaskAssigneeOfAdminChange(task, "deleted");
+      }
       toast({ title: t("teamTaskDeleted") });
     } catch {
       setTasks((prev) => [...prev, task]);
       toast({ title: t("teamDeleteFailed"), variant: "destructive" });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -682,6 +694,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               tasks={visibleTasks}
               t={t}
               currentTeamMemberId={currentTeamMemberId}
+              canManageTasks={mode === "workspace" && isWorkspaceAdmin}
               resolveAssigneeAvatar={resolveAssigneeAvatar}
               onComplete={openComplete}
               onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
