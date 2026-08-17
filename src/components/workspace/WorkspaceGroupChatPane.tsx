@@ -292,15 +292,17 @@ function MessageReadByAvatars({
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  "relative rounded-full ring-2 ring-white",
+                  "relative h-4 w-4 shrink-0 overflow-hidden rounded-full ring-2 ring-white dark:ring-[#0b0f14]",
                   index > 0 && "-ml-1.5",
                 )}
+                style={{ zIndex: visibleReaders.length - index }}
               >
                 <UserProfileAvatar
                   name={reader.name}
                   profilePictureUrl={reader.profilePictureUrl}
-                  className="h-4 w-4"
-                  fallbackClassName="bg-sky-100 text-[7px] font-semibold text-sky-700"
+                  enablePreview={false}
+                  className="!m-0 !h-full !w-full !max-h-full !max-w-full !rounded-full !p-0"
+                  fallbackClassName="bg-sky-100 text-[7px] font-semibold leading-none text-sky-700"
                 />
               </div>
             </TooltipTrigger>
@@ -1393,12 +1395,14 @@ export function WorkspaceGroupChatPane({
                           )}
                         >
                           {!own ? (
-                            <UserProfileAvatar
-                              name={message.senderName}
-                              profilePictureUrl={senderAvatar}
-                              className="mt-0.5 h-8 w-8 shrink-0"
-                              fallbackClassName="bg-[#F4F4F5] text-[9px] font-semibold text-gray-600"
-                            />
+                            <div className="mt-0.5 h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                              <UserProfileAvatar
+                                name={message.senderName}
+                                profilePictureUrl={senderAvatar}
+                                className="!m-0 !h-full !w-full !rounded-full !p-0"
+                                fallbackClassName="bg-[#F4F4F5] text-[9px] font-semibold text-gray-600"
+                              />
+                            </div>
                           ) : null}
 
                           <div

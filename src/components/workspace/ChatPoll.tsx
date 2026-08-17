@@ -61,8 +61,8 @@ function PollVoterAvatars({
           <TooltipTrigger asChild>
             <div
               className={cn(
-                "relative rounded-full",
-                own ? "ring-2 ring-[#5B2EFF]" : "ring-2 ring-white",
+                "relative h-5 w-5 shrink-0 overflow-hidden rounded-full",
+                own ? "ring-2 ring-[#5B2EFF]" : "ring-2 ring-white dark:ring-[#0b0f14]",
                 index > 0 && "-ml-1.5",
               )}
               style={{ zIndex: visible.length - index }}
@@ -72,9 +72,9 @@ function PollVoterAvatars({
                 profilePictureUrl={voter.profilePictureUrl || undefined}
                 pictureRevision={voter.pictureRevision}
                 enablePreview={false}
-                className="h-5 w-5"
+                className="!m-0 !h-full !w-full !max-h-full !max-w-full !rounded-full !p-0"
                 fallbackClassName={cn(
-                  "text-[7px] font-semibold",
+                  "text-[7px] font-semibold leading-none",
                   own ? "bg-white/25 text-white" : "bg-sky-100 text-sky-700",
                 )}
               />

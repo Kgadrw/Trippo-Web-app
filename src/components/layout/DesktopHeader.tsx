@@ -163,7 +163,7 @@ export function DesktopHeader({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
-          <HeaderWeather className="mr-1 hidden md:flex" />
+          <HeaderWeather showTime={false} className="mr-1 hidden md:flex" />
           <WorkspaceMemberAvatarStack className="mr-1 hidden sm:flex" />
           <WorkspaceHeaderMenu />
           <ThemeToggle />

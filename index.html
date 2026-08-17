@@ -2,11 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Apply saved theme before paint to avoid a light flash -->
+    <!-- Apply saved theme before paint to avoid a light/dark flash -->
     <script>
       (function () {
         try {
-          var stored = localStorage.getItem("profit-pilot-theme") || "system";
+          var migrationKey = "trippo-theme-system-default-v1";
+          var themeKey = "profit-pilot-theme";
+          // One-time: leave legacy forced-light behind so Auto (system) is the default.
+          if (!localStorage.getItem(migrationKey)) {
+            localStorage.setItem(migrationKey, "1");
+            var previous = localStorage.getItem(themeKey);
+            if (previous !== "system" && previous !== "dark") {
+              localStorage.setItem(themeKey, "system");
+            }
+          }
+          var stored = localStorage.getItem(themeKey) || "system";
           var isDark =
             stored === "dark" ||
             (stored === "system" &&
@@ -14,6 +24,9 @@
           if (isDark) {
             document.documentElement.classList.add("dark", "dark-mode");
             document.documentElement.style.colorScheme = "dark";
+          } else {
+            document.documentElement.classList.remove("dark", "dark-mode");
+            document.documentElement.style.colorScheme = "light";
           }
         } catch (e) {}
       })();

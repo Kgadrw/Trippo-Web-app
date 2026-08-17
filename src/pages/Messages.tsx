@@ -2078,15 +2078,17 @@ export function MessagesPage() {
                           )}
                         >
                           {!own ? (
-                            <UserProfileAvatar
-                              name={message.senderName}
-                              profilePictureUrl={
-                                message.senderProfilePictureUrl ||
-                                selectedThread.otherUser.profilePictureUrl
-                              }
-                              className="mr-2 mt-auto h-7 w-7 shrink-0 self-end lg:mr-3 lg:h-8 lg:w-8"
-                              fallbackClassName="bg-sky-100 text-[8px] font-semibold text-sky-700"
-                            />
+                            <div className="mr-2 mt-auto h-7 w-7 shrink-0 self-end overflow-hidden rounded-full lg:mr-3 lg:h-8 lg:w-8">
+                              <UserProfileAvatar
+                                name={message.senderName}
+                                profilePictureUrl={
+                                  message.senderProfilePictureUrl ||
+                                  selectedThread.otherUser.profilePictureUrl
+                                }
+                                className="!m-0 !h-full !w-full !rounded-full !p-0"
+                                fallbackClassName="bg-sky-100 text-[8px] font-semibold text-sky-700"
+                              />
+                            </div>
                           ) : null}
 
                           <div

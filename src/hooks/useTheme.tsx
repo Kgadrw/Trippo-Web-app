@@ -10,9 +10,23 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_STORAGE_KEY = 'profit-pilot-theme';
+/** Clears the legacy forced-light preference so Auto (system) is the real default. */
+const THEME_SYSTEM_DEFAULT_MIGRATION_KEY = 'trippo-theme-system-default-v1';
+
+function ensureSystemDefaultMigration(): void {
+  if (typeof window === 'undefined') return;
+  if (localStorage.getItem(THEME_SYSTEM_DEFAULT_MIGRATION_KEY)) return;
+  localStorage.setItem(THEME_SYSTEM_DEFAULT_MIGRATION_KEY, '1');
+  // Older builds always wrote "light"; adopt system unless the user already chose Auto/Dark.
+  const saved = localStorage.getItem(THEME_STORAGE_KEY);
+  if (saved !== 'system' && saved !== 'dark') {
+    localStorage.setItem(THEME_STORAGE_KEY, 'system');
+  }
+}
 
 function readStoredTheme(): Theme {
   if (typeof window === 'undefined') return 'system';
+  ensureSystemDefaultMigration();
   const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
   if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
   // Default: follow the device light/dark preference.

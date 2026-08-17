@@ -53,7 +53,8 @@ export function UserProfileAvatar({
   const canPreview = enablePreview && showImage && Boolean(imageSrc);
 
   const shellClass = cn(
-    "profile-avatar relative aspect-square shrink-0 overflow-hidden rounded-full box-border p-0 leading-none",
+    // Keep a true circle even when this is a <button> (global button radius is soft-square).
+    "profile-avatar relative inline-flex aspect-square shrink-0 overflow-hidden rounded-full box-border p-0 leading-none",
     ringClassName ? "h-full w-full border-0" : className || "h-10 w-10",
   );
 

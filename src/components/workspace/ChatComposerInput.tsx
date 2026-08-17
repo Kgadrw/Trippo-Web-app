@@ -44,7 +44,7 @@ export const ChatComposerInput = forwardRef<HTMLTextAreaElement, ChatComposerInp
             ref={mirrorRef}
             aria-hidden
             className={cn(
-              "pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words text-gray-800",
+              "pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words text-gray-800 dark:text-zinc-100",
               className,
             )}
           >
@@ -65,8 +65,8 @@ export const ChatComposerInput = forwardRef<HTMLTextAreaElement, ChatComposerInp
           }}
           className={cn(
             className,
-            "relative z-[1] w-full bg-transparent caret-gray-900 selection:bg-sky-200/60",
-            showEmojiMirror ? "text-transparent" : "text-gray-800",
+            "relative z-[1] w-full bg-transparent caret-gray-900 selection:bg-sky-200/60 dark:caret-zinc-100 dark:selection:bg-sky-500/40",
+            showEmojiMirror ? "text-transparent" : "text-gray-800 dark:text-zinc-100",
           )}
         />
       </div>

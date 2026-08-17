@@ -1125,10 +1125,13 @@
 
   /* Round border only for profile images (not header icon buttons) */
   .profile-avatar,
-  button.profile-avatar {
+  button.profile-avatar,
+  .workspace-chat .profile-avatar,
+  .workspace-chat button.profile-avatar {
     border-radius: 9999px !important;
+    -webkit-border-radius: 9999px !important;
     overflow: hidden !important;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 1 / 1 !important;
     flex-shrink: 0;
     isolation: isolate;
     box-sizing: border-box !important;
@@ -1136,7 +1139,9 @@
 
   .profile-avatar .profile-avatar-img,
   .profile-avatar > img,
-  button.profile-avatar > img {
+  button.profile-avatar > img,
+  .workspace-chat .profile-avatar .profile-avatar-img,
+  .workspace-chat button.profile-avatar > img {
     position: absolute !important;
     inset: 0 !important;
     width: 100% !important;
@@ -1145,6 +1150,7 @@
     object-fit: cover !important;
     object-position: center center !important;
     border-radius: 9999px !important;
+    -webkit-border-radius: 9999px !important;
   }
 
   /* Rounded controls inside workspace chat (send, header actions) */
