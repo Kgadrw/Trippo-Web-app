@@ -110,10 +110,18 @@ import {
   type MentionMenuOption,
 } from "@/lib/workspaceChatMentions";
 
+function latestMessageCreatedAt(messages: Array<{ _id: string; createdAt?: string }>) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const row = messages[i];
+    if (String(row._id).startsWith("pending-")) continue;
+    if (row.createdAt) return row.createdAt;
+  }
+  return null;
+}
+
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const SCROLL_NEAR_BOTTOM_PX = 96;
 const MAX_READ_AVATARS = 4;
-const CHAT_STALE_SYNC_MS = 10 * 60 * 1000;
 /** LeadBot-style brand purple */
 const CHAT_PURPLE = "#5B2EFF";
 const CHAT_BG_IMAGE = "/mobile.jpg";
@@ -597,15 +605,14 @@ export function WorkspaceGroupChatPane({
   }, [messages.length]);
 
   const loadMessages = useCallback(
-    async (options?: { silent?: boolean; replace?: boolean; after?: string | null }) => {
+    async (options?: { silent?: boolean; after?: string | null }) => {
       if (!workspaceId) return;
 
       const targetWorkspaceId = workspaceId;
       const generation = ++loadGenerationRef.current;
       const incremental = Boolean(options?.after);
-      if (!incremental && !options?.silent) {
-        setLoading(true);
-      }
+      const silent = Boolean(options?.silent || incremental);
+      if (!silent) setLoading(true);
 
       try {
         const res = await workspaceApi.getMessages(targetWorkspaceId, {
@@ -626,22 +633,17 @@ export function WorkspaceGroupChatPane({
           });
         setMessages((prev) => {
           const base =
-            incremental
-              ? prev
-              : options?.replace || loadedWorkspaceRef.current !== targetWorkspaceId
-              ? []
-              : prev;
-          return reconcileChatMessagesAfterFetch(base, loaded);
+            incremental || loadedWorkspaceRef.current === targetWorkspaceId ? prev : [];
+          const next = reconcileChatMessagesAfterFetch(base, loaded);
+          const latest = latestMessageCreatedAt(next);
+          if (latest) lastLoadedMessageAtRef.current = latest;
+          return next;
         });
         loadedWorkspaceRef.current = targetWorkspaceId;
-        const newest = loaded[loaded.length - 1];
-        if (newest?.createdAt) {
-          lastLoadedMessageAtRef.current = newest.createdAt;
-        }
         lastSyncAtRef.current = Date.now();
-        if (active) stickToBottomRef.current = true;
+        if (active && !silent) stickToBottomRef.current = true;
 
-        if (!active && trackUnreadWhenInactive) {
+        if (!active && trackUnreadWhenInactive && !incremental) {
           const unreadFromServer = loaded.filter(
             (message) =>
               !isOwnMessage(message, currentUserId) && !hasUserRead(message, currentUserId),
@@ -649,11 +651,11 @@ export function WorkspaceGroupChatPane({
           setUnreadCount(unreadFromServer);
         }
       } catch {
-        if (!options?.silent && !incremental) {
+        if (!silent) {
           toast({ title: t("workspaceChatLoadFailed"), variant: "destructive" });
         }
       } finally {
-        if (!incremental && !options?.silent && loadGenerationRef.current === generation) {
+        if (!silent && loadGenerationRef.current === generation) {
           setLoading(false);
         }
       }
@@ -735,7 +737,12 @@ export function WorkspaceGroupChatPane({
         clearTypingUser(String(message.senderUserId));
       }
 
-      setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
+      setMessages((prev) => {
+        const next = mergeChatMessages(prev, enrichMessageProfiles(message));
+        const latest = latestMessageCreatedAt(next);
+        if (latest) lastLoadedMessageAtRef.current = latest;
+        return next;
+      });
 
       if (!active && !fromSelf) {
         return;
@@ -770,20 +777,14 @@ export function WorkspaceGroupChatPane({
     },
   });
 
-  // Catch up after reconnect / tab focus so missed websocket events still appear.
+  // Catch up after reconnect / tab focus — append only, never reload the open thread.
   useEffect(() => {
     if (mode !== "workspace" || !workspaceId || !active) return;
 
     const catchUp = () => {
       const lastSeenMessageAt = lastLoadedMessageAtRef.current;
-      const isStale =
-        !lastSeenMessageAt ||
-        Date.now() - lastSyncAtRef.current > CHAT_STALE_SYNC_MS;
-      void loadMessages(
-        isStale
-          ? { silent: true, replace: true }
-          : { silent: true, after: lastSeenMessageAt },
-      );
+      if (!lastSeenMessageAt) return;
+      void loadMessages({ silent: true, after: lastSeenMessageAt });
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") catchUp();
@@ -832,9 +833,10 @@ export function WorkspaceGroupChatPane({
 
   useEffect(() => {
     if (!active || !workspaceId) return;
-    if (loadedWorkspaceRef.current !== workspaceId) {
-      void loadMessages();
+    if (loadedWorkspaceRef.current === workspaceId || fetchStartedRef.current === workspaceId) {
+      return;
     }
+    void loadMessages({ silent: true });
   }, [active, workspaceId, loadMessages]);
 
   useEffect(() => {
@@ -1165,7 +1167,6 @@ export function WorkspaceGroupChatPane({
       // Reload from last known server state via silent refresh of this message is heavy;
       // reverse by re-fetching messages is safer if vote fails.
       toast({ title: "Couldn't record vote", variant: "destructive" });
-      void loadMessages({ silent: true });
     } finally {
       setVotingMessageId(null);
     }
@@ -1378,7 +1379,14 @@ export function WorkspaceGroupChatPane({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem onClick={() => void loadMessages()}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const after = lastLoadedMessageAtRef.current;
+                        void loadMessages(
+                          after ? { silent: true, after } : { silent: true },
+                        );
+                      }}
+                    >
                       Refresh messages
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setChatInfoOpen(true)}>

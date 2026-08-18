@@ -341,8 +341,16 @@ function ReadReceiptIcon({ state }: { state: "sent" | "delivered" | "read" }) {
   return <Check size={12} className="text-white/60" aria-hidden />;
 }
 
+function latestMessageCreatedAt(messages: Array<{ _id: string; createdAt?: string }>) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const row = messages[i];
+    if (String(row._id).startsWith("pending-")) continue;
+    if (row.createdAt) return row.createdAt;
+  }
+  return null;
+}
+
 export function MessagesPage() {
-  const CHAT_STALE_SYNC_MS = 10 * 60 * 1000;
   const { activeWorkspace, workspaces } = useWorkspace();
   const { user: currentUser } = useCurrentUser();
   const { t } = useTranslation();
@@ -776,14 +784,15 @@ export function MessagesPage() {
     async (
       activeConversationId: string,
       forWorkspaceId: string,
-      options?: { after?: string | null; replace?: boolean },
+      options?: { after?: string | null; silent?: boolean },
     ) => {
       if (!forWorkspaceId || !activeConversationId) return;
       const generation = ++loadGenerationRef.current;
       const targetConversationId = activeConversationId;
       const targetWorkspaceId = forWorkspaceId;
       const incremental = Boolean(options?.after);
-      if (!incremental) setMessagesLoading(true);
+      const silent = Boolean(options?.silent || incremental);
+      if (!silent) setMessagesLoading(true);
       try {
         const res = await workspaceApi.getDirectChatMessages(targetWorkspaceId, targetConversationId, {
           limit: 50,
@@ -803,31 +812,26 @@ export function MessagesPage() {
           const sameConversation =
             prev.length > 0 &&
             prev.every((row) => String(row.conversationId) === String(targetConversationId));
-          return reconcileDirectMessagesAfterFetch(
-            incremental
-              ? prev
-              : options?.replace
-                ? []
-                : sameConversation
-                  ? prev
-                  : [],
+          const next = reconcileDirectMessagesAfterFetch(
+            incremental || sameConversation ? prev : [],
             loaded,
           );
+          const latest = latestMessageCreatedAt(next);
+          if (latest) lastLoadedMessageAtRef.current = latest;
+          return next;
         });
-        const newest = loaded[loaded.length - 1];
-        if (newest?.createdAt) {
-          lastLoadedMessageAtRef.current = newest.createdAt;
-        }
         lastSyncAtRef.current = Date.now();
-        markedReadIdsRef.current = new Set();
-        stickToBottomRef.current = true;
+        if (!silent) {
+          markedReadIdsRef.current = new Set();
+          stickToBottomRef.current = true;
+        }
       } catch {
-        if (loadGenerationRef.current === generation && !incremental) {
+        if (loadGenerationRef.current === generation && !silent) {
           toast({ title: t("directChatLoadFailed"), variant: "destructive" });
         }
       } finally {
-        if (loadGenerationRef.current === generation) {
-          if (!incremental) setMessagesLoading(false);
+        if (loadGenerationRef.current === generation && !silent) {
+          setMessagesLoading(false);
         }
       }
     },
@@ -1131,7 +1135,12 @@ export function MessagesPage() {
       );
 
       if (activeConversationId && String(message.conversationId) === activeConversationId) {
-        setMessages((prev) => mergeDirectMessages(prev, message));
+        setMessages((prev) => {
+          const next = mergeDirectMessages(prev, message);
+          const latest = latestMessageCreatedAt(next);
+          if (latest) lastLoadedMessageAtRef.current = latest;
+          return next;
+        });
 
         const fromSelf = isOwnMessage(message, currentUserId);
         if (!fromSelf && messageWs) {
@@ -1220,20 +1229,17 @@ export function MessagesPage() {
     },
   });
 
-  // Catch up after reconnect / tab focus so missed websocket events still appear.
+  // Catch up after reconnect / tab focus — append only, never reload the open thread.
   useEffect(() => {
     if (!conversationId || !chatWorkspaceId || isGroupChat) return;
 
     const catchUp = () => {
       const lastSeenMessageAt = lastLoadedMessageAtRef.current;
-      const isStale =
-        !lastSeenMessageAt || Date.now() - lastSyncAtRef.current > CHAT_STALE_SYNC_MS;
-      void loadThreads();
-      void loadMessages(
-        conversationId,
-        chatWorkspaceId,
-        isStale ? { replace: true } : { after: lastSeenMessageAt },
-      );
+      if (!lastSeenMessageAt) return;
+      void loadMessages(conversationId, chatWorkspaceId, {
+        after: lastSeenMessageAt,
+        silent: true,
+      });
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") catchUp();
@@ -1245,7 +1251,7 @@ export function MessagesPage() {
       window.removeEventListener("app-websocket-open", catchUp);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [conversationId, chatWorkspaceId, isGroupChat, loadMessages, loadThreads]);
+  }, [conversationId, chatWorkspaceId, isGroupChat, loadMessages]);
 
   const handleListScroll = useCallback(() => {
     const el = listRef.current;
@@ -1586,7 +1592,6 @@ export function MessagesPage() {
       if (message) setMessages((prev) => mergeDirectMessages(prev, message));
     } catch {
       toast({ title: "Couldn't record vote", variant: "destructive" });
-      void loadMessages(conversationId, chatWorkspaceId);
     } finally {
       setVotingMessageId(null);
     }
