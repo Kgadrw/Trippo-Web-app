@@ -319,6 +319,31 @@ export function TeamOverviewTab() {
                             </span>
                           ) : null}
                         </div>
+                        {Array.isArray(task.subtasks) && task.subtasks.length > 0 ? (
+                          <ul className="space-y-1">
+                            {task.subtasks.map((row, index) => (
+                              <li
+                                key={String(row._id || `${row.title}-${index}`)}
+                                className="flex items-start gap-1.5 text-[11px] leading-snug text-gray-600"
+                              >
+                                <span
+                                  className={cn(
+                                    "mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-sm border",
+                                    row.done
+                                      ? "border-emerald-500 bg-emerald-500 text-white"
+                                      : "border-gray-300 bg-white",
+                                  )}
+                                  aria-hidden
+                                >
+                                  {row.done ? "✓" : ""}
+                                </span>
+                                <span className={cn(row.done && "line-through text-gray-400")}>
+                                  {row.title}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                         <p className={cn("truncate text-xs text-gray-500", isDone && "line-through")}>
                           {assigneeName(task, t("teamUnknownMember"))}
                         </p>

@@ -1710,8 +1710,13 @@ export interface Translations {
   teamTasksSubtitle: string;
   teamAssignTask: string;
   teamEditTask: string;
+  teamFirstTask: string;
+  teamSecondTask: string;
+  teamThirdTask: string;
+  teamNthTask: string;
   teamFilterStatus: string;
   teamFilterMember: string;
+  teamFilterProject: string;
   teamNoTasks: string;
   teamNoOngoingTasks: string;
   teamDone: string;
@@ -1727,6 +1732,14 @@ export interface Translations {
   teamCompletionNotifyHint: string;
   teamEditCompletionNote: string;
   teamDoneLockedHint: string;
+  viewMore: string;
+  viewLess: string;
+  teamSubtasks: string;
+  teamAddSubtask: string;
+  teamSubtaskPlaceholder: string;
+  teamSubtaskHint: string;
+  teamSubtaskProgress: string;
+  teamSubtaskAssigneeOnly: string;
   teamDepartment: string;
   teamMonth: string;
   teamLinkProject: string;

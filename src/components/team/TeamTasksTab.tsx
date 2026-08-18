@@ -6,6 +6,7 @@ import {
   type ProjectRecord,
   type TeamMemberRecord,
   type TeamTaskRecord,
+  type TeamTaskSubtask,
 } from "@/lib/api";
 import {
   TEAM_PRIORITIES,
@@ -57,15 +58,14 @@ import { cn } from "@/lib/utils";
 import { notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
 import { websocketManager } from "@/lib/websocketManager";
 import { matchesRealtimeRecord } from "@/lib/workspaceRealtime";
-import {
-  mergeTaskIntoList,
-  taskId,
-  taskMatchesListFilters,
-  TEAM_TASK_EVENTS,
-} from "@/lib/teamTaskRealtime";
+import { mergeTaskIntoList, mergeTaskRecord, taskId, taskMatchesListFilters, TEAM_TASK_EVENTS } from "@/lib/teamTaskRealtime";
 import {
   TeamTaskKanbanBoard,
+  TaskSubtaskEditor,
   canCurrentUserChangeTaskStatus,
+  emptySubtaskRows,
+  serializeTaskSubtasks,
+  taskSubtasks,
   teamTaskStatusLabel,
   type TeamTaskSection,
 } from "@/components/team/TeamTaskBoard";
@@ -78,6 +78,7 @@ type CreateTaskRow = {
   key: string;
   title: string;
   description: string;
+  subtasks: Array<{ key: string; title: string; done?: boolean }>;
 };
 
 function newCreateTaskRow(): CreateTaskRow {
@@ -85,10 +86,18 @@ function newCreateTaskRow(): CreateTaskRow {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     title: "",
     description: "",
+    subtasks: emptySubtaskRows(2),
   };
 }
 
-function initialCreateRows(count = 3): CreateTaskRow[] {
+function createRowHeading(index: number, t: (key: string) => string) {
+  if (index === 0) return t("teamFirstTask");
+  if (index === 1) return t("teamSecondTask");
+  if (index === 2) return t("teamThirdTask");
+  return t("teamNthTask").replace("{n}", String(index + 1));
+}
+
+function initialCreateRows(count = 1): CreateTaskRow[] {
   return Array.from({ length: count }, () => newCreateTaskRow());
 }
 
@@ -155,6 +164,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [tasks, setTasks] = useState<TeamTaskRecord[]>([]);
   const [members, setMembers] = useState<TeamMemberRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
@@ -184,6 +194,9 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [taskMonthKey, setTaskMonthKey] = useState(getMonthKey());
   const [linkedProjectId, setLinkedProjectId] = useState("");
   const [completionNote, setCompletionNote] = useState("");
+  const [subtaskRows, setSubtaskRows] = useState<
+    Array<{ key: string; _id?: string; title: string; done?: boolean }>
+  >([]);
   const [createRows, setCreateRows] = useState<CreateTaskRow[]>(() => initialCreateRows());
 
   const monthOptions = useMemo(() => {
@@ -217,7 +230,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         monthKey,
         department: department || undefined,
       });
-      setTasks((tasksRes.data as TeamTaskRecord[]) || []);
+      setTasks((incoming) => {
+        const loaded = (tasksRes.data as TeamTaskRecord[]) || [];
+        const prevById = new Map(incoming.map((row) => [taskId(row), row]));
+        return loaded.map((task) => {
+          const local = prevById.get(taskId(task));
+          return local ? mergeTaskRecord(local, task) : task;
+        });
+      });
       hasLoadedTasksOnceRef.current = true;
     } catch {
       toast({ title: t("teamLoadFailed"), variant: "destructive" });
@@ -275,8 +295,9 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       department,
       statusFilter,
       assigneeFilter,
+      projectFilter,
     }),
-    [monthKey, department, statusFilter, assigneeFilter],
+    [monthKey, department, statusFilter, assigneeFilter, projectFilter],
   );
 
   const applyTaskUpdate = useCallback(
@@ -340,6 +361,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setTaskMonthKey(monthKey);
     setLinkedProjectId("");
     setEditing(null);
+    setSubtaskRows([]);
     setCreateRows(initialCreateRows());
   };
 
@@ -368,6 +390,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setCustomReminderOffsets(offsets);
     setTaskMonthKey(task.monthKey || monthKey);
     setLinkedProjectId(linkedProjectIdValue(task));
+    setSubtaskRows(
+      taskSubtasks(task).map((row, index) => ({
+        key: String(row._id || `${index}-${row.title}`),
+        _id: row._id,
+        title: row.title,
+        done: Boolean(row.done),
+      })),
+    );
     setOpen(true);
   };
 
@@ -422,6 +452,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           reminders: dueDate ? offsetsFromPreset(reminderPreset, customReminderOffsets) : [],
           monthKey: taskMonthKey,
           projectId: linkedProjectId || null,
+          subtasks: serializeTaskSubtasks(subtaskRows),
         };
         if (canEditStatus) {
           payload.status = status;
@@ -447,6 +478,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       .map((row) => ({
         title: row.title.trim(),
         description: row.description.trim(),
+        subtasks: serializeTaskSubtasks(row.subtasks),
       }))
       .filter((row) => row.title);
 
@@ -474,6 +506,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             ...shared,
             title: row.title,
             description: row.description || undefined,
+            subtasks: row.subtasks,
           }),
         ),
       );
@@ -498,7 +531,10 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     }
   };
 
-  const patchCreateRow = (key: string, patch: Partial<Pick<CreateTaskRow, "title" | "description">>) => {
+  const patchCreateRow = (
+    key: string,
+    patch: Partial<Pick<CreateTaskRow, "title" | "description" | "subtasks">>,
+  ) => {
     setCreateRows((prev) =>
       prev.map((row) => (row.key === key ? { ...row, ...patch } : row)),
     );
@@ -579,6 +615,26 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     }
   };
 
+  const handleSubtasksChange = async (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => {
+    if ((task.status || "todo") === "done") {
+      toast({ title: t("teamDoneLockedHint"), variant: "destructive" });
+      return;
+    }
+    if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {
+      toast({ title: t("teamSubtaskAssigneeOnly"), variant: "destructive" });
+      return;
+    }
+    const previous = task;
+    applyTaskUpdate({ ...task, subtasks });
+    try {
+      const res = await teamTaskApi.update(taskId(task), { subtasks: serializeTaskSubtasks(subtasks) });
+      if (res.data) applyTaskUpdate(res.data as TeamTaskRecord);
+    } catch {
+      applyTaskUpdate(previous);
+      toast({ title: t("teamSaveFailed"), variant: "destructive" });
+    }
+  };
+
   const handleDropTask = (droppedId: string, nextStatus: TeamTaskSection) => {
     const task = tasks.find((row) => taskId(row) === droppedId);
     if (!task) return;
@@ -630,7 +686,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
           <div className="min-w-0 space-y-1">
             <Label htmlFor="team-tasks-month" className="block truncate text-xs font-medium text-gray-600">
               {t("teamMonth")}
@@ -692,6 +748,29 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="min-w-0 space-y-1">
+            <Label htmlFor="team-tasks-project" className="block truncate text-xs font-medium text-gray-600">
+              {t("teamFilterProject")}
+            </Label>
+            <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <SelectTrigger
+                id="team-tasks-project"
+                className={cn(filterSelectClass, "w-full min-w-0 max-w-full")}
+              >
+                <SelectValue placeholder={t("teamFilterProject")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                <SelectItem value="none">{t("teamNoProjectLink")}</SelectItem>
+                {projects.map((project) => (
+                  <SelectItem key={project._id} value={project._id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -742,6 +821,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
               onEdit={openEdit}
               onDelete={(task) => void handleDelete(task)}
+              onSubtasksChange={(task, subtasks) => void handleSubtasksChange(task, subtasks)}
               onDropTask={handleDropTask}
               deletingId={deletingId}
               emptyLabel={
@@ -896,51 +976,44 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                       Add row
                     </Button>
                   </div>
-                  <div className="overflow-x-auto border border-gray-200">
-                    <table className="w-full min-w-[520px] text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                          <th className="px-3 py-2 w-[38%]">{t("teamTaskTitle")}</th>
-                          <th className="px-3 py-2">{t("description")}</th>
-                          <th className="px-3 py-2 w-10" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {createRows.map((row) => (
-                          <tr key={row.key} className="border-b border-gray-100 last:border-b-0">
-                            <td className="px-3 py-2 align-top">
-                              <Input
-                                value={row.title}
-                                onChange={(e) => patchCreateRow(row.key, { title: e.target.value })}
-                                placeholder="Create new website"
-                                className="h-9 bg-white"
-                              />
-                            </td>
-                            <td className="px-3 py-2 align-top">
-                              <Input
-                                value={row.description}
-                                onChange={(e) => patchCreateRow(row.key, { description: e.target.value })}
-                                placeholder="Optional details"
-                                className="h-9 bg-white"
-                              />
-                            </td>
-                            <td className="px-3 py-2 align-top">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-gray-500 hover:text-red-600"
-                                disabled={createRows.length <= 1}
-                                onClick={() => removeCreateRow(row.key)}
-                                aria-label={t("delete")}
-                              >
-                                <Trash2 size={14} />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="space-y-3">
+                    {createRows.map((row, index) => (
+                      <div key={row.key} className="space-y-2 border border-gray-200 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-800">{createRowHeading(index, t)}</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-gray-500 hover:text-red-600"
+                            disabled={createRows.length <= 1}
+                            onClick={() => removeCreateRow(row.key)}
+                            aria-label={t("delete")}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={row.title}
+                            onChange={(e) => patchCreateRow(row.key, { title: e.target.value })}
+                            placeholder="Create new website"
+                            className="h-9 min-w-0 flex-1 bg-white"
+                          />
+                          <Input
+                            value={row.description}
+                            onChange={(e) => patchCreateRow(row.key, { description: e.target.value })}
+                            placeholder="Optional details"
+                            className="h-9 min-w-0 flex-1 bg-white"
+                          />
+                        </div>
+                        <TaskSubtaskEditor
+                          rows={row.subtasks}
+                          onChange={(subtasks) => patchCreateRow(row.key, { subtasks })}
+                          t={t}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </>
@@ -954,6 +1027,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               <Label>{t("description")}</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
             </div>
+            <TaskSubtaskEditor
+              rows={subtaskRows}
+              onChange={setSubtaskRows}
+              t={t}
+              canToggleDone={Boolean(
+                editing && canCurrentUserChangeTaskStatus(editing, currentTeamMemberId),
+              )}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>{t("teamAssignee")}</Label>

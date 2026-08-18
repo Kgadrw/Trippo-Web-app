@@ -242,6 +242,7 @@ async function request<T>(
       endpoint.startsWith('/sales') ||
       endpoint.startsWith('/notifications') ||
       endpoint.startsWith('/team-reports') ||
+      endpoint.startsWith('/team-tasks') ||
       endpoint.startsWith('/auth/me') ||
       endpoint.startsWith('/subscription') ||
       endpoint.startsWith('/content/') ||
@@ -1365,6 +1366,12 @@ export interface TeamMemberProfileData {
   payrollTotal: number;
 }
 
+export type TeamTaskSubtask = {
+  _id?: string;
+  title: string;
+  done?: boolean;
+};
+
 export interface TeamTaskRecord {
   _id: string;
   title: string;
@@ -1382,7 +1389,8 @@ export interface TeamTaskRecord {
   workspaceId?: string | null;
   projectId?: { _id: string; name?: string; status?: string } | string | null;
   milestoneId?: { _id: string; title?: string; status?: string; dueDate?: string } | string | null;
-}
+  subtasks?: TeamTaskSubtask[];
+};
 
 export const teamMemberApi = {
   async getAll(params?: { status?: string; department?: string }): Promise<ApiResponse> {

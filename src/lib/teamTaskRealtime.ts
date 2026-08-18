@@ -18,6 +18,7 @@ export function taskMatchesListFilters(
     department?: TeamDepartment;
     statusFilter: string;
     assigneeFilter: string;
+    projectFilter: string;
   },
 ): boolean {
   if (filters.department && task.department !== filters.department) return false;
@@ -30,7 +31,27 @@ export function taskMatchesListFilters(
       : String(task.assigneeId);
   if (filters.assigneeFilter !== "all" && assigneeId !== filters.assigneeFilter) return false;
 
+  if (filters.projectFilter && filters.projectFilter !== "all") {
+    const projectId =
+      typeof task.projectId === "object" && task.projectId
+        ? String(task.projectId._id || "")
+        : String(task.projectId || "");
+    if (filters.projectFilter === "none") {
+      if (projectId) return false;
+    } else if (projectId !== filters.projectFilter) {
+      return false;
+    }
+  }
+
   return true;
+}
+
+export function mergeTaskRecord(prev: TeamTaskRecord, incoming: TeamTaskRecord): TeamTaskRecord {
+  return {
+    ...prev,
+    ...incoming,
+    subtasks: Array.isArray(incoming.subtasks) ? incoming.subtasks : prev.subtasks,
+  };
 }
 
 export function mergeTaskIntoList(
@@ -45,7 +66,7 @@ export function mergeTaskIntoList(
     return exists ? prev.filter((row) => taskId(row) !== id) : prev;
   }
   if (exists) {
-    return prev.map((row) => (taskId(row) === id ? task : row));
+    return prev.map((row) => (taskId(row) === id ? mergeTaskRecord(row, task) : row));
   }
   return [task, ...prev];
 }

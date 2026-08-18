@@ -78,7 +78,6 @@ import {
   WORKSPACE_GROUP_CHAT_PATH,
   isWorkspaceGroupChatSegment,
 } from "@/lib/workspaceGroupChat";
-import type { WorkspaceChatMessage } from "@/lib/workspaceChatRealtime";
 import { clearDirectChatOsNotification } from "@/lib/workspaceChatNotifications";
 import {
   mergeDirectMessages,
@@ -93,7 +92,9 @@ import {
 import {
   applyOptimisticPollVote,
   newClientMessageId,
+  WORKSPACE_CHAT_LOCAL_PREVIEW_EVENT,
   type ChatPollInput,
+  type WorkspaceChatMessage,
 } from "@/lib/workspaceChatRealtime";
 import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
 import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
@@ -210,6 +211,16 @@ function messagePreviewText(message: DirectChatMessage, deletedLabel: string) {
   return replyName ? `↩ ${replyName}` : "↩";
 }
 
+function asChatId(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    const obj = value as { _id?: unknown; id?: unknown };
+    if (obj._id != null) return String(obj._id);
+    if (obj.id != null) return String(obj.id);
+  }
+  return String(value);
+}
+
 function sortDirectThreads(threads: DirectChatThread[]) {
   return [...threads].sort((a, b) => {
     const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
@@ -217,6 +228,17 @@ function sortDirectThreads(threads: DirectChatThread[]) {
     if (aTime !== bTime) return bTime - aTime;
     return a.otherUser.name.localeCompare(b.otherUser.name);
   });
+}
+
+function pinThreadFirst(threads: DirectChatThread[], key: string) {
+  const hit: DirectChatThread[] = [];
+  const rest: DirectChatThread[] = [];
+  for (const thread of threads) {
+    const threadKey = `${asChatId(thread.workspaceId)}:${asChatId(thread.otherUser.userId)}`;
+    if (threadKey === key) hit.push(thread);
+    else rest.push(thread);
+  }
+  return [...hit, ...sortDirectThreads(rest)];
 }
 
 /** Patch the people list instantly when a DM arrives (preview, order, unread). */
@@ -227,53 +249,56 @@ function applyIncomingDirectMessageToThreads(
   activeOtherUserId: string | undefined,
   deletedLabel: string,
 ): DirectChatThread[] {
-  const conversationKey = String(message.conversationId || "");
+  const conversationKey = asChatId(message.conversationId);
   const own = isOwnMessage(message, currentUserId);
-  const senderId = String(message.senderUserId || "");
+  const senderId = asChatId(message.senderUserId);
+  const messageWorkspaceId = asChatId(message.workspaceId);
+  const lastMessageAt = message.createdAt || new Date().toISOString();
 
   const peerFromConversation = prev.find(
     (thread) =>
       conversationKey &&
       thread.conversationId != null &&
-      String(thread.conversationId) === conversationKey,
+      asChatId(thread.conversationId) === conversationKey,
   )?.otherUser.userId;
 
   const peerUserId = own
-    ? String(peerFromConversation || activeOtherUserId || "")
+    ? asChatId(peerFromConversation || activeOtherUserId)
     : senderId;
 
   const viewingPeer =
     Boolean(activeOtherUserId) &&
     Boolean(peerUserId) &&
-    String(activeOtherUserId) === String(peerUserId);
+    asChatId(activeOtherUserId) === peerUserId;
 
   const preview = messagePreviewText(message, deletedLabel);
   const shouldIncrementUnread = !own && !viewingPeer && !hasUserRead(message, currentUserId);
 
-  let matched = false;
-  const messageWorkspaceId = String(message.workspaceId || "");
-  const next = prev.map((thread) => {
+  const matchesThread = (thread: DirectChatThread) => {
     const matchesConversation =
       Boolean(conversationKey) &&
       thread.conversationId != null &&
-      String(thread.conversationId) === conversationKey;
+      asChatId(thread.conversationId) === conversationKey;
     const matchesPeer =
-      Boolean(peerUserId) && String(thread.otherUser.userId) === String(peerUserId);
+      Boolean(peerUserId) && asChatId(thread.otherUser.userId) === peerUserId;
     const matchesWorkspace =
-      !messageWorkspaceId || String(thread.workspaceId || "") === messageWorkspaceId;
-    if (!matchesConversation && !(matchesPeer && matchesWorkspace)) return thread;
+      !messageWorkspaceId || asChatId(thread.workspaceId) === messageWorkspaceId;
+    return matchesConversation || (matchesPeer && matchesWorkspace);
+  };
 
-    matched = true;
+  let matched = prev.some(matchesThread);
+  let next = prev.map((thread) => {
+    if (!matchesThread(thread)) return thread;
     const isThisOpen =
       Boolean(activeOtherUserId) &&
-      String(thread.otherUser.userId) === String(activeOtherUserId) &&
-      matchesWorkspace;
+      asChatId(thread.otherUser.userId) === asChatId(activeOtherUserId) &&
+      (!messageWorkspaceId || asChatId(thread.workspaceId) === messageWorkspaceId);
 
     return {
       ...thread,
       conversationId: thread.conversationId || conversationKey || null,
       workspaceId: thread.workspaceId || messageWorkspaceId,
-      lastMessageAt: message.createdAt,
+      lastMessageAt,
       lastMessageBody: preview,
       lastSenderUserId: senderId,
       unreadCount: shouldIncrementUnread
@@ -284,10 +309,28 @@ function applyIncomingDirectMessageToThreads(
     };
   });
 
+  if (!matched && peerUserId) {
+    next = next.map((thread) => {
+      if (asChatId(thread.otherUser.userId) !== peerUserId) return thread;
+      if (messageWorkspaceId && asChatId(thread.workspaceId) !== messageWorkspaceId) return thread;
+      matched = true;
+      return {
+        ...thread,
+        conversationId: thread.conversationId || conversationKey || null,
+        lastMessageAt,
+        lastMessageBody: preview,
+        lastSenderUserId: senderId,
+        unreadCount: shouldIncrementUnread
+          ? Math.max(0, Number(thread.unreadCount) || 0) + 1
+          : thread.unreadCount,
+      };
+    });
+  }
+
   if (!matched && !own && senderId) {
     next.unshift({
       conversationId: conversationKey || null,
-      workspaceId: String(message.workspaceId || ""),
+      workspaceId: messageWorkspaceId,
       workspaceName: "",
       otherUser: {
         userId: senderId,
@@ -295,14 +338,26 @@ function applyIncomingDirectMessageToThreads(
         email: "",
         profilePictureUrl: message.senderProfilePictureUrl || null,
       },
-      lastMessageAt: message.createdAt,
+      lastMessageAt,
       lastMessageBody: preview,
       lastSenderUserId: senderId,
       unreadCount: shouldIncrementUnread ? 1 : 0,
     });
   }
 
-  return sortDirectThreads(next);
+  const bumped = next.find((thread) => {
+    const matchesConversation =
+      Boolean(conversationKey) && asChatId(thread.conversationId) === conversationKey;
+    const matchesPeer = Boolean(peerUserId) && asChatId(thread.otherUser.userId) === peerUserId;
+    const matchesWorkspace =
+      !messageWorkspaceId || asChatId(thread.workspaceId) === messageWorkspaceId;
+    return matchesConversation || (matchesPeer && matchesWorkspace);
+  });
+  if (!bumped) return sortDirectThreads(next);
+  return pinThreadFirst(
+    next,
+    `${asChatId(bumped.workspaceId)}:${asChatId(bumped.otherUser.userId)}`,
+  );
 }
 
 function groupMessagePreviewText(message: WorkspaceChatMessage, deletedLabel: string) {
@@ -349,6 +404,9 @@ function latestMessageCreatedAt(messages: Array<{ _id: string; createdAt?: strin
   }
   return null;
 }
+
+/** Full snapshot of the open thread after it has stayed open this long. */
+const CHAT_FULL_RELOAD_MS = 12 * 60 * 60 * 1000;
 
 export function MessagesPage() {
   const { activeWorkspace, workspaces } = useWorkspace();
@@ -409,9 +467,11 @@ export function MessagesPage() {
   const chatWorkspaceIdRef = useRef<string | null>(null);
   const lastLoadedMessageAtRef = useRef<string | null>(null);
   const lastSyncAtRef = useRef(0);
+  const hasThreadsRef = useRef(false);
 
   selectedUserIdRef.current = selectedUserId;
   conversationIdRef.current = conversationId;
+  hasThreadsRef.current = threads.length > 0;
 
   const selectedThread = useMemo(() => {
     if (!selectedUserId || isGroupChat) return null;
@@ -647,37 +707,33 @@ export function MessagesPage() {
     });
   }, [filteredThreads, showGroupInList, groupPreview.at]);
 
-  const updateThreadPreview = useCallback(
-    (message: DirectChatMessage, conversationKey: string) => {
-      const preview = messagePreviewText(message, t("directChatMessageDeleted"));
-      setThreads((prev) => {
-        const next = prev.map((thread) => {
-          if (thread.conversationId !== conversationKey) return thread;
-          return {
-            ...thread,
-            lastMessageAt: message.createdAt,
-            lastMessageBody: preview,
-            lastSenderUserId: String(message.senderUserId),
-          };
-        });
-        return [...next].sort((a, b) => {
-          const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-          const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-          if (aTime !== bTime) return bTime - aTime;
-          return a.otherUser.name.localeCompare(b.otherUser.name);
-        });
-      });
+  const bumpThreadFromMessage = useCallback(
+    (message: DirectChatMessage) => {
+      setThreads((prev) =>
+        applyIncomingDirectMessageToThreads(
+          prev,
+          message,
+          currentUserId,
+          isWorkspaceGroupChatSegment(selectedUserIdRef.current)
+            ? undefined
+            : selectedUserIdRef.current,
+          t("directChatMessageDeleted"),
+        ),
+      );
     },
-    [t],
+    [currentUserId, t],
   );
 
   const syncThreadPreviewFromMessages = useCallback(
     (conversationKey: string, nextMessages: DirectChatMessage[]) => {
       const latest = latestDirectMessage(nextMessages);
       if (!latest) return;
-      updateThreadPreview(latest, conversationKey);
+      bumpThreadFromMessage({
+        ...latest,
+        conversationId: latest.conversationId || conversationKey,
+      });
     },
-    [updateThreadPreview],
+    [bumpThreadFromMessage],
   );
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -728,14 +784,44 @@ export function MessagesPage() {
 
   const loadThreads = useCallback(async () => {
     if (!hasJoinedOrgs) return;
-    setThreadsLoading(true);
+    const showSpinner = !hasThreadsRef.current;
+    if (showSpinner) setThreadsLoading(true);
     try {
       const res = await workspaceApi.getAllDirectChatThreads();
-      setThreads((res.data as DirectChatThread[]) || []);
+      const incoming = (res.data as DirectChatThread[]) || [];
+      setThreads((prev) => {
+        const localByKey = new Map(
+          prev.map((thread) => [
+            `${asChatId(thread.workspaceId)}:${asChatId(thread.otherUser.userId)}`,
+            thread,
+          ]),
+        );
+        const merged = incoming.map((thread) => {
+          const key = `${asChatId(thread.workspaceId)}:${asChatId(thread.otherUser.userId)}`;
+          const local = localByKey.get(key);
+          if (!local) return thread;
+          const localTime = local.lastMessageAt ? new Date(local.lastMessageAt).getTime() : 0;
+          const remoteTime = thread.lastMessageAt ? new Date(thread.lastMessageAt).getTime() : 0;
+          if (localTime > remoteTime) {
+            return {
+              ...thread,
+              conversationId: thread.conversationId || local.conversationId,
+              lastMessageAt: local.lastMessageAt,
+              lastMessageBody: local.lastMessageBody,
+              lastSenderUserId: local.lastSenderUserId,
+            };
+          }
+          return {
+            ...thread,
+            conversationId: thread.conversationId || local.conversationId,
+          };
+        });
+        return sortDirectThreads(merged);
+      });
     } catch {
       toast({ title: t("directChatLoadThreadsFailed"), variant: "destructive" });
     } finally {
-      setThreadsLoading(false);
+      if (showSpinner) setThreadsLoading(false);
     }
   }, [hasJoinedOrgs, toast, t]);
 
@@ -784,19 +870,20 @@ export function MessagesPage() {
     async (
       activeConversationId: string,
       forWorkspaceId: string,
-      options?: { after?: string | null; silent?: boolean },
+      options?: { after?: string | null; silent?: boolean; replace?: boolean },
     ) => {
       if (!forWorkspaceId || !activeConversationId) return;
       const generation = ++loadGenerationRef.current;
       const targetConversationId = activeConversationId;
       const targetWorkspaceId = forWorkspaceId;
-      const incremental = Boolean(options?.after);
-      const silent = Boolean(options?.silent || incremental);
+      const replace = Boolean(options?.replace);
+      const incremental = Boolean(options?.after) && !replace;
+      const silent = Boolean(options?.silent || incremental || replace);
       if (!silent) setMessagesLoading(true);
       try {
         const res = await workspaceApi.getDirectChatMessages(targetWorkspaceId, targetConversationId, {
           limit: 50,
-          after: options?.after || undefined,
+          after: incremental ? options?.after || undefined : undefined,
         });
         if (
           loadGenerationRef.current !== generation ||
@@ -812,15 +899,16 @@ export function MessagesPage() {
           const sameConversation =
             prev.length > 0 &&
             prev.every((row) => String(row.conversationId) === String(targetConversationId));
+          const pending = prev.filter((row) => String(row._id).startsWith("pending-"));
           const next = reconcileDirectMessagesAfterFetch(
-            incremental || sameConversation ? prev : [],
+            replace ? pending : incremental || sameConversation ? prev : [],
             loaded,
           );
           const latest = latestMessageCreatedAt(next);
           if (latest) lastLoadedMessageAtRef.current = latest;
           return next;
         });
-        lastSyncAtRef.current = Date.now();
+        if (!incremental) lastSyncAtRef.current = Date.now();
         if (!silent) {
           markedReadIdsRef.current = new Set();
           stickToBottomRef.current = true;
@@ -955,6 +1043,15 @@ export function MessagesPage() {
     onEdit: applyGroupPreviewFromMessage,
     onDelete: applyGroupPreviewFromMessage,
   });
+
+  useEffect(() => {
+    const onLocalPreview = (event: Event) => {
+      const message = (event as CustomEvent<WorkspaceChatMessage>).detail;
+      if (message) applyGroupPreviewFromMessage(message);
+    };
+    window.addEventListener(WORKSPACE_CHAT_LOCAL_PREVIEW_EVENT, onLocalPreview);
+    return () => window.removeEventListener(WORKSPACE_CHAT_LOCAL_PREVIEW_EVENT, onLocalPreview);
+  }, [applyGroupPreviewFromMessage]);
 
   useEffect(() => {
     if (!selectedUserId || isGroupChat || !hasJoinedOrgs) {
@@ -1229,11 +1326,18 @@ export function MessagesPage() {
     },
   });
 
-  // Catch up after reconnect / tab focus — append only, never reload the open thread.
+  // Catch up after reconnect / tab focus — append only unless the thread has been open 12h.
   useEffect(() => {
     if (!conversationId || !chatWorkspaceId || isGroupChat) return;
 
+    const shouldFullReload = () =>
+      lastSyncAtRef.current > 0 && Date.now() - lastSyncAtRef.current >= CHAT_FULL_RELOAD_MS;
+
     const catchUp = () => {
+      if (shouldFullReload()) {
+        void loadMessages(conversationId, chatWorkspaceId, { silent: true, replace: true });
+        return;
+      }
       const lastSeenMessageAt = lastLoadedMessageAtRef.current;
       if (!lastSeenMessageAt) return;
       void loadMessages(conversationId, chatWorkspaceId, {
@@ -1247,9 +1351,15 @@ export function MessagesPage() {
 
     window.addEventListener("app-websocket-open", catchUp);
     document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(() => {
+      if (shouldFullReload()) {
+        void loadMessages(conversationId, chatWorkspaceId, { silent: true, replace: true });
+      }
+    }, CHAT_FULL_RELOAD_MS);
     return () => {
       window.removeEventListener("app-websocket-open", catchUp);
       document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
     };
   }, [conversationId, chatWorkspaceId, isGroupChat, loadMessages]);
 
@@ -1347,6 +1457,7 @@ export function MessagesPage() {
 
     stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
+    bumpThreadFromMessage(optimisticMessage);
     setText("");
     setReplyTo(null);
     setPendingAttachments([]);
@@ -1383,21 +1494,7 @@ export function MessagesPage() {
           const withoutPending = prev.filter((row) => String(row._id) !== optimisticId);
           return mergeDirectMessages(withoutPending, withReply);
         });
-        const preview = messagePreviewText(withReply, t("directChatMessageDeleted"));
-        setThreads((prev) =>
-          prev.map((thread) =>
-            thread.otherUser.userId === selectedUserId &&
-            String(thread.workspaceId) === String(chatWorkspaceId)
-              ? {
-                  ...thread,
-                  conversationId: thread.conversationId || conversationId,
-                  lastMessageAt: withReply.createdAt,
-                  lastMessageBody: preview,
-                  lastSenderUserId: String(withReply.senderUserId),
-                }
-              : thread,
-          ),
-        );
+        bumpThreadFromMessage(withReply);
       } else if (optimisticReply) {
         setMessages((prev) =>
           prev.map((row) =>
@@ -1498,6 +1595,7 @@ export function MessagesPage() {
 
     stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
+    bumpThreadFromMessage(optimisticMessage);
     requestAnimationFrame(() => scrollToBottom("smooth"));
 
     try {
@@ -1527,21 +1625,10 @@ export function MessagesPage() {
             clientMessageId: message.clientMessageId || clientMessageId,
           });
         });
-        const preview = messagePreviewText(message, t("directChatMessageDeleted"));
-        setThreads((prev) =>
-          prev.map((thread) =>
-            thread.otherUser.userId === selectedUserId &&
-            String(thread.workspaceId) === String(chatWorkspaceId)
-              ? {
-                  ...thread,
-                  conversationId: thread.conversationId || conversationId,
-                  lastMessageAt: message.createdAt,
-                  lastMessageBody: preview,
-                  lastSenderUserId: String(message.senderUserId),
-                }
-              : thread,
-          ),
-        );
+        bumpThreadFromMessage({
+          ...message,
+          clientMessageId: message.clientMessageId || clientMessageId,
+        });
       }
     } catch {
       setMessages((prev) => prev.filter((row) => String(row._id) !== optimisticId));
@@ -1561,6 +1648,7 @@ export function MessagesPage() {
       const message = res.data as DirectChatMessage;
       if (message) {
         setMessages((prev) => mergeDirectMessages(prev, message));
+        bumpThreadFromMessage(message);
         requestAnimationFrame(() => scrollToBottom("smooth"));
       }
     } catch {

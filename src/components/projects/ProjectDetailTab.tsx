@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { projectApi, teamMemberApi, teamTaskApi, type TeamMemberRecord, type TeamTaskRecord } from "@/lib/api";
+import { projectApi, teamMemberApi, teamTaskApi, type TeamMemberRecord, type TeamTaskRecord, type TeamTaskSubtask } from "@/lib/api";
 import {
   MILESTONE_STATUSES,
   PROJECT_PRIORITIES,
@@ -52,11 +52,15 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import {
   TeamTaskCardStack,
   TeamTaskKanbanBoard,
+  TaskSubtaskEditor,
   canCurrentUserChangeTaskStatus,
+  emptySubtaskRows,
   getAssigneeCardColor,
+  serializeTaskSubtasks,
+  taskSubtasks,
   type TeamTaskSection,
 } from "@/components/team/TeamTaskBoard";
-import { taskId } from "@/lib/teamTaskRealtime";
+import { mergeTaskRecord, taskId } from "@/lib/teamTaskRealtime";
 import { notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { useTheme } from "@/hooks/useTheme";
@@ -108,6 +112,9 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
   const [taskPriority, setTaskPriority] = useState("medium");
   const [taskDueDate, setTaskDueDate] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
+  const [subtaskRows, setSubtaskRows] = useState<
+    Array<{ key: string; _id?: string; title: string; done?: boolean }>
+  >([]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -251,6 +258,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
     setTaskStatus("todo");
     setTaskPriority("medium");
     setTaskDueDate("");
+    setSubtaskRows(emptySubtaskRows(2));
   };
 
   const openCreateTask = () => {
@@ -271,6 +279,14 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
     setTaskStatus(task.status || "todo");
     setTaskPriority(task.priority || "medium");
     setTaskDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
+    setSubtaskRows(
+      taskSubtasks(task).map((row, index) => ({
+        key: String(row._id || `${index}-${row.title}`),
+        _id: row._id,
+        title: row.title,
+        done: Boolean(row.done),
+      })),
+    );
     setTaskOpen(true);
   };
 
@@ -342,6 +358,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
         monthKey: getMonthKey(),
         projectId,
         milestoneId: taskMilestoneId || null,
+        subtasks: serializeTaskSubtasks(subtaskRows),
       };
 
       if (editing) {
@@ -391,6 +408,39 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
     if (!task) return;
     if ((task.status || "todo") === nextStatus) return;
     void handleStatusChange(task, nextStatus);
+  };
+
+  const patchLinkedTask = (next: TeamTaskRecord) => {
+    const id = taskId(next);
+    setProfile((prev) => {
+      if (!prev?.teamTasks) return prev;
+      return {
+        ...prev,
+        teamTasks: prev.teamTasks.map((row) =>
+          taskId(row) === id ? mergeTaskRecord(row, next) : row,
+        ),
+      };
+    });
+  };
+
+  const handleSubtasksChange = async (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => {
+    if ((task.status || "todo") === "done") {
+      toast({ title: t("teamDoneLockedHint"), variant: "destructive" });
+      return;
+    }
+    if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {
+      toast({ title: t("teamSubtaskAssigneeOnly"), variant: "destructive" });
+      return;
+    }
+    const previous = task;
+    patchLinkedTask({ ...task, subtasks });
+    try {
+      const res = await teamTaskApi.update(taskId(task), { subtasks: serializeTaskSubtasks(subtasks) });
+      if (res.data) patchLinkedTask(res.data as TeamTaskRecord);
+    } catch {
+      patchLinkedTask(previous);
+      toast({ title: t("teamSaveFailed"), variant: "destructive" });
+    }
   };
 
   const handleDeleteTask = async (task: TeamTaskRecord) => {
@@ -631,6 +681,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                                     }
                                     onEdit={openEditTask}
                                     onDelete={(task) => void handleDeleteTask(task)}
+                                    onSubtasksChange={(task, subtasks) => void handleSubtasksChange(task, subtasks)}
                                     deletingId={deletingId}
                                     emptyLabel={t("projectMilestoneNoTasks")}
                                   />
@@ -666,6 +717,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
             onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
             onEdit={openEditTask}
             onDelete={(task) => void handleDeleteTask(task)}
+            onSubtasksChange={(task, subtasks) => void handleSubtasksChange(task, subtasks)}
             onDropTask={handleDropTask}
             deletingId={deletingId}
             emptyLabel={t("projectNoTasks")}
@@ -727,6 +779,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                         onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
                         onEdit={openEditTask}
                         onDelete={(task) => void handleDeleteTask(task)}
+                        onSubtasksChange={(task, subtasks) => void handleSubtasksChange(task, subtasks)}
                         deletingId={deletingId}
                         emptyLabel={t("projectNoTasks")}
                       />
@@ -794,6 +847,14 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                 rows={3}
               />
             </div>
+            <TaskSubtaskEditor
+              rows={subtaskRows}
+              onChange={setSubtaskRows}
+              t={t}
+              canToggleDone={Boolean(
+                editing && canCurrentUserChangeTaskStatus(editing, currentTeamMemberId),
+              )}
+            />
             <div>
               <Label>{t("projectAssignee")}</Label>
               <Select

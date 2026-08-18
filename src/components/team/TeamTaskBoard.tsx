@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type DragEvent } from "react";
-import type { TeamTaskRecord } from "@/lib/api";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import type { TeamTaskRecord, TeamTaskSubtask } from "@/lib/api";
 import { TEAM_TASK_STATUSES, teamPriorityBarClass, teamPriorityClass } from "@/lib/teamConstants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { cn } from "@/lib/utils";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { taskId } from "@/lib/teamTaskRealtime";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -115,6 +117,254 @@ function formatDate(value?: string) {
   return new Date(value).toLocaleDateString();
 }
 
+function TaskCompletionNote({
+  note,
+  t,
+}: {
+  note: string;
+  t: (key: string) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [canToggle, setCanToggle] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    setExpanded(false);
+  }, [note]);
+
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el || expanded) return;
+    setCanToggle(el.scrollHeight > el.clientHeight + 1);
+  }, [note, expanded]);
+
+  return (
+    <div
+      className="rounded border border-emerald-200/70 bg-white/60 px-2.5 py-2"
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-800/80">
+        {t("teamCompletionNote")}
+      </p>
+      <p
+        ref={textRef}
+        className={cn(
+          "mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-800",
+          !expanded && "line-clamp-4",
+        )}
+      >
+        {note}
+      </p>
+      {canToggle ? (
+        <button
+          type="button"
+          className="mt-1.5 text-[11px] font-medium text-emerald-800 hover:underline"
+          onClick={() => setExpanded((open) => !open)}
+        >
+          {expanded ? t("viewLess") : t("viewMore")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export function taskSubtasks(task: TeamTaskRecord | null | undefined): TeamTaskSubtask[] {
+  return Array.isArray(task?.subtasks) ? task.subtasks : [];
+}
+
+export function serializeTaskSubtasks(rows: Array<{ _id?: string; title: string; done?: boolean }>) {
+  return rows
+    .map((row) => ({
+      ...(row._id ? { _id: row._id } : {}),
+      title: row.title.trim(),
+      done: Boolean(row.done),
+    }))
+    .filter((row) => row.title);
+}
+
+export function emptySubtaskRows(count = 2) {
+  return Array.from({ length: count }, (_, index) => ({
+    key: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+    title: "",
+    done: false,
+  }));
+}
+
+export function TaskSubtaskEditor({
+  rows,
+  onChange,
+  t,
+  canToggleDone = false,
+}: {
+  rows: Array<{ key: string; _id?: string; title: string; done?: boolean }>;
+  onChange: (rows: Array<{ key: string; _id?: string; title: string; done?: boolean }>) => void;
+  t: (key: string) => string;
+  canToggleDone?: boolean;
+}) {
+  const addRow = () => {
+    onChange([...rows, ...emptySubtaskRows(2)]);
+  };
+
+  const doneCount = rows.filter((row) => row.done && row.title.trim()).length;
+  const titledCount = rows.filter((row) => row.title.trim()).length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-sm font-medium">{t("teamSubtasks")}</Label>
+        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addRow}>
+          <Plus size={12} className="mr-1" />
+          {t("teamAddSubtask")}
+        </Button>
+      </div>
+      <p className="text-xs text-gray-500">{t("teamSubtaskHint")}</p>
+      {titledCount > 0 ? (
+        <div className="space-y-1">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-[width]"
+              style={{ width: `${Math.round((doneCount / titledCount) * 100)}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-gray-500">
+            {t("teamSubtaskProgress")
+              .replace("{done}", String(doneCount))
+              .replace("{total}", String(titledCount))}
+          </p>
+        </div>
+      ) : null}
+      {rows.length === 0 ? (
+        <p className="text-xs text-gray-500">{t("teamSubtaskPlaceholder")}</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {rows.map((row, index) => (
+            <div key={row.key} className="flex min-w-0 items-center gap-2">
+              {canToggleDone || rows.some((item) => item._id || item.done) ? (
+                <Checkbox
+                  checked={Boolean(row.done)}
+                  disabled={!canToggleDone}
+                  onCheckedChange={(checked) => {
+                    if (!canToggleDone) return;
+                    onChange(
+                      rows.map((item, i) =>
+                        i === index ? { ...item, done: checked === true } : item,
+                      ),
+                    );
+                  }}
+                  aria-label={row.title || t("teamAddSubtask")}
+                />
+              ) : null}
+              <Input
+                value={row.title}
+                onChange={(event) => {
+                  onChange(
+                    rows.map((item, i) =>
+                      i === index ? { ...item, title: event.target.value } : item,
+                    ),
+                  );
+                }}
+                placeholder={t("teamSubtaskPlaceholder")}
+                className="h-8 min-w-0 flex-1"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-gray-500"
+                onClick={() => onChange(rows.filter((_, i) => i !== index))}
+                aria-label={t("delete")}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      {!canToggleDone && rows.some((row) => row._id) ? (
+        <p className="text-[11px] text-gray-500">{t("teamSubtaskAssigneeOnly")}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function CardSubtasks({
+  task,
+  t,
+  canComplete,
+  onSubtasksChange,
+}: {
+  task: TeamTaskRecord;
+  t: (key: string) => string;
+  canComplete: boolean;
+  onSubtasksChange?: (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => void;
+}) {
+  const subtasks = taskSubtasks(task);
+  if (!subtasks.length) return null;
+
+  const doneCount = subtasks.filter((row) => row.done).length;
+  const percent = Math.round((doneCount / subtasks.length) * 100);
+
+  return (
+    <div
+      className="space-y-1.5 pt-1"
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+            {t("teamSubtasks")}
+          </p>
+          <p className="text-[10px] font-medium text-gray-600">
+            {t("teamSubtaskProgress")
+              .replace("{done}", String(doneCount))
+              .replace("{total}", String(subtasks.length))}
+          </p>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-black/10">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-[width]"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+      <ul className="space-y-1">
+        {subtasks.map((row, index) => {
+          const key = String(row._id || `${row.title}-${index}`);
+          return (
+            <li key={key} className="flex items-start gap-2">
+              <Checkbox
+                checked={Boolean(row.done)}
+                disabled={!canComplete}
+                className="mt-0.5 shrink-0"
+                onCheckedChange={(checked) => {
+                  if (!canComplete || !onSubtasksChange) return;
+                  onSubtasksChange(
+                    task,
+                    subtasks.map((item, i) =>
+                      i === index ? { ...item, done: checked === true } : item,
+                    ),
+                  );
+                }}
+                aria-label={row.title}
+              />
+              <span
+                className={cn(
+                  "min-w-0 flex-1 break-words text-xs leading-snug text-gray-700",
+                  row.done && "line-through text-gray-400",
+                )}
+              >
+                {row.title}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function TaskBoardCard({
   task,
   t,
@@ -126,6 +376,7 @@ function TaskBoardCard({
   onStatusChange,
   onEdit,
   onDelete,
+  onSubtasksChange,
   deletingId,
 }: {
   task: TeamTaskRecord;
@@ -138,6 +389,7 @@ function TaskBoardCard({
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
   onEdit: (task: TeamTaskRecord) => void;
   onDelete: (task: TeamTaskRecord) => void;
+  onSubtasksChange?: (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => void;
   deletingId: string | null;
 }) {
   const isDone = task.status === "done";
@@ -246,6 +498,12 @@ function TaskBoardCard({
                 </DropdownMenu>
               ) : null}
             </div>
+            <CardSubtasks
+              task={task}
+              t={t}
+              canComplete={!isDone && Boolean(onSubtasksChange) && canChangeStatus}
+              onSubtasksChange={onSubtasksChange}
+            />
             {task.description ? (
               <p
                 className={cn(
@@ -256,9 +514,7 @@ function TaskBoardCard({
                 {task.description}
               </p>
             ) : null}
-            {task.completionNote ? (
-              <p className="break-words text-xs leading-relaxed text-emerald-700">{task.completionNote}</p>
-            ) : null}
+            {task.completionNote ? <TaskCompletionNote note={task.completionNote} t={t} /> : null}
             <div className="flex flex-col gap-1.5 pt-0.5 text-xs text-gray-500">
               {name ? (
                 <div className="flex min-w-0 items-center gap-2">
@@ -316,6 +572,7 @@ function TaskBoardColumn({
   onStatusChange,
   onEdit,
   onDelete,
+  onSubtasksChange,
   onDropTask,
   deletingId,
   fillHeight,
@@ -331,6 +588,7 @@ function TaskBoardColumn({
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
   onEdit: (task: TeamTaskRecord) => void;
   onDelete: (task: TeamTaskRecord) => void;
+  onSubtasksChange?: (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => void;
   onDropTask: (taskIdValue: string, nextStatus: TeamTaskSection) => void;
   deletingId: string | null;
   fillHeight?: boolean;
@@ -404,6 +662,7 @@ function TaskBoardColumn({
               onStatusChange={onStatusChange}
               onEdit={onEdit}
               onDelete={onDelete}
+              onSubtasksChange={onSubtasksChange}
               deletingId={deletingId}
             />
           ))
@@ -424,6 +683,7 @@ export function TeamTaskCardStack({
   onStatusChange,
   onEdit,
   onDelete,
+  onSubtasksChange,
   deletingId,
   emptyLabel,
 }: {
@@ -437,6 +697,7 @@ export function TeamTaskCardStack({
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
   onEdit: (task: TeamTaskRecord) => void;
   onDelete: (task: TeamTaskRecord) => void;
+  onSubtasksChange?: (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => void;
   deletingId: string | null;
   emptyLabel: string;
 }) {
@@ -459,6 +720,7 @@ export function TeamTaskCardStack({
           onStatusChange={onStatusChange}
           onEdit={onEdit}
           onDelete={onDelete}
+          onSubtasksChange={onSubtasksChange}
           deletingId={deletingId}
         />
       ))}
@@ -477,6 +739,7 @@ export function TeamTaskKanbanBoard({
   onStatusChange,
   onEdit,
   onDelete,
+  onSubtasksChange,
   onDropTask,
   deletingId,
   emptyLabel,
@@ -492,6 +755,7 @@ export function TeamTaskKanbanBoard({
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
   onEdit: (task: TeamTaskRecord) => void;
   onDelete: (task: TeamTaskRecord) => void;
+  onSubtasksChange?: (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => void;
   onDropTask: (taskIdValue: string, nextStatus: TeamTaskSection) => void;
   deletingId: string | null;
   emptyLabel: string;
@@ -575,6 +839,7 @@ export function TeamTaskKanbanBoard({
                 onStatusChange={onStatusChange}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onSubtasksChange={onSubtasksChange}
                 deletingId={deletingId}
               />
             ))
@@ -603,6 +868,7 @@ export function TeamTaskKanbanBoard({
             onStatusChange={onStatusChange}
             onEdit={onEdit}
             onDelete={onDelete}
+            onSubtasksChange={onSubtasksChange}
             onDropTask={onDropTask}
             deletingId={deletingId}
             fillHeight={fillHeight}

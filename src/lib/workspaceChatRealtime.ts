@@ -5,6 +5,7 @@ export const WORKSPACE_CHAT_DELETE_EVENT = "workspace-chat:delete";
 export const WORKSPACE_CHAT_TYPING_EVENT = "workspace-chat:typing";
 export const WORKSPACE_CHAT_SETTINGS_EVENT = "workspace-chat:settings";
 export const WORKSPACE_CHAT_REACTION_EVENT = "workspace-chat:reaction";
+export const WORKSPACE_CHAT_LOCAL_PREVIEW_EVENT = "workspace-chat:local-preview";
 export const WORKSPACE_PRESENCE_UPDATE_EVENT = "workspace:presence:update";
 export const WORKSPACE_PRESENCE_JOIN_EVENT = "workspace:presence:join";
 export const WORKSPACE_PRESENCE_HEARTBEAT_EVENT = "workspace:presence:heartbeat";
@@ -146,6 +147,12 @@ export interface WorkspaceChatMessage {
 
 export function chatMessageId(message: WorkspaceChatMessage) {
   return String(message._id);
+}
+
+/** Instant sidebar preview bump for the sender, without waiting on the websocket echo. */
+export function emitLocalGroupChatPreview(message: WorkspaceChatMessage) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(WORKSPACE_CHAT_LOCAL_PREVIEW_EVENT, { detail: message }));
 }
 
 function isPendingChatMessageId(id: string) {

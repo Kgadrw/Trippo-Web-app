@@ -85,6 +85,7 @@ import {
 } from "@/hooks/useStickChatListToBottom";
 import {
   applyOptimisticPollVote,
+  emitLocalGroupChatPreview,
   mergeChatMessages,
   newClientMessageId,
   reconcileChatMessagesAfterFetch,
@@ -122,6 +123,8 @@ function latestMessageCreatedAt(messages: Array<{ _id: string; createdAt?: strin
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const SCROLL_NEAR_BOTTOM_PX = 96;
 const MAX_READ_AVATARS = 4;
+/** Full snapshot of the open thread after it has stayed open this long. */
+const CHAT_FULL_RELOAD_MS = 12 * 60 * 60 * 1000;
 /** LeadBot-style brand purple */
 const CHAT_PURPLE = "#5B2EFF";
 const CHAT_BG_IMAGE = "/mobile.jpg";
@@ -605,19 +608,20 @@ export function WorkspaceGroupChatPane({
   }, [messages.length]);
 
   const loadMessages = useCallback(
-    async (options?: { silent?: boolean; after?: string | null }) => {
+    async (options?: { silent?: boolean; after?: string | null; replace?: boolean }) => {
       if (!workspaceId) return;
 
       const targetWorkspaceId = workspaceId;
       const generation = ++loadGenerationRef.current;
-      const incremental = Boolean(options?.after);
-      const silent = Boolean(options?.silent || incremental);
+      const replace = Boolean(options?.replace);
+      const incremental = Boolean(options?.after) && !replace;
+      const silent = Boolean(options?.silent || incremental || replace);
       if (!silent) setLoading(true);
 
       try {
         const res = await workspaceApi.getMessages(targetWorkspaceId, {
           limit: 50,
-          after: options?.after || undefined,
+          after: incremental ? options?.after || undefined : undefined,
         });
         if (
           loadGenerationRef.current !== generation ||
@@ -632,15 +636,19 @@ export function WorkspaceGroupChatPane({
             return new Date(message.expiresAt).getTime() > Date.now();
           });
         setMessages((prev) => {
-          const base =
-            incremental || loadedWorkspaceRef.current === targetWorkspaceId ? prev : [];
+          const pending = prev.filter((row) => String(row._id).startsWith("pending-"));
+          const base = replace
+            ? pending
+            : incremental || loadedWorkspaceRef.current === targetWorkspaceId
+              ? prev
+              : [];
           const next = reconcileChatMessagesAfterFetch(base, loaded);
           const latest = latestMessageCreatedAt(next);
           if (latest) lastLoadedMessageAtRef.current = latest;
           return next;
         });
         loadedWorkspaceRef.current = targetWorkspaceId;
-        lastSyncAtRef.current = Date.now();
+        if (!incremental) lastSyncAtRef.current = Date.now();
         if (active && !silent) stickToBottomRef.current = true;
 
         if (!active && trackUnreadWhenInactive && !incremental) {
@@ -777,11 +785,18 @@ export function WorkspaceGroupChatPane({
     },
   });
 
-  // Catch up after reconnect / tab focus — append only, never reload the open thread.
+  // Catch up after reconnect / tab focus — append only unless the thread has been open 12h.
   useEffect(() => {
     if (mode !== "workspace" || !workspaceId || !active) return;
 
+    const shouldFullReload = () =>
+      lastSyncAtRef.current > 0 && Date.now() - lastSyncAtRef.current >= CHAT_FULL_RELOAD_MS;
+
     const catchUp = () => {
+      if (shouldFullReload()) {
+        void loadMessages({ silent: true, replace: true });
+        return;
+      }
       const lastSeenMessageAt = lastLoadedMessageAtRef.current;
       if (!lastSeenMessageAt) return;
       void loadMessages({ silent: true, after: lastSeenMessageAt });
@@ -792,9 +807,13 @@ export function WorkspaceGroupChatPane({
 
     window.addEventListener("app-websocket-open", catchUp);
     document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(() => {
+      if (shouldFullReload()) void loadMessages({ silent: true, replace: true });
+    }, CHAT_FULL_RELOAD_MS);
     return () => {
       window.removeEventListener("app-websocket-open", catchUp);
       document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
     };
   }, [mode, workspaceId, active, loadMessages]);
 
@@ -965,6 +984,7 @@ export function WorkspaceGroupChatPane({
 
     stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
+    emitLocalGroupChatPreview(optimisticMessage);
     pendingSendIdsRef.current.add(optimisticId);
     setText("");
     setReplyTo(null);
@@ -1093,6 +1113,7 @@ export function WorkspaceGroupChatPane({
 
     stickToBottomRef.current = true;
     setMessages((prev) => [...prev, optimisticMessage]);
+    emitLocalGroupChatPreview(optimisticMessage);
     pendingSendIdsRef.current.add(optimisticId);
     requestAnimationFrame(() => scrollToBottom("smooth"));
 
@@ -1139,7 +1160,10 @@ export function WorkspaceGroupChatPane({
     try {
       const res = await workspaceApi.sendMessage(workspaceId, "", { poll });
       const message = res.data as WorkspaceChatMessage;
-      if (message) setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
+      if (message) {
+        setMessages((prev) => mergeChatMessages(prev, enrichMessageProfiles(message)));
+        emitLocalGroupChatPreview(message);
+      }
       requestAnimationFrame(() => scrollToBottom("smooth"));
     } catch {
       toast({ title: "Couldn't create poll", variant: "destructive" });
