@@ -2596,11 +2596,12 @@ export const workspaceApi = {
 
   async getMessages(
     workspaceId: string,
-    params?: { limit?: number; before?: string },
+    params?: { limit?: number; before?: string; after?: string },
   ): Promise<ApiResponse> {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append('limit', String(params.limit));
     if (params?.before) queryParams.append('before', params.before);
+    if (params?.after) queryParams.append('after', params.after);
     const queryString = queryParams.toString();
     const url = queryString
       ? `/workspaces/${encodeURIComponent(workspaceId)}/messages?${queryString}`
@@ -2727,11 +2728,12 @@ export const workspaceApi = {
   async getDirectChatMessages(
     workspaceId: string,
     conversationId: string,
-    params?: { limit?: number; before?: string },
+    params?: { limit?: number; before?: string; after?: string },
   ): Promise<ApiResponse> {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append('limit', String(params.limit));
     if (params?.before) queryParams.append('before', params.before);
+    if (params?.after) queryParams.append('after', params.after);
     const queryString = queryParams.toString();
     const base = `/workspaces/${encodeURIComponent(workspaceId)}/direct-chats/${encodeURIComponent(conversationId)}/messages`;
     const url = queryString ? `${base}?${queryString}` : base;

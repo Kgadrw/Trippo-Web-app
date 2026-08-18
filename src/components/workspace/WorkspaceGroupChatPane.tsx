@@ -113,6 +113,7 @@ import {
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const SCROLL_NEAR_BOTTOM_PX = 96;
 const MAX_READ_AVATARS = 4;
+const CHAT_STALE_SYNC_MS = 10 * 60 * 1000;
 /** LeadBot-style brand purple */
 const CHAT_PURPLE = "#5B2EFF";
 const CHAT_BG_IMAGE = "/mobile.jpg";
@@ -438,6 +439,7 @@ export function WorkspaceGroupChatPane({
   );
 
   const [loading, setLoading] = useState(false);
+  const [catchingUp, setCatchingUp] = useState(false);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -468,6 +470,8 @@ export function WorkspaceGroupChatPane({
   const loadedWorkspaceRef = useRef<string | null>(null);
   const fetchStartedRef = useRef<string | null>(null);
   const loadGenerationRef = useRef(0);
+  const lastLoadedMessageAtRef = useRef<string | null>(null);
+  const lastSyncAtRef = useRef(0);
   const composerPad = useChatComposerPad(composerRef, [
     workspaceId,
     replyTo,
@@ -594,15 +598,23 @@ export function WorkspaceGroupChatPane({
   }, [messages.length]);
 
   const loadMessages = useCallback(
-    async (options?: { silent?: boolean; replace?: boolean }) => {
+    async (options?: { silent?: boolean; replace?: boolean; after?: string | null }) => {
       if (!workspaceId) return;
 
       const targetWorkspaceId = workspaceId;
       const generation = ++loadGenerationRef.current;
-      if (!options?.silent) setLoading(true);
+      const incremental = Boolean(options?.after);
+      if (incremental) {
+        setCatchingUp(true);
+      } else if (!options?.silent) {
+        setLoading(true);
+      }
 
       try {
-        const res = await workspaceApi.getMessages(targetWorkspaceId, { limit: 50 });
+        const res = await workspaceApi.getMessages(targetWorkspaceId, {
+          limit: 50,
+          after: options?.after || undefined,
+        });
         if (
           loadGenerationRef.current !== generation ||
           targetWorkspaceId !== workspaceId
@@ -617,12 +629,19 @@ export function WorkspaceGroupChatPane({
           });
         setMessages((prev) => {
           const base =
-            options?.replace || loadedWorkspaceRef.current !== targetWorkspaceId
+            incremental
+              ? prev
+              : options?.replace || loadedWorkspaceRef.current !== targetWorkspaceId
               ? []
               : prev;
           return reconcileChatMessagesAfterFetch(base, loaded);
         });
         loadedWorkspaceRef.current = targetWorkspaceId;
+        const newest = loaded[loaded.length - 1];
+        if (newest?.createdAt) {
+          lastLoadedMessageAtRef.current = newest.createdAt;
+        }
+        lastSyncAtRef.current = Date.now();
         if (active) stickToBottomRef.current = true;
 
         if (!active && trackUnreadWhenInactive) {
@@ -633,12 +652,15 @@ export function WorkspaceGroupChatPane({
           setUnreadCount(unreadFromServer);
         }
       } catch {
-        if (!options?.silent) {
+        if (!options?.silent && !incremental) {
           toast({ title: t("workspaceChatLoadFailed"), variant: "destructive" });
         }
       } finally {
-        if (!options?.silent && loadGenerationRef.current === generation) {
+        if (!incremental && !options?.silent && loadGenerationRef.current === generation) {
           setLoading(false);
+        }
+        if (incremental && loadGenerationRef.current === generation) {
+          setCatchingUp(false);
         }
       }
     },
@@ -693,6 +715,8 @@ export function WorkspaceGroupChatPane({
       clearUnread();
       loadedWorkspaceRef.current = null;
       fetchStartedRef.current = null;
+      lastLoadedMessageAtRef.current = null;
+      lastSyncAtRef.current = 0;
       markedReadIdsRef.current = new Set();
       return;
     }
@@ -701,6 +725,8 @@ export function WorkspaceGroupChatPane({
       setMessages([]);
       markedReadIdsRef.current = new Set();
       fetchStartedRef.current = null;
+      lastLoadedMessageAtRef.current = null;
+      lastSyncAtRef.current = 0;
     }
 
     if (fetchStartedRef.current === workspaceId) return;
@@ -755,7 +781,15 @@ export function WorkspaceGroupChatPane({
     if (mode !== "workspace" || !workspaceId || !active) return;
 
     const catchUp = () => {
-      void loadMessages({ silent: true });
+      const lastSeenMessageAt = lastLoadedMessageAtRef.current;
+      const isStale =
+        !lastSeenMessageAt ||
+        Date.now() - lastSyncAtRef.current > CHAT_STALE_SYNC_MS;
+      void loadMessages(
+        isStale
+          ? { silent: true, replace: true }
+          : { silent: true, after: lastSeenMessageAt },
+      );
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") catchUp();
@@ -1417,6 +1451,14 @@ export function WorkspaceGroupChatPane({
                 </div>
               ) : (
                 <div className="space-y-1">
+                  {catchingUp ? (
+                    <div className="sticky top-2 z-20 flex justify-center">
+                      <div className="inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-gray-500 shadow-sm ring-1 ring-black/5 dark:bg-[#1e2732]/95 dark:text-zinc-300 dark:ring-white/10">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
+                        <span>Loading new messages...</span>
+                      </div>
+                    </div>
+                  ) : null}
                   {messages.map((message, index) => {
                     const own = isOwnMessage(message, currentUserId);
                     const deleted = isMessageDeleted(message);

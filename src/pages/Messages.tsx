@@ -342,6 +342,7 @@ function ReadReceiptIcon({ state }: { state: "sent" | "delivered" | "read" }) {
 }
 
 export function MessagesPage() {
+  const CHAT_STALE_SYNC_MS = 10 * 60 * 1000;
   const { activeWorkspace, workspaces } = useWorkspace();
   const { user: currentUser } = useCurrentUser();
   const { t } = useTranslation();
@@ -362,6 +363,7 @@ export function MessagesPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DirectChatMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesCatchingUp, setMessagesCatchingUp] = useState(false);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -398,6 +400,8 @@ export function MessagesPage() {
   const loadedSelectionRef = useRef<string | null>(null);
   const loadGenerationRef = useRef(0);
   const chatWorkspaceIdRef = useRef<string | null>(null);
+  const lastLoadedMessageAtRef = useRef<string | null>(null);
+  const lastSyncAtRef = useRef(0);
 
   selectedUserIdRef.current = selectedUserId;
   conversationIdRef.current = conversationId;
@@ -770,15 +774,22 @@ export function MessagesPage() {
   );
 
   const loadMessages = useCallback(
-    async (activeConversationId: string, forWorkspaceId: string) => {
+    async (
+      activeConversationId: string,
+      forWorkspaceId: string,
+      options?: { after?: string | null; replace?: boolean },
+    ) => {
       if (!forWorkspaceId || !activeConversationId) return;
       const generation = ++loadGenerationRef.current;
       const targetConversationId = activeConversationId;
       const targetWorkspaceId = forWorkspaceId;
-      setMessagesLoading(true);
+      const incremental = Boolean(options?.after);
+      if (incremental) setMessagesCatchingUp(true);
+      else setMessagesLoading(true);
       try {
         const res = await workspaceApi.getDirectChatMessages(targetWorkspaceId, targetConversationId, {
           limit: 50,
+          after: options?.after || undefined,
         });
         if (
           loadGenerationRef.current !== generation ||
@@ -794,17 +805,32 @@ export function MessagesPage() {
           const sameConversation =
             prev.length > 0 &&
             prev.every((row) => String(row.conversationId) === String(targetConversationId));
-          return reconcileDirectMessagesAfterFetch(sameConversation ? prev : [], loaded);
+          return reconcileDirectMessagesAfterFetch(
+            incremental
+              ? prev
+              : options?.replace
+                ? []
+                : sameConversation
+                  ? prev
+                  : [],
+            loaded,
+          );
         });
+        const newest = loaded[loaded.length - 1];
+        if (newest?.createdAt) {
+          lastLoadedMessageAtRef.current = newest.createdAt;
+        }
+        lastSyncAtRef.current = Date.now();
         markedReadIdsRef.current = new Set();
         stickToBottomRef.current = true;
       } catch {
-        if (loadGenerationRef.current === generation) {
+        if (loadGenerationRef.current === generation && !incremental) {
           toast({ title: t("directChatLoadFailed"), variant: "destructive" });
         }
       } finally {
         if (loadGenerationRef.current === generation) {
-          setMessagesLoading(false);
+          if (incremental) setMessagesCatchingUp(false);
+          else setMessagesLoading(false);
         }
       }
     },
@@ -939,6 +965,8 @@ export function MessagesPage() {
       setMessageToDelete(null);
       setChatInfoOpen(false);
       setDisappearingDurationSec(0);
+      lastLoadedMessageAtRef.current = null;
+      lastSyncAtRef.current = 0;
       return;
     }
 
@@ -1200,7 +1228,15 @@ export function MessagesPage() {
     if (!conversationId || !chatWorkspaceId || isGroupChat) return;
 
     const catchUp = () => {
-      void loadMessages(conversationId, chatWorkspaceId);
+      const lastSeenMessageAt = lastLoadedMessageAtRef.current;
+      const isStale =
+        !lastSeenMessageAt || Date.now() - lastSyncAtRef.current > CHAT_STALE_SYNC_MS;
+      void loadThreads();
+      void loadMessages(
+        conversationId,
+        chatWorkspaceId,
+        isStale ? { replace: true } : { after: lastSeenMessageAt },
+      );
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") catchUp();
@@ -1212,7 +1248,7 @@ export function MessagesPage() {
       window.removeEventListener("app-websocket-open", catchUp);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [conversationId, chatWorkspaceId, isGroupChat, loadMessages]);
+  }, [conversationId, chatWorkspaceId, isGroupChat, loadMessages, loadThreads]);
 
   const handleListScroll = useCallback(() => {
     const el = listRef.current;
@@ -2092,7 +2128,16 @@ export function MessagesPage() {
                     <p className="max-w-xs text-xs">{t("directChatEmptyBody")}</p>
                   </div>
                 ) : (
-                  messages.map((message, index) => {
+                  <>
+                    {messagesCatchingUp ? (
+                      <div className="sticky top-2 z-20 mb-3 flex justify-center">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-500 shadow-sm ring-1 ring-black/5 dark:bg-[#1e2732]/95 dark:text-zinc-300 dark:ring-white/10">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
+                          <span>Loading new messages...</span>
+                        </div>
+                      </div>
+                    ) : null}
+                  {messages.map((message, index) => {
                     const systemNotice =
                       message.systemType === "disappearing"
                         ? formatDisappearingSystemNotice(message, t)
@@ -2316,7 +2361,8 @@ export function MessagesPage() {
                         </div>
                       </div>
                     );
-                  })
+                  })}
+                  </>
                 )}
                 {dmTypingUsers.length > 0 && selectedThread ? (
                   <div className="pb-1">
