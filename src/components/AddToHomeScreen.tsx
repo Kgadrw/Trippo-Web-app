@@ -14,7 +14,7 @@ const DISMISS_KEY = "add-to-home-dismissed";
 const OVERLAY_CLASS =
   "fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 animate-in fade-in-0";
 const CARD_CLASS =
-  "relative w-full max-w-md overflow-hidden rounded-2xl border border-sky-200/80 bg-white p-6 shadow-2xl";
+  "relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-sky-200/80 bg-white p-6 shadow-2xl";
 const PRIMARY_BTN =
   "rounded-xl border border-sky-400 bg-sky-400 text-white hover:bg-sky-500";
 const SECONDARY_BTN = "rounded-xl font-medium";

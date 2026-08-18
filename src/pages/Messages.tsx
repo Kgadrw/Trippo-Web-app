@@ -97,7 +97,7 @@ import {
   type WorkspaceChatMessage,
 } from "@/lib/workspaceChatRealtime";
 import { useTypingEmitter, useTypingListener } from "@/hooks/useChatTyping";
-import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
+import { bumpMessagesUnread, refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { websocketManager } from "@/lib/websocketManager";
 import { useChatComposerPad } from "@/hooks/useChatComposerPad";
 import {
@@ -221,6 +221,52 @@ function asChatId(value: unknown): string {
   return String(value);
 }
 
+function withLocalReadReceipt(
+  message: DirectChatMessage,
+  userId: string | null,
+  userName: string,
+): DirectChatMessage {
+  if (!userId || hasUserRead(message, userId)) return message;
+  return {
+    ...message,
+    readBy: [...(message.readBy || []), { userId, userName, readAt: new Date().toISOString() }],
+  };
+}
+
+function withoutLocalReadReceipt(
+  message: DirectChatMessage,
+  userId: string | null,
+): DirectChatMessage {
+  if (!userId) return message;
+  const readBy = message.readBy || [];
+  const next = readBy.filter((entry) => String(entry.userId) !== String(userId));
+  if (next.length === readBy.length) return message;
+  return { ...message, readBy: next };
+}
+
+function isDirectMessageForOpenChat(
+  message: DirectChatMessage,
+  activeConversationId: string | null | undefined,
+  activeOtherUserId: string | undefined,
+  openWorkspaceId?: string | null,
+) {
+  if (isWorkspaceGroupChatSegment(activeOtherUserId)) return false;
+  const conversationKey = asChatId(message.conversationId);
+  if (activeConversationId && conversationKey && conversationKey === asChatId(activeConversationId)) {
+    return true;
+  }
+  if (!activeOtherUserId) return false;
+  if (asChatId(message.senderUserId) !== asChatId(activeOtherUserId)) return false;
+  if (
+    openWorkspaceId &&
+    asChatId(message.workspaceId) &&
+    asChatId(message.workspaceId) !== asChatId(openWorkspaceId)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function sortDirectThreads(threads: DirectChatThread[]) {
   return [...threads].sort((a, b) => {
     const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
@@ -248,12 +294,16 @@ function applyIncomingDirectMessageToThreads(
   currentUserId: string | null,
   activeOtherUserId: string | undefined,
   deletedLabel: string,
+  activeConversationId?: string | null,
+  activeWorkspaceId?: string | null,
 ): DirectChatThread[] {
   const conversationKey = asChatId(message.conversationId);
   const own = isOwnMessage(message, currentUserId);
   const senderId = asChatId(message.senderUserId);
   const messageWorkspaceId = asChatId(message.workspaceId);
   const lastMessageAt = message.createdAt || new Date().toISOString();
+  const activeConversationKey = asChatId(activeConversationId);
+  const activeWorkspaceKey = asChatId(activeWorkspaceId);
 
   const peerFromConversation = prev.find(
     (thread) =>
@@ -266,13 +316,21 @@ function applyIncomingDirectMessageToThreads(
     ? asChatId(peerFromConversation || activeOtherUserId)
     : senderId;
 
+  const viewingThisConversation =
+    Boolean(conversationKey) &&
+    Boolean(activeConversationKey) &&
+    conversationKey === activeConversationKey;
+
   const viewingPeer =
     Boolean(activeOtherUserId) &&
     Boolean(peerUserId) &&
-    asChatId(activeOtherUserId) === peerUserId;
+    asChatId(activeOtherUserId) === peerUserId &&
+    (!activeWorkspaceKey || !messageWorkspaceId || activeWorkspaceKey === messageWorkspaceId);
+
+  const viewingOpenChat = viewingThisConversation || viewingPeer;
 
   const preview = messagePreviewText(message, deletedLabel);
-  const shouldIncrementUnread = !own && !viewingPeer && !hasUserRead(message, currentUserId);
+  const shouldIncrementUnread = !own && !viewingOpenChat && !hasUserRead(message, currentUserId);
 
   const matchesThread = (thread: DirectChatThread) => {
     const matchesConversation =
@@ -290,9 +348,11 @@ function applyIncomingDirectMessageToThreads(
   let next = prev.map((thread) => {
     if (!matchesThread(thread)) return thread;
     const isThisOpen =
-      Boolean(activeOtherUserId) &&
-      asChatId(thread.otherUser.userId) === asChatId(activeOtherUserId) &&
-      (!messageWorkspaceId || asChatId(thread.workspaceId) === messageWorkspaceId);
+      viewingThisConversation ||
+      (Boolean(activeOtherUserId) &&
+        asChatId(thread.otherUser.userId) === asChatId(activeOtherUserId) &&
+        (!messageWorkspaceId || asChatId(thread.workspaceId) === messageWorkspaceId) &&
+        (!activeWorkspaceKey || asChatId(thread.workspaceId) === activeWorkspaceKey));
 
     return {
       ...thread,
@@ -322,7 +382,9 @@ function applyIncomingDirectMessageToThreads(
         lastSenderUserId: senderId,
         unreadCount: shouldIncrementUnread
           ? Math.max(0, Number(thread.unreadCount) || 0) + 1
-          : thread.unreadCount,
+          : viewingOpenChat
+            ? 0
+            : thread.unreadCount,
       };
     });
   }
@@ -459,6 +521,10 @@ export function MessagesPage() {
   const stickToBottomRef = useRef(true);
   const markedReadIdsRef = useRef<Set<string>>(new Set());
   const markingReadRef = useRef(false);
+  const pendingMarkReadQueueRef = useRef<
+    Array<{ id: string; conversationId: string; workspaceId: string }>
+  >([]);
+  const clearedOpenChatKeyRef = useRef<string | null>(null);
   const sendLockRef = useRef(false);
   const selectedUserIdRef = useRef(selectedUserId);
   const conversationIdRef = useRef(conversationId);
@@ -718,6 +784,8 @@ export function MessagesPage() {
             ? undefined
             : selectedUserIdRef.current,
           t("directChatMessageDeleted"),
+          conversationIdRef.current,
+          chatWorkspaceIdRef.current,
         ),
       );
     },
@@ -926,47 +994,106 @@ export function MessagesPage() {
     [toast, t],
   );
 
-  const markMessagesRead = useCallback(
-    async (ids: string[], activeConversationId: string, forWorkspaceId: string) => {
-      if (!forWorkspaceId || !activeConversationId || !ids.length || markingReadRef.current) return;
+  const flushDirectMarkRead = useCallback(async () => {
+    if (markingReadRef.current) return;
+    markingReadRef.current = true;
+    try {
+      while (pendingMarkReadQueueRef.current.length) {
+        const first = pendingMarkReadQueueRef.current[0];
+        const batch: string[] = [];
+        while (
+          pendingMarkReadQueueRef.current.length &&
+          pendingMarkReadQueueRef.current[0].conversationId === first.conversationId &&
+          pendingMarkReadQueueRef.current[0].workspaceId === first.workspaceId
+        ) {
+          batch.push(pendingMarkReadQueueRef.current.shift()!.id);
+        }
+        if (!first.conversationId || !first.workspaceId || !batch.length) continue;
+        try {
+          const res = await workspaceApi.markDirectChatMessagesRead(
+            first.workspaceId,
+            first.conversationId,
+            batch,
+          );
+          const updated = (res.data as DirectChatMessage[]) || [];
+          if (
+            updated.length &&
+            asChatId(conversationIdRef.current) === asChatId(first.conversationId)
+          ) {
+            setMessages((prev) => {
+              let next = prev;
+              for (const message of updated) {
+                next = mergeDirectMessages(next, message);
+              }
+              return next;
+            });
+          }
+          refreshMessagesUnreadBadge();
+          clearDirectChatOsNotification(first.conversationId);
+        } catch {
+          batch.forEach((id) => markedReadIdsRef.current.delete(id));
+          if (asChatId(conversationIdRef.current) === asChatId(first.conversationId)) {
+            const readerId = localStorage.getItem("profit-pilot-user-id");
+            setMessages((prev) =>
+              prev.map((row) =>
+                batch.includes(String(row._id)) ? withoutLocalReadReceipt(row, readerId) : row,
+              ),
+            );
+          }
+        }
+      }
+    } finally {
+      markingReadRef.current = false;
+      if (pendingMarkReadQueueRef.current.length) {
+        void flushDirectMarkRead();
+      }
+    }
+  }, []);
 
-      const pending = ids.filter((id) => !markedReadIdsRef.current.has(id));
+  const markMessagesRead = useCallback(
+    (ids: string[], activeConversationId: string, forWorkspaceId: string) => {
+      if (!forWorkspaceId || !activeConversationId || !ids.length) return;
+
+      const pending = ids.filter((id) => {
+        const key = String(id);
+        return Boolean(key) && !key.startsWith("pending-") && !markedReadIdsRef.current.has(key);
+      });
       if (!pending.length) return;
 
       pending.forEach((id) => markedReadIdsRef.current.add(id));
-      markingReadRef.current = true;
-      try {
-        const res = await workspaceApi.markDirectChatMessagesRead(
-          forWorkspaceId,
-          activeConversationId,
-          pending,
-        );
-        const updated = (res.data as DirectChatMessage[]) || [];
-        if (updated.length) {
-          setMessages((prev) => {
-            let next = prev;
-            for (const message of updated) {
-              next = mergeDirectMessages(next, message);
-            }
-            return next;
-          });
-        }
-        setThreads((prev) =>
-          prev.map((thread) =>
-            thread.conversationId === activeConversationId
-              ? { ...thread, unreadCount: 0 }
-              : thread,
+      pending.forEach((id) =>
+        pendingMarkReadQueueRef.current.push({
+          id,
+          conversationId: activeConversationId,
+          workspaceId: forWorkspaceId,
+        }),
+      );
+
+      const readerId = currentUserId;
+      const readerName = currentUser?.name || "";
+      if (readerId) {
+        setMessages((prev) =>
+          prev.map((row) =>
+            pending.includes(String(row._id))
+              ? withLocalReadReceipt(row, readerId, readerName)
+              : row,
           ),
         );
-        refreshMessagesUnreadBadge();
-        clearDirectChatOsNotification(activeConversationId);
-      } catch {
-        pending.forEach((id) => markedReadIdsRef.current.delete(id));
-      } finally {
-        markingReadRef.current = false;
       }
+      setThreads((prev) => {
+        let changed = false;
+        const next = prev.map((thread) => {
+          if (asChatId(thread.conversationId) !== asChatId(activeConversationId)) return thread;
+          if (!thread.unreadCount) return thread;
+          changed = true;
+          return { ...thread, unreadCount: 0 };
+        });
+        return changed ? next : prev;
+      });
+      clearDirectChatOsNotification(activeConversationId);
+      void flushDirectMarkRead();
     },
-    [],
+    [currentUserId, currentUser?.name, flushDirectMarkRead],
   );
 
   useEffect(() => {
@@ -1177,9 +1304,10 @@ export function MessagesPage() {
   }, [conversationId]);
 
   useEffect(() => {
-    if (!conversationId || messagesLoading) return;
+    if (!conversationId) return;
 
     const unreadIds = messages
+      .filter((message) => !String(message._id).startsWith("pending-"))
       .filter((message) => !isOwnMessage(message, currentUserId))
       .filter((message) => !hasUserRead(message, currentUserId))
       .filter((message) => !markedReadIdsRef.current.has(String(message._id)))
@@ -1188,7 +1316,46 @@ export function MessagesPage() {
     if (unreadIds.length) {
       void markMessagesRead(unreadIds, conversationId, chatWorkspaceId);
     }
-  }, [conversationId, messages, messagesLoading, currentUserId, markMessagesRead, chatWorkspaceId]);
+  }, [conversationId, messages, currentUserId, markMessagesRead, chatWorkspaceId]);
+
+  useEffect(() => {
+    if (isGroupChat || (!conversationId && !selectedUserId)) {
+      clearedOpenChatKeyRef.current = null;
+      return;
+    }
+
+    const openKey = `${asChatId(selectedUserId)}:${asChatId(conversationId)}:${asChatId(selectedWorkspaceParam)}`;
+    const openThread = threads.find((thread) => {
+      const matchConv =
+        Boolean(conversationId) && asChatId(thread.conversationId) === asChatId(conversationId);
+      const matchPeer =
+        Boolean(selectedUserId) &&
+        asChatId(thread.otherUser.userId) === asChatId(selectedUserId) &&
+        (!selectedWorkspaceParam || asChatId(thread.workspaceId) === asChatId(selectedWorkspaceParam));
+      return matchConv || matchPeer;
+    });
+    const unread = Number(openThread?.unreadCount) || 0;
+    if (!unread) return;
+
+    setThreads((prev) =>
+      prev.map((thread) => {
+        const matchConv =
+          Boolean(conversationId) && asChatId(thread.conversationId) === asChatId(conversationId);
+        const matchPeer =
+          Boolean(selectedUserId) &&
+          asChatId(thread.otherUser.userId) === asChatId(selectedUserId) &&
+          (!selectedWorkspaceParam ||
+            asChatId(thread.workspaceId) === asChatId(selectedWorkspaceParam));
+        if (!matchConv && !matchPeer) return thread;
+        if (!thread.unreadCount) return thread;
+        return { ...thread, unreadCount: 0 };
+      }),
+    );
+    if (clearedOpenChatKeyRef.current !== openKey) {
+      bumpMessagesUnread(-unread);
+      clearedOpenChatKeyRef.current = openKey;
+    }
+  }, [conversationId, selectedUserId, selectedWorkspaceParam, isGroupChat, threads]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -1228,10 +1395,19 @@ export function MessagesPage() {
           currentUserId,
           isWorkspaceGroupChatSegment(activeOtherUserId) ? undefined : activeOtherUserId,
           t("directChatMessageDeleted"),
+          activeConversationId,
+          chatWorkspaceIdRef.current,
         ),
       );
 
-      if (activeConversationId && String(message.conversationId) === activeConversationId) {
+      if (
+        isDirectMessageForOpenChat(
+          message,
+          activeConversationId,
+          isWorkspaceGroupChatSegment(activeOtherUserId) ? undefined : activeOtherUserId,
+          chatWorkspaceIdRef.current,
+        )
+      ) {
         setMessages((prev) => {
           const next = mergeDirectMessages(prev, message);
           const latest = latestMessageCreatedAt(next);
@@ -1240,7 +1416,7 @@ export function MessagesPage() {
         });
 
         const fromSelf = isOwnMessage(message, currentUserId);
-        if (!fromSelf && messageWs) {
+        if (!fromSelf && messageWs && activeConversationId) {
           void markMessagesRead([String(message._id)], activeConversationId, messageWs);
         }
 

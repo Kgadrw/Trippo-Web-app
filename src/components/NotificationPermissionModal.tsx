@@ -66,8 +66,8 @@ export function NotificationPermissionModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-4 backdrop-blur-sm animate-in fade-in-0 duration-300">
-      <div className="relative mx-4 max-w-md overflow-hidden border border-gray-200 bg-white p-6 shadow-2xl animate-slide-down-fade">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-4 backdrop-blur-sm animate-in fade-in-0 duration-300">
+      <div className="relative my-auto w-full max-w-md overflow-y-auto overscroll-contain border border-gray-200 bg-white p-6 shadow-2xl animate-slide-down-fade max-h-[calc(100dvh-2rem)]">
         <button
           type="button"
           onClick={handleDecline}

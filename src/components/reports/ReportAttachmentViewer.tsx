@@ -173,6 +173,7 @@ export function ReportAttachmentViewer({
       <Dialog open={previewOpen} onOpenChange={(open) => !open && closePreview()}>
         <DialogContent
           overlayClassName="z-[220]"
+          scrollable={false}
           className={cn(
             "z-[221] max-h-[92vh] overflow-hidden border-0 bg-white p-0 shadow-xl [&>button:last-child]:hidden",
             preview?.mode === "pdf" || preview?.mode === "image"

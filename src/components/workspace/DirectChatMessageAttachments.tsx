@@ -284,6 +284,7 @@ export function DirectChatMessageAttachments({
       <Dialog open={Boolean(preview)} onOpenChange={(open) => !open && closePreview()}>
         <DialogContent
           overlayClassName="z-[220]"
+          scrollable={false}
           className={cn(
             "z-[221] border-0 p-0 shadow-xl [&>button:last-child]:hidden",
             preview?.kind === "document" && preview.mode === "pdf"

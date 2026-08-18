@@ -76,8 +76,9 @@ import {
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
+import { bumpMessagesUnread, refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { clearGroupChatOsNotification } from "@/lib/workspaceChatNotifications";
+import { isWorkspaceGroupChatPath } from "@/lib/workspaceGroupChat";
 import { useChatComposerPad } from "@/hooks/useChatComposerPad";
 import {
   scheduleJumpToLatest,
@@ -200,6 +201,29 @@ function resolveSenderAvatar(
 function hasUserRead(message: WorkspaceChatMessage, userId: string | null) {
   if (!userId) return false;
   return (message.readBy || []).some((entry) => String(entry.userId) === userId);
+}
+
+function withLocalReadReceipt(
+  message: WorkspaceChatMessage,
+  userId: string | null,
+  userName: string,
+): WorkspaceChatMessage {
+  if (!userId || hasUserRead(message, userId)) return message;
+  return {
+    ...message,
+    readBy: [...(message.readBy || []), { userId, userName, readAt: new Date().toISOString() }],
+  };
+}
+
+function withoutLocalReadReceipt(
+  message: WorkspaceChatMessage,
+  userId: string | null,
+): WorkspaceChatMessage {
+  if (!userId) return message;
+  const readBy = message.readBy || [];
+  const next = readBy.filter((entry) => String(entry.userId) !== String(userId));
+  if (next.length === readBy.length) return message;
+  return { ...message, readBy: next };
 }
 
 function readReceiptState(message: WorkspaceChatMessage, currentUserId: string | null) {
@@ -354,7 +378,7 @@ export function WorkspaceGroupChatPane({
   const { user: currentUser } = useCurrentUser();
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { setUnreadCount, clearUnread } = useWorkspaceChatPanel();
+  const { setUnreadCount, clearUnread, unreadCount } = useWorkspaceChatPanel();
   const { members: workspaceMembers } = useWorkspaceMemberAvatars();
   const workspaceId = activeWorkspace?.id || "";
   const { activeUsers } = useWorkspacePresence();
@@ -477,6 +501,10 @@ export function WorkspaceGroupChatPane({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const markingReadRef = useRef(false);
   const markedReadIdsRef = useRef<Set<string>>(new Set());
+  const pendingMarkReadQueueRef = useRef<string[]>([]);
+  const workspaceIdRef = useRef(workspaceId);
+  const lastClearedGroupUnreadRef = useRef<string | null>(null);
+  workspaceIdRef.current = workspaceId;
   const loadedWorkspaceRef = useRef<string | null>(null);
   const fetchStartedRef = useRef<string | null>(null);
   const loadGenerationRef = useRef(0);
@@ -651,7 +679,12 @@ export function WorkspaceGroupChatPane({
         if (!incremental) lastSyncAtRef.current = Date.now();
         if (active && !silent) stickToBottomRef.current = true;
 
-        if (!active && trackUnreadWhenInactive && !incremental) {
+        if (
+          !active &&
+          trackUnreadWhenInactive &&
+          !incremental &&
+          !(typeof window !== "undefined" && isWorkspaceGroupChatPath(window.location.pathname))
+        ) {
           const unreadFromServer = loaded.filter(
             (message) =>
               !isOwnMessage(message, currentUserId) && !hasUserRead(message, currentUserId),
@@ -680,37 +713,78 @@ export function WorkspaceGroupChatPane({
     ],
   );
 
-  const markMessagesRead = useCallback(
-    async (ids: string[]) => {
-      if (!workspaceId || !ids.length || markingReadRef.current) return;
+  const flushGroupMarkRead = useCallback(async () => {
+    if (markingReadRef.current) return;
+    markingReadRef.current = true;
+    try {
+      while (pendingMarkReadQueueRef.current.length) {
+        const targetWorkspaceId = workspaceIdRef.current;
+        const batch = pendingMarkReadQueueRef.current.splice(0);
+        if (!targetWorkspaceId || !batch.length) continue;
+        try {
+          const res = await workspaceApi.markMessagesRead(targetWorkspaceId, batch);
+          const updated = (res.data as WorkspaceChatMessage[]) || [];
+          if (updated.length && workspaceIdRef.current === targetWorkspaceId) {
+            setMessages((prev) => {
+              let next = prev;
+              for (const message of updated) {
+                next = mergeChatMessages(next, message);
+              }
+              return next;
+            });
+          }
+          refreshMessagesUnreadBadge();
+          clearGroupChatOsNotification(targetWorkspaceId);
+        } catch {
+          batch.forEach((id) => markedReadIdsRef.current.delete(id));
+          if (workspaceIdRef.current === targetWorkspaceId) {
+            const readerId = localStorage.getItem("profit-pilot-user-id");
+            setMessages((prev) =>
+              prev.map((row) =>
+                batch.includes(String(row._id)) ? withoutLocalReadReceipt(row, readerId) : row,
+              ),
+            );
+          }
+        }
+      }
+    } finally {
+      markingReadRef.current = false;
+      if (pendingMarkReadQueueRef.current.length) {
+        void flushGroupMarkRead();
+      }
+    }
+  }, []);
 
-      const pending = ids.filter((id) => !markedReadIdsRef.current.has(id));
+  const markMessagesRead = useCallback(
+    (ids: string[]) => {
+      const targetWorkspaceId = workspaceIdRef.current;
+      if (!targetWorkspaceId || !ids.length) return;
+
+      const pending = ids.filter((id) => {
+        const key = String(id);
+        return Boolean(key) && !key.startsWith("pending-") && !markedReadIdsRef.current.has(key);
+      });
       if (!pending.length) return;
 
       pending.forEach((id) => markedReadIdsRef.current.add(id));
-      markingReadRef.current = true;
-      try {
-        const res = await workspaceApi.markMessagesRead(workspaceId, pending);
-        const updated = (res.data as WorkspaceChatMessage[]) || [];
-        if (updated.length) {
-          setMessages((prev) => {
-            let next = prev;
-            for (const message of updated) {
-              next = mergeChatMessages(next, message);
-            }
-            return next;
-          });
-        }
-        clearUnread();
-        refreshMessagesUnreadBadge();
-        clearGroupChatOsNotification(workspaceId);
-      } catch {
-        pending.forEach((id) => markedReadIdsRef.current.delete(id));
-      } finally {
-        markingReadRef.current = false;
+      pendingMarkReadQueueRef.current.push(...pending);
+
+      const readerId = currentUserId;
+      const readerName = currentUser?.name || "";
+      if (readerId) {
+        setMessages((prev) =>
+          prev.map((row) =>
+            pending.includes(String(row._id))
+              ? withLocalReadReceipt(row, readerId, readerName)
+              : row,
+          ),
+        );
       }
+      clearUnread();
+      clearGroupChatOsNotification(targetWorkspaceId);
+      void flushGroupMarkRead();
     },
-    [workspaceId, clearUnread],
+    [currentUserId, currentUser?.name, clearUnread, flushGroupMarkRead],
   );
 
   useEffect(() => {
@@ -754,6 +828,10 @@ export function WorkspaceGroupChatPane({
 
       if (!active && !fromSelf) {
         return;
+      }
+
+      if (active && !fromSelf) {
+        clearUnread();
       }
 
       if (active && !fromSelf && !hasUserRead(message, currentUserId)) {
@@ -831,8 +909,16 @@ export function WorkspaceGroupChatPane({
   }, [memberPictureByUserId, currentUser?.profilePictureUrl, enrichMessageProfiles]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      lastClearedGroupUnreadRef.current = null;
+      return;
+    }
 
+    const unread = Number(unreadCount) || 0;
+    if (unread > 0 && lastClearedGroupUnreadRef.current !== workspaceId) {
+      bumpMessagesUnread(-unread);
+      lastClearedGroupUnreadRef.current = workspaceId;
+    }
     clearUnread();
     stickToBottomRef.current = true;
     const cancelJump = jumpToLatest();
@@ -859,9 +945,10 @@ export function WorkspaceGroupChatPane({
   }, [active, workspaceId, loadMessages]);
 
   useEffect(() => {
-    if (!active || loading) return;
+    if (!active) return;
 
     const unreadIds = messages
+      .filter((message) => !String(message._id).startsWith("pending-"))
       .filter((message) => !isOwnMessage(message, currentUserId))
       .filter((message) => !hasUserRead(message, currentUserId))
       .filter((message) => !markedReadIdsRef.current.has(String(message._id)))
@@ -870,7 +957,7 @@ export function WorkspaceGroupChatPane({
     if (unreadIds.length) {
       void markMessagesRead(unreadIds);
     }
-  }, [active, loading, messages, currentUserId, markMessagesRead]);
+  }, [active, messages, currentUserId, markMessagesRead]);
 
   useEffect(() => {
     if (!active || !escapeCloses) return;

@@ -31,15 +31,21 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+/** Keep centered dialogs inside the visible viewport on phones (and with the keyboard open). */
+export const modalViewportClass =
+  "max-h-[calc(100vh-1.5rem)] max-h-[calc(100dvh-1.5rem)]";
+
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   /** Raised above nested hosts (e.g. settings) when opening a second dialog. */
   overlayClassName?: string;
+  /** Scroll the body when content is taller than the screen. Default true. */
+  scrollable?: boolean;
 };
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, overlayClassName, ...props }, ref) => (
+>(({ className, children, overlayClassName, scrollable = true, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
@@ -49,11 +55,18 @@ const DialogContent = React.forwardRef<
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         modalFieldStyles,
         className,
+        scrollable && cn(modalViewportClass, "flex flex-col overflow-hidden"),
       )}
       {...props}
     >
-      {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-80 ring-offset-background transition-colors hover:bg-muted hover:text-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 disabled:pointer-events-none">
+      {scrollable ? (
+        <div className="grid min-h-0 flex-1 overflow-y-auto overscroll-contain [gap:inherit]">
+          {children}
+        </div>
+      ) : (
+        children
+      )}
+      <DialogPrimitive.Close className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-80 ring-offset-background transition-colors hover:bg-muted hover:text-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
