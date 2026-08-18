@@ -356,7 +356,8 @@ export function useScheduleNotifications() {
         await notificationService.notifySchedule(
           schedule.title,
           dueDate.toISOString(),
-          clientName
+          clientName,
+          scheduleId,
         );
         
         lastNotifiedSchedules.current.add(scheduleId);
@@ -578,13 +579,13 @@ export function useFinanceDueNotifications() {
       const in30 = new Date(today);
       in30.setDate(in30.getDate() + 30);
 
-      const notify = async (key: string, title: string, body: string) => {
+      const notify = async (key: string, title: string, body: string, route: string, kind: string) => {
         if (lastNotified.current.has(key)) return;
         await notificationService.showNotification('general', {
           title,
           body,
           tag: key,
-          data: { type: 'finance_due', key },
+          data: { type: 'finance_due', key, kind, route, href: route },
         });
         lastNotified.current.add(key);
       };
@@ -595,9 +596,9 @@ export function useFinanceDueNotifications() {
         due.setHours(0, 0, 0, 0);
         const id = `bill-${bill.dueDate}-${bill.title}`;
         if (due < today) {
-          await notify(id, 'Overdue bill', `${bill.title || 'Bill'} is past due`);
+          await notify(id, 'Overdue bill', `${bill.title || 'Bill'} is past due`, '/finance/bills', 'bill');
         } else if (due <= in30) {
-          await notify(`${id}-soon`, 'Bill due soon', `${bill.title || 'Bill'} due within 30 days`);
+          await notify(`${id}-soon`, 'Bill due soon', `${bill.title || 'Bill'} due within 30 days`, '/finance/bills', 'bill');
         }
       }
 
@@ -607,9 +608,9 @@ export function useFinanceDueNotifications() {
         due.setHours(0, 0, 0, 0);
         const id = `tax-${tax.dueDate}-${tax.title}`;
         if (due < today) {
-          await notify(id, 'Overdue tax', `${tax.title || 'Tax'} is past due`);
+          await notify(id, 'Overdue tax', `${tax.title || 'Tax'} is past due`, '/finance/taxes', 'tax');
         } else if (due <= in30) {
-          await notify(`${id}-soon`, 'Tax due soon', `${tax.title || 'Tax'} due within 30 days`);
+          await notify(`${id}-soon`, 'Tax due soon', `${tax.title || 'Tax'} due within 30 days`, '/finance/taxes', 'tax');
         }
       }
 
@@ -619,9 +620,9 @@ export function useFinanceDueNotifications() {
         due.setHours(0, 0, 0, 0);
         const id = `payroll-${payroll.paymentDate}`;
         if (due < today) {
-          await notify(id, 'Payroll overdue', 'A payroll payment is past due');
+          await notify(id, 'Payroll overdue', 'A payroll payment is past due', '/finance/payroll', 'payroll');
         } else if (due <= in30) {
-          await notify(`${id}-soon`, 'Payroll due soon', 'Payroll payment due within 30 days');
+          await notify(`${id}-soon`, 'Payroll due soon', 'Payroll payment due within 30 days', '/finance/payroll', 'payroll');
         }
       }
     };

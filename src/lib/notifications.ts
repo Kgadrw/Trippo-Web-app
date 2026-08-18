@@ -326,19 +326,25 @@ class NotificationService {
   public async notifySchedule(
     scheduleTitle: string,
     dueDate: string,
-    clientName?: string
+    clientName?: string,
+    scheduleId?: string,
   ): Promise<void> {
     const clientText = clientName ? ` for ${clientName}` : '';
+    const route = scheduleId
+      ? `/calendar/schedules?schedule=${encodeURIComponent(scheduleId)}`
+      : '/calendar/schedules';
     await this.showNotification('schedule', {
       title: 'Upcoming Schedule',
       body: `${scheduleTitle}${clientText} is due on ${new Date(dueDate).toLocaleDateString()}`,
       icon: '/logo.png',
-      tag: `schedule-${scheduleTitle}`,
+      tag: `schedule-${scheduleId || scheduleTitle}`,
       requireInteraction: true,
       data: {
-        route: '/calendar/schedules',
+        route,
+        href: route,
         type: 'schedule',
         scheduleTitle,
+        scheduleId: scheduleId || undefined,
       },
     });
   }

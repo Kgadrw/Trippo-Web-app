@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   projectApi,
   teamMemberApi,
@@ -134,6 +135,7 @@ function statusLabel(status: string, t: (key: string) => string) {
 export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { mode, isWorkspaceAdmin } = useWorkspace();
   const { categories: departmentCategories } = useWorkspaceCategories("department");
   const { visibleMembers, overflowMembers } = useWorkspaceMemberAvatars();
@@ -173,6 +175,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const membersLoadedRef = useRef(false);
   const projectsLoadedRef = useRef(false);
   const hasLoadedTasksOnceRef = useRef(false);
+  const openedTaskParamRef = useRef<string | null>(null);
 
   const [open, setOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
@@ -400,6 +403,50 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     );
     setOpen(true);
   };
+
+  const openEditRef = useRef(openEdit);
+  openEditRef.current = openEdit;
+
+  useEffect(() => {
+    const taskParam = searchParams.get("task");
+    if (!taskParam || openedTaskParamRef.current === taskParam) return;
+
+    const existing = tasks.find((row) => taskId(row) === taskParam);
+    if (existing) {
+      openedTaskParamRef.current = taskParam;
+      if (existing.monthKey && existing.monthKey !== monthKey) {
+        setMonthKey(existing.monthKey);
+      }
+      openEditRef.current(existing);
+      const next = new URLSearchParams(searchParams);
+      next.delete("task");
+      setSearchParams(next, { replace: true });
+      return;
+    }
+
+    if (!hasLoadedTasksOnceRef.current) return;
+
+    openedTaskParamRef.current = taskParam;
+    let cancelled = false;
+    void teamTaskApi
+      .getById(taskParam)
+      .then((res) => {
+        const task = res.data as TeamTaskRecord | undefined;
+        if (cancelled || !task?._id) return;
+        if (task.monthKey && task.monthKey !== monthKey) {
+          setMonthKey(task.monthKey);
+        }
+        setTasks((prev) => mergeTaskIntoList(prev, task, true));
+        openEditRef.current(task);
+        const next = new URLSearchParams(searchParams);
+        next.delete("task");
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks, searchParams, setSearchParams, monthKey]);
 
   const openEditCompletionNote = (task: TeamTaskRecord) => {
     if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {

@@ -632,9 +632,20 @@ self.addEventListener("notificationclick", async (event) => {
         route: normalized,
         workspaceId: data.workspaceId ? String(data.workspaceId) : "",
         notificationType: data.type || null,
+        notificationData: data,
       }),
     );
+    return;
   }
+
+  event.waitUntil(
+    focusExistingClient({
+      type: "NAVIGATE_FROM_NOTIFICATION",
+      notificationType: data.type || null,
+      notificationData: data,
+      workspaceId: data.workspaceId ? String(data.workspaceId) : "",
+    }),
+  );
 });
 
 // Background Sync API support

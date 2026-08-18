@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StockUpdateDialog } from "@/components/StockUpdateDialog";
-import { WORKSPACE_GROUP_CHAT_PATH } from "@/lib/workspaceGroupChat";
+import { resolveNotificationHref } from "@/lib/notificationRoutes";
 
 type HeaderNotificationBellProps = {
   onNotificationClick?: () => void;
@@ -117,28 +117,11 @@ export function HeaderNotificationBell({
   const handleNotificationClick = (notification: StoredNotification) => {
     void handleMarkAsRead(notification.id);
 
-    const route =
-      typeof notification.data?.route === "string" ? notification.data.route : "";
-    const inviteToken =
-      typeof notification.data?.inviteToken === "string"
-        ? notification.data.inviteToken
-        : "";
-    const otherUserId =
-      typeof notification.data?.otherUserId === "string"
-        ? notification.data.otherUserId
-        : typeof notification.data?.senderUserId === "string"
-          ? notification.data.senderUserId
-          : "";
     const workspaceId =
       typeof notification.data?.workspaceId === "string"
         ? notification.data.workspaceId
         : "";
-    const conversationKind =
-      typeof notification.data?.conversationKind === "string"
-        ? notification.data.conversationKind
-        : typeof notification.data?.chatType === "string"
-          ? notification.data.chatType
-          : "";
+    const href = resolveNotificationHref(notification);
 
     const ensureWorkspace = (id: string) => {
       if (!id) return;
@@ -147,39 +130,18 @@ export function HeaderNotificationBell({
       if (match) switchToWorkspace(match, { remount: false });
     };
 
-    // One-click open for chat + invites (no intermediate detail panel).
-    if (notification.type === "workspace_message") {
-      const isGroup =
-        conversationKind === "group" ||
-        route.includes("/messages/group") ||
-        (!otherUserId && Boolean(workspaceId));
-      // A direct conversation is scoped to its workspace in the URL/API call,
-      // but must not change the workspace the rest of the app is currently using.
-      if (isGroup) ensureWorkspace(workspaceId);
-      const href =
-        route ||
-        (isGroup
-          ? WORKSPACE_GROUP_CHAT_PATH
-          : otherUserId
-            ? workspaceId
-              ? `/messages/${otherUserId}?w=${encodeURIComponent(workspaceId)}`
-              : `/messages/${otherUserId}`
-            : "/messages");
-      goTo(href);
+    // Low-stock still opens the in-panel restock flow.
+    if (notification.type === "low_stock" && notification.data?.productId) {
+      setSelectedNotification(notification);
       return;
     }
 
-    if (notification.type === "workspace_invite") {
-      const href = route || (inviteToken ? `/workspace/invite/${inviteToken}` : "");
-      if (href) {
-        goTo(href);
-        return;
+    if (href) {
+      const isGroupChat = href.includes("/messages/group") || href === "/messages/group";
+      if (isGroupChat || notification.type !== "workspace_message") {
+        ensureWorkspace(workspaceId);
       }
-    }
-
-    if (route && notification.type !== "low_stock") {
-      if (workspaceId) ensureWorkspace(workspaceId);
-      goTo(route);
+      goTo(href);
       return;
     }
 
@@ -315,11 +277,12 @@ export function HeaderNotificationBell({
                       </div>
                     )}
 
-                    {selectedNotification.type !== "low_stock" && selectedNotification.data?.route && (
+                    {selectedNotification.type !== "low_stock" &&
+                      resolveNotificationHref(selectedNotification) && (
                       <div className="mt-4 border-t border-gray-200 pt-4">
                         <Button
                           onClick={() => {
-                            goTo(String(selectedNotification.data.route));
+                            goTo(resolveNotificationHref(selectedNotification));
                           }}
                           className="w-full bg-sky-400 text-white hover:bg-sky-500 border border-sky-400"
                         >
@@ -327,7 +290,7 @@ export function HeaderNotificationBell({
                             ? "Accept invitation"
                             : selectedNotification.type === "workspace_message"
                               ? "Open messages"
-                              : "View Details"}
+                              : "Open"}
                         </Button>
                       </div>
                     )}

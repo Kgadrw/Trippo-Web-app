@@ -29,6 +29,9 @@ export async function notifyTaskAssigneeOfAdminChange(
     data: {
       taskId: task._id,
       action: kind,
+      route: `/team/tasks?task=${encodeURIComponent(String(task._id))}`,
+      href: `/team/tasks?task=${encodeURIComponent(String(task._id))}`,
+      kind: "deadline",
     },
   });
 }

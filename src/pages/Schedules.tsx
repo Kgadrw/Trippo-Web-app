@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { filterByPageSearch } from "@/lib/pageSearch";
 import { usePageSearch } from "@/hooks/usePageSearch";
 import { useSearchParams } from "react-router-dom";
@@ -560,6 +560,24 @@ const Schedules = () => {
     });
     setIsModalOpen(true);
   };
+
+  const openedScheduleParamRef = useRef<string | null>(null);
+  const openEditModalRef = useRef(openEditModal);
+  openEditModalRef.current = openEditModal;
+
+  useEffect(() => {
+    const scheduleParam = searchParams.get("schedule");
+    if (!scheduleParam || openedScheduleParamRef.current === scheduleParam || isLoading) return;
+
+    const match = schedules.find((row) => String(row._id || row.id || "") === scheduleParam);
+    if (!match) return;
+
+    openedScheduleParamRef.current = scheduleParam;
+    openEditModalRef.current(match);
+    const next = new URLSearchParams(searchParams);
+    next.delete("schedule");
+    setSearchParams(next, { replace: true });
+  }, [schedules, searchParams, setSearchParams, isLoading]);
 
   // Step navigation functions
   const nextStep = () => {

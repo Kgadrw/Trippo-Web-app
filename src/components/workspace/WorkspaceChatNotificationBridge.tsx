@@ -23,6 +23,7 @@ import {
   refreshMessagesUnreadBadge,
 } from "@/lib/messagesUnreadEvents";
 import { resolveAppRoute } from "@/lib/appRoutes";
+import { resolveNotificationHref } from "@/lib/notificationRoutes";
 
 export const TRIPPO_NAVIGATE_EVENT = "trippo-navigate";
 
@@ -166,7 +167,21 @@ export function WorkspaceChatNotificationBridge() {
         const href =
           (typeof event.data.href === "string" && event.data.href) ||
           (typeof event.data.route === "string" && event.data.route) ||
-          "";
+          resolveNotificationHref({
+            type: event.data.notificationType,
+            data: event.data.notificationData || {},
+          });
+        if (!href) return;
+        openHref(href, {
+          workspaceId: event.data.workspaceId ? String(event.data.workspaceId) : undefined,
+        });
+        return;
+      }
+      if (event.data?.type === "NAVIGATE_FROM_NOTIFICATION") {
+        const href = resolveNotificationHref({
+          type: event.data.notificationType,
+          data: event.data.notificationData || event.data.data || {},
+        });
         if (!href) return;
         openHref(href, {
           workspaceId: event.data.workspaceId ? String(event.data.workspaceId) : undefined,

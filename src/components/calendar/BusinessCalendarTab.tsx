@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -188,6 +188,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
   const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
@@ -211,6 +212,7 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
   const [form, setForm] = useState<EventFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CalendarEventRecord | null>(null);
+  const openedEventParamRef = useRef<string | null>(null);
 
   const monthCells = useMemo(() => getMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
   const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay]);
@@ -542,6 +544,57 @@ export function BusinessCalendarTab({ embedded = false }: { embedded?: boolean }
     });
     setModalOpen(true);
   };
+  const openEditModalRef = useRef(openEditModal);
+  openEditModalRef.current = openEditModal;
+
+  useEffect(() => {
+    const eventParam = searchParams.get("event");
+    if (!eventParam || openedEventParamRef.current === eventParam) return;
+
+    const existing = events.find((row) => eventId(row) === eventParam);
+    if (existing) {
+      openedEventParamRef.current = eventParam;
+      const start = new Date(existing.startDate);
+      if (Number.isFinite(start.getTime())) {
+        setSelectedDay(startOfDay(start));
+        setViewYear(start.getFullYear());
+        setViewMonth(start.getMonth());
+      }
+      openEditModalRef.current(existing);
+      const next = new URLSearchParams(searchParams);
+      next.delete("event");
+      setSearchParams(next, { replace: true });
+      return;
+    }
+
+    if (!hasLoadedOnceRef.current) return;
+
+    openedEventParamRef.current = eventParam;
+    let cancelled = false;
+    void calendarEventApi
+      .getById(eventParam)
+      .then((res) => {
+        const event = res.data as CalendarEventRecord | undefined;
+        if (cancelled || !event || !eventId(event)) return;
+        const start = new Date(event.startDate);
+        if (Number.isFinite(start.getTime())) {
+          setSelectedDay(startOfDay(start));
+          setViewYear(start.getFullYear());
+          setViewMonth(start.getMonth());
+        }
+        setEvents((prev) =>
+          prev.some((row) => eventId(row) === eventId(event)) ? prev : [...prev, event],
+        );
+        openEditModalRef.current(event);
+        const next = new URLSearchParams(searchParams);
+        next.delete("event");
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [events, searchParams, setSearchParams]);
 
   const buildPayload = () => {
     const startDate = form.allDay

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { useProfilePictureSrc } from "@/hooks/useProfilePictureSrc";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 type UserProfileAvatarProps = {
@@ -50,7 +50,7 @@ export function UserProfileAvatar({
   }, [imageSrc, profilePictureUrl, previewUrl, pictureRevision]);
 
   const showImage = Boolean(imageSrc) && !imgFailed;
-  const canPreview = enablePreview && showImage && Boolean(imageSrc);
+  const canPreview = enablePreview;
 
   const shellClass = cn(
     // Keep a true circle even when this is a <button> (global button radius is soft-square).
@@ -124,8 +124,12 @@ export function UserProfileAvatar({
       )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="z-[200] max-w-[min(96vw,520px)] border-0 bg-black/90 p-2 shadow-none sm:p-4 [&>button:last-child]:hidden">
+        <DialogContent
+          scrollable={false}
+          className="z-[200] max-w-[min(96vw,520px)] border-0 bg-black/90 p-2 shadow-none sm:p-4 [&>button:last-child]:hidden"
+        >
           <div className="relative">
+            <DialogTitle className="sr-only">{name || "Profile"}</DialogTitle>
             <button
               type="button"
               onClick={() => setPreviewOpen(false)}
@@ -134,13 +138,23 @@ export function UserProfileAvatar({
             >
               <X size={18} />
             </button>
-            {imageSrc ? (
+            {showImage && imageSrc ? (
               <img
                 src={imageSrc}
                 alt={name || "Profile"}
                 className="mx-auto max-h-[85vh] w-full rounded-lg object-contain"
               />
-            ) : null}
+            ) : (
+              <div
+                className={cn(
+                  "mx-auto flex h-48 w-48 items-center justify-center rounded-full text-5xl font-bold text-white sm:h-64 sm:w-64 sm:text-6xl",
+                  fallbackClassName || "bg-sky-500",
+                )}
+                aria-hidden
+              >
+                {initials}
+              </div>
+            )}
             {name ? (
               <p className="mt-3 text-center text-sm font-medium text-white/90">{name}</p>
             ) : null}

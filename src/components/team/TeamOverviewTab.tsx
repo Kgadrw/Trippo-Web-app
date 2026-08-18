@@ -158,7 +158,7 @@ export function TeamOverviewTab() {
         kind: "deadline" as const,
         title: task.title,
         at: task.dueDate!,
-        href: "/team/tasks",
+        href: `/team/tasks?task=${encodeURIComponent(String(task._id))}`,
         subtitle: assigneeName(task, t("teamUnknownMember")),
         reminderOffsets: (task.reminders || []).map((item) => item.offsetMinutes),
       }));
