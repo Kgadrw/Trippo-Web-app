@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Cpu,
   Database,
   RefreshCw,
   Server,
@@ -29,7 +30,21 @@ export interface SystemHealthData {
   timestamp: string;
   uptime: number;
   serverStartTime?: string;
-  memory: { used: number; total: number };
+  memory: { used: number; total: number; rss?: number };
+  cpu?: {
+    percent: number;
+    cores: number;
+    loadAvg?: number[];
+    eventLoopLagMs: number;
+    level: "normal" | "elevated" | "high" | "critical";
+    protecting: boolean;
+    inFlight: number;
+    peakInFlight?: number;
+    maxConcurrent: number;
+    shedCount: number;
+    sockets: number;
+    socketUsers?: number;
+  };
   platform?: {
     status: "healthy" | "degraded" | "critical";
     environment: string;
@@ -202,7 +217,7 @@ export function AdminPlatformHealthPanel({
         <div>
           <h2 className="text-base font-normal tracking-tight text-gray-800">System health</h2>
           <p className="text-sm text-muted-foreground">
-            Monitor failures, slow endpoints, and platform issues in real time
+            Monitor CPU, memory, failures, and live traffic. High load is throttled automatically.
           </p>
         </div>
         {onRefresh && (
@@ -224,6 +239,7 @@ export function AdminPlatformHealthPanel({
                 <p className="text-xs text-muted-foreground mt-2">
                   Last checked {formatTime(health.timestamp)} · Uptime {formatUptime(health.uptime)}
                   {platform?.environment ? ` · ${platform.environment}` : ""}
+                  {health.cpu?.protecting ? " · Load guard protecting live traffic" : ""}
                 </p>
               )}
             </div>
@@ -231,7 +247,7 @@ export function AdminPlatformHealthPanel({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         <Card className={ADMIN_CARD_CLASS}>
           <CardHeader className="pb-2 pt-4">
             <CardTitle className={cn("text-xs text-muted-foreground", ADMIN_TITLE_CLASS)}>Errors (24h)</CardTitle>
@@ -292,6 +308,35 @@ export function AdminPlatformHealthPanel({
         <Card className={ADMIN_CARD_CLASS}>
           <CardHeader className="pb-2 pt-4">
             <CardTitle className={cn("text-xs text-muted-foreground flex items-center gap-1", ADMIN_TITLE_CLASS)}>
+              <Cpu className="h-3 w-3" />
+              CPU
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div
+              className={cn(
+                "text-2xl",
+                (health?.cpu?.percent ?? 0) >= 85 && "text-red-600",
+                (health?.cpu?.percent ?? 0) >= 70 && (health?.cpu?.percent ?? 0) < 85 && "text-amber-600"
+              )}
+            >
+              {Math.round(health?.cpu?.percent ?? 0)}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {health?.cpu?.cores ?? 0} cores · loop {health?.cpu?.eventLoopLagMs ?? 0}ms
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1 capitalize">
+              {health?.cpu?.protecting ? "Guard on" : health?.cpu?.level ?? "normal"}
+              {typeof health?.cpu?.inFlight === "number"
+                ? ` · ${health.cpu.inFlight}/${health.cpu.maxConcurrent} live`
+                : ""}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className={ADMIN_CARD_CLASS}>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className={cn("text-xs text-muted-foreground flex items-center gap-1", ADMIN_TITLE_CLASS)}>
               <Server className="h-3 w-3" />
               Memory
             </CardTitle>
@@ -299,7 +344,8 @@ export function AdminPlatformHealthPanel({
           <CardContent className="pb-4">
             <div className="text-2xl">{health?.memory.used ?? 0} MB</div>
             <p className="text-xs text-muted-foreground">
-              {health ? Math.round((health.memory.used / health.memory.total) * 100) : 0}% used
+              {health ? Math.round((health.memory.used / health.memory.total) * 100) : 0}% heap
+              {health?.memory.rss ? ` · ${health.memory.rss} MB RSS` : ""}
             </p>
           </CardContent>
         </Card>

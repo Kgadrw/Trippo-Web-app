@@ -177,6 +177,21 @@ interface SystemHealth {
   memory: {
     used: number;
     total: number;
+    rss?: number;
+  };
+  cpu?: {
+    percent: number;
+    cores: number;
+    loadAvg?: number[];
+    eventLoopLagMs: number;
+    level: "normal" | "elevated" | "high" | "critical";
+    protecting: boolean;
+    inFlight: number;
+    peakInFlight?: number;
+    maxConcurrent: number;
+    shedCount: number;
+    sockets: number;
+    socketUsers?: number;
   };
   statusHistory?: Array<{
     status: 'up' | 'down';

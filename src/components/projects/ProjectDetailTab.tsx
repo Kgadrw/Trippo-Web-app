@@ -43,7 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Flag, Loader2, MoreVertical } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Flag, Loader2, MoreVertical } from "lucide-react";
 import { formatFinanceTableDate } from "@/components/finance/financeTable";
 import { AddEntryButton } from "@/components/ui/add-entry-button";
 import { HelpTip } from "@/components/ui/help-tip";
@@ -53,6 +53,7 @@ import {
   TeamTaskCardStack,
   TeamTaskKanbanBoard,
   TaskSubtaskEditor,
+  areAllSubtasksComplete,
   canCurrentUserChangeTaskStatus,
   emptySubtaskRows,
   getAssigneeCardColor,
@@ -61,7 +62,13 @@ import {
   type TeamTaskSection,
 } from "@/components/team/TeamTaskBoard";
 import { mergeTaskRecord, taskId } from "@/lib/teamTaskRealtime";
-import { notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
+import { notifyAssigneesOfOverdueTasks, notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
+import {
+  areAllOpenTasksComplete,
+  filterHiddenCompletedTasks,
+  loadHiddenCompletedTaskIds,
+  saveHiddenCompletedTaskIds,
+} from "@/lib/taskDeadlines";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -115,6 +122,9 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
   const [subtaskRows, setSubtaskRows] = useState<
     Array<{ key: string; _id?: string; title: string; done?: boolean }>
   >([]);
+  const [hiddenCompletedIds, setHiddenCompletedIds] = useState<Set<string>>(() =>
+    loadHiddenCompletedTaskIds(`project:${projectId}`),
+  );
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -132,6 +142,10 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    setHiddenCompletedIds(loadHiddenCompletedTaskIds(`project:${projectId}`));
+  }, [projectId]);
 
   useEffect(() => {
     void (async () => {
@@ -179,16 +193,34 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
   );
 
   const linkedTeamTasks = profile?.teamTasks || [];
+  const extraDeadlineForTask = useCallback(
+    (_task: TeamTaskRecord) => profile?.project?.targetEndDate || null,
+    [profile?.project?.targetEndDate],
+  );
+  const allLinkedComplete = areAllOpenTasksComplete(linkedTeamTasks);
+  const displayTasks = useMemo(
+    () => filterHiddenCompletedTasks(linkedTeamTasks, hiddenCompletedIds),
+    [linkedTeamTasks, hiddenCompletedIds],
+  );
+
+  useEffect(() => {
+    const tasks = profile?.teamTasks;
+    if (!tasks?.length) return;
+    void notifyAssigneesOfOverdueTasks(tasks, {
+      extraDeadlineForTask,
+      notifyOthers: mode === "workspace" && isWorkspaceAdmin,
+    });
+  }, [profile?.teamTasks, extraDeadlineForTask, mode, isWorkspaceAdmin]);
 
   const tasksByMilestone = useMemo(() => {
     const map = new Map<string, TeamTaskRecord[]>();
-    for (const task of linkedTeamTasks) {
+    for (const task of displayTasks) {
       const key = milestoneIdOf(task) || "__none__";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(task);
     }
     return map;
-  }, [linkedTeamTasks]);
+  }, [displayTasks]);
 
   const teamFromTasks = useMemo(() => {
     const byId = new Map<
@@ -206,7 +238,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
       }
     >();
 
-    for (const task of linkedTeamTasks) {
+    for (const task of displayTasks) {
       const id = assigneeIdOf(task);
       if (!id) continue;
       const assignee = typeof task.assigneeId === "object" ? task.assigneeId : null;
@@ -232,7 +264,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
     }
 
     return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [linkedTeamTasks, t]);
+  }, [displayTasks, t]);
 
   const resolveMemberPicture = useCallback(
     (member: { id: string; name: string; email?: string }) => {
@@ -370,6 +402,18 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
           void notifyTaskAssigneeOfAdminChange(editing, "updated");
         }
         toast({ title: t("teamTaskUpdated") });
+        const savedSubtasks = serializeTaskSubtasks(subtaskRows);
+        if (
+          (editing.status || "todo") !== "done" &&
+          !areAllSubtasksComplete(taskSubtasks(editing)) &&
+          areAllSubtasksComplete(savedSubtasks)
+        ) {
+          setTaskOpen(false);
+          resetTaskForm();
+          void loadProfile();
+          openComplete({ ...editing, subtasks: savedSubtasks });
+          return;
+        }
       } else {
         payload.status = taskStatus;
         await teamTaskApi.create(payload);
@@ -437,6 +481,9 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
     try {
       const res = await teamTaskApi.update(taskId(task), { subtasks: serializeTaskSubtasks(subtasks) });
       if (res.data) patchLinkedTask(res.data as TeamTaskRecord);
+      if (!areAllSubtasksComplete(taskSubtasks(task)) && areAllSubtasksComplete(subtasks)) {
+        openComplete({ ...task, subtasks });
+      }
     } catch {
       patchLinkedTask(previous);
       toast({ title: t("teamSaveFailed"), variant: "destructive" });
@@ -668,12 +715,13 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                                   </span>
                                 </div>
                                 <div className="mt-3">
-                                  <TeamTaskCardStack
+                                    <TeamTaskCardStack
                                     tasks={related}
                                     t={t}
                                     currentTeamMemberId={currentTeamMemberId}
                                     canManageTasks={mode === "workspace" && isWorkspaceAdmin}
                                     resolveAssigneeAvatar={resolveAssigneeAvatar}
+                                    extraDeadlineForTask={extraDeadlineForTask}
                                     showProjectLink={false}
                                     onComplete={openComplete}
                                     onStatusChange={(task, nextStatus) =>
@@ -704,14 +752,52 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-gray-500">{t("projectTasksFromTeamHint")}</p>
-            <AddEntryButton label={t("projectAddTask")} onClick={openCreateTask} />
+            <div className="flex flex-wrap items-center gap-2">
+              {hiddenCompletedIds.size > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const next = new Set<string>();
+                    setHiddenCompletedIds(next);
+                    saveHiddenCompletedTaskIds(`project:${projectId}`, next);
+                  }}
+                >
+                  <Eye size={14} className="mr-1.5" />
+                  {t("teamShowCompleted")}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!allLinkedComplete}
+                  title={allLinkedComplete ? t("teamHideCompletedHint") : undefined}
+                  onClick={() => {
+                    const next = new Set(
+                      linkedTeamTasks
+                        .filter((task) => (task.status || "todo") === "done")
+                        .map(taskId),
+                    );
+                    setHiddenCompletedIds(next);
+                    saveHiddenCompletedTaskIds(`project:${projectId}`, next);
+                  }}
+                >
+                  <EyeOff size={14} className="mr-1.5" />
+                  {t("teamHideCompleted")}
+                </Button>
+              )}
+              <AddEntryButton label={t("projectAddTask")} onClick={openCreateTask} />
+            </div>
           </div>
           <TeamTaskKanbanBoard
-            tasks={linkedTeamTasks}
+            tasks={displayTasks}
             t={t}
             currentTeamMemberId={currentTeamMemberId}
             canManageTasks={mode === "workspace" && isWorkspaceAdmin}
             resolveAssigneeAvatar={resolveAssigneeAvatar}
+            extraDeadlineForTask={extraDeadlineForTask}
             showProjectLink={false}
             onComplete={openComplete}
             onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
@@ -774,6 +860,7 @@ export function ProjectDetailTab({ projectId }: { projectId: string }) {
                         currentTeamMemberId={currentTeamMemberId}
                         canManageTasks={mode === "workspace" && isWorkspaceAdmin}
                         resolveAssigneeAvatar={resolveAssigneeAvatar}
+                        extraDeadlineForTask={extraDeadlineForTask}
                         showProjectLink={false}
                         onComplete={openComplete}
                         onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}

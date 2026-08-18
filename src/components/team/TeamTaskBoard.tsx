@@ -15,7 +15,10 @@ import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { cn } from "@/lib/utils";
 import { MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { taskId } from "@/lib/teamTaskRealtime";
+import { isIncompleteTaskOverdue } from "@/lib/taskDeadlines";
 import { useTheme } from "@/hooks/useTheme";
+
+export type ExtraDeadlineForTask = (task: TeamTaskRecord) => string | null | undefined;
 
 export const TEAM_TASK_SECTION_ORDER = ["todo", "in_progress", "done"] as const;
 export type TeamTaskSection = (typeof TEAM_TASK_SECTION_ORDER)[number];
@@ -181,6 +184,11 @@ export function serializeTaskSubtasks(rows: Array<{ _id?: string; title: string;
       done: Boolean(row.done),
     }))
     .filter((row) => row.title);
+}
+
+export function areAllSubtasksComplete(subtasks: TeamTaskSubtask[]): boolean {
+  const rows = subtasks.filter((row) => row.title?.trim());
+  return rows.length > 0 && rows.every((row) => Boolean(row.done));
 }
 
 export function emptySubtaskRows(count = 2) {
@@ -378,6 +386,8 @@ function TaskBoardCard({
   onDelete,
   onSubtasksChange,
   deletingId,
+  active = false,
+  extraDeadline,
 }: {
   task: TeamTaskRecord;
   t: (key: string) => string;
@@ -391,8 +401,11 @@ function TaskBoardCard({
   onDelete: (task: TeamTaskRecord) => void;
   onSubtasksChange?: (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => void;
   deletingId: string | null;
+  active?: boolean;
+  extraDeadline?: string | null;
 }) {
   const isDone = task.status === "done";
+  const overdue = isIncompleteTaskOverdue(task, extraDeadline);
   const id = taskId(task);
   const currentStatus = task.status || "todo";
   const name = assigneeName(task);
@@ -411,9 +424,17 @@ function TaskBoardCard({
 
   const milestoneName = linkedMilestoneName(task);
   const allowDrag = canChangeStatus && finePointer;
+  const cardRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (!active || !cardRef.current) return;
+    cardRef.current.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  }, [active]);
 
   return (
     <li
+      ref={cardRef}
+      data-task-id={id}
       draggable={allowDrag}
       onDragStart={(event) => {
         if (!allowDrag) {
@@ -429,8 +450,10 @@ function TaskBoardCard({
         "task-assignee-card flex shrink-0 overflow-hidden rounded border",
         allowDrag && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
+        active && "ring-2 ring-sky-500 ring-offset-2 shadow-md",
+        overdue && "border-red-400 bg-red-100 dark:border-red-500 dark:bg-red-950/80",
       )}
-      style={{ borderColor: cardColor, backgroundColor: cardColor }}
+      style={overdue ? undefined : { borderColor: cardColor, backgroundColor: cardColor }}
     >
       <span
         aria-hidden
@@ -539,8 +562,13 @@ function TaskBoardCard({
               ) : null}
               <div className="flex flex-wrap items-center gap-2">
                 {task.dueDate ? (
-                  <span>
+                  <span className={cn(overdue && "font-medium text-red-700 dark:text-red-300")}>
                     {t("teamDueDate")}: {formatDate(task.dueDate)}
+                  </span>
+                ) : null}
+                {overdue ? (
+                  <span className="inline-flex rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    {t("teamTaskOverdue")}
                   </span>
                 ) : null}
                 <span
@@ -576,6 +604,8 @@ function TaskBoardColumn({
   onDropTask,
   deletingId,
   fillHeight,
+  activeTaskId,
+  extraDeadlineForTask,
 }: {
   statusKey: TeamTaskSection;
   tasks: TeamTaskRecord[];
@@ -592,6 +622,8 @@ function TaskBoardColumn({
   onDropTask: (taskIdValue: string, nextStatus: TeamTaskSection) => void;
   deletingId: string | null;
   fillHeight?: boolean;
+  activeTaskId?: string | null;
+  extraDeadlineForTask?: ExtraDeadlineForTask;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -664,6 +696,8 @@ function TaskBoardColumn({
               onDelete={onDelete}
               onSubtasksChange={onSubtasksChange}
               deletingId={deletingId}
+              active={Boolean(activeTaskId) && taskId(task) === activeTaskId}
+              extraDeadline={extraDeadlineForTask?.(task)}
             />
           ))
         )}
@@ -686,6 +720,8 @@ export function TeamTaskCardStack({
   onSubtasksChange,
   deletingId,
   emptyLabel,
+  activeTaskId = null,
+  extraDeadlineForTask,
 }: {
   tasks: TeamTaskRecord[];
   t: (key: string) => string;
@@ -700,6 +736,8 @@ export function TeamTaskCardStack({
   onSubtasksChange?: (task: TeamTaskRecord, subtasks: TeamTaskSubtask[]) => void;
   deletingId: string | null;
   emptyLabel: string;
+  activeTaskId?: string | null;
+  extraDeadlineForTask?: ExtraDeadlineForTask;
 }) {
   if (!tasks.length) {
     return <p className="py-4 text-center text-xs text-gray-500">{emptyLabel}</p>;
@@ -722,6 +760,8 @@ export function TeamTaskCardStack({
           onDelete={onDelete}
           onSubtasksChange={onSubtasksChange}
           deletingId={deletingId}
+          active={Boolean(activeTaskId) && taskId(task) === activeTaskId}
+          extraDeadline={extraDeadlineForTask?.(task)}
         />
       ))}
     </ul>
@@ -744,6 +784,8 @@ export function TeamTaskKanbanBoard({
   deletingId,
   emptyLabel,
   fillHeight = false,
+  activeTaskId = null,
+  extraDeadlineForTask,
 }: {
   tasks: TeamTaskRecord[];
   t: (key: string) => string;
@@ -761,6 +803,8 @@ export function TeamTaskKanbanBoard({
   emptyLabel: string;
   /** When true, board fills parent height and only task cards scroll. */
   fillHeight?: boolean;
+  activeTaskId?: string | null;
+  extraDeadlineForTask?: ExtraDeadlineForTask;
 }) {
   const [mobileSection, setMobileSection] = useState<TeamTaskSection>("todo");
 
@@ -779,6 +823,16 @@ export function TeamTaskKanbanBoard({
   }, [tasks]);
 
   const mobileTasks = tasksBySection[mobileSection];
+
+  useEffect(() => {
+    if (!activeTaskId) return;
+    const task = tasks.find((row) => taskId(row) === activeTaskId);
+    if (!task) return;
+    const status = (task.status || "todo") as TeamTaskSection;
+    if (status === "todo" || status === "in_progress" || status === "done") {
+      setMobileSection(status);
+    }
+  }, [activeTaskId, tasks]);
 
   // Always keep To do / In progress / Done headers mounted (including empty + refresh).
   void emptyLabel;
@@ -841,6 +895,8 @@ export function TeamTaskKanbanBoard({
                 onDelete={onDelete}
                 onSubtasksChange={onSubtasksChange}
                 deletingId={deletingId}
+                active={Boolean(activeTaskId) && taskId(task) === activeTaskId}
+                extraDeadline={extraDeadlineForTask?.(task)}
               />
             ))
           )}
@@ -872,6 +928,8 @@ export function TeamTaskKanbanBoard({
             onDropTask={onDropTask}
             deletingId={deletingId}
             fillHeight={fillHeight}
+            activeTaskId={activeTaskId}
+            extraDeadlineForTask={extraDeadlineForTask}
           />
         ))}
       </div>

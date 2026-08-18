@@ -277,7 +277,7 @@ async function request<T>(
   } catch (error) {
     if (error instanceof ApiError) {
       // Retry 429 errors with exponential backoff
-      if (error.status === 429 && retryCount < 3) {
+      if ((error.status === 429 || error.status === 503) && retryCount < 3) {
         const waitTime = error.response?.retryAfter 
           ? (typeof error.response.retryAfter === 'string' ? parseInt(error.response.retryAfter) * 1000 : error.response.retryAfter)
           : Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
@@ -338,8 +338,8 @@ async function executeRequest<T>(
           }
         }
 
-        // Handle 429 Too Many Requests with retry logic
-        if (response.status === 429 && retryCount < 3 && !endpoint.startsWith('/ai/')) {
+        // Handle 429 / 503 (rate limit or load guard) with retry
+        if ((response.status === 429 || response.status === 503) && retryCount < 3 && !endpoint.startsWith('/ai/')) {
           // Get retry-after from header or response data, default to exponential backoff
           const retryAfterHeader = response.headers.get('Retry-After');
           const retryAfter = retryAfterHeader || 
@@ -871,7 +871,7 @@ export const adminApi = {
   // Send in-app notification to a single user
   async sendNotificationToUser(
     userId: string,
-    payload: { title: string; body: string; type?: string; data?: any; icon?: string }
+    payload: { title: string; body: string; type?: string; data?: any; icon?: string; workspaceId?: string | null }
   ): Promise<ApiResponse> {
     return request('/admin/send-notification', {
       method: 'POST',
@@ -2358,11 +2358,9 @@ export const notificationApi = {
     body: string;
     icon?: string;
     data?: Record<string, unknown>;
+    workspaceId?: string | null;
   }): Promise<ApiResponse> {
-    return request('/notifications', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return request('/notifications', { method: 'POST', body: JSON.stringify(data) });
   },
 
   // Mark a single notification as read

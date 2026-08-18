@@ -2,6 +2,11 @@
 // Uses localStorage as a cache; the backend is the source of truth.
 
 import { notificationApi } from './api';
+import {
+  getStoredWorkspaceId,
+  getStoredWorkspaceMode,
+  itemBelongsToCurrentScope,
+} from './workspace';
 
 export interface StoredNotification {
   id: string;
@@ -14,6 +19,46 @@ export interface StoredNotification {
   read: boolean;
   data?: any;
   userId?: string;
+  workspaceId?: string | null;
+}
+
+function asWorkspaceId(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'object') {
+    const obj = value as { _id?: unknown; id?: unknown };
+    if (obj._id != null && String(obj._id)) return String(obj._id);
+    if (obj.id != null && String(obj.id)) return String(obj.id);
+    return null;
+  }
+  const id = String(value).trim();
+  return id || null;
+}
+
+export function notificationWorkspaceId(
+  notification: Pick<StoredNotification, 'workspaceId' | 'data'>,
+): string | null {
+  return asWorkspaceId(notification.workspaceId) || asWorkspaceId(notification.data?.workspaceId);
+}
+
+/** Invites are not scoped to the current workspace — you need to see them to join. */
+function isGlobalNotification(notification: Pick<StoredNotification, 'type'>): boolean {
+  return notification.type === 'workspace_invite';
+}
+
+export function notificationBelongsToCurrentScope(
+  notification: Pick<StoredNotification, 'type' | 'workspaceId' | 'data'>,
+): boolean {
+  if (isGlobalNotification(notification)) return true;
+  return itemBelongsToCurrentScope({ workspaceId: notificationWorkspaceId(notification) });
+}
+
+export function attachCurrentWorkspaceData(data?: Record<string, unknown> | null) {
+  const next: Record<string, unknown> = { ...(data || {}) };
+  if (next.workspaceId) return next;
+  if (getStoredWorkspaceMode() !== 'workspace') return next;
+  const workspaceId = getStoredWorkspaceId();
+  if (workspaceId) next.workspaceId = workspaceId;
+  return next;
 }
 
 class NotificationStore {
@@ -52,9 +97,14 @@ class NotificationStore {
   ): Promise<void> {
     if (!this.isLoggedIn()) return;
 
+    const data = attachCurrentWorkspaceData(notification.data);
+    const workspaceId = asWorkspaceId(data.workspaceId);
+
     // Optimistic local update
     const tempNotification: StoredNotification = {
       ...notification,
+      data,
+      workspaceId,
       id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
       read: false,
@@ -72,7 +122,8 @@ class NotificationStore {
         title: notification.title,
         body: notification.body,
         icon: notification.icon,
-        data: notification.data,
+        data,
+        workspaceId,
       });
 
       // Replace temp notification with the real one from backend
@@ -94,11 +145,11 @@ class NotificationStore {
   /**
    * Fetch all notifications from the backend and update local cache
    */
-  public async syncFromBackend(): Promise<void> {
+  public async syncFromBackend(options?: { force?: boolean }): Promise<void> {
     if (!this.isLoggedIn() || this.isSyncing) return;
 
     const now = Date.now();
-    if (now - this.lastSyncTime < this.syncCooldown) return;
+    if (!options?.force && now - this.lastSyncTime < this.syncCooldown) return;
 
     this.isSyncing = true;
     this.lastSyncTime = now;
@@ -121,19 +172,21 @@ class NotificationStore {
   }
 
   /**
-   * Get all notifications from local cache
+   * Get notifications for the current workspace (or personal space).
    */
   public getAllNotifications(): StoredNotification[] {
     if (!this.isLoggedIn()) return [];
-    return this.notifications;
+    return this.notifications.filter((notification) =>
+      notificationBelongsToCurrentScope(notification),
+    );
   }
 
   /**
-   * Get unread count from local cache
+   * Unread count for the current workspace (or personal space).
    */
   public getUnreadCount(): number {
     if (!this.isLoggedIn()) return 0;
-    return this.unreadCount;
+    return this.getAllNotifications().filter((notification) => !notification.read).length;
   }
 
   /**
@@ -229,18 +282,27 @@ class NotificationStore {
 
   // ── Private helpers ──
 
-  private mapBackendNotification = (n: any): StoredNotification => ({
-    id: n._id || n.id,
-    _id: n._id,
-    type: n.type || 'general',
-    title: n.title,
-    body: n.body,
-    icon: n.icon,
-    timestamp: new Date(n.createdAt || n.timestamp || Date.now()).getTime(),
-    read: !!n.read,
-    data: n.data,
-    userId: n.userId,
-  });
+  private mapBackendNotification = (n: any): StoredNotification => {
+    const incomingData = n.data && typeof n.data === 'object' ? { ...n.data } : {};
+    const workspaceId =
+      asWorkspaceId(n.workspaceId) || asWorkspaceId(incomingData.workspaceId);
+    if (workspaceId && !incomingData.workspaceId) {
+      incomingData.workspaceId = workspaceId;
+    }
+    return {
+      id: n._id || n.id,
+      _id: n._id,
+      type: n.type || 'general',
+      title: n.title,
+      body: n.body,
+      icon: n.icon,
+      timestamp: new Date(n.createdAt || n.timestamp || Date.now()).getTime(),
+      read: !!n.read,
+      data: incomingData,
+      userId: n.userId,
+      workspaceId,
+    };
+  };
 
   private saveCache(): void {
     try {

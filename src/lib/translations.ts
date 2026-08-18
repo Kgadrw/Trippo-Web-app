@@ -1707,7 +1707,6 @@ export interface Translations {
   teamRecentlyAdded: string;
   teamManageTasks: string;
   teamManageMembers: string;
-  teamTasksSubtitle: string;
   teamAssignTask: string;
   teamEditTask: string;
   teamFirstTask: string;
@@ -1740,6 +1739,10 @@ export interface Translations {
   teamSubtaskHint: string;
   teamSubtaskProgress: string;
   teamSubtaskAssigneeOnly: string;
+  teamTaskOverdue: string;
+  teamHideCompleted: string;
+  teamShowCompleted: string;
+  teamHideCompletedHint: string;
   teamDepartment: string;
   teamMonth: string;
   teamLinkProject: string;

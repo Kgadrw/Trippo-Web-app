@@ -1,7 +1,7 @@
 // Notification Service for Browser Notifications
 // Handles permission requests, notification display, and notification management
 
-import { notificationStore } from './notificationStore';
+import { notificationStore, attachCurrentWorkspaceData } from './notificationStore';
 import { logger } from './logger';
 
 export type NotificationType = 'new_user' | 'low_stock' | 'schedule' | 'new_sale' | 'new_product' | 'general';
@@ -122,6 +122,8 @@ class NotificationService {
 
     this.lastNotificationTimes.set(notificationKey, now);
 
+    const payloadData = attachCurrentWorkspaceData(data.data);
+
     // Always persist notification to backend (via notificationStore)
     // This is the core change: notifications are saved to the user's account
     await notificationStore.addNotification({
@@ -129,7 +131,7 @@ class NotificationService {
       title: data.title,
       body: data.body,
       icon: data.icon,
-      data: data.data,
+      data: payloadData,
     });
 
     // Only show browser popup if user is logged in AND permission is granted
@@ -152,7 +154,7 @@ class NotificationService {
             tag: data.tag || notificationKey,
             requireInteraction: data.requireInteraction || false,
             silent: data.silent || false,
-            data: data.data || {},
+            data: payloadData,
           },
         });
 
@@ -163,7 +165,7 @@ class NotificationService {
           tag: data.tag || notificationKey,
           requireInteraction: data.requireInteraction || false,
           silent: data.silent || false,
-          data: data.data || {},
+          data: payloadData,
         });
       } else {
         const notificationOptions: NotificationOptions = {
@@ -173,7 +175,7 @@ class NotificationService {
           tag: data.tag || notificationKey,
           requireInteraction: data.requireInteraction || false,
           silent: data.silent || false,
-          data: data.data || {},
+          data: payloadData,
         };
 
         const notification = new Notification(data.title, notificationOptions);
@@ -181,13 +183,13 @@ class NotificationService {
         notification.onclick = (event) => {
           event.preventDefault();
           window.focus();
-          const route = data.data?.route || data.data?.href;
+          const route = payloadData.route || payloadData.href;
           if (route) {
             window.dispatchEvent(
               new CustomEvent("trippo-navigate", {
                 detail: {
                   href: route,
-                  workspaceId: data.data?.workspaceId,
+                  workspaceId: payloadData.workspaceId,
                 },
               }),
             );

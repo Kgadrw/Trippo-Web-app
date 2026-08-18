@@ -5,7 +5,8 @@ import { resolveAppRoute } from "@/lib/appRoutes";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { notificationService } from "@/lib/notifications";
-import { notificationStore, StoredNotification } from "@/lib/notificationStore";
+import { notificationStore, StoredNotification, notificationWorkspaceId } from "@/lib/notificationStore";
+import { WORKSPACE_CHANGED_EVENT } from "@/lib/workspace";
 import { cn } from "@/lib/utils";
 import { websocketManager } from "@/lib/websocketManager";
 import {
@@ -60,6 +61,12 @@ export function HeaderNotificationBell({
     const handleNotificationUpdate = () => loadNotifications();
     window.addEventListener("notifications-updated", handleNotificationUpdate);
 
+    const handleWorkspaceChange = () => {
+      loadNotifications();
+      void notificationStore.syncFromBackend({ force: true });
+    };
+    window.addEventListener(WORKSPACE_CHANGED_EVENT, handleWorkspaceChange);
+
     let dataChangeTimer: ReturnType<typeof setTimeout> | undefined;
     const handleDataChanged = () => {
       clearTimeout(dataChangeTimer);
@@ -85,12 +92,13 @@ export function HeaderNotificationBell({
     });
     return () => {
       window.removeEventListener("notifications-updated", handleNotificationUpdate);
+      window.removeEventListener(WORKSPACE_CHANGED_EVENT, handleWorkspaceChange);
       clearTimeout(dataChangeTimer);
       window.removeEventListener("profit-pilot-data-changed", handleDataChanged);
       window.removeEventListener("storage", handleStorageChange);
       unsubscribeWs();
     };
-  }, [user]);
+  }, [user, activeWorkspace?.id]);
 
   const handleNotificationBellClick = () => {
     const opening = !notificationOpen;
@@ -117,10 +125,7 @@ export function HeaderNotificationBell({
   const handleNotificationClick = (notification: StoredNotification) => {
     void handleMarkAsRead(notification.id);
 
-    const workspaceId =
-      typeof notification.data?.workspaceId === "string"
-        ? notification.data.workspaceId
-        : "";
+    const workspaceId = notificationWorkspaceId(notification) || "";
     const href = resolveNotificationHref(notification);
 
     const ensureWorkspace = (id: string) => {

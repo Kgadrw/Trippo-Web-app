@@ -52,17 +52,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Eye, EyeOff } from "lucide-react";
 import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { cn } from "@/lib/utils";
-import { notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
+import { notifyAssigneesOfOverdueTasks, notifyTaskAssigneeOfAdminChange } from "@/lib/teamTaskNotifications";
+import {
+  areAllOpenTasksComplete,
+  filterHiddenCompletedTasks,
+  loadHiddenCompletedTaskIds,
+  saveHiddenCompletedTaskIds,
+} from "@/lib/taskDeadlines";
 import { websocketManager } from "@/lib/websocketManager";
 import { matchesRealtimeRecord } from "@/lib/workspaceRealtime";
 import { mergeTaskIntoList, mergeTaskRecord, taskId, taskMatchesListFilters, TEAM_TASK_EVENTS } from "@/lib/teamTaskRealtime";
 import {
   TeamTaskKanbanBoard,
   TaskSubtaskEditor,
+  areAllSubtasksComplete,
   canCurrentUserChangeTaskStatus,
   emptySubtaskRows,
   serializeTaskSubtasks,
@@ -164,6 +171,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   );
 
   const [monthKey, setMonthKey] = useState(getMonthKey());
+  const hideBoardKey = `team:${monthKey}`;
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
@@ -184,6 +192,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [completing, setCompleting] = useState<TeamTaskRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -197,6 +206,9 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const [taskMonthKey, setTaskMonthKey] = useState(getMonthKey());
   const [linkedProjectId, setLinkedProjectId] = useState("");
   const [completionNote, setCompletionNote] = useState("");
+  const [hiddenCompletedIds, setHiddenCompletedIds] = useState<Set<string>>(() =>
+    loadHiddenCompletedTaskIds(`team:${getMonthKey()}`),
+  );
   const [subtaskRows, setSubtaskRows] = useState<
     Array<{ key: string; _id?: string; title: string; done?: boolean }>
   >([]);
@@ -337,9 +349,42 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     };
   }, [applyTaskUpdate]);
 
+  useEffect(() => {
+    setHiddenCompletedIds(loadHiddenCompletedTaskIds(hideBoardKey));
+  }, [hideBoardKey]);
+
+  const projectDeadlineById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const project of projects) {
+      if (project._id && project.targetEndDate) {
+        map.set(String(project._id), project.targetEndDate);
+      }
+    }
+    return map;
+  }, [projects]);
+
+  const extraDeadlineForTask = useCallback(
+    (task: TeamTaskRecord) => {
+      const projectIdValue = linkedProjectIdValue(task);
+      return projectIdValue ? projectDeadlineById.get(projectIdValue) || null : null;
+    },
+    [projectDeadlineById],
+  );
+
+  useEffect(() => {
+    if (!tasks.length) return;
+    void notifyAssigneesOfOverdueTasks(tasks, {
+      extraDeadlineForTask,
+      notifyOthers: mode === "workspace" && isWorkspaceAdmin,
+    });
+  }, [tasks, extraDeadlineForTask, mode, isWorkspaceAdmin]);
+
   const { query: pageSearchQuery } = usePageSearch();
   const visibleTasks = useMemo(() => {
-    const filtered = tasks.filter((task) => taskMatchesListFilters(task, listFilters));
+    const filtered = tasks.filter((task) => {
+      if (activeTaskId && taskId(task) === activeTaskId) return true;
+      return taskMatchesListFilters(task, listFilters);
+    });
     return filterByPageSearch(filtered, pageSearchQuery, (task) => {
       const assignee =
         typeof task.assigneeId === "object" && task.assigneeId
@@ -347,9 +392,15 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           : task.assigneeId;
       return [task.title, task.description, task.status, task.priority, assignee, task.department];
     });
-  }, [tasks, listFilters, pageSearchQuery]);
+  }, [tasks, listFilters, pageSearchQuery, activeTaskId]);
 
-  const hasVisibleTasks = visibleTasks.length > 0;
+  const allVisibleComplete = areAllOpenTasksComplete(visibleTasks);
+  const boardTasks = useMemo(
+    () => filterHiddenCompletedTasks(visibleTasks, hiddenCompletedIds),
+    [visibleTasks, hiddenCompletedIds],
+  );
+
+  const hasVisibleTasks = boardTasks.length > 0;
 
   const resetForm = () => {
     setTitle("");
@@ -404,8 +455,16 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setOpen(true);
   };
 
-  const openEditRef = useRef(openEdit);
-  openEditRef.current = openEdit;
+  const focusTaskFromNotification = useCallback((task: TeamTaskRecord) => {
+    const id = taskId(task);
+    if (task.monthKey && task.monthKey !== monthKey) {
+      setMonthKey(task.monthKey);
+    }
+    setStatusFilter("all");
+    setAssigneeFilter("all");
+    setProjectFilter("all");
+    setActiveTaskId(id);
+  }, [monthKey]);
 
   useEffect(() => {
     const taskParam = searchParams.get("task");
@@ -414,10 +473,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     const existing = tasks.find((row) => taskId(row) === taskParam);
     if (existing) {
       openedTaskParamRef.current = taskParam;
-      if (existing.monthKey && existing.monthKey !== monthKey) {
-        setMonthKey(existing.monthKey);
-      }
-      openEditRef.current(existing);
+      focusTaskFromNotification(existing);
       const next = new URLSearchParams(searchParams);
       next.delete("task");
       setSearchParams(next, { replace: true });
@@ -433,11 +489,8 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       .then((res) => {
         const task = res.data as TeamTaskRecord | undefined;
         if (cancelled || !task?._id) return;
-        if (task.monthKey && task.monthKey !== monthKey) {
-          setMonthKey(task.monthKey);
-        }
         setTasks((prev) => mergeTaskIntoList(prev, task, true));
-        openEditRef.current(task);
+        focusTaskFromNotification(task);
         const next = new URLSearchParams(searchParams);
         next.delete("task");
         setSearchParams(next, { replace: true });
@@ -446,7 +499,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [tasks, searchParams, setSearchParams, monthKey]);
+  }, [tasks, searchParams, setSearchParams, focusTaskFromNotification]);
+
+  useEffect(() => {
+    if (!activeTaskId) return;
+    const timer = window.setTimeout(() => setActiveTaskId(null), 1_000);
+    return () => window.clearTimeout(timer);
+  }, [activeTaskId]);
 
   const openEditCompletionNote = (task: TeamTaskRecord) => {
     if (!canCurrentUserChangeTaskStatus(task, currentTeamMemberId)) {
@@ -510,6 +569,18 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
           void notifyTaskAssigneeOfAdminChange(editing, "updated");
         }
         toast({ title: t("teamTaskUpdated") });
+        const savedSubtasks = serializeTaskSubtasks(subtaskRows);
+        if (
+          (editing.status || "todo") !== "done" &&
+          !areAllSubtasksComplete(taskSubtasks(editing)) &&
+          areAllSubtasksComplete(savedSubtasks)
+        ) {
+          setOpen(false);
+          resetForm();
+          window.dispatchEvent(new Event("notifications-should-refresh"));
+          openComplete({ ...editing, subtasks: savedSubtasks });
+          return;
+        }
         setOpen(false);
         resetForm();
         window.dispatchEvent(new Event("notifications-should-refresh"));
@@ -676,6 +747,9 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     try {
       const res = await teamTaskApi.update(taskId(task), { subtasks: serializeTaskSubtasks(subtasks) });
       if (res.data) applyTaskUpdate(res.data as TeamTaskRecord);
+      if (!areAllSubtasksComplete(taskSubtasks(task)) && areAllSubtasksComplete(subtasks)) {
+        openComplete({ ...task, subtasks });
+      }
     } catch {
       applyTaskUpdate(previous);
       toast({ title: t("teamSaveFailed"), variant: "destructive" });
@@ -728,9 +802,43 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               </h2>
               <HelpTip text={t(department === "finance" ? "helpTeamFinanceTasks" : "helpTeamTasks")} />
             </div>
-            <p className="hidden text-sm text-gray-600 sm:block">{t("teamTasksSubtitle")}</p>
           </div>
-          <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
+          <div className="flex shrink-0 items-center gap-2">
+            {hiddenCompletedIds.size > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  const next = new Set<string>();
+                  setHiddenCompletedIds(next);
+                  saveHiddenCompletedTaskIds(hideBoardKey, next);
+                }}
+              >
+                <Eye size={14} className="mr-1.5" />
+                {t("teamShowCompleted")}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                disabled={!allVisibleComplete}
+                title={allVisibleComplete ? t("teamHideCompletedHint") : undefined}
+                onClick={() => {
+                  const next = new Set(visibleTasks.filter((task) => (task.status || "todo") === "done").map(taskId));
+                  setHiddenCompletedIds(next);
+                  saveHiddenCompletedTaskIds(hideBoardKey, next);
+                }}
+              >
+                <EyeOff size={14} className="mr-1.5" />
+                {t("teamHideCompleted")}
+              </Button>
+            )}
+            <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
@@ -859,11 +967,12 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         ) : (
           <div className={cn("h-full min-h-0", refreshing && "pointer-events-none opacity-60")}>
             <TeamTaskKanbanBoard
-              tasks={visibleTasks}
+              tasks={boardTasks}
               t={t}
               currentTeamMemberId={currentTeamMemberId}
               canManageTasks={mode === "workspace" && isWorkspaceAdmin}
               resolveAssigneeAvatar={resolveAssigneeAvatar}
+              extraDeadlineForTask={extraDeadlineForTask}
               onComplete={openComplete}
               onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
               onEdit={openEdit}
@@ -871,6 +980,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               onSubtasksChange={(task, subtasks) => void handleSubtasksChange(task, subtasks)}
               onDropTask={handleDropTask}
               deletingId={deletingId}
+              activeTaskId={activeTaskId}
               emptyLabel={
                 tasks.length === 0
                   ? t("teamNoTasks")
