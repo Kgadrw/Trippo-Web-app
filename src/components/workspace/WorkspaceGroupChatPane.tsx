@@ -439,7 +439,6 @@ export function WorkspaceGroupChatPane({
   );
 
   const [loading, setLoading] = useState(false);
-  const [catchingUp, setCatchingUp] = useState(false);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -604,9 +603,7 @@ export function WorkspaceGroupChatPane({
       const targetWorkspaceId = workspaceId;
       const generation = ++loadGenerationRef.current;
       const incremental = Boolean(options?.after);
-      if (incremental) {
-        setCatchingUp(true);
-      } else if (!options?.silent) {
+      if (!incremental && !options?.silent) {
         setLoading(true);
       }
 
@@ -658,9 +655,6 @@ export function WorkspaceGroupChatPane({
       } finally {
         if (!incremental && !options?.silent && loadGenerationRef.current === generation) {
           setLoading(false);
-        }
-        if (incremental && loadGenerationRef.current === generation) {
-          setCatchingUp(false);
         }
       }
     },
@@ -1451,14 +1445,6 @@ export function WorkspaceGroupChatPane({
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {catchingUp ? (
-                    <div className="sticky top-2 z-20 flex justify-center">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-gray-500 shadow-sm ring-1 ring-black/5 dark:bg-[#1e2732]/95 dark:text-zinc-300 dark:ring-white/10">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
-                        <span>Loading new messages...</span>
-                      </div>
-                    </div>
-                  ) : null}
                   {messages.map((message, index) => {
                     const own = isOwnMessage(message, currentUserId);
                     const deleted = isMessageDeleted(message);
