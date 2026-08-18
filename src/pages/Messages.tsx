@@ -2125,7 +2125,8 @@ export function MessagesPage() {
                     <p className="max-w-xs text-xs">{t("directChatEmptyBody")}</p>
                   </div>
                 ) : (
-                  {messages.map((message, index) => {
+                  <>
+                    {messages.map((message, index) => {
                     const systemNotice =
                       message.systemType === "disappearing"
                         ? formatDisappearingSystemNotice(message, t)
@@ -2350,6 +2351,7 @@ export function MessagesPage() {
                       </div>
                     );
                   })}
+                  </>
                 )}
                 {dmTypingUsers.length > 0 && selectedThread ? (
                   <div className="pb-1">
