@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -30,10 +32,12 @@ import {
   FileText,
   Link2,
   X,
-  Check,
   Pencil,
   Trash2,
   MoreVertical,
+  Globe,
+  Lock,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadCompanyDocument } from "@/lib/financeUpload";
@@ -58,8 +62,10 @@ import {
   teamReportStatusClass,
   teamReportStatusLabel,
   teamReportSubmitterStatusLabel,
+  teamReportVisibility,
   type TeamReportRecord,
   type TeamReportStatus,
+  type TeamReportVisibility,
 } from "@/lib/teamReportWorkflow";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 
@@ -92,6 +98,23 @@ function reportToNames(report: TeamReportRecord) {
   return names.length ? names.join(", ") : "—";
 }
 
+function VisibilityBadge({ visibility }: { visibility: TeamReportVisibility }) {
+  const isPublic = visibility === "public";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+        isPublic
+          ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-200"
+          : "border-gray-200 bg-gray-50 text-gray-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+      )}
+    >
+      {isPublic ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+      {isPublic ? "Public" : "Private"}
+    </span>
+  );
+}
+
 const emptyForm = () => {
   const period = defaultPeriodForType("daily");
   return {
@@ -99,6 +122,7 @@ const emptyForm = () => {
     description: "",
     attachmentUrl: "",
     attachmentName: "",
+    visibility: "private" as TeamReportVisibility,
     reportTo: [] as string[],
     periodStart: period.start,
     periodEnd: period.end,
@@ -185,6 +209,7 @@ export function TeamReportsTab() {
       description: report.accomplishments || "",
       attachmentUrl: report.attachmentUrl || "",
       attachmentName: report.attachmentName || "",
+      visibility: teamReportVisibility(report),
       reportTo: (report.reportTo || []).map((recipient) => recipient.memberId),
       periodStart: String(report.periodStart || "").slice(0, 10) || emptyForm().periodStart,
       periodEnd: String(report.periodEnd || "").slice(0, 10) || emptyForm().periodEnd,
@@ -231,6 +256,7 @@ export function TeamReportsTab() {
         nextSteps: "",
         attachmentUrl,
         attachmentName,
+        visibility: mode === "workspace" ? form.visibility : "private",
         reportTo: form.reportTo,
       };
 
@@ -457,10 +483,6 @@ export function TeamReportsTab() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-foreground">Team reporting</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Submit a report with a name, description, and optional document or link. Only the
-            submitter can edit; people listed under Reporting to receive it in Approvals.
-          </p>
         </div>
         <div className="flex shrink-0 gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => void loadReports(true)}>
@@ -536,6 +558,9 @@ export function TeamReportsTab() {
                     <td className={cn(FINANCE_TD_CLASS, "font-medium")}>
                       <div className="min-w-0 max-w-3xl">
                         <p className="break-words">{report.title}</p>
+                        <div className="mt-1">
+                          <VisibilityBadge visibility={teamReportVisibility(report)} />
+                        </div>
                         {report.accomplishments ? (
                           <p className="mt-0.5 line-clamp-2 text-xs font-normal text-muted-foreground">
                             {report.accomplishments}
@@ -598,14 +623,17 @@ export function TeamReportsTab() {
                 title={
                   <div className="space-y-1">
                     <p>{report.title}</p>
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                        teamReportStatusClass(report.status),
-                      )}
-                    >
-                      {teamReportStatusLabel(report.status)}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                          teamReportStatusClass(report.status),
+                        )}
+                      >
+                        {teamReportStatusLabel(report.status)}
+                      </span>
+                      <VisibilityBadge visibility={teamReportVisibility(report)} />
+                    </div>
                   </div>
                 }
                 subtitle={
@@ -670,60 +698,122 @@ export function TeamReportsTab() {
 
             <div className="space-y-2">
               <Label>Reporting to</Label>
-              <p className="text-xs text-muted-foreground">
-                Select the people who should receive and review this report.
-              </p>
-              <div className="max-h-44 space-y-1 overflow-y-auto rounded-md border border-border p-1">
-                {teamMembers.length === 0 ? (
-                  <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-                    No active workspace members are available.
-                  </p>
-                ) : (
-                  teamMembers.map((member) => {
-                    const selected = form.reportTo.includes(member._id);
-                    return (
-                      <button
-                        key={member._id}
-                        type="button"
-                        disabled={saving}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
-                          selected ? "bg-sky-50 dark:bg-sky-500/15" : "hover:bg-muted",
-                        )}
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            reportTo: selected
-                              ? prev.reportTo.filter((id) => id !== member._id)
-                              : [...prev.reportTo, member._id],
-                          }))
-                        }
-                      >
-                        <Check
-                          className={cn(
-                            "h-4 w-4 shrink-0",
-                            selected ? "text-sky-600 opacity-100 dark:text-sky-300" : "opacity-0",
-                          )}
-                        />
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium text-foreground">{member.name}</span>
-                          {member.jobTitle ? (
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {member.jobTitle}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={saving || teamMembers.length === 0}
+                    className="h-10 w-full justify-between px-3 font-normal"
+                  >
+                    <span className="truncate text-left text-sm">
+                      {selectedRecipients.length
+                        ? selectedRecipients.map((member) => member.name).join(", ")
+                        : teamMembers.length
+                          ? "Select people to report to"
+                          : "No workspace members available"}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1">
+                  {teamMembers.length === 0 ? (
+                    <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                      No active workspace members are available.
+                    </p>
+                  ) : (
+                    <div className="max-h-56 space-y-0.5 overflow-y-auto">
+                      {teamMembers.map((member) => {
+                        const selected = form.reportTo.includes(member._id);
+                        return (
+                          <label
+                            key={member._id}
+                            className={cn(
+                              "flex cursor-pointer items-start gap-2 rounded-md px-2.5 py-2 text-sm hover:bg-muted",
+                              selected && "bg-sky-50 dark:bg-sky-500/15",
+                            )}
+                          >
+                            <Checkbox
+                              checked={selected}
+                              disabled={saving}
+                              className="mt-0.5"
+                              onCheckedChange={(checked) =>
+                                setForm((prev) => ({
+                                  ...prev,
+                                  reportTo:
+                                    checked === true
+                                      ? [...prev.reportTo, member._id]
+                                      : prev.reportTo.filter((id) => id !== member._id),
+                                }))
+                              }
+                            />
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium text-foreground">
+                                {member.name}
+                              </span>
+                              {member.jobTitle ? (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {member.jobTitle}
+                                </span>
+                              ) : null}
                             </span>
-                          ) : null}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-              {selectedRecipients.length ? (
-                <p className="text-xs text-muted-foreground">
-                  Reporting to: {selectedRecipients.map((member) => member.name).join(", ")}
-                </p>
-              ) : null}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
+
+            {mode === "workspace" ? (
+              <div className="space-y-2">
+                <Label>Document visibility</Label>
+                <p className="text-xs text-muted-foreground">
+                  Choose who can see this report and its document.
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => setForm((prev) => ({ ...prev, visibility: "public" }))}
+                    className={cn(
+                      "rounded-lg border px-3 py-2.5 text-left transition-colors",
+                      form.visibility === "public"
+                        ? "border-sky-300 bg-sky-50 dark:border-sky-500/50 dark:bg-sky-500/15"
+                        : "border-border hover:bg-muted",
+                    )}
+                  >
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Globe className="h-4 w-4" />
+                      Public
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Everyone on the team can view this report and its document
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => setForm((prev) => ({ ...prev, visibility: "private" }))}
+                    className={cn(
+                      "rounded-lg border px-3 py-2.5 text-left transition-colors",
+                      form.visibility === "private"
+                        ? "border-sky-300 bg-sky-50 dark:border-sky-500/50 dark:bg-sky-500/15"
+                        : "border-border hover:bg-muted",
+                    )}
+                  >
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Lock className="h-4 w-4" />
+                      Private
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Only you and the people you reported to can see it — nobody else
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <Label>Document or link</Label>
@@ -860,6 +950,7 @@ export function TeamReportsTab() {
               >
                 {teamReportStatusLabel(detail.status)}
               </span>
+              <VisibilityBadge visibility={teamReportVisibility(detail)} />
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Description

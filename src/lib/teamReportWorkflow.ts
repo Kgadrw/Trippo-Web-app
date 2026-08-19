@@ -1,5 +1,6 @@
 export type TeamReportType = "daily" | "weekly" | "monthly";
 export type TeamReportStatus = "submitted" | "reviewed" | "changes_requested" | "rejected";
+export type TeamReportVisibility = "public" | "private";
 
 export type TeamReportRecord = {
   id?: string;
@@ -15,6 +16,7 @@ export type TeamReportRecord = {
   nextSteps?: string;
   attachmentUrl?: string;
   attachmentName?: string;
+  visibility?: TeamReportVisibility;
   reportTo?: Array<{
     memberId: string;
     userId?: string;
@@ -31,6 +33,11 @@ export type TeamReportRecord = {
 
 export function teamReportId(record: TeamReportRecord): string {
   return String(record._id ?? record.id ?? "");
+}
+
+export function teamReportVisibility(report: Pick<TeamReportRecord, "visibility"> | string | undefined) {
+  const value = typeof report === "string" ? report : report?.visibility;
+  return value === "public" ? "public" : "private";
 }
 
 export function teamReportTypeLabel(type: TeamReportType | string | undefined) {

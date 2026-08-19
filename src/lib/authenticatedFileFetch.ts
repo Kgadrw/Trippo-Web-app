@@ -65,6 +65,12 @@ export async function fetchAuthenticatedFileBlob(
   }
 
   const userId = localStorage.getItem("profit-pilot-user-id");
+  const workspaceMode = localStorage.getItem("profit-pilot-workspace-mode");
+  const workspaceId = localStorage.getItem("profit-pilot-active-workspace-id");
+  const headers: Record<string, string> = {};
+  if (userId) headers["X-User-Id"] = userId;
+  if (workspaceMode) headers["X-Workspace-Mode"] = workspaceMode;
+  if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
 
   const promise = (async () => {
     let retry = 0;
@@ -72,7 +78,7 @@ export async function fetchAuthenticatedFileBlob(
     while (true) {
       const res = await fetch(url, {
         cache: "no-store",
-        headers: userId ? { "X-User-Id": userId } : {},
+        headers,
       });
 
       if (res.status === 429 && retry < 4) {

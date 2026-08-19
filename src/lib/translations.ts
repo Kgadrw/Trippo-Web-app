@@ -2544,7 +2544,7 @@ export const translations: Record<Language, Partial<Translations>> = {
     helpApprovals:
       "Review expenses, bills, and payroll submitted by workspace members. Approve or reject before they affect reports and payments.",
     helpReports:
-      "Submit team reports with a name, description, and optional document or link. Only you can edit your report; people you report to review it in Approvals.",
+      "Submit team reports with a name, description, and optional document or link. Public reports are visible to everyone on the team; private reports are only visible to you and the people you reported to.",
     helpAutomations:
       "Schedule emails and reminders to customers — follow-ups, promotions, and recurring messages.",
     helpCalendar:
