@@ -42,7 +42,7 @@ import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { filterSelectClass } from "@/lib/fieldStyles";
 import { cn } from "@/lib/utils";
-import { Loader2, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, MoreVertical, Pencil, Plus, Trash2, CheckCircle2, Clock } from "lucide-react";
 import {
   FINANCE_TD_CLASS,
   FINANCE_TH_CLASS,
@@ -55,6 +55,58 @@ function leadName(project: ProjectRecord) {
     return project.leadMemberId.name;
   }
   return "—";
+}
+
+function remainingDays(project: ProjectRecord): { label: string; className: string } | null {
+  if (project.status === "completed" || project.status === "cancelled") return null;
+  if (!project.targetEndDate) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const end = new Date(project.targetEndDate);
+  end.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, className: "text-red-600 dark:text-red-400" };
+  if (diff === 0) return { label: "Due today", className: "text-amber-600 dark:text-amber-400" };
+  if (diff <= 7) return { label: `${diff}d left`, className: "text-amber-600 dark:text-amber-400" };
+  return { label: `${diff}d left`, className: "text-gray-500 dark:text-zinc-400" };
+}
+
+type ActivityWeek = { created: number; inProgress: number; done: number };
+
+function ActivitySparkline({ data }: { data?: ActivityWeek[] }) {
+  const weeks = data && data.length > 0 ? data.slice(-8) : [];
+  if (weeks.length === 0) {
+    return <span className="text-[10px] text-gray-400 italic">No activity</span>;
+  }
+  const max = Math.max(...weeks.map((w) => w.created + w.inProgress + w.done), 1);
+  const totalAll = weeks.reduce((s, w) => s + w.created + w.inProgress + w.done, 0);
+
+  return (
+    <div
+      className="flex items-end gap-[2px] h-7"
+      title={`${weeks.length}w · ${totalAll} task events`}
+    >
+      {weeks.map((w, i) => {
+        const total = w.created + w.inProgress + w.done;
+        const fullH = Math.max(3, Math.round((total / max) * 26));
+        const doneH = total > 0 ? Math.round((w.done / total) * fullH) : 0;
+        const ipH = total > 0 ? Math.round((w.inProgress / total) * fullH) : 0;
+        const createdH = Math.max(0, fullH - doneH - ipH);
+        return (
+          <div
+            key={i}
+            className="flex w-[5px] flex-col-reverse rounded-sm overflow-hidden"
+            style={{ height: `${fullH}px` }}
+            title={`Created ${w.created} · In progress ${w.inProgress} · Done ${w.done}`}
+          >
+            {doneH > 0 ? <div className="bg-emerald-400 dark:bg-emerald-500" style={{ height: `${doneH}px` }} /> : null}
+            {ipH > 0 ? <div className="bg-sky-400 dark:bg-sky-500" style={{ height: `${ipH}px` }} /> : null}
+            {createdH > 0 ? <div className="bg-violet-300 dark:bg-violet-500" style={{ height: `${createdH}px` }} /> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function ProjectTaskCounts({
@@ -290,6 +342,7 @@ export function ProjectsListTab() {
                 <th className={FINANCE_TH_CLASS}>{t("projectLead")}</th>
                 <th className={FINANCE_TH_CLASS}>{t("projectTimeframe")}</th>
                 <th className={FINANCE_TH_CLASS}>{t("projectTaskCounts")}</th>
+                <th className={FINANCE_TH_CLASS}>Activity</th>
                 <th className={FINANCE_TH_CLASS} />
               </tr>
             </thead>
@@ -302,6 +355,9 @@ export function ProjectsListTab() {
                     </Link>
                     {project.clientName ? (
                       <p className="text-xs text-gray-500">{project.clientName}</p>
+                    ) : null}
+                    {project.status === "completed" && project.completionNotes ? (
+                      <p className="text-xs text-gray-400 dark:text-zinc-500 line-clamp-1 mt-0.5 italic">{project.completionNotes}</p>
                     ) : null}
                   </td>
                   <td className={FINANCE_TD_CLASS}>
@@ -316,10 +372,28 @@ export function ProjectsListTab() {
                   </td>
                   <td className={FINANCE_TD_CLASS}>{leadName(project)}</td>
                   <td className={FINANCE_TD_CLASS}>
-                    {formatProjectTimeframe(project.startDate, project.targetEndDate)}
+                    <div>{formatProjectTimeframe(project.startDate, project.targetEndDate)}</div>
+                    {project.status === "completed" ? (
+                      <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {project.completedAt ? `Completed ${new Date(project.completedAt).toLocaleDateString()}` : "Completed"}
+                      </span>
+                    ) : (() => {
+                      const rd = remainingDays(project);
+                      if (!rd) return null;
+                      return (
+                        <span className={cn("flex items-center gap-1 text-[11px] font-medium mt-0.5", rd.className)}>
+                          <Clock className="h-3 w-3" />
+                          {rd.label}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className={FINANCE_TD_CLASS}>
                     <ProjectTaskCounts taskStatus={project.taskStatus} />
+                  </td>
+                  <td className={FINANCE_TD_CLASS}>
+                    <ActivitySparkline data={project.activity} />
                   </td>
                   <td className={cn(FINANCE_TD_CLASS, "text-right")}>
                     <DropdownMenu>

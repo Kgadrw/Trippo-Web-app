@@ -1384,6 +1384,8 @@ export interface TeamTaskRecord {
   title: string;
   description?: string;
   assigneeId: TeamMemberRecord | string;
+  assignees?: Array<TeamMemberRecord | string>;
+  assignedBy?: { _id?: string; name?: string; email?: string } | string | null;
   department?: string;
   status?: "todo" | "in_progress" | "done";
   priority?: "low" | "medium" | "high";
@@ -2212,6 +2214,59 @@ export const approvalApi = {
 
   async resubmit(entityType: string, id: string): Promise<ApiResponse> {
     return request(`/approvals/${entityType}/${id}/resubmit`, { method: "POST" });
+  },
+};
+
+export interface ProjectApprovalRecord {
+  _id: string;
+  projectId: string | { _id: string; name: string; status?: string; targetEndDate?: string; startDate?: string };
+  workspaceId: string;
+  type: "close_project" | "deadline_extension";
+  status: "pending" | "approved" | "rejected";
+  requestedByUserId: string;
+  requestedByName?: string;
+  leadMemberId: string;
+  leadUserId: string;
+  note?: string;
+  responseNote?: string;
+  respondedAt?: string;
+  proposedEndDate?: string;
+  originalEndDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const projectApprovalApi = {
+  async getAll(params?: { status?: string }): Promise<ApiResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    const qs = queryParams.toString();
+    return request(qs ? `/project-approvals?${qs}` : "/project-approvals", { method: "GET" });
+  },
+
+  async getByProject(projectId: string): Promise<ApiResponse> {
+    return request(`/project-approvals/project/${projectId}`, { method: "GET" });
+  },
+
+  async requestClose(projectId: string, data?: { note?: string }): Promise<ApiResponse> {
+    return request(`/project-approvals/close/${projectId}`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  async requestDeadlineExtension(projectId: string, data: { proposedEndDate: string; note?: string }): Promise<ApiResponse> {
+    return request(`/project-approvals/extend-deadline/${projectId}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async respond(id: string, data: { action: "approve" | "reject"; responseNote?: string; completionNotes?: string }): Promise<ApiResponse> {
+    return request(`/project-approvals/${id}/respond`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 };
 

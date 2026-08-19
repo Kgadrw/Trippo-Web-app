@@ -25,11 +25,20 @@ export function taskMatchesListFilters(
   if (filters.monthKey && task.monthKey !== filters.monthKey) return false;
   if (filters.statusFilter !== "all" && task.status !== filters.statusFilter) return false;
 
-  const assigneeId =
-    typeof task.assigneeId === "object" && task.assigneeId
-      ? String(task.assigneeId._id)
-      : String(task.assigneeId);
-  if (filters.assigneeFilter !== "all" && assigneeId !== filters.assigneeFilter) return false;
+  if (filters.assigneeFilter !== "all") {
+    const ids = new Set<string>();
+    if (task.assignees?.length) {
+      for (const a of task.assignees) {
+        ids.add(typeof a === "object" && a?._id ? String(a._id) : String(a));
+      }
+    }
+    if (typeof task.assigneeId === "object" && task.assigneeId?._id) {
+      ids.add(String(task.assigneeId._id));
+    } else if (task.assigneeId) {
+      ids.add(String(task.assigneeId));
+    }
+    if (!ids.has(filters.assigneeFilter)) return false;
+  }
 
   if (filters.projectFilter && filters.projectFilter !== "all") {
     const projectId =

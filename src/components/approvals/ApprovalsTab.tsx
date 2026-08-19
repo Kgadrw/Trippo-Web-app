@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { approvalApi, teamReportApi } from "@/lib/api";
+import { approvalApi, teamReportApi, projectApprovalApi, type ProjectApprovalRecord } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -57,17 +57,57 @@ export function ApprovalsTab() {
   const [rejectionNote, setRejectionNote] = useState("");
   const [changeNote, setChangeNote] = useState("");
   const [actingId, setActingId] = useState<string | null>(null);
+  const [closeApproveTarget, setCloseApproveTarget] = useState<ApprovalQueueItem | null>(null);
+  const [completionNotes, setCompletionNotes] = useState("");
 
   const loadQueue = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const response = await approvalApi.getQueue(filter === "all" ? undefined : { status: filter });
+      const mapProjectApprovalStatus = (s: string): string =>
+        s === "pending" ? "pending_approval" : s === "approved" ? "approved" : "rejected";
+
+      const projectApprovalStatusQuery =
+        filter === "all" ? "all" : filter === "pending_approval" ? "pending" : filter === "rejected" ? "rejected" : undefined;
+
+      const [response, projApprovalsRes] = await Promise.all([
+        approvalApi.getQueue(filter === "all" ? undefined : { status: filter }),
+        projectApprovalStatusQuery
+          ? projectApprovalApi.getAll({ status: projectApprovalStatusQuery })
+          : Promise.resolve({ data: [] }),
+      ]);
+
       const queue = ((response.data || []) as ApprovalQueueItem[]).filter((item) => {
-        // Team reports go only to people listed as "Reporting to".
         if (item.entityType === "team_report") return Boolean(item.canApprove);
         return true;
       });
-      setItems(queue);
+
+      const projectApprovals = ((projApprovalsRes.data || []) as ProjectApprovalRecord[]).map(
+        (pa): ApprovalQueueItem => {
+          const projectObj = typeof pa.projectId === "object" ? pa.projectId : null;
+          const projectName = projectObj?.name || "Project";
+          return {
+            entityType: pa.type === "close_project" ? "project_close" : "deadline_extension",
+            id: pa._id,
+            title: pa.type === "close_project" ? `Close: ${projectName}` : `Extend deadline: ${projectName}`,
+            amount: null,
+            date: undefined,
+            approvalStatus: mapProjectApprovalStatus(pa.status) as ApprovalQueueItem["approvalStatus"],
+            submittedByName: pa.requestedByName,
+            submittedAt: pa.createdAt,
+            rejectionNote: pa.responseNote,
+            canApprove: true,
+            note: pa.note,
+            proposedEndDate: pa.proposedEndDate,
+            originalEndDate: pa.originalEndDate,
+            projectApprovalId: pa._id,
+            projectName,
+          };
+        },
+      );
+
+      setItems([...queue, ...projectApprovals].sort(
+        (a, b) => new Date(b.submittedAt || 0).getTime() - new Date(a.submittedAt || 0).getTime(),
+      ));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Could not load approvals.";
       toast({ title: t("error"), description: message, variant: "destructive" });
@@ -87,11 +127,44 @@ export function ApprovalsTab() {
     return () => window.removeEventListener("approvals-should-refresh", onRefresh);
   }, [loadQueue]);
 
+  const isProjectApproval = (item: ApprovalQueueItem) =>
+    item.entityType === "project_close" || item.entityType === "deadline_extension";
+
+  const handleApproveProjectClose = async () => {
+    if (!closeApproveTarget) return;
+    const key = `${closeApproveTarget.entityType}-${closeApproveTarget.id}-approve`;
+    setActingId(key);
+    try {
+      await projectApprovalApi.respond(closeApproveTarget.id, {
+        action: "approve",
+        completionNotes: completionNotes.trim() || undefined,
+      });
+      toast({ title: "Approved", description: `${closeApproveTarget.title} was approved. Project is now closed.` });
+      setCloseApproveTarget(null);
+      setCompletionNotes("");
+      dispatchFinanceRefresh();
+      await loadQueue(true);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not approve.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setActingId(null);
+    }
+  };
+
   const handleApprove = async (item: ApprovalQueueItem) => {
+    if (item.entityType === "project_close") {
+      setCloseApproveTarget(item);
+      setCompletionNotes("");
+      return;
+    }
     const key = `${item.entityType}-${item.id}-approve`;
     setActingId(key);
     try {
-      if (item.entityType === "team_report") {
+      if (isProjectApproval(item)) {
+        await projectApprovalApi.respond(item.id, { action: "approve" });
+        toast({ title: "Approved", description: `${item.title} was approved.` });
+      } else if (item.entityType === "team_report") {
         await teamReportApi.review(item.id);
         toast({ title: "Reviewed", description: `${item.title} was marked as reviewed.` });
       } else {
@@ -113,7 +186,12 @@ export function ApprovalsTab() {
     const key = `${rejectTarget.entityType}-${rejectTarget.id}-reject`;
     setActingId(key);
     try {
-      if (rejectTarget.entityType === "team_report") {
+      if (isProjectApproval(rejectTarget)) {
+        await projectApprovalApi.respond(rejectTarget.id, {
+          action: "reject",
+          responseNote: rejectionNote.trim() || undefined,
+        });
+      } else if (rejectTarget.entityType === "team_report") {
         await teamReportApi.reject(rejectTarget.id, {
           reviewNote: rejectionNote.trim() || undefined,
         });
@@ -206,19 +284,21 @@ export function ApprovalsTab() {
               )}
               {compact ? null : "Approve"}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs text-orange-700 border-orange-200"
-              disabled={actingId !== null}
-              onClick={() => {
-                setChangesTarget(item);
-                setChangeNote("");
-              }}
-            >
-              <MessageSquareWarning className="h-3.5 w-3.5 mr-1" />
-              {compact ? null : "Request changes"}
-            </Button>
+            {!isProjectApproval(item) ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs text-orange-700 border-orange-200"
+                disabled={actingId !== null}
+                onClick={() => {
+                  setChangesTarget(item);
+                  setChangeNote("");
+                }}
+              >
+                <MessageSquareWarning className="h-3.5 w-3.5 mr-1" />
+                {compact ? null : "Request changes"}
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="outline"
@@ -311,6 +391,15 @@ export function ApprovalsTab() {
                               ? `${item.reportType.charAt(0).toUpperCase()}${item.reportType.slice(1)} report`
                               : "Team report"}
                             {item.reportTo?.length ? ` · To ${item.reportTo.join(", ")}` : ""}
+                          </div>
+                        ) : null}
+                        {isProjectApproval(item) && item.note ? (
+                          <div className="mt-0.5 text-xs text-gray-500 line-clamp-2">{item.note}</div>
+                        ) : null}
+                        {item.entityType === "deadline_extension" && item.proposedEndDate ? (
+                          <div className="mt-0.5 text-xs text-gray-500">
+                            New deadline: {new Date(item.proposedEndDate).toLocaleDateString()}
+                            {item.originalEndDate ? ` (was ${new Date(item.originalEndDate).toLocaleDateString()})` : ""}
                           </div>
                         ) : null}
                         {dateValue ? (
@@ -443,6 +532,38 @@ export function ApprovalsTab() {
             <Button variant="outline" onClick={() => setChangesTarget(null)}>Cancel</Button>
             <Button disabled={actingId !== null || !changeNote.trim()} onClick={() => void handleRequestChangesConfirm()}>
               {actingId ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(closeApproveTarget)} onOpenChange={(open) => { if (!open) setCloseApproveTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Approve &amp; close project</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            {closeApproveTarget ? `Approve closing "${closeApproveTarget.projectName || closeApproveTarget.title}"? The project will be marked as completed.` : ""}
+          </p>
+          {closeApproveTarget?.note ? (
+            <div className="rounded bg-gray-50 dark:bg-zinc-800 px-3 py-2 text-sm text-gray-600 dark:text-zinc-300">
+              <span className="font-medium">Requester note:</span> {closeApproveTarget.note}
+            </div>
+          ) : null}
+          <div>
+            <Label htmlFor="completion-notes">Project completion notes</Label>
+            <Textarea
+              id="completion-notes"
+              value={completionNotes}
+              onChange={(e) => setCompletionNotes(e.target.value)}
+              rows={4}
+              placeholder="Summarize the project outcome, key results, and any final remarks..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloseApproveTarget(null)}>Cancel</Button>
+            <Button disabled={actingId !== null} onClick={() => void handleApproveProjectClose()}>
+              {actingId ? <Loader2 className="h-4 w-4 animate-spin" /> : "Approve & close"}
             </Button>
           </DialogFooter>
         </DialogContent>

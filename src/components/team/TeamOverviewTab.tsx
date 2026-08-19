@@ -29,6 +29,12 @@ const RECENTLY_ADDED_MS = 7 * 24 * 60 * 60 * 1000;
 const COMPLETED_VISIBLE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function assigneeName(task: TeamTaskRecord, fallback: string) {
+  if (task.assignees?.length) {
+    const names = task.assignees
+      .map((a) => (typeof a === "object" && a?.name ? a.name : ""))
+      .filter(Boolean);
+    if (names.length > 0) return names.join(", ");
+  }
   if (typeof task.assigneeId === "object" && task.assigneeId?.name) {
     return task.assigneeId.name;
   }
@@ -146,7 +152,7 @@ export function TeamOverviewTab() {
     const now = Date.now();
     const horizon = now + 7 * 24 * 60 * 60 * 1000;
     return tasks
-      .filter((task) => task.status !== "done" && task.dueDate)
+      .filter((task) => (task.status || "todo") !== "done" && task.dueDate)
       .filter((task) => {
         const due = new Date(task.dueDate!).getTime();
         return Number.isFinite(due) && due >= now && due <= horizon;

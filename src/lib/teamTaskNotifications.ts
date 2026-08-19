@@ -5,9 +5,19 @@ import { taskId } from "@/lib/teamTaskRealtime";
 
 type TaskChangeKind = "updated" | "deleted";
 
-function assigneeUserId(task: TeamTaskRecord): string | null {
-  if (typeof task.assigneeId !== "object" || !task.assigneeId?.linkedUserId) return null;
-  return String(task.assigneeId.linkedUserId);
+function assigneeUserIds(task: TeamTaskRecord): string[] {
+  const ids: string[] = [];
+  if (task.assignees?.length) {
+    for (const a of task.assignees) {
+      if (typeof a === "object" && (a as any)?.linkedUserId) {
+        ids.push(String((a as any).linkedUserId));
+      }
+    }
+  }
+  if (ids.length === 0 && typeof task.assigneeId === "object" && (task.assigneeId as any)?.linkedUserId) {
+    ids.push(String((task.assigneeId as any).linkedUserId));
+  }
+  return ids;
 }
 
 function workspaceIdOf(task: TeamTaskRecord) {
@@ -38,38 +48,43 @@ function saveNotifiedKeys(keys: Set<string>) {
 
 /**
  * The task API performs the authorization; this separately targets the linked
- * workspace user so the assignee is alerted when an admin changes their task.
+ * workspace users so assignees are alerted when an admin changes their task.
  */
 export async function notifyTaskAssigneeOfAdminChange(
   task: TeamTaskRecord,
   kind: TaskChangeKind,
 ): Promise<void> {
-  const recipientUserId = assigneeUserId(task);
+  const recipientIds = assigneeUserIds(task);
   const currentUserId = localStorage.getItem("profit-pilot-user-id");
-  if (!recipientUserId || recipientUserId === currentUserId) return;
+  const targets = recipientIds.filter((id) => id !== currentUserId);
+  if (targets.length === 0) return;
 
   const deleted = kind === "deleted";
   const workspaceId = workspaceIdOf(task);
-  await adminApi.sendNotificationToUser(recipientUserId, {
-    type: "task_assigned",
-    title: deleted ? "A task assigned to you was deleted" : "A task assigned to you was updated",
-    body: deleted
-      ? `“${task.title}” was deleted by a workspace admin.`
-      : `“${task.title}” was updated by a workspace admin.`,
-    workspaceId,
-    data: {
-      taskId: task._id,
-      workspaceId,
-      action: kind,
-      route: taskRoute(task),
-      href: taskRoute(task),
-      kind: "deadline",
-    },
-  });
+  await Promise.all(
+    targets.map((recipientUserId) =>
+      adminApi.sendNotificationToUser(recipientUserId, {
+        type: "task_assigned",
+        title: deleted ? "A task assigned to you was deleted" : "A task assigned to you was updated",
+        body: deleted
+          ? `"${task.title}" was deleted by a workspace admin.`
+          : `"${task.title}" was updated by a workspace admin.`,
+        workspaceId,
+        data: {
+          taskId: task._id,
+          workspaceId,
+          action: kind,
+          route: taskRoute(task),
+          href: taskRoute(task),
+          kind: "deadline",
+        },
+      }),
+    ),
+  );
 }
 
 /**
- * Alert the assignee once when a task (or its project) has passed the deadline
+ * Alert the assignees once when a task (or its project) has passed the deadline
  * while still in To do or In progress.
  */
 export async function notifyAssigneesOfOverdueTasks(
@@ -94,18 +109,21 @@ export async function notifyAssigneesOfOverdueTasks(
     const notifyKey = `${id}:${dueKey}`;
     if (notified.has(notifyKey)) continue;
 
-    const recipientUserId = assigneeUserId(task);
+    const recipientUserIds = assigneeUserIds(task);
     const workspaceId = workspaceIdOf(task);
     const href = taskRoute(task);
     const title = "Task deadline missed";
     const projectPassed =
       extraDeadline && isIncompleteTaskOverdue({ ...task, dueDate: undefined }, extraDeadline);
     const body = projectPassed
-      ? `“${task.title}” is still open after the project deadline.`
-      : `“${task.title}” has passed its deadline.`;
+      ? `"${task.title}" is still open after the project deadline.`
+      : `"${task.title}" has passed its deadline.`;
 
     try {
-      if (recipientUserId && recipientUserId === currentUserId) {
+      const selfIds = recipientUserIds.filter((uid) => uid === currentUserId);
+      const otherIds = recipientUserIds.filter((uid) => uid !== currentUserId);
+
+      if (selfIds.length > 0) {
         await notificationService.showNotification("general", {
           title,
           body,
@@ -122,21 +140,27 @@ export async function notifyAssigneesOfOverdueTasks(
         });
         notified.add(notifyKey);
         changed = true;
-      } else if (options?.notifyOthers && recipientUserId && recipientUserId !== currentUserId) {
-        await adminApi.sendNotificationToUser(recipientUserId, {
-          type: "reminder",
-          title,
-          body,
-          workspaceId,
-          data: {
-            type: "reminder",
-            kind: "deadline",
-            taskId: id,
-            workspaceId,
-            route: href,
-            href,
-          },
-        });
+      }
+
+      if (options?.notifyOthers && otherIds.length > 0) {
+        await Promise.all(
+          otherIds.map((recipientUserId) =>
+            adminApi.sendNotificationToUser(recipientUserId, {
+              type: "reminder",
+              title,
+              body,
+              workspaceId,
+              data: {
+                type: "reminder",
+                kind: "deadline",
+                taskId: id,
+                workspaceId,
+                route: href,
+                href,
+              },
+            }),
+          ),
+        );
         notified.add(notifyKey);
         changed = true;
       }

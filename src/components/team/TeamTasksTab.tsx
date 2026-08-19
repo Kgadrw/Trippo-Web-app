@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   projectApi,
+  projectApprovalApi,
   teamMemberApi,
   teamTaskApi,
   type ProjectRecord,
@@ -12,8 +13,6 @@ import {
 import {
   TEAM_PRIORITIES,
   TEAM_TASK_STATUSES,
-  formatMonthLabel,
-  getMonthKey,
   teamPriorityClass,
   type TeamDepartment,
 } from "@/lib/teamConstants";
@@ -52,7 +51,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Plus, Trash2, Eye, EyeOff, ChevronDown, X, Lock, CalendarClock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useWorkspaceMemberAvatars } from "@/hooks/useWorkspaceMemberAvatars";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { cn } from "@/lib/utils";
@@ -135,6 +136,26 @@ function resolveAssigneeProfilePicture(
   return undefined;
 }
 
+function resolveCreatorProfilePicture(
+  task: TeamTaskRecord,
+  avatarByEmail: Map<string, string | undefined>,
+  avatarByName: Map<string, string | undefined>,
+) {
+  if (typeof task.assignedBy !== "object" || !task.assignedBy) return undefined;
+
+  const email = task.assignedBy.email?.trim().toLowerCase();
+  if (email && avatarByEmail.has(email)) {
+    return avatarByEmail.get(email) || undefined;
+  }
+
+  const name = task.assignedBy.name?.trim().toLowerCase();
+  if (name && avatarByName.has(name)) {
+    return avatarByName.get(name) || undefined;
+  }
+
+  return undefined;
+}
+
 function statusLabel(status: string, t: (key: string) => string) {
   return teamTaskStatusLabel(status, t);
 }
@@ -170,11 +191,16 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     [assigneeAvatarMaps],
   );
 
-  const [monthKey, setMonthKey] = useState(getMonthKey());
-  const hideBoardKey = `team:${monthKey}`;
+  const resolveCreatorAvatar = useCallback(
+    (task: TeamTaskRecord) =>
+      resolveCreatorProfilePicture(task, assigneeAvatarMaps.byEmail, assigneeAvatarMaps.byName),
+    [assigneeAvatarMaps],
+  );
+
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const hideBoardKey = `team:${projectFilter}`;
   const [tasks, setTasks] = useState<TeamTaskRecord[]>([]);
   const [members, setMembers] = useState<TeamMemberRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
@@ -196,37 +222,46 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [taskDepartment, setTaskDepartment] = useState<TeamDepartment>(department || "general");
   const [status, setStatus] = useState<(typeof TEAM_TASK_STATUSES)[number]>("todo");
   const [priority, setPriority] = useState<(typeof TEAM_PRIORITIES)[number]>("medium");
   const [dueDate, setDueDate] = useState("");
   const [reminderPreset, setReminderPreset] = useState<ReminderPreset>("default");
   const [customReminderOffsets, setCustomReminderOffsets] = useState<number[]>([]);
-  const [taskMonthKey, setTaskMonthKey] = useState(getMonthKey());
+  // monthKey removed — tasks are scoped by project, not by month
   const [linkedProjectId, setLinkedProjectId] = useState("");
   const [completionNote, setCompletionNote] = useState("");
   const [hiddenCompletedIds, setHiddenCompletedIds] = useState<Set<string>>(() =>
-    loadHiddenCompletedTaskIds(`team:${getMonthKey()}`),
+    loadHiddenCompletedTaskIds(`team:all`),
   );
   const [subtaskRows, setSubtaskRows] = useState<
     Array<{ key: string; _id?: string; title: string; done?: boolean }>
   >([]);
   const [createRows, setCreateRows] = useState<CreateTaskRow[]>(() => initialCreateRows());
 
-  const monthOptions = useMemo(() => {
-    const options: string[] = [];
-    const now = new Date();
-    for (let i = -2; i <= 4; i += 1) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      options.push(getMonthKey(d));
-    }
-    return options;
-  }, []);
+  const [closeProjectOpen, setCloseProjectOpen] = useState(false);
+  const [closeProjectNote, setCloseProjectNote] = useState("");
+  const [isClosingProject, setIsClosingProject] = useState(false);
+
+  const [extendDeadlineOpen, setExtendDeadlineOpen] = useState(false);
+  const [extendDeadlineDate, setExtendDeadlineDate] = useState("");
+  const [extendDeadlineNote, setExtendDeadlineNote] = useState("");
+  const [isExtendingDeadline, setIsExtendingDeadline] = useState(false);
+
+  const selectedProject = useMemo(
+    () => projects.find((p) => p._id === projectFilter) || null,
+    [projects, projectFilter],
+  );
 
   const activeMembers = useMemo(
     () => members.filter((m) => m.status !== "inactive"),
     [members],
+  );
+
+  const activeProjects = useMemo(
+    () => projects.filter((p) => p.status === "active" || p.status === "planning"),
+    [projects],
   );
 
   const currentTeamMemberId = useMemo(() => {
@@ -242,8 +277,8 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
     try {
       const tasksRes = await teamTaskApi.getAll({
-        monthKey,
         department: department || undefined,
+        projectId: projectFilter !== "all" ? projectFilter : undefined,
       });
       setTasks((incoming) => {
         const loaded = (tasksRes.data as TeamTaskRecord[]) || [];
@@ -260,7 +295,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
       setInitialLoading(false);
       setRefreshing(false);
     }
-  }, [monthKey, department, toast, t]);
+  }, [department, projectFilter, toast, t]);
 
   const loadMembersAndProjects = useCallback(async () => {
     const jobs: Promise<void>[] = [];
@@ -306,13 +341,13 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
   const listFilters = useMemo(
     () => ({
-      monthKey,
+      monthKey: "",
       department,
       statusFilter,
       assigneeFilter,
       projectFilter,
     }),
-    [monthKey, department, statusFilter, assigneeFilter, projectFilter],
+    [department, statusFilter, assigneeFilter, projectFilter],
   );
 
   const applyTaskUpdate = useCallback(
@@ -405,15 +440,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setAssigneeId(activeMembers[0]?._id || "");
+    setAssigneeIds(activeMembers[0]?._id ? [activeMembers[0]._id] : []);
     setTaskDepartment(department || "general");
     setStatus("todo");
     setPriority("medium");
     setDueDate("");
     setReminderPreset("default");
     setCustomReminderOffsets([]);
-    setTaskMonthKey(monthKey);
-    setLinkedProjectId("");
+    setLinkedProjectId(projectFilter !== "all" && projectFilter !== "none" ? projectFilter : "");
     setEditing(null);
     setSubtaskRows([]);
     setCreateRows(initialCreateRows());
@@ -432,8 +466,10 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setEditing(task);
     setTitle(task.title);
     setDescription(task.description || "");
-    setAssigneeId(
-      typeof task.assigneeId === "object" ? task.assigneeId._id : String(task.assigneeId),
+    setAssigneeIds(
+      task.assignees?.length
+        ? task.assignees.map((a) => (typeof a === "object" ? a._id : String(a)))
+        : [typeof task.assigneeId === "object" ? task.assigneeId._id : String(task.assigneeId)],
     );
     setTaskDepartment((task.department as TeamDepartment) || department || "general");
     setStatus(task.status || "todo");
@@ -442,7 +478,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     const offsets = reminderOffsetsFromRecord(task);
     setReminderPreset(task.dueDate ? detectReminderPreset(offsets) : "none");
     setCustomReminderOffsets(offsets);
-    setTaskMonthKey(task.monthKey || monthKey);
+    // monthKey removed from task editing
     setLinkedProjectId(linkedProjectIdValue(task));
     setSubtaskRows(
       taskSubtasks(task).map((row, index) => ({
@@ -457,14 +493,18 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
 
   const focusTaskFromNotification = useCallback((task: TeamTaskRecord) => {
     const id = taskId(task);
-    if (task.monthKey && task.monthKey !== monthKey) {
-      setMonthKey(task.monthKey);
+    const taskProjectId = typeof task.projectId === "object" && task.projectId?._id
+      ? task.projectId._id
+      : typeof task.projectId === "string" ? task.projectId : null;
+    if (taskProjectId) {
+      setProjectFilter(taskProjectId);
+    } else {
+      setProjectFilter("all");
     }
     setStatusFilter("all");
     setAssigneeFilter("all");
-    setProjectFilter("all");
     setActiveTaskId(id);
-  }, [monthKey]);
+  }, []);
 
   useEffect(() => {
     const taskParam = searchParams.get("task");
@@ -530,7 +570,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   };
 
   const handleSave = async () => {
-    if (!assigneeId) {
+    if (assigneeIds.length === 0) {
       toast({ title: t("teamAssigneeRequired"), variant: "destructive" });
       return;
     }
@@ -551,12 +591,11 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
         const payload: Record<string, unknown> = {
           title: title.trim(),
           description: description.trim(),
-          assigneeId,
+          assignees: assigneeIds,
           department: taskDepartment,
           priority,
           dueDate: dueDate || undefined,
           reminders: dueDate ? offsetsFromPreset(reminderPreset, customReminderOffsets) : [],
-          monthKey: taskMonthKey,
           projectId: linkedProjectId || null,
           subtasks: serializeTaskSubtasks(subtaskRows),
         };
@@ -608,13 +647,12 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
     setIsSaving(true);
     try {
       const shared = {
-        assigneeId,
+        assignees: assigneeIds,
         department: taskDepartment,
         status,
         priority,
         dueDate: dueDate || undefined,
         reminders: dueDate ? offsetsFromPreset(reminderPreset, customReminderOffsets) : [],
-        monthKey: taskMonthKey,
         projectId: linkedProjectId || null,
       };
 
@@ -784,6 +822,49 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
   const deptLabel = (dept: string) =>
     formatCategoryLabel(dept, departmentCategories, t, "department");
 
+  const isProjectDeadlinePassed = useMemo(() => {
+    if (!selectedProject?.targetEndDate) return false;
+    return new Date(selectedProject.targetEndDate) < new Date();
+  }, [selectedProject]);
+
+  const isProjectClosed = selectedProject?.status === "completed" || selectedProject?.status === "cancelled";
+
+  const handleCloseProject = async () => {
+    if (!selectedProject) return;
+    setIsClosingProject(true);
+    try {
+      await projectApprovalApi.requestClose(selectedProject._id, { note: closeProjectNote.trim() || undefined });
+      toast({ title: "Request sent", description: "A close project request has been sent to the project lead for approval." });
+      setCloseProjectOpen(false);
+      setCloseProjectNote("");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not request project close.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsClosingProject(false);
+    }
+  };
+
+  const handleExtendDeadline = async () => {
+    if (!selectedProject || !extendDeadlineDate) return;
+    setIsExtendingDeadline(true);
+    try {
+      await projectApprovalApi.requestDeadlineExtension(selectedProject._id, {
+        proposedEndDate: extendDeadlineDate,
+        note: extendDeadlineNote.trim() || undefined,
+      });
+      toast({ title: "Request sent", description: "A deadline extension request has been sent to the project lead." });
+      setExtendDeadlineOpen(false);
+      setExtendDeadlineDate("");
+      setExtendDeadlineNote("");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not request deadline extension.";
+      toast({ title: t("error"), description: message, variant: "destructive" });
+    } finally {
+      setIsExtendingDeadline(false);
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -804,7 +885,18 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {hiddenCompletedIds.size > 0 ? (
+            {selectedProject && !isProjectClosed ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setCloseProjectOpen(true)}
+              >
+                <Lock size={14} className="mr-1.5" />
+                Close project
+              </Button>
+            ) : hiddenCompletedIds.size > 0 ? (
               <Button
                 type="button"
                 variant="outline"
@@ -817,49 +909,14 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 }}
               >
                 <Eye size={14} className="mr-1.5" />
-                {t("teamShowCompleted")}
+                Show all tasks
               </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                disabled={!allVisibleComplete}
-                title={allVisibleComplete ? t("teamHideCompletedHint") : undefined}
-                onClick={() => {
-                  const next = new Set(visibleTasks.filter((task) => (task.status || "todo") === "done").map(taskId));
-                  setHiddenCompletedIds(next);
-                  saveHiddenCompletedTaskIds(hideBoardKey, next);
-                }}
-              >
-                <EyeOff size={14} className="mr-1.5" />
-                {t("teamHideCompleted")}
-              </Button>
-            )}
+            ) : null}
             <AddEntryButton label={t("teamAssignTask")} onClick={openCreate} />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="team-tasks-month" className="block truncate text-xs font-medium text-gray-600">
-              {t("teamMonth")}
-            </Label>
-            <Select value={monthKey} onValueChange={setMonthKey}>
-              <SelectTrigger id="team-tasks-month" className={cn(filterSelectClass, "w-full min-w-0 max-w-full")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {formatMonthLabel(key)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
           <div className="min-w-0 space-y-1">
             <Label htmlFor="team-tasks-status" className="block truncate text-xs font-medium text-gray-600">
               {t("teamFilterStatus")}
@@ -917,7 +974,6 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("all")}</SelectItem>
-                <SelectItem value="none">{t("teamNoProjectLink")}</SelectItem>
                 {projects.map((project) => (
                   <SelectItem key={project._id} value={project._id}>
                     {project.name}
@@ -927,6 +983,55 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             </Select>
           </div>
         </div>
+
+        {selectedProject ? (
+          <div className={cn(
+            "mt-2 flex flex-wrap items-center gap-3 rounded-md px-3 py-2 text-xs",
+            isProjectDeadlinePassed
+              ? "bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300"
+              : "bg-sky-50 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300",
+          )}>
+            <span className="font-semibold">{selectedProject.name}</span>
+            {selectedProject.startDate || selectedProject.targetEndDate ? (
+              <span>
+                {selectedProject.startDate
+                  ? new Date(selectedProject.startDate).toLocaleDateString()
+                  : "—"}
+                {" → "}
+                {selectedProject.targetEndDate
+                  ? new Date(selectedProject.targetEndDate).toLocaleDateString()
+                  : "—"}
+              </span>
+            ) : (
+              <span className="italic opacity-70">No deadline set</span>
+            )}
+            {selectedProject.status ? (
+              <span className={cn(
+                "rounded px-1.5 py-0.5 text-[10px] font-medium uppercase",
+                isProjectClosed
+                  ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                  : "bg-sky-100 dark:bg-sky-900/50",
+              )}>
+                {selectedProject.status}
+              </span>
+            ) : null}
+            {isProjectDeadlinePassed && !isProjectClosed ? (
+              <span className="font-medium text-amber-700 dark:text-amber-400">Deadline passed</span>
+            ) : null}
+            {isProjectDeadlinePassed && !isProjectClosed ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-[11px]"
+                onClick={() => setExtendDeadlineOpen(true)}
+              >
+                <CalendarClock size={12} className="mr-1" />
+                Request extension
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -972,6 +1077,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               currentTeamMemberId={currentTeamMemberId}
               canManageTasks={mode === "workspace" && isWorkspaceAdmin}
               resolveAssigneeAvatar={resolveAssigneeAvatar}
+              resolveCreatorAvatar={resolveCreatorAvatar}
               extraDeadlineForTask={extraDeadlineForTask}
               onComplete={openComplete}
               onStatusChange={(task, nextStatus) => void handleStatusChange(task, nextStatus)}
@@ -1005,18 +1111,41 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <Label>{t("teamAssignee")}</Label>
-                    <Select value={assigneeId} onValueChange={setAssigneeId}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder={t("teamSelectMember")} />
-                      </SelectTrigger>
-                      <SelectContent>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background hover:bg-accent/50"
+                        >
+                          <span className="truncate text-left">
+                            {assigneeIds.length === 0
+                              ? t("teamSelectMember")
+                              : assigneeIds.length === 1
+                                ? activeMembers.find((m) => m._id === assigneeIds[0])?.name || t("teamSelectMember")
+                                : `${assigneeIds.length} assignees`}
+                          </span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-2 max-h-60 overflow-y-auto" align="start">
                         {activeMembers.map((m) => (
-                          <SelectItem key={m._id} value={m._id}>
-                            {m.name}
-                          </SelectItem>
+                          <label
+                            key={m._id}
+                            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-accent"
+                          >
+                            <Checkbox
+                              checked={assigneeIds.includes(m._id)}
+                              onCheckedChange={(checked) =>
+                                setAssigneeIds((prev) =>
+                                  checked ? [...prev, m._id] : prev.filter((id) => id !== m._id),
+                                )
+                              }
+                            />
+                            <span className="text-sm">{m.name}</span>
+                          </label>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <Label>{t("teamDepartment")}</Label>
@@ -1065,21 +1194,6 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                     </Select>
                   </div>
                   <div>
-                    <Label>{t("teamMonth")}</Label>
-                    <Select value={taskMonthKey} onValueChange={setTaskMonthKey}>
-                      <SelectTrigger className={filterSelectClass}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {monthOptions.map((key) => (
-                          <SelectItem key={key} value={key}>
-                            {formatMonthLabel(key)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
                     <Label>{t("teamDueDate")}</Label>
                     <Input
                       type="date"
@@ -1114,7 +1228,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">{t("teamNoProjectLink")}</SelectItem>
-                        {projects.map((project) => (
+                        {activeProjects.map((project) => (
                           <SelectItem key={project._id} value={project._id}>
                             {project.name}
                           </SelectItem>
@@ -1195,18 +1309,41 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>{t("teamAssignee")}</Label>
-                <Select value={assigneeId} onValueChange={setAssigneeId}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder={t("teamSelectMember")} />
-                  </SelectTrigger>
-                  <SelectContent>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background hover:bg-accent/50"
+                    >
+                      <span className="truncate text-left">
+                        {assigneeIds.length === 0
+                          ? t("teamSelectMember")
+                          : assigneeIds.length === 1
+                            ? activeMembers.find((m) => m._id === assigneeIds[0])?.name || t("teamSelectMember")
+                            : `${assigneeIds.length} assignees`}
+                      </span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2 max-h-60 overflow-y-auto" align="start">
                     {activeMembers.map((m) => (
-                      <SelectItem key={m._id} value={m._id}>
-                        {m.name}
-                      </SelectItem>
+                      <label
+                        key={m._id}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={assigneeIds.includes(m._id)}
+                          onCheckedChange={(checked) =>
+                            setAssigneeIds((prev) =>
+                              checked ? [...prev, m._id] : prev.filter((id) => id !== m._id),
+                            )
+                          }
+                        />
+                        <span className="text-sm">{m.name}</span>
+                      </label>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label>{t("teamDepartment")}</Label>
@@ -1265,21 +1402,6 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>{t("teamMonth")}</Label>
-                <Select value={taskMonthKey} onValueChange={setTaskMonthKey}>
-                  <SelectTrigger className={filterSelectClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monthOptions.map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {formatMonthLabel(key)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <div>
               <Label>{t("teamDueDate")}</Label>
@@ -1314,7 +1436,7 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">{t("teamNoProjectLink")}</SelectItem>
-                  {projects.map((project) => (
+                  {activeProjects.map((project) => (
                     <SelectItem key={project._id} value={project._id}>
                       {project.name}
                     </SelectItem>
@@ -1389,6 +1511,75 @@ export function TeamTasksTab({ department }: TeamTasksTabProps) {
               ) : (
                 t("teamMarkComplete")
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={closeProjectOpen} onOpenChange={setCloseProjectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Close project</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 dark:text-zinc-400">
+            This will send a request to the project lead for approval. The project will only be closed once the lead approves.
+          </p>
+          <div>
+            <Label htmlFor="close-project-note">Note (optional)</Label>
+            <Textarea
+              id="close-project-note"
+              value={closeProjectNote}
+              onChange={(e) => setCloseProjectNote(e.target.value)}
+              rows={3}
+              placeholder="Reason for closing this project..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloseProjectOpen(false)}>Cancel</Button>
+            <Button disabled={isClosingProject} onClick={() => void handleCloseProject()}>
+              {isClosingProject ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={extendDeadlineOpen} onOpenChange={setExtendDeadlineOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request deadline extension</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 dark:text-zinc-400">
+            The project lead will review your request. If approved, the project deadline will be updated.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="extend-deadline-date">New deadline</Label>
+              <Input
+                id="extend-deadline-date"
+                type="date"
+                value={extendDeadlineDate}
+                onChange={(e) => setExtendDeadlineDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="extend-deadline-note">Reason for extension</Label>
+              <Textarea
+                id="extend-deadline-note"
+                value={extendDeadlineNote}
+                onChange={(e) => setExtendDeadlineNote(e.target.value)}
+                rows={3}
+                placeholder="Explain why the project needs more time..."
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtendDeadlineOpen(false)}>Cancel</Button>
+            <Button
+              disabled={isExtendingDeadline || !extendDeadlineDate || !extendDeadlineNote.trim()}
+              onClick={() => void handleExtendDeadline()}
+            >
+              {isExtendingDeadline ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send request"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -42,6 +42,12 @@ function assigneeId(task: TeamTaskRecord) {
 }
 
 function assigneeName(task: TeamTaskRecord, fallback: string) {
+  if (task.assignees?.length) {
+    const names = task.assignees
+      .map((a) => (typeof a === "object" && a?.name ? a.name : ""))
+      .filter(Boolean);
+    if (names.length > 0) return names.join(", ");
+  }
   if (typeof task.assigneeId === "object" && task.assigneeId?.name) {
     return task.assigneeId.name;
   }

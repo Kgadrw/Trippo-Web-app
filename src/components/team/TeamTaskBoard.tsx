@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserProfileAvatar } from "@/components/profile/UserProfileAvatar";
 import { cn } from "@/lib/utils";
-import { MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { taskId } from "@/lib/teamTaskRealtime";
 import { isIncompleteTaskOverdue } from "@/lib/taskDeadlines";
 import { useTheme } from "@/hooks/useTheme";
@@ -26,18 +26,18 @@ export type TeamTaskSection = (typeof TEAM_TASK_SECTION_ORDER)[number];
 const TEAM_TASK_DND_MIME = "application/x-trippo-team-task";
 
 const ASSIGNEE_COLORS_LIGHT = [
-  "#bae6fd",
-  "#a7f3d0",
-  "#fde68a",
-  "#ddd6fe",
-  "#fbcfe8",
-  "#99f6e4",
-  "#fed7aa",
-  "#c7d2fe",
-  "#d9f99d",
-  "#a5f3fc",
-  "#fecdd3",
-  "#e9d5ff",
+  "#f8fafc",
+  "#f6f7fb",
+  "#f9fafb",
+  "#f5f3ff",
+  "#faf5ff",
+  "#f4f8fb",
+  "#fffaf5",
+  "#f5f7ff",
+  "#f7faf5",
+  "#f4fbfb",
+  "#fff5f7",
+  "#f8f5ff",
 ] as const;
 
 /** Muted tinted fills that sit on dark surfaces (same hue order as light). */
@@ -65,21 +65,34 @@ function hashString(input: string) {
   return Math.abs(hash);
 }
 
-export function assigneeName(task: TeamTaskRecord) {
-  if (typeof task.assigneeId === "object" && task.assigneeId?.name) {
-    return task.assigneeId.name;
+export function taskAssignees(task: TeamTaskRecord): Array<{ _id: string; name: string }> {
+  if (task.assignees?.length) {
+    return task.assignees
+      .map((a) =>
+        typeof a === "object" && a?._id
+          ? { _id: String(a._id), name: a.name || "" }
+          : { _id: String(a), name: "" },
+      )
+      .filter((a) => a._id);
   }
-  return "";
+  if (typeof task.assigneeId === "object" && task.assigneeId?._id) {
+    return [{ _id: String(task.assigneeId._id), name: task.assigneeId.name || "" }];
+  }
+  if (typeof task.assigneeId === "string" && task.assigneeId) {
+    return [{ _id: task.assigneeId, name: "" }];
+  }
+  return [];
+}
+
+export function assigneeName(task: TeamTaskRecord) {
+  const list = taskAssignees(task);
+  return list.map((a) => a.name).filter(Boolean).join(", ");
 }
 
 export function assigneeKey(task: TeamTaskRecord) {
-  if (typeof task.assigneeId === "object" && task.assigneeId?._id) {
-    return String(task.assigneeId._id);
-  }
-  if (typeof task.assigneeId === "string") {
-    return task.assigneeId;
-  }
-  return assigneeName(task) || "unknown";
+  const list = taskAssignees(task);
+  if (list.length > 0) return list.map((a) => a._id).sort().join(",");
+  return "unknown";
 }
 
 export function canCurrentUserChangeTaskStatus(
@@ -87,7 +100,8 @@ export function canCurrentUserChangeTaskStatus(
   currentTeamMemberId: string | null,
 ) {
   if (!currentTeamMemberId) return false;
-  return assigneeKey(task) === currentTeamMemberId;
+  const list = taskAssignees(task);
+  return list.some((a) => a._id === currentTeamMemberId);
 }
 
 export function getAssigneeCardColor(key: string, mode: "light" | "dark" = "light") {
@@ -109,6 +123,13 @@ function linkedMilestoneName(task: TeamTaskRecord) {
   return "";
 }
 
+function creatorName(task: TeamTaskRecord) {
+  if (typeof task.assignedBy === "object" && task.assignedBy?.name) {
+    return task.assignedBy.name;
+  }
+  return "";
+}
+
 export function teamTaskStatusLabel(status: string, t: (key: string) => string) {
   return t(
     `teamStatus${status === "in_progress" ? "InProgress" : status.charAt(0).toUpperCase() + status.slice(1)}`,
@@ -118,6 +139,51 @@ export function teamTaskStatusLabel(status: string, t: (key: string) => string) 
 function formatDate(value?: string) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString();
+}
+
+function formatRemainingDays(deadline?: string | null) {
+  if (!deadline) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(deadline);
+  end.setHours(0, 0, 0, 0);
+  if (Number.isNaN(end.getTime())) return null;
+
+  const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
+  if (diffDays === 0) return "Due today";
+  if (diffDays === 1) return "1 day left";
+  return `${diffDays} days left`;
+}
+
+function deadlineTone(deadline?: string | null) {
+  if (!deadline) return "";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(deadline);
+  end.setHours(0, 0, 0, 0);
+  if (Number.isNaN(end.getTime())) return "";
+
+  const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return "text-red-700 dark:text-red-300";
+  if (diffDays <= 3) return "text-orange-700 dark:text-orange-300";
+  if (diffDays <= 7) return "text-amber-700 dark:text-amber-300";
+  return "text-lime-700 dark:text-lime-300";
+}
+
+function completedDeadlineMessage(completedAt?: string | null, deadline?: string | null) {
+  if (!completedAt || !deadline) return null;
+  const completed = new Date(completedAt);
+  const end = new Date(deadline);
+  completed.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  if (Number.isNaN(completed.getTime()) || Number.isNaN(end.getTime())) return null;
+
+  const diffDays = Math.round((end.getTime() - completed.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays >= 3) return `Finished well before deadline (${diffDays} days early)`;
+  if (diffDays >= 1) return `Finished before deadline (${diffDays} day${diffDays === 1 ? "" : "s"} early)`;
+  if (diffDays === 0) return "Finished on deadline";
+  return `Finished after deadline (${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"} late)`;
 }
 
 function TaskCompletionNote({
@@ -376,7 +442,8 @@ function CardSubtasks({
 function TaskBoardCard({
   task,
   t,
-  assigneeProfilePictureUrl,
+  resolveAssigneeAvatar,
+  resolveCreatorAvatar,
   canChangeStatus,
   canManageTask,
   showProjectLink,
@@ -391,7 +458,8 @@ function TaskBoardCard({
 }: {
   task: TeamTaskRecord;
   t: (key: string) => string;
-  assigneeProfilePictureUrl?: string;
+  resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
+  resolveCreatorAvatar: (task: TeamTaskRecord) => string | undefined;
   canChangeStatus: boolean;
   canManageTask: boolean;
   showProjectLink: boolean;
@@ -409,6 +477,9 @@ function TaskBoardCard({
   const id = taskId(task);
   const currentStatus = task.status || "todo";
   const name = assigneeName(task);
+  const projectDeadlineRemaining = formatRemainingDays(extraDeadline);
+  const projectDeadlineTone = deadlineTone(extraDeadline);
+  const projectDeadlineCompletedMessage = completedDeadlineMessage(task.completedAt, extraDeadline);
   const { resolvedTheme } = useTheme();
   const cardColor = getAssigneeCardColor(assigneeKey(task), resolvedTheme);
   const [isDragging, setIsDragging] = useState(false);
@@ -539,20 +610,66 @@ function TaskBoardCard({
             ) : null}
             {task.completionNote ? <TaskCompletionNote note={task.completionNote} t={t} /> : null}
             <div className="flex flex-col gap-1.5 pt-0.5 text-xs text-gray-500">
-              {name ? (
-                <div className="flex min-w-0 items-center gap-2">
-                  <UserProfileAvatar
-                    name={name}
-                    profilePictureUrl={assigneeProfilePictureUrl}
-                    className="h-6 w-6 shrink-0 border border-gray-200"
-                    fallbackClassName="bg-sky-100 text-[9px] font-semibold text-sky-700"
-                  />
-                  <p className="min-w-0 truncate font-medium text-gray-700">{name}</p>
-                </div>
-              ) : null}
+              {(() => {
+                const assignees = taskAssignees(task);
+                if (assignees.length === 0) return null;
+                return (
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex items-center -space-x-1.5">
+                      {assignees.slice(0, 4).map((a) => {
+                        const populatedAssignee = (task.assignees || []).find(
+                          (x) => typeof x === "object" && x?._id && String(x._id) === a._id,
+                        );
+                        const avatarUrl = populatedAssignee
+                          ? resolveAssigneeAvatar({ ...task, assigneeId: populatedAssignee } as TeamTaskRecord)
+                          : resolveAssigneeAvatar(task);
+                        return (
+                          <UserProfileAvatar
+                            key={a._id}
+                            name={a.name}
+                            profilePictureUrl={avatarUrl}
+                            className="h-6 w-6 shrink-0 border-2 border-white dark:border-zinc-800 rounded-full"
+                            fallbackClassName="bg-sky-100 text-[9px] font-semibold text-sky-700"
+                          />
+                        );
+                      })}
+                      {assignees.length > 4 ? (
+                        <span className="ml-1 text-[10px] text-gray-500">+{assignees.length - 4}</span>
+                      ) : null}
+                    </div>
+                    <p className="min-w-0 truncate font-medium text-gray-700 dark:text-gray-300">
+                      {assignees.map((a) => a.name).filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                );
+              })()}
               {showProjectLink && linkedProjectName(task) ? (
                 <p className="truncate text-sky-700">
                   {t("teamLinkedProject")}: {linkedProjectName(task)}
+                </p>
+              ) : null}
+              {showProjectLink && linkedProjectName(task) && extraDeadline ? (
+                <p
+                  className={cn(
+                    "flex items-center gap-1 truncate text-[11px] font-medium",
+                    isDone
+                      ? projectDeadlineCompletedMessage?.includes("after deadline")
+                        ? "text-red-700 dark:text-red-300"
+                        : "text-emerald-700 dark:text-emerald-300"
+                      : projectDeadlineTone,
+                  )}
+                >
+                  <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    Project deadline: {formatDate(extraDeadline)}
+                    {isDone
+                      ? projectDeadlineCompletedMessage
+                        ? ` · ${projectDeadlineCompletedMessage}`
+                        : ""
+                      : projectDeadlineRemaining
+                        ? ` · ${projectDeadlineRemaining}`
+                        : ""}
+                  </span>
                 </p>
               ) : null}
               {milestoneName ? (
@@ -560,7 +677,25 @@ function TaskBoardCard({
                   {t("projectMilestone")}: {milestoneName}
                 </p>
               ) : null}
+              {creatorName(task) ? (
+                <div className="flex items-center gap-1 text-[11px] font-medium text-gray-600 dark:text-zinc-300">
+                  <UserProfileAvatar
+                    name={creatorName(task)}
+                    profilePictureUrl={resolveCreatorAvatar(task)}
+                    className="h-5 w-5 shrink-0 rounded-full border border-white/70 dark:border-zinc-700"
+                    fallbackClassName="bg-slate-200 text-[9px] font-semibold text-slate-700 dark:bg-zinc-700 dark:text-zinc-200"
+                  />
+                  <p className="truncate min-w-0">
+                    Created by: {creatorName(task)}
+                  </p>
+                </div>
+              ) : null}
               <div className="flex flex-wrap items-center gap-2">
+                {task.createdAt ? (
+                  <span>
+                    Created: {formatDate(task.createdAt)}
+                  </span>
+                ) : null}
                 {task.dueDate ? (
                   <span className={cn(overdue && "font-medium text-red-700 dark:text-red-300")}>
                     {t("teamDueDate")}: {formatDate(task.dueDate)}
@@ -593,6 +728,7 @@ function TaskBoardColumn({
   tasks,
   t,
   resolveAssigneeAvatar,
+  resolveCreatorAvatar,
   currentTeamMemberId,
   canManageTasks,
   showProjectLink,
@@ -611,6 +747,7 @@ function TaskBoardColumn({
   tasks: TeamTaskRecord[];
   t: (key: string) => string;
   resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
+  resolveCreatorAvatar: (task: TeamTaskRecord) => string | undefined;
   currentTeamMemberId: string | null;
   canManageTasks: boolean;
   showProjectLink: boolean;
@@ -686,7 +823,8 @@ function TaskBoardColumn({
               key={task._id}
               task={task}
               t={t}
-              assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
+              resolveAssigneeAvatar={resolveAssigneeAvatar}
+              resolveCreatorAvatar={resolveCreatorAvatar}
               canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
               canManageTask={canManageTasks}
               showProjectLink={showProjectLink}
@@ -712,6 +850,7 @@ export function TeamTaskCardStack({
   currentTeamMemberId,
   canManageTasks = false,
   resolveAssigneeAvatar,
+  resolveCreatorAvatar,
   showProjectLink = true,
   onComplete,
   onStatusChange,
@@ -728,6 +867,7 @@ export function TeamTaskCardStack({
   currentTeamMemberId: string | null;
   canManageTasks?: boolean;
   resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
+  resolveCreatorAvatar: (task: TeamTaskRecord) => string | undefined;
   showProjectLink?: boolean;
   onComplete: (task: TeamTaskRecord) => void;
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
@@ -750,7 +890,8 @@ export function TeamTaskCardStack({
           key={task._id}
           task={task}
           t={t}
-          assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
+          resolveAssigneeAvatar={resolveAssigneeAvatar}
+          resolveCreatorAvatar={resolveCreatorAvatar}
           canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
           canManageTask={canManageTasks}
           showProjectLink={showProjectLink}
@@ -774,6 +915,7 @@ export function TeamTaskKanbanBoard({
   currentTeamMemberId,
   canManageTasks = false,
   resolveAssigneeAvatar,
+  resolveCreatorAvatar,
   showProjectLink = true,
   onComplete,
   onStatusChange,
@@ -792,6 +934,7 @@ export function TeamTaskKanbanBoard({
   currentTeamMemberId: string | null;
   canManageTasks?: boolean;
   resolveAssigneeAvatar: (task: TeamTaskRecord) => string | undefined;
+  resolveCreatorAvatar: (task: TeamTaskRecord) => string | undefined;
   showProjectLink?: boolean;
   onComplete: (task: TeamTaskRecord) => void;
   onStatusChange: (task: TeamTaskRecord, status: string) => void;
@@ -885,7 +1028,8 @@ export function TeamTaskKanbanBoard({
                 key={task._id}
                 task={task}
                 t={t}
-                assigneeProfilePictureUrl={resolveAssigneeAvatar(task)}
+                resolveAssigneeAvatar={resolveAssigneeAvatar}
+                resolveCreatorAvatar={resolveCreatorAvatar}
                 canChangeStatus={canCurrentUserChangeTaskStatus(task, currentTeamMemberId)}
                 canManageTask={canManageTasks}
                 showProjectLink={showProjectLink}
@@ -917,6 +1061,7 @@ export function TeamTaskKanbanBoard({
             tasks={tasksBySection[statusKey]}
             t={t}
             resolveAssigneeAvatar={resolveAssigneeAvatar}
+            resolveCreatorAvatar={resolveCreatorAvatar}
             currentTeamMemberId={currentTeamMemberId}
             canManageTasks={canManageTasks}
             showProjectLink={showProjectLink}

@@ -63,7 +63,7 @@ export function canResubmitApproval(status?: string | null) {
 }
 
 export type ApprovalQueueItem = {
-  entityType: "expense" | "bill" | "payroll" | "team_report";
+  entityType: "expense" | "bill" | "payroll" | "team_report" | "project_close" | "deadline_extension";
   id: string;
   title: string;
   amount: number | null;
@@ -83,6 +83,12 @@ export type ApprovalQueueItem = {
   reportType?: "daily" | "weekly" | "monthly";
   reportTo?: string[];
   canApprove?: boolean;
+  proposedEndDate?: string;
+  originalEndDate?: string;
+  note?: string;
+  responseNote?: string;
+  projectApprovalId?: string;
+  projectName?: string;
 };
 
 export function entityTypeLabel(entityType: ApprovalQueueItem["entityType"]) {
@@ -95,6 +101,10 @@ export function entityTypeLabel(entityType: ApprovalQueueItem["entityType"]) {
       return "Payroll";
     case "team_report":
       return "Team report";
+    case "project_close":
+      return "Close project";
+    case "deadline_extension":
+      return "Deadline extension";
   }
 }
 
@@ -108,5 +118,8 @@ export function financePathForEntity(entityType: ApprovalQueueItem["entityType"]
       return "/finance/payroll";
     case "team_report":
       return "/reports";
+    case "project_close":
+    case "deadline_extension":
+      return "/team";
   }
 }

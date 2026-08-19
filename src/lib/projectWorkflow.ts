@@ -22,9 +22,11 @@ export interface ProjectRecord {
   completedAt?: string;
   leadMemberId?: TeamMemberRecord | string | null;
   clientName?: string;
+  completionNotes?: string;
   createdAt?: string;
   updatedAt?: string;
   taskStatus?: { todo: number; in_progress: number; done: number };
+  activity?: Array<{ created: number; inProgress: number; done: number }>;
 }
 
 export interface ProjectMilestoneRecord {
