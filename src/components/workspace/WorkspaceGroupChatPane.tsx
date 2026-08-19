@@ -75,6 +75,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { bumpMessagesUnread, refreshMessagesUnreadBadge } from "@/lib/messagesUnreadEvents";
 import { clearGroupChatOsNotification } from "@/lib/workspaceChatNotifications";
@@ -298,6 +303,46 @@ function allMembersHaveRead(
   return readerCount >= expectedReaderCount;
 }
 
+function ReadByPopoverContent({
+  readers,
+}: {
+  readers: { userId: string; name: string; profilePictureUrl?: string; readAt?: string }[];
+}) {
+  return (
+    <div className="max-h-60 min-w-[180px] overflow-y-auto">
+      <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-500 dark:text-zinc-400">
+        Read by
+      </p>
+      {readers.map((reader) => (
+        <div
+          key={reader.userId}
+          className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-zinc-800/50 rounded"
+        >
+          <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full">
+            <UserProfileAvatar
+              name={reader.name}
+              profilePictureUrl={reader.profilePictureUrl}
+              enablePreview={false}
+              className="!m-0 !h-full !w-full !max-h-full !max-w-full !rounded-full !p-0"
+              fallbackClassName="bg-sky-100 text-[10px] font-semibold leading-none text-sky-700"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium text-gray-800 dark:text-zinc-200">
+              {reader.name}
+            </p>
+            {reader.readAt ? (
+              <p className="text-[10px] text-gray-400">
+                {new Date(reader.readAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function MessageReadByAvatars({
   readBy,
   currentUserId,
@@ -318,6 +363,7 @@ function MessageReadByAvatars({
         userId,
         name: entry.userName || memberNameByUserId.get(userId) || "User",
         profilePictureUrl: memberPictureByUserId.get(userId) || undefined,
+        readAt: entry.readAt,
       };
     });
   }, [readBy, currentUserId, memberPictureByUserId, memberNameByUserId]);
@@ -328,39 +374,50 @@ function MessageReadByAvatars({
   const overflowCount = readers.length - MAX_READ_AVATARS;
 
   return (
-    <div className="flex items-center" aria-label={t("workspaceChatSeenBy")}>
-      <div className="flex items-center">
-        {visibleReaders.map((reader, index) => (
-          <Tooltip key={reader.userId}>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  "relative h-4 w-4 shrink-0 overflow-hidden rounded-full ring-2 ring-white dark:ring-[#0b0f14]",
-                  index > 0 && "-ml-1.5",
-                )}
-                style={{ zIndex: visibleReaders.length - index }}
-              >
-                <UserProfileAvatar
-                  name={reader.name}
-                  profilePictureUrl={reader.profilePictureUrl}
-                  enablePreview={false}
-                  className="!m-0 !h-full !w-full !max-h-full !max-w-full !rounded-full !p-0"
-                  fallbackClassName="bg-sky-100 text-[7px] font-semibold leading-none text-sky-700"
-                />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              {reader.name}
-            </TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
-      {overflowCount > 0 ? (
-        <span className="ml-1 whitespace-nowrap text-[10px] text-gray-500">
-          {t("workspaceMembersOthers").replace("{count}", String(overflowCount))}
-        </span>
-      ) : null}
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+          aria-label={t("workspaceChatSeenBy")}
+        >
+          <div className="flex items-center">
+            {visibleReaders.map((reader, index) => (
+              <Tooltip key={reader.userId}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={cn(
+                      "relative h-4 w-4 shrink-0 overflow-hidden rounded-full ring-2 ring-white dark:ring-[#0b0f14]",
+                      index > 0 && "-ml-1.5",
+                    )}
+                    style={{ zIndex: visibleReaders.length - index }}
+                  >
+                    <UserProfileAvatar
+                      name={reader.name}
+                      profilePictureUrl={reader.profilePictureUrl}
+                      enablePreview={false}
+                      className="!m-0 !h-full !w-full !max-h-full !max-w-full !rounded-full !p-0"
+                      fallbackClassName="bg-sky-100 text-[7px] font-semibold leading-none text-sky-700"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {reader.name}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+          {overflowCount > 0 ? (
+            <span className="ml-1 whitespace-nowrap text-[10px] text-gray-500">
+              {t("workspaceMembersOthers").replace("{count}", String(overflowCount))}
+            </span>
+          ) : null}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="end" className="p-0 w-auto">
+        <ReadByPopoverContent readers={readers} />
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -1773,10 +1830,36 @@ export function WorkspaceGroupChatPane({
                                   />
                                 ) : null}
                                 {receipt ? (
-                                  <ReadReceiptIcon
-                                    state={receipt}
-                                    allRead={everyoneRead && receipt === "read"}
-                                  />
+                                  receipt === "read" ? (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button type="button" className="cursor-pointer hover:opacity-70 transition-opacity">
+                                          <ReadReceiptIcon
+                                            state={receipt}
+                                            allRead={everyoneRead}
+                                          />
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent side="top" align="end" className="p-0 w-auto">
+                                        <ReadByPopoverContent
+                                          readers={getMessageReaders(message.readBy, currentUserId).map((entry) => {
+                                            const uid = String(entry.userId);
+                                            return {
+                                              userId: uid,
+                                              name: entry.userName || memberNameByUserId.get(uid) || "User",
+                                              profilePictureUrl: memberPictureByUserId.get(uid) || undefined,
+                                              readAt: entry.readAt,
+                                            };
+                                          })}
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  ) : (
+                                    <ReadReceiptIcon
+                                      state={receipt}
+                                      allRead={false}
+                                    />
+                                  )
                                 ) : null}
                                 {message.editedAt && !deleted ? (
                                   <span className="text-[10px] text-gray-400">{t("directChatEdited")}</span>

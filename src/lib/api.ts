@@ -3,6 +3,7 @@ import { sanitizeInput, validateObjectId } from './security';
 import { logger } from './logger';
 import { apiCache } from './apiCache';
 import { normalizeStoredFileUrl } from './storedFileUrl';
+import { markNetworkError, markNetworkOk } from '@/hooks/useConnectivity';
 import type { ChatPollInput } from './workspaceChatRealtime';
 
 // API URL Configuration
@@ -287,17 +288,22 @@ async function request<T>(
       }
       throw error;
     }
-    // Check for connection refused errors - make them silent for offline support
     const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
-    if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('NetworkError') || errorMessage.includes('connection')) {
-      // Silent error - don't show technical messages to users
+    const isNetwork =
+      !navigator.onLine ||
+      errorMessage.includes('Failed to fetch') ||
+      errorMessage.includes('ERR_CONNECTION_REFUSED') ||
+      errorMessage.includes('NetworkError') ||
+      errorMessage.includes('Network request failed') ||
+      errorMessage.includes('connection');
+    if (isNetwork) {
+      markNetworkError();
       throw new ApiError(
-        '', // Empty message - will be handled gracefully
+        'No internet connection. Please check your network and try again.',
         0,
-        { connectionError: true, silent: true }
+        { connectionError: true, silent: true },
       );
     }
-    // For other errors, throw with the actual error message
     const errorMsg = error instanceof Error ? error.message : 'Network error occurred';
     throw new ApiError(errorMsg, 0, { silent: false });
   }
@@ -316,7 +322,8 @@ async function executeRequest<T>(
     // Create request promise
     const requestPromise = (async () => {
       const response = await fetch(url, config);
-      
+      markNetworkOk();
+
       let data;
       try {
         data = await response.json();

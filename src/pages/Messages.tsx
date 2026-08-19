@@ -23,6 +23,11 @@ import { PresenceAvatar } from "@/components/workspace/PresenceAvatar";
 import { WorkspaceProfileAvatar } from "@/components/workspace/WorkspaceProfileAvatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   formatChatPresenceLabel,
   useMultiWorkspacePresence,
 } from "@/hooks/useMultiWorkspacePresence";
@@ -2598,9 +2603,60 @@ export function MessagesPage() {
                                 <span className="opacity-80">{t("directChatEdited")}</span>
                               ) : null}
                               <span>{formatMessageTime(message.createdAt)}</span>
-                              {own && !deleted ? (
-                                <ReadReceiptIcon state={readReceiptState(message, currentUserId)} />
-                              ) : null}
+                              {own && !deleted ? (() => {
+                                const dmReceipt = readReceiptState(message, currentUserId);
+                                if (dmReceipt === "read") {
+                                  const dmReaders = (message.readBy || [])
+                                    .filter((e) => String(e.userId) !== String(currentUserId))
+                                    .map((e) => {
+                                      const uid = String(e.userId);
+                                      return {
+                                        userId: uid,
+                                        name: dmMemberNameByUserId.get(uid) || e.userName || "User",
+                                        profilePictureUrl: dmMemberPictureByUserId.get(uid) || undefined,
+                                        readAt: e.readAt,
+                                      };
+                                    });
+                                  return (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button type="button" className="cursor-pointer hover:opacity-70 transition-opacity">
+                                          <ReadReceiptIcon state="read" />
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent side="top" align="end" className="p-0 w-auto">
+                                        <div className="max-h-60 min-w-[180px] overflow-y-auto">
+                                          <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-500 dark:text-zinc-400">
+                                            Read by
+                                          </p>
+                                          {dmReaders.map((r) => (
+                                            <div key={r.userId} className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-zinc-800/50 rounded">
+                                              <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full">
+                                                <UserProfileAvatar
+                                                  name={r.name}
+                                                  profilePictureUrl={r.profilePictureUrl}
+                                                  enablePreview={false}
+                                                  className="!m-0 !h-full !w-full !max-h-full !max-w-full !rounded-full !p-0"
+                                                  fallbackClassName="bg-sky-100 text-[10px] font-semibold leading-none text-sky-700"
+                                                />
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                <p className="truncate text-xs font-medium text-gray-800 dark:text-zinc-200">{r.name}</p>
+                                                {r.readAt ? (
+                                                  <p className="text-[10px] text-gray-400">
+                                                    {new Date(r.readAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                  </p>
+                                                ) : null}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  );
+                                }
+                                return <ReadReceiptIcon state={dmReceipt} />;
+                              })() : null}
                             </div>
                           </div>
                           </ChatInteractiveBubble>

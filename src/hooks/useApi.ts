@@ -120,7 +120,7 @@ function writePendingDeletedSales(ids: Set<string>) {
 }
 
 function isLikelyNetworkError(error: any): boolean {
-  return Boolean(
+  const isNetwork = Boolean(
     !navigator.onLine ||
       error?.message?.includes("Failed to fetch") ||
       error?.message?.includes("NetworkError") ||
@@ -128,6 +128,10 @@ function isLikelyNetworkError(error: any): boolean {
       error?.message?.includes("Cannot record sales while offline") ||
       error?.response?.connectionError === true,
   );
+  if (isNetwork) {
+    import("@/hooks/useConnectivity").then(({ markNetworkError }) => markNetworkError());
+  }
+  return isNetwork;
 }
 
 /** Mirror stock change in IndexedDB (background). UI updates via patchProductStock. */
@@ -1165,10 +1169,21 @@ export function useApi<T extends { _id?: string; id?: number }>({
     };
     window.addEventListener('online', handleOnline);
 
+    const handleConnectivityRestored = () => {
+      const now = Date.now();
+      if (!isLoadingDataRef.current && now - lastLoadTimeRef.current >= 2000) {
+        console.log(`[useApi] Connectivity restored, silently reloading ${endpoint}...`);
+        lastLoadTimeRef.current = now;
+        loadData();
+      }
+    };
+    window.addEventListener('connectivity-restored', handleConnectivityRestored);
+
     return () => {
       window.removeEventListener('force-refresh-data', handleForceRefresh);
       window.removeEventListener('page-opened', handlePageOpen);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('connectivity-restored', handleConnectivityRestored);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
